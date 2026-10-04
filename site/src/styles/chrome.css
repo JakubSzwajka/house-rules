@@ -1,217 +1,209 @@
-/* The door: header, sidebar, contents list, pager, and the browser surfaces around them. */
+/* The binding: header, sidebar, contents list, pager, buttons, and the browser surfaces around them. */
 
 body {
-  font-weight: 500;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
   background: var(--hr-selection);
-  color: var(--hr-selection-text);
+  color: var(--hr-on-selection);
 }
 
 :focus-visible {
   outline: 3px solid var(--hr-focus);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
 html {
-  scrollbar-color: var(--hr-gray-4) var(--hr-bg-deep);
+  scrollbar-color: var(--hr-ink-faint) var(--hr-paper-sunk);
   accent-color: var(--hr-accent);
-  caret-color: var(--hr-link);
+  caret-color: var(--hr-ink-strong);
 }
 
-/* header: a brass rail under the awning, the site name on a brass plaque */
+/* header: a black rule with hazard tape under it */
 header.header {
-  border-bottom: 2px solid var(--hr-rule);
+  border-bottom: 0;
+}
+
+header.header::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 5px;
+  background: var(--hr-tape);
+  border-top: var(--hr-line-width) solid var(--hr-line);
 }
 
 .site-title {
-  color: var(--hr-ink);
+  gap: 0.6rem;
+  color: var(--hr-ink-strong);
+  font: 700 1.2rem / 1 var(--hr-font-body);
+  letter-spacing: -0.02em;
 }
 
-.site-title span {
-  display: inline-block;
-  background: var(--hr-brass);
-  color: var(--hr-ink);
-  font: 400 1rem / 1 var(--hr-font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
-  padding: 0.55rem 0.8rem 0.5rem;
-  border-radius: var(--hr-radius);
-  box-shadow:
-    0 1px 0 var(--hr-brass-hi) inset,
-    0 3px 6px rgb(0 0 0 / 0.35);
-}
-
-.site-title:hover span {
-  background: var(--hr-brass-hi);
+.site-title img {
+  height: 2rem;
+  width: auto;
 }
 
 @media (min-width: 50rem) {
   site-search button[data-open-modal] {
-    background: var(--hr-bg);
-    border: 2px solid var(--hr-rule);
-    border-radius: var(--hr-radius);
-    color: var(--hr-text);
+    background: var(--hr-paper);
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: 999px;
+    color: var(--hr-ink);
   }
 
   site-search button[data-open-modal]:hover {
-    border-color: var(--hr-link);
-    color: var(--hr-heading);
+    background: var(--hr-accent);
+    color: var(--hr-on-accent);
   }
 }
 
 site-search button > kbd {
-  background: var(--hr-bg-deep);
-  color: var(--hr-muted);
+  background: var(--hr-paper-sunk);
+  color: var(--hr-ink-soft);
 }
 
 site-search dialog {
-  background: var(--hr-bg-deep);
-  border-color: var(--hr-rule);
+  background: var(--hr-paper);
+  border: var(--hr-line-width) solid var(--hr-line);
 }
 
-/* sidebar: the list at the door */
+/* sidebar: the table of parts */
 .sidebar-content .large {
-  font: 700 0.8rem / 1.2 var(--hr-font-body);
-  letter-spacing: 0.14em;
+  font: 700 0.78rem / 1.2 var(--hr-font-body);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--hr-rule);
+  color: var(--hr-ink-strong);
 }
 
-:root[data-theme="light"] .sidebar-content .large {
-  color: var(--hr-wine);
+.sidebar-content summary .group-label .large {
+  font-size: 0.78rem;
 }
 
 .sidebar-content a {
-  color: var(--hr-text);
-  border-radius: 3px;
+  color: var(--hr-ink);
+  border-radius: var(--hr-radius);
 }
 
 .sidebar-content a:hover,
 .sidebar-content a:focus-visible {
-  background: var(--hr-bg-lift);
-  color: var(--hr-heading);
+  background: var(--hr-paper-raised);
+  color: var(--hr-ink-strong);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
 .sidebar-content a[aria-current="page"],
 .sidebar-content a[aria-current="page"]:hover,
 .sidebar-content a[aria-current="page"]:focus-visible {
-  background: var(--hr-link);
-  color: var(--hr-on-link);
+  background: var(--hr-accent);
+  color: var(--hr-on-accent);
   font-weight: 700;
+  text-decoration: none;
 }
 
 .sidebar-content ul ul li {
   border-inline-start-color: var(--hr-hairline);
 }
 
-.sidebar-content summary .group-label .large {
-  font-size: 0.8rem;
-}
-
 /* table of contents */
 starlight-toc h2,
 mobile-starlight-toc .toggle {
-  font: 700 0.8rem / 1.2 var(--hr-font-body);
-  letter-spacing: 0.14em;
+  font: 700 0.78rem / 1.2 var(--hr-font-body);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--hr-rule);
-}
-
-:root[data-theme="light"] starlight-toc h2,
-:root[data-theme="light"] mobile-starlight-toc .toggle {
-  color: var(--hr-wine);
+  color: var(--hr-ink-strong);
 }
 
 starlight-toc a,
 mobile-starlight-toc a {
-  color: var(--hr-muted);
+  color: var(--hr-ink-soft);
 }
 
 starlight-toc a:hover,
 mobile-starlight-toc a:hover {
-  color: var(--hr-link);
+  color: var(--hr-ink-strong);
 }
 
 starlight-toc a[aria-current="true"],
 mobile-starlight-toc a[aria-current="true"] {
-  color: var(--hr-link);
+  color: var(--hr-ink-strong);
   font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: var(--hr-accent);
+  text-decoration-thickness: 3px;
+  text-underline-offset: 0.25em;
 }
 
-/* pager: brass-framed doors to the next room */
+/* pager: next and previous page, boxed like a step panel */
 .pagination-links a {
-  border: 2px solid var(--hr-rule);
+  border: var(--hr-line-width) solid var(--hr-line);
   border-radius: var(--hr-radius);
   box-shadow: none;
-  color: var(--hr-text);
+  color: var(--hr-ink);
+  transition: background-color var(--hr-duration) var(--hr-ease-out);
 }
 
 .pagination-links a:hover {
-  background: var(--hr-link);
-  border-color: var(--hr-link);
-  color: var(--hr-on-link);
+  background: var(--hr-accent);
+  color: var(--hr-on-accent);
 }
 
 .pagination-links a:hover .link-title {
-  color: var(--hr-on-link);
+  color: var(--hr-on-accent);
 }
 
 .pagination-links .link-title {
-  font: 400 1.05rem / 1.2 var(--hr-font-display);
-  text-transform: uppercase;
-  color: var(--hr-heading);
+  font: 700 1.05rem / 1.25 var(--hr-font-body);
+  color: var(--hr-ink-strong);
 }
 
-/* buttons, hero and in-page */
+/* buttons, home and in-page */
 .sl-link-button {
   border-radius: var(--hr-radius);
-  font: 400 1rem / 1 var(--hr-font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
+  border: var(--hr-line-width) solid var(--hr-line);
+  font: 700 1rem / 1 var(--hr-font-body);
+  transition:
+    background-color var(--hr-duration) var(--hr-ease-out),
+    color var(--hr-duration) var(--hr-ease-out);
 }
 
 .sl-link-button.primary {
-  background: var(--hr-paper);
-  border-color: var(--hr-paper);
-  color: var(--hr-velvet);
-  box-shadow: 0 3px 0 var(--hr-brass);
+  background: var(--hr-accent);
+  border-color: var(--hr-line);
+  color: var(--hr-on-accent);
 }
 
 .sl-link-button.primary:hover {
-  background: var(--hr-brass-hi);
-  color: var(--hr-ink);
-}
-
-:root[data-theme="light"] .sl-link-button.primary {
-  background: var(--hr-velvet);
-  border-color: var(--hr-velvet);
-  color: var(--hr-paper);
-}
-
-:root[data-theme="light"] .sl-link-button.primary:hover {
-  background: var(--hr-ink);
-  color: var(--hr-paper);
+  background: var(--hr-invert);
+  color: var(--hr-on-invert);
 }
 
 .sl-link-button.minimal,
 .sl-link-button.secondary {
   padding-inline: 1.1rem;
-  border: 2px solid var(--hr-rule);
-  color: var(--hr-heading);
+  background: var(--hr-paper);
+  color: var(--hr-ink-strong);
 }
 
 .sl-link-button.minimal:hover,
 .sl-link-button.secondary:hover {
-  background: var(--hr-link);
-  border-color: var(--hr-link);
-  color: var(--hr-on-link);
+  background: var(--hr-accent);
+  color: var(--hr-on-accent);
 }
 
 /* footer bits */
 .meta,
 footer .kudos {
-  color: var(--hr-muted);
+  color: var(--hr-ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pagination-links a,
+  .sl-link-button {
+    transition: none;
+  }
 }

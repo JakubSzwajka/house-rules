@@ -1,0 +1,29 @@
+---
+// The warning triangle from the graphics kit: a yellow triangle with a black line and an exclamation mark.
+---
+
+<svg class="triangle" viewBox="0 0 56 50" aria-hidden="true" focusable="false">
+  <path class="fill" d="M28 4 L52 46 H4 Z" />
+  <path class="mark" d="M28 18 V30 M28 38 V39" />
+</svg>
+
+<style>
+  .triangle {
+    flex: none;
+    width: 1.75rem;
+    height: auto;
+    fill: none;
+    stroke: var(--hr-on-accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .fill {
+    fill: var(--hr-accent);
+  }
+
+  .mark {
+    stroke-width: 6;
+  }
+</style>

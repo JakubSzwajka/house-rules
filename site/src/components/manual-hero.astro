@@ -1,0 +1,327 @@
+---
+// Hero override for the splash home: the cover sheet (title, counts, tagline, actions, the figure), then the
+// three numbered assembly steps. The counts come from the rules table through the parts module.
+import { LinkButton } from "@astrojs/starlight/components";
+import { parts, toolCount } from "virtual:house-rules/parts";
+import ManualFigure from "./manual-figure.astro";
+
+const { data } = Astro.locals.starlightRoute.entry;
+const { title = data.title, tagline, actions = [] } = data.hero ?? {};
+
+const steps = [
+  {
+    drawing: "repo",
+    caption: "Make a repo from the template.",
+    commands: ["gh repo create <name> --template JakubSzwajka/house-rules"],
+  },
+  {
+    drawing: "install",
+    caption: "Install from the lockfile.",
+    commands: ["corepack enable", "pnpm install --frozen-lockfile"],
+  },
+  {
+    drawing: "check",
+    caption: "Check, then test. Both must exit 0.",
+    commands: ["pnpm check", "pnpm test"],
+  },
+] as const;
+---
+
+<div class="cover">
+  <div class="copy">
+    <h1 id="_top" data-page-title set:html={title} />
+    <ul class="spec" aria-label="In the box">
+      <li><b>{parts.length}</b> rules</li>
+      <li><b>{toolCount}</b> tools</li>
+      <li>
+        <svg class="ticks" viewBox="0 0 52 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M7.5 12 l3 3 l5.5 -6" />
+          <circle cx="40" cy="12" r="10" />
+          <path d="M35.5 12 l3 3 l5.5 -6" />
+        </svg>
+        <b>2</b> checks before every commit
+      </li>
+    </ul>
+    {tagline && <p class="tagline" set:html={tagline} />}
+    {
+      actions.length > 0 && (
+        <div class="actions">
+          {actions.map(({ attrs: { class: className, ...attrs } = {}, icon, link: href, text, variant }) => (
+            <LinkButton {href} {variant} icon={icon?.name} class:list={[className]} {...attrs}>
+              {text}
+              {icon?.html && <Fragment set:html={icon.html} />}
+            </LinkButton>
+          ))}
+        </div>
+      )
+    }
+  </div>
+  <div class="art">
+    <ManualFigure before="Click the ^ to put it down." after="Put down. Exact versions only." />
+  </div>
+</div>
+
+<section class="assembly" aria-labelledby="hr-assemble">
+  <h2 id="hr-assemble">Assemble a repo</h2>
+  <ol class="steps">
+    {
+      steps.map((step, index) => (
+        <li class="panel">
+          <span class="num" aria-hidden="true">
+            {index + 1}
+          </span>
+          <svg class="drawing" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
+            {step.drawing === "repo" ? (
+              <>
+                <path class="paper" d="M30 24 H170 V128 H30 Z" />
+                <path d="M30 44 H170" />
+                <text x="42" y="38">
+                  &lt;name&gt;
+                </text>
+                <path d="M44 64 h70 M44 80 h96 M44 96 h50" />
+                <circle class="accent" cx="184" cy="46" r="26" />
+                <path class="thick" d="M184 34 V58 M172 46 H196" />
+              </>
+            ) : (
+              <>
+                <rect class="paper" x="14" y="12" width="202" height="116" rx="8" />
+                <path d="M14 36 H216" />
+                <circle class="ink" cx="30" cy="24" r="3" />
+                <circle class="ink" cx="42" cy="24" r="3" />
+                <text x="30" y="66">
+                  {step.drawing === "install" ? "$ pnpm install" : "$ pnpm check"}
+                </text>
+                <path d="M30 84 h70 M30 98 h46" />
+                <circle class="accent" cx="182" cy="96" r="24" />
+                <path class="thick" d="M170 96 L179 106 L196 84" />
+              </>
+            )}
+          </svg>
+          <p class="step-caption">
+            <span class="sr-only">Step {index + 1}. </span>
+            {step.caption}
+          </p>
+          {step.commands.map((command) => (
+            <code>{command}</code>
+          ))}
+          {index < steps.length - 1 && (
+            <svg class="arrow" viewBox="0 0 60 30" aria-hidden="true" focusable="false">
+              <path d="M4 15 H50 M38 5 L50 15 L38 25" />
+            </svg>
+          )}
+        </li>
+      ))
+    }
+  </ol>
+</section>
+
+<style>
+  .cover {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 2rem 3rem;
+    align-items: center;
+    padding-block: clamp(1.5rem, 1rem + 4vmin, 3.5rem) 2rem;
+  }
+
+  h1 {
+    margin: 0;
+    font: 700 clamp(3rem, 1.6rem + 5vw, 5.75rem) / 0.95 var(--hr-font-body);
+    letter-spacing: -0.035em;
+    color: var(--hr-ink-strong);
+  }
+
+  .spec {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 1.6rem;
+    margin: 1.25rem 0 0;
+    padding: 0.6rem 0;
+    list-style: none;
+    border-block: var(--hr-line-width) solid var(--hr-line);
+    font-size: 0.95rem;
+    color: var(--hr-ink);
+  }
+
+  .spec li {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+  }
+
+  .spec b {
+    color: var(--hr-ink-strong);
+  }
+
+  .ticks {
+    width: 2.6rem;
+    height: auto;
+    fill: var(--hr-accent);
+    stroke: var(--hr-on-accent);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .tagline {
+    max-width: 36rem;
+    margin: 1.25rem 0 1.5rem;
+    font-size: clamp(1.05rem, 1rem + 0.35vw, 1.2rem);
+    line-height: 1.55;
+    color: var(--hr-ink);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .art {
+    display: grid;
+    place-items: center;
+  }
+
+  .assembly {
+    position: relative;
+    margin-top: 1.5rem;
+    padding-top: 1.75rem;
+  }
+
+  .assembly::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 8px;
+    background: var(--hr-tape);
+  }
+
+  h2 {
+    margin: 0 0 1.25rem;
+    font: 700 var(--sl-text-h2) / 1.15 var(--hr-font-body);
+    letter-spacing: -0.02em;
+    color: var(--hr-ink-strong);
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 1rem 1.25rem 1.25rem;
+    background: var(--hr-paper);
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: 6px;
+  }
+
+  .num {
+    font: 700 3.25rem / 1 var(--hr-font-body);
+    letter-spacing: -0.03em;
+    color: var(--hr-ink-strong);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .drawing {
+    align-self: center;
+    width: min(100%, 13rem);
+    height: auto;
+    margin-block: 0.25rem 0.5rem;
+    fill: none;
+    stroke: var(--hr-line);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .drawing .paper {
+    fill: var(--hr-paper);
+  }
+
+  .drawing .accent {
+    fill: var(--hr-accent);
+    stroke: var(--hr-on-accent);
+  }
+
+  .drawing .ink {
+    fill: var(--hr-line);
+    stroke: none;
+  }
+
+  .drawing .thick {
+    stroke: var(--hr-on-accent);
+    stroke-width: 6;
+  }
+
+  .drawing text {
+    fill: var(--hr-line);
+    stroke: none;
+    font: 600 13px var(--hr-font-mono);
+  }
+
+  .step-caption {
+    margin: 0;
+    font-weight: 700;
+    color: var(--hr-ink-strong);
+  }
+
+  .panel code {
+    max-width: 100%;
+    padding: 0.3rem 0.55rem;
+    border: 1.5px solid var(--hr-line);
+    border-radius: var(--hr-radius);
+    background: var(--hr-paper);
+    color: var(--hr-ink);
+    font: 400 0.82rem / 1.45 var(--hr-font-mono);
+    overflow-wrap: anywhere;
+  }
+
+  .arrow {
+    position: absolute;
+    top: 50%;
+    inset-inline-end: -2.55rem;
+    width: 2.3rem;
+    height: auto;
+    fill: none;
+    stroke: var(--hr-line);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  @media (max-width: 60rem) {
+    .cover {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .art :global(svg) {
+      width: min(100%, 11rem);
+    }
+    .steps {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2.25rem;
+    }
+    .arrow {
+      top: auto;
+      bottom: -2.1rem;
+      inset-inline-start: 50%;
+      inset-inline-end: auto;
+      width: 1.9rem;
+      translate: -50% 0;
+      rotate: 90deg;
+    }
+  }
+</style>

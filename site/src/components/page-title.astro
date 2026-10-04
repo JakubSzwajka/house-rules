@@ -1,126 +1,92 @@
 ---
-// PageTitle override: rule pages get the doorman's "checked" stamp, the fence page gets the permit office's DENIED slip.
+// PageTitle override: a rule page gets its parts list from the rules table, the fence page gets the safety guard notice,
+// and a procedure page carries the marker that turns on step badges.
+import { parts, procedures } from "virtual:house-rules/parts";
+import PartsList from "./parts-list.astro";
+import WarningTriangle from "./warning-triangle.astro";
+
 const { id, entry } = Astro.locals.starlightRoute;
-const parts = id.split("/");
-const isRulePage = parts[0] === "rules" && parts.length === 3;
+const part = parts.find((candidate) => candidate.route === id);
 const isFence = id === "guides/the-fence";
+const isProcedure =
+  procedures.routes.includes(id) || procedures.prefixes.some((prefix) => id.startsWith(prefix));
 ---
 
-<div class="title-row">
-  <h1 id="_top">{entry.data.title}</h1>
-  {isRulePage && <span class="hr-stamp hr-stamp--brass" aria-hidden="true">Checked</span>}
-</div>
+<h1 id="_top">{entry.data.title}</h1>
+{isProcedure && <span data-hr-procedure hidden></span>}
+{part && <PartsList part={part} />}
 {
   isFence && (
-    <div class="slip">
-      <p class="ask">
-        <span class="label">Asked at the door</span>
-        <code>git commit --no-verify</code>
+    <aside class="guard" aria-labelledby="hr-guard-title">
+      <p class="head" id="hr-guard-title">
+        <WarningTriangle />
+        Do not remove the safety guard
       </p>
-      <span class="hr-stamp hr-stamp--denied">Denied</span>
-      <p class="note">
-        Same answer for <code>git commit -n</code>, a <code>git</code> command with <code>core.hooksPath</code>, and
-        anything that sets <code>LEFTHOOK=0</code>.
-      </p>
-    </div>
+      <div class="body">
+        <p>
+          The command policy refuses <code>git commit --no-verify</code> before it runs.
+        </p>
+        <p class="note">
+          Same answer for <code>git commit -n</code>, a <code>git</code> command with <code>core.hooksPath</code>, and
+          anything that sets <code>LEFTHOOK=0</code>.
+        </p>
+      </div>
+    </aside>
   )
 }
 
 <style>
-  .title-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.75rem 1.5rem;
-    margin-top: 1rem;
-  }
-
   h1 {
-    margin: 0;
+    margin-top: 1rem;
     font-size: var(--sl-text-h1);
-    min-width: 0;
   }
 
-  .title-row .hr-stamp {
-    font-size: 1rem;
-    padding: 0.5rem 0.7rem;
+  .guard {
+    margin-top: 1.25rem;
+    max-width: 46rem;
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: var(--hr-radius);
+    background: var(--hr-paper);
+    overflow: hidden;
   }
 
-  .slip {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+  .head {
+    display: flex;
     align-items: center;
-    gap: 0.4rem 1.5rem;
-    margin-top: 1.5rem;
-    padding: 1rem 1.5rem 1.1rem;
-    max-width: 38rem;
-    background: var(--hr-table-paper);
-    color: var(--hr-ink);
-    border-radius: 3px;
-    box-shadow: var(--hr-edge);
-  }
-
-  :global(:root[data-theme="light"]) .slip {
-    box-shadow:
-      0 0 0 1px var(--hr-paper-line),
-      0 10px 20px -14px rgb(53 7 20 / 0.45);
-  }
-
-  .ask {
+    gap: 0.6rem;
     margin: 0;
-    display: grid;
-    gap: 0.35rem;
-  }
-
-  .label {
-    font: 700 0.75rem / 1.2 var(--hr-font-body);
-    letter-spacing: 0.12em;
+    padding: 0.5rem 1rem;
+    background: var(--hr-caution);
+    border-bottom: var(--hr-line-width) solid var(--hr-on-caution);
+    color: var(--hr-on-caution);
+    font: 700 0.85rem / 1.2 var(--hr-font-body);
+    letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+
+  .body {
+    padding: 0.8rem 1rem 0.9rem;
+  }
+
+  .body p {
+    margin: 0;
+    color: var(--hr-ink-strong);
+    font-weight: 600;
+  }
+
+  .body .note {
+    margin-top: 0.4rem;
     color: var(--hr-ink-soft);
+    font-weight: 400;
+    font-size: 0.95rem;
   }
 
-  .ask code {
-    font: 600 1.05rem / 1.3 var(--hr-font-mono);
-    color: var(--hr-ink);
-    overflow-wrap: anywhere;
-  }
-
-  .note {
-    grid-column: 1 / -1;
-    margin: 0.3rem 0 0;
-    font-size: 0.92rem;
-    color: var(--hr-ink-soft);
-  }
-
-  .note code {
+  code {
     font-family: var(--hr-font-mono);
-    background: var(--hr-paper-code);
+    font-size: 0.92em;
+    background: var(--hr-code-bg);
     padding: 0.05em 0.3em;
     border-radius: 3px;
-    color: var(--hr-ink);
-  }
-
-  /* the one moment on this page: the stamp lands */
-  @media (prefers-reduced-motion: no-preference) {
-    .slip .hr-stamp {
-      animation: thud 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.35s backwards;
-    }
-    @keyframes thud {
-      from {
-        opacity: 0;
-        scale: 2.4;
-      }
-    }
-  }
-
-  @media (max-width: 30rem) {
-    .slip {
-      grid-template-columns: minmax(0, 1fr);
-      justify-items: start;
-    }
-    .slip .hr-stamp {
-      font-size: 1.4rem;
-      margin: 0.4rem 0 0.2rem 0.3rem;
-    }
+    overflow-wrap: anywhere;
   }
 </style>

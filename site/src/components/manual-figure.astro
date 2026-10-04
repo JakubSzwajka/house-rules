@@ -1,0 +1,169 @@
+---
+// The confused figure from the assembly manual. It holds a ^ and does not know where it goes.
+// It is a toggle button: pressing it takes the caret away and the figure is fine. Home and 404 only.
+interface Props {
+  readonly before: string;
+  readonly after: string;
+}
+
+const { before, after } = Astro.props;
+// Show each ^ in a caption as code, so the small glyph reads as the character it is.
+const withCarets = (text: string) =>
+  text.split("^").flatMap((part, index) => (index === 0 ? [part] : ["^", part]));
+---
+
+<button type="button" class="figure" aria-pressed="false" data-hr-figure>
+  <svg viewBox="0 -16 230 206" aria-hidden="true" focusable="false">
+    <path d="M66 128 L62 176 M94 128 L98 176 M62 176 h-12 M98 176 h12" />
+    <path class="accent" d="M50 72 Q80 64 110 72 L104 132 Q80 138 56 132 Z" />
+    <path d="M52 78 Q34 100 40 124" />
+    <path d="M108 78 Q130 72 134 52" />
+    <circle class="paper" cx="80" cy="38" r="26" />
+    <circle class="ink" cx="70" cy="37" r="3" />
+    <circle class="ink" cx="90" cy="37" r="3" />
+    <g class="before">
+      <path class="caret thick" d="M121 50 L134 24 L147 50" />
+      <path d="M63 28 q7 -5 14 0" />
+      <path d="M84 30 l12 -5" />
+      <path d="M71 51 q4 -5 8 0 t8 0" />
+      <text x="30" y="20">?</text>
+      <text x="100" y="-2">?</text>
+    </g>
+    <g class="after">
+      <path d="M63 28 q7 -3 14 0" />
+      <path d="M83 28 q7 -3 14 0" />
+      <path d="M70 48 q10 10 20 0" />
+      <path class="thick" d="M124 40 L134 52 L152 26" />
+    </g>
+  </svg>
+  <span class="caption">
+    <span class="before">{withCarets(before).map((part) => (part === "^" ? <code>^</code> : part))}</span>
+    <span class="after">{withCarets(after).map((part) => (part === "^" ? <code>^</code> : part))}</span>
+  </span>
+</button>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-hr-figure]")) {
+    button.addEventListener("click", () => {
+      const pressed = button.getAttribute("aria-pressed") === "true";
+      button.setAttribute("aria-pressed", String(!pressed));
+    });
+  }
+</script>
+
+<style>
+  .figure {
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    margin: 0;
+    padding: 0.5rem;
+    border: 0;
+    border-radius: var(--hr-radius);
+    background: none;
+    color: var(--hr-ink);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  svg {
+    display: block;
+    width: min(100%, 17rem);
+    height: auto;
+    overflow: visible;
+    fill: none;
+    stroke: var(--hr-line);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .accent {
+    fill: var(--hr-accent);
+  }
+
+  .paper {
+    fill: var(--hr-paper);
+  }
+
+  .ink {
+    fill: var(--hr-line);
+    stroke: none;
+  }
+
+  .thick {
+    stroke-width: 6;
+  }
+
+  text {
+    fill: var(--hr-line);
+    stroke: none;
+    font: 700 28px var(--hr-font-body);
+  }
+
+  .caption {
+    display: grid;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.2em;
+  }
+
+  .caption code {
+    padding: 0 0.3em;
+    border-radius: 3px;
+    background: var(--hr-code-bg);
+    font: 600 1em / 1 var(--hr-font-mono);
+  }
+
+  /* before and after share one spot and swap */
+  .caption > span {
+    grid-area: 1 / 1;
+  }
+
+  .before,
+  .after {
+    transition:
+      opacity var(--hr-duration) var(--hr-ease-out),
+      visibility var(--hr-duration),
+      translate 420ms var(--hr-ease-out);
+  }
+
+  .after,
+  [aria-pressed="true"] .before {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  [aria-pressed="true"] .after {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* the one moment: the caret drops out of the hand */
+  [aria-pressed="true"] .caret {
+    translate: 0 40px;
+  }
+
+  .caret {
+    transition: translate 420ms var(--hr-ease-out);
+  }
+
+  .figure:hover .caption {
+    background: var(--hr-accent);
+    color: var(--hr-on-accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .before,
+    .after,
+    .caret {
+      transition: none;
+    }
+    [aria-pressed="true"] .caret {
+      translate: none;
+    }
+  }
+</style>
