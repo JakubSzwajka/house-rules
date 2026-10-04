@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/capability",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Capabilities for Effect apps: one named, schema-described action with one handler.",
   "license": "MIT",

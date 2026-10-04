@@ -8,8 +8,10 @@ export type BookingResponse = Readonly<{
 }>;
 
 export const getBookingRoute = (id: string): Effect.Effect<BookingResponse, never, Bookings> =>
-  showBooking(id).pipe(
-    Effect.map((body): BookingResponse => ({ status: 200, body })),
+  showBooking.handler({ id }).pipe(
+    Effect.map(
+      (booking): BookingResponse => ({ status: 200, body: `${booking.guestName} (${booking.id})` }),
+    ),
     Effect.catchTag("BookingNotFound", (error) =>
       Effect.succeed<BookingResponse>({ status: 404, body: `Booking ${error.id} was not found.` }),
     ),

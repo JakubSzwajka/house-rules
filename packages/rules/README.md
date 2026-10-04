@@ -1,10 +1,10 @@
 # @house-rules/rules
 
-House rules and house configs. One exact GitHub commit pin brings all of it: six ESLint rules, 16 Dependency Cruiser layout rules, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, and an exact-pins checker. Private, not on npm.
+House rules and house configs. One exact GitHub commit pin brings all of it: eight ESLint rules, 16 Dependency Cruiser layout rules, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, an exact-pins checker, and a module-owned SQL checker. Private, not on npm.
 
 ## Install
 
-Node `>=24.21.0` only. The pins bin uses `fs.globSync`, with no fallback for older Node. The package lives in `packages/rules` of the house-rules repository, so install it with pnpm and a Git subpath spec. The pins bin reads `pnpm-workspace.yaml`, so the app needs one.
+Node `>=24.21.0` only. The pins and migrations bins use `fs.globSync`, with no fallback for older Node. The package lives in `packages/rules` of the house-rules repository, so install it with pnpm and a Git subpath spec. The pins bin reads `pnpm-workspace.yaml`, so the app needs one.
 
 ```json
 {
@@ -39,6 +39,8 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `design-no-raw-color-literal` | Raw hex, rgb(), hsl(), etc. in JS/TS strings | ESLint | `design()` factory | [design-no-raw-color-literal.md](docs/design-no-raw-color-literal.md) |
 | `design-no-unknown-token` | `var(--name)` with no definition | ESLint | `design()` factory | [design-no-unknown-token.md](docs/design-no-unknown-token.md) |
 | `design-scale-value` | CSS values off a fixed scale | ESLint | `design()` factory | [design-scale-value.md](docs/design-scale-value.md) |
+| `use-case-is-capability` | A use-case file that does not export exactly one `implement(...)` capability, exports a second contract, or exports another value | ESLint | `configs.capability` | [use-case-is-capability.md](docs/use-case-is-capability.md) |
+| `no-hand-rolled-surface` | `Tool.make`, `Rpc.make`, or `HttpApiEndpoint.<method>` outside `packages/capability/**` | ESLint | `configs.capability` | [no-hand-rolled-surface.md](docs/no-hand-rolled-surface.md) |
 | `no-cycles` | Circular imports | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `packages-do-not-import-apps` | Packages importing apps | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `apps-do-not-import-other-apps` | Apps importing other apps | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
@@ -63,6 +65,7 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `useFilenamingConvention` | Files not kebab-case or export | Biome | `@house-rules/rules/biome` | [biome.md](docs/biome.md) |
 | Formatter | indentWidth 2, lineWidth 100, indentStyle space | Biome | `@house-rules/rules/biome` | [biome.md](docs/biome.md) |
 | Exact pins | Every dependency must be an exact version, `workspace:<exact>`, or a Git spec with full commit SHA | Node | `house-rules-pins` bin | [pins.md](docs/pins.md) |
+| `house-rules-migrations` | Cross-module foreign keys, migrations or SQL strings that touch another package's tables, `.sql` files outside `<package>/migrations/` (a package's `fixtures/` and `tests/` excepted), use-cases that open a transaction | Node | `house-rules-migrations` bin | [migrations.md](docs/migrations.md) |
 
 ## Wire it up
 
@@ -75,6 +78,7 @@ import design from "@house-rules/rules/design";
 export default [
   { ignores: ["dist/**", "coverage/**"] },
   ...houseRules.configs.recommended,
+  ...houseRules.configs.capability,
   ...houseRulesMarkdown,
   ...design({
     tokenFiles: ["src/styles/tokens.css"],
@@ -116,10 +120,13 @@ module.exports = require("@house-rules/rules/dependency-cruiser").layout({
 // package.json
 {
   "scripts": {
-    "pins": "house-rules-pins"
+    "pins": "house-rules-pins",
+    "migrations": "house-rules-migrations"
   }
 }
 ```
+
+`configs.capability` runs `no-hand-rolled-surface` on JS, JSX, MJS, CJS, TS, TSX, MTS, and CTS files, and `use-case-is-capability` on TS, TSX, MTS, and CTS files. Its defaults match the stack layout: use-cases in `apps/*/src/use-cases/`, surfaces built only in `packages/capability/`. Set the `include`, `exclude`, or `allow` option only when the layout differs.
 
 Biome replaces an extended `files.includes` instead of merging, so it stays in the consumer. See per-tool docs for options, detailed behavior, and limitations.
 

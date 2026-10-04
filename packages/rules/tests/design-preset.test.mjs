@@ -97,7 +97,7 @@ test("the package root registers the design rules without loading @eslint/css", 
   assert.ok(files.has("design-tokens.mjs"));
   assert.equal(packages.has("@eslint/css"), false, [...packages].join(", "));
   assert.equal(files.has("design.mjs"), false);
-  assert.deepEqual(Object.keys(plugin.configs), ["recommended"]);
+  assert.deepEqual(Object.keys(plugin.configs), ["recommended", "capability"]);
   assert.equal((await packagesLoadedBy("design.mjs")).packages.has("@eslint/markdown"), false);
 });
 

@@ -7,15 +7,15 @@ description: Expose an existing use-case to agents as an MCP tool, and set up th
 
 A tool lets an agent run one use-case. The use-case and the module do the work and check access. The tool only decides who is calling, runs the use-case, and maps its errors. Read the "Agent adapters (MCP and CLI)" section of `AGENTS.md` first. `docs/mcp-adapter.md` says why the pattern looks like this.
 
-The reference implementation is Trippy, in `/home/kuba/DEV/priv/trippy` or its GitHub repo. It serves a read-only MCP server with three tools. Its `docs/mcp.md` shows the layout and the request flow, and `docs/mcp-clerk-setup.md` is its identity provider checklist.
+The reference implementation is Trippy, in `/home/kuba/DEV/priv/trippy` or its GitHub repo. Its MCP server has nine tools. Four are read-only: list trips, show a trip, show its cost summary, and read a maps link. Five write: create and update a trip, and add, change and remove an item. Its `docs/mcp.md` shows the layout and the request flow, and `docs/mcp-clerk-setup.md` is its identity provider checklist.
 
 | Part | Template path | Trippy path |
 | --- | --- | --- |
 | Service taking an `Actor` | `packages/<name>/src/facade.ts` | `packages/trips/src/facade.ts` |
 | `Viewer` service | `packages/<name>/src/viewer.ts` | `packages/trips/src/viewer.ts` |
-| Use-cases | `apps/<app>/src/use-cases/` | `apps/web/src/use-cases/trips.ts` |
+| Use-cases | `apps/<app>/src/use-cases/` | `apps/web/src/use-cases/**` |
 | Web adapter | `apps/<app>/src/delivery/http/` | `apps/web/src/app/_http/run-use-case.ts` |
-| Tool catalogue | `apps/<app>/src/delivery/mcp/tools.ts` | `apps/web/src/app/_mcp/tools.ts` |
+| Tool catalogue | `apps/<app>/src/delivery/mcp/tools.ts` | `apps/web/src/app/_mcp/tools.ts` (its hand-written `toolFrom` is what `toTool` replaces) |
 | MCP route | `apps/<app>/src/delivery/mcp/route.ts` | `apps/web/src/app/mcp/route.ts` |
 | Transport | `apps/<app>/src/delivery/mcp/server.ts` | `apps/web/src/app/_mcp/server.ts` |
 | Bearer check and 401 | `apps/<app>/src/delivery/mcp/auth.ts` | `apps/web/src/app/_mcp/auth.ts` |
@@ -27,10 +27,10 @@ Trippy is a Next.js app, so its delivery layer is `src/app/`. In the template la
 
 ## 1. Check the prerequisites
 
-1. [ ] The capability is a module in `packages/<name>`. If not, follow `skills/add-an-effect-module/SKILL.md` first.
+1. [ ] The data and its access rules live in a module in `packages/<name>`. If not, follow `skills/add-an-effect-module/SKILL.md` first. The module is not the capability: the capability is the use-case in step 4.
 2. [ ] Each service method that acts for a user takes an `Actor` argument and checks access inside the module.
 3. [ ] The package exports a `Viewer` service that holds the `Actor`.
-4. [ ] A use-case in `apps/<app>/src/use-cases/` yields `Viewer` and the service, and does what the tool needs. If it is missing, write it first, with its test. A tool never calls the module itself.
+4. [ ] A use-case in `apps/<app>/src/use-cases/` is a capability: a contract from `defineContract` and a handler from `implement`, both from `@house-rules/capability`. Its handler yields `Viewer` and the service, and does what the tool needs. If it is missing, write it first, with its test. A tool never calls the module itself.
 
 ## 2. Set up MCP in an app, the first time
 
@@ -68,9 +68,21 @@ The owner changes identity provider settings by hand. Write the steps down for t
 
 ## 4. Add one tool
 
-1. [ ] Add one entry to `apps/<app>/src/delivery/mcp/tools.ts`. Give it a short name, a description that says when an agent should call it, and an input `Schema`.
-2. [ ] Annotate it. A tool that only reads sets `Tool.Readonly` to `true`. Any other tool sets `Tool.Destructive` to say whether it deletes or overwrites.
-3. [ ] Write the handler. It calls the use-case, and returns structured output shaped by a `Schema`. It does not reach a module, the database, or another adapter.
+1. [ ] Build the tool from the use-case's contract with `toTool` from `@house-rules/capability`, in `apps/<app>/src/delivery/mcp/tools.ts`. The contract gives the name, the description, the input `Schema`, and the `Tool.Readonly` and `Tool.Destructive` annotations, so set `readOnly` and `destructive` on the contract, not on the tool. The options give what only MCP needs: `title`, `idempotent`, and `openWorld`. Pass `success` for a view of the output, and `failure` for the adapter's own error, such as a `ToolProblem`.
+
+   ```ts
+   export const ShowBooking = toTool(showBooking.contract, {
+     title: "Show a booking",
+     idempotent: true,
+     openWorld: false,
+     success: BookingView,
+     failure: ToolProblem,
+   });
+   ```
+
+   Never call `Tool.make` in the app: `no-hand-rolled-surface` fails it.
+2. [ ] Write the contract's description so it says when an agent should call the tool. The same text reaches every adapter.
+3. [ ] Write the handler in the toolkit layer. It calls `<capability>.handler(input)`, maps errors with the MCP error mapper, and returns structured output shaped by the tool's success `Schema`. It does not reach a module, the database, or another adapter.
 4. [ ] Return data, never instructions. Text a user wrote, such as a trip note, goes out as a field value. Do not paste it into a message to the model.
 5. [ ] For a big record, add a tool that lists summaries, plus a separate tool that reads one record by id.
 6. [ ] Test it in `apps/<app>/src/delivery/mcp/tests/<tool>.test.ts`. Provide a fake `Viewer` and the module's test layer with `it.layer`, and run each case with `it.effect`. Cover the happy path, each mapped error, and access: user B cannot read user A's data through the tool.
@@ -87,11 +99,11 @@ Keep the catalogue small: each tool schema costs context in every agent session.
 
 ## 6. Review checklist
 
-No tool checks these yet. A reviewer does.
+`use-case-is-capability` and `no-hand-rolled-surface` check that the use-case is a capability and that the tool came from its contract. A reviewer checks the rest.
 
 1. [ ] The handler calls a use-case and nothing else.
 2. [ ] The use-case passes the `Viewer` to the module, and the module checks access.
-3. [ ] The tool has an annotation, a `Schema` for input and output, and a test.
+3. [ ] The contract's `readOnly` and `destructive` flags are right, the tool's `idempotent` and `openWorld` are right, and the tool has a test.
 4. [ ] The access test fails if you remove the module's access check.
 5. [ ] The output holds no instructions to the model.
 6. [ ] The route checks the token and its audience before it builds the `Viewer`, and never forwards the token.

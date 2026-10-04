@@ -2,7 +2,7 @@
 
 This file is the law for agents and people working in this repo, and in any project made from its template, the stack. Read `VISION.md` for why. It does not override this file. Read `CONTEXT.md` for the words this repo uses.
 
-The house rules and the tool configs come from the plugin `@house-rules/rules`, which lives in `packages/rules`. The root uses it as `workspace:0.5.0`. This repo keeps thin configs that extend its presets, the project values such as the `@hosti/` scope, and the files no tool can inherit. Change a house rule in `packages/rules`, not by copying a preset into a thin config.
+The house rules and the tool configs come from the plugin `@house-rules/rules`, which lives in `packages/rules`. The root uses it as `workspace:0.6.0`. This repo keeps thin configs that extend its presets, the project values such as the `@hosti/` scope, and the files no tool can inherit. Change a house rule in `packages/rules`, not by copying a preset into a thin config.
 
 ## Commands
 
@@ -11,7 +11,7 @@ This repo is a pnpm workspace run by Turborepo. Use pnpm, at the version `packag
 | Command | What it does |
 | --- | --- |
 | `pnpm install --frozen-lockfile` | Install from `pnpm-lock.yaml`. The root `prepare` script then patches `tsc` with the Effect language service (`effect-tsgo patch`) and installs the lefthook pre-commit hook. |
-| `pnpm check` | Exact pins in every workspace `package.json` (the plugin's `house-rules-pins` bin), environment schema, Biome, ESLint, Dependency Cruiser once at the root, and `typecheck` in each workspace package through Turborepo. |
+| `pnpm check` | Exact pins in every workspace `package.json` (the plugin's `house-rules-pins` bin), module-owned SQL (its `house-rules-migrations` bin), environment schema, Biome, ESLint, Dependency Cruiser once at the root, and `typecheck` in each workspace package through Turborepo. |
 | `pnpm env:check` | `varlock load`: resolve and validate every variable in `.env.schema`. |
 | `pnpm exec varlock run -- <cmd>` | Run a command with the environment values injected. |
 | `pnpm test` | Node test runner over `tests/**/*.test.mjs`, then `test` (Vitest) in each workspace package through Turborepo. |
@@ -34,17 +34,28 @@ The rules table in the house-rules README lists every checked rule, its tool, an
 - An app or package imports another package by its name, such as `@hosti/bookings`, and declares it in its own `package.json` as `workspace:<exact version>`. Never import another package by a relative path.
 - A package has one public entry, `src/index.ts`, and its `package.json` `exports` names only that entry. Callers never import a file under the package's `src/internal/`, by name or by path.
 - Each workspace package has its own `tsconfig.json` that extends the root `tsconfig.base.json`, plus `typecheck` and `test` scripts.
-- The capability library (`defineContract`, `implement`, and the types) lives in `packages/capability`, `@house-rules/capability`. An app writes its own capabilities in its own code, next to its use-cases, and imports the library by name. A capability handler is an Effect like a use-case: it yields services and lets typed errors flow.
+- The capability library (`defineContract`, `implement`, `toTool`, and the types) lives in `packages/capability`, `@house-rules/capability`. An app writes its own capabilities in its own code, as its use-cases, and imports the library by name. A capability handler is an Effect: it yields services and lets typed errors flow.
 - `packages/rules` is the exception. It is the plain-JavaScript house plugin, with many entries in `exports`, no `tsconfig.json`, and a `typecheck` script that runs `node --check` over each source file. The layout rules, the `comment-discipline` rule, and Biome on its test fixtures skip it. Its tests run in `pnpm test`.
 
 ## Layers inside an app
 
 - Delivery and server never import each other.
-- Use-cases import packages. They never import delivery, server, or another use-case. Each top-level file or folder under `use-cases/` is one use-case.
+- Use-cases import packages. They never import delivery, server, or another use-case. Each top-level file or folder under `use-cases/` is one use-case for that import rule.
+- Every use-case is a capability. Each non-test file under `use-cases/`, nested folders included, exports exactly one `implement(...)` capability from `@house-rules/capability`, at most one `defineContract(...)` contract, and no other value. Types are fine. Delivery calls the capability through its `handler`. `use-case-is-capability` checks this.
+- Surfaces come from contracts. An MCP tool is built with `toTool(capability.contract, ...)`. No app or package calls `Tool.make`, `Rpc.make`, or `HttpApiEndpoint.<method>` by hand; only `packages/capability` may. `no-hand-rolled-surface` checks this. An RPC or HTTP projection gets added to `packages/capability` first.
 - App code sits in `src/delivery/`, `src/server/`, or `src/use-cases/`. Only `src/main.ts` and `src/index.ts` sit directly in `src/`.
 - Never name a file or folder `utils`, `helpers`, or `misc`. Name it after what it owns.
 - No import cycles. No deep package imports. Production code never imports tests.
 - A test file sits directly in a `tests/` folder inside the folder it tests, such as `src/use-cases/tests/show-booking.test.ts`. Tests never import any package's `src/internal/`; a package's own tests import its `src/index.ts`.
+
+## Modules own their data
+
+- A module owns its migrations and its tables. Its migrations live in `packages/<name>/migrations/*.sql`. A table belongs to the package whose migration creates it. A `.sql` file anywhere else fails, except test fixtures under a package's own `fixtures/` or `tests/` folder, which own no tables.
+- No cross-module foreign keys. Keep another module's id as a plain column, and ask that module's service for the record.
+- A module's SQL names only its own tables, in migrations and in `src/`. To read another module's data, call its service. A plumbing package, such as a `db` package with the connection, owns no tables a module queries.
+- One module write method is one transaction. The service method opens it; a read method may run without one. A use-case never opens one, and never spans two modules in one transaction.
+- `pnpm run migrations` (the `house-rules-migrations` bin) checks the first three, and catches a use-case that calls `withTransaction` or sends `begin`. The rest of the transaction rule is a review rule.
+- A cartridge passes the pull-out test, a review rule. It pushes in with one `Layer.provide` line. Deleting its package and that line leaves the rest building and passing. That holds only when the caller side owns the port: if a use-case imports the cartridge's package, the capability has to go with it.
 
 ## Effect
 
@@ -65,7 +76,7 @@ An app can let agents call its use-cases over MCP, and later over a CLI. Write e
 - A use-case that acts for a user yields the `Viewer` service, which holds the `Actor`, and passes it to the module. `Viewer` lives in a package, because more than one use-case needs it.
 - An adapter decides who the `Viewer` is, runs one use-case, and maps its typed errors to its own response. It holds no business logic and no access rule.
 - Each adapter owns its error mapper. The MCP adapter does not reuse the web error view.
-- An MCP tool is one entry in the app's tool catalogue, in the delivery layer, such as `src/delivery/mcp/tools.ts`. The entry has a name, a description, an input `Schema`, a `Tool.Readonly` or `Tool.Destructive` annotation, and a handler.
+- An MCP tool is one entry in the app's tool catalogue, in the delivery layer, such as `src/delivery/mcp/tools.ts`. Build it from the use-case's contract with `toTool`, which takes the name, the description, the input `Schema`, and the `Tool.Readonly` and `Tool.Destructive` annotations from the contract. The entry's options add the title and the `idempotent` and `openWorld` hints. Its handler runs the capability.
 - A tool handler calls a use-case. It never calls a module service, the database, or another adapter.
 - Every tool has a test that runs it with a fake `Viewer`. The tests include an access test: user B cannot read user A's data through the tool.
 - The first tools an app exposes are read-only. Every write or destructive tool is annotated as one and needs owner approval before it ships.

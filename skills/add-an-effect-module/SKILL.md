@@ -27,6 +27,7 @@ Inside `packages/<name>/src/`:
 2. Put private code under `internal/`, in files named after what they own. Nothing outside the package imports them. A file or folder named `utils`, `helpers`, or `misc` fails `no-ownerless-files`.
 3. Put the service in `facade.ts`. Use a `Context.Service` class. Its methods return `Effect.Effect<Success, TypedError>` with no requirements. Give it a static layer, such as `Bookings.fromRecords`.
 4. Write `index.ts` as the one public entry. Name each export. No `export *`.
+5. Give each data type a `Schema`, such as `Booking = Schema.Struct({ ... })`, and export it with its type. A capability's contract names it as its output.
 
 ```ts
 export class Bookings extends Context.Service<
@@ -46,6 +47,15 @@ export class Bookings extends Context.Service<
 }
 ```
 
+If the module stores data, it owns its tables:
+
+1. Put its migrations in `packages/<name>/migrations/*.sql`. A table belongs to the package whose migration creates it.
+2. No foreign key to another package's table. Keep the other module's id as a plain column, and ask that module's service for the record.
+3. The module's SQL names only its own tables. To read another module's data, call its service.
+4. A service method that writes is one transaction, and the method opens it. A read method may run without one. A use-case never opens one.
+
+`pnpm run migrations` checks the first three with a text scan, and catches a use-case that calls `withTransaction` or sends `begin`. The rest of rule 4 is a review rule. `packages/rules/docs/migrations.md` lists what the scan misses.
+
 The dependency-cruiser rules already cover a new package. `packages-public-entry-only` and `packages-imported-by-name` apply to every folder under `packages/`. If you use a new scope, change the `scope` option passed to `layout()` in `.dependency-cruiser.cjs`.
 
 ## 3. Compose it in a use-case
@@ -56,15 +66,40 @@ Add the package to the app that uses it:
 pnpm --filter @hosti/api add @hosti/<name>
 ```
 
+The app also needs `@house-rules/capability`. `apps/api` already has it as `"workspace:0.3.0"`. An app outside this repo installs it from GitHub, as `packages/capability/README.md` shows.
+
 `saveWorkspaceProtocol: true` and `saveExact: true` in `pnpm-workspace.yaml` make pnpm write `"@hosti/<name>": "workspace:0.0.0"` into the app's `package.json`. Do not name a spec such as `@workspace:0.0.0` on the command line: pnpm then writes `workspace:*`, which the pin check rejects.
 
 Create `apps/<app>/src/use-cases/<action>.ts`. Import the module by its package name, never by a relative path into `packages/`. Do not import another use-case: `use-cases-do-not-import-use-cases` fails it. Move shared logic into the package.
 
-Write the use-case with `Effect.fn("<action>")`. Yield the service and its methods. Let typed errors flow through the error channel. Do not catch them here.
+Every use-case is a capability. The file exports one contract and one capability, and nothing else but types:
+
+```ts
+import { Booking, BookingNotFound, Bookings } from "@hosti/bookings";
+import { defineContract, implement } from "@house-rules/capability";
+import { Effect, Schema } from "effect";
+
+export const showBookingContract = defineContract("show_booking", {
+  description: "Show one booking by its id.",
+  input: Schema.Struct({ id: Schema.String }),
+  output: Booking,
+  failure: BookingNotFound,
+  annotations: { readOnly: true },
+});
+
+export const showBooking = implement(showBookingContract, ({ id }) =>
+  Effect.gen(function* showBookingHandler() {
+    const bookings = yield* Bookings;
+    return yield* bookings.get(id);
+  }),
+);
+```
+
+The handler yields the service and calls its methods. Let typed errors flow through the error channel. Do not catch them here, and do not open a transaction. Set `readOnly` when the action only reads, and `destructive` when it deletes or overwrites. An action with no input uses `NoInput` from `@house-rules/capability`. `use-case-is-capability` fails a use-case file that exports anything else.
 
 ## 4. Map errors once in delivery
 
-Create the handler under `apps/<app>/src/delivery/`. It calls the use-case and maps every typed error to a response in one place, with `Effect.catchTag` or `Effect.catchTags`. The handler's error channel ends as `never`.
+Create the handler under `apps/<app>/src/delivery/`. It calls the use-case through its handler, such as `showBooking.handler({ id })`, and maps every typed error to a response in one place, with `Effect.catchTag` or `Effect.catchTags`. The handler's error channel ends as `never`.
 
 Delivery returns an Effect. The entry point that owns the runtime runs it. Do not call `Effect.run*` inside Effect code.
 
@@ -89,8 +124,9 @@ pnpm test
 | --- | --- |
 | `pnpm run pins` | Every `package.json` in the workspace pins exact versions, including `workspace:0.0.0`. The plugin's `house-rules-pins` bin runs the check. |
 | `pnpm run typecheck` | Effect diagnostics in every workspace package: no floating Effects, no global `Error` in the failure channel, no `Effect.run*` inside Effect code, no leaked requirements. |
+| `pnpm run migrations` | Each module's migrations sit in `packages/<name>/migrations/`, and no foreign key or SQL string the scan can read names another package's table. No use-case calls `withTransaction` or sends `begin`. It is a text scan, so a review still checks that each write method opens its own transaction. |
 | `pnpm run deps` | Packages do not import apps, apps import packages only by name and only through `src/index.ts`, use-cases do not import delivery, server, or each other, app code sits in a layer, and no file is named `utils`, `helpers`, or `misc`. |
-| `pnpm run lint` | No comments that restate the code. |
+| `pnpm run lint` | No comments that restate the code. Each use-case file exports one capability. No MCP tool, RPC, or HTTP endpoint is built by hand. |
 | `pnpm run biome` | Named barrel exports and file names. |
 | `pnpm test` | The package, use-case, and delivery tests pass under Vitest in each workspace package. |
 

@@ -12,8 +12,8 @@ It is a GitHub template. Create a repo from it with `gh repo create <name> --tem
 .
 ├── apps/api/               @hosti/api: delivery, server, use-cases
 ├── packages/bookings/      @hosti/bookings: one Effect module, src/index.ts is its only export
-├── packages/capability/    @house-rules/capability: capability contracts and handlers
-├── packages/rules/         @house-rules/rules: the house rules, presets, and pins bin
+├── packages/capability/    @house-rules/capability: contracts, handlers, and toTool
+├── packages/rules/         @house-rules/rules: the house rules, presets, and bins
 ├── tests/                  fence and thin-config wiring tests
 ├── .dependency-cruiser.cjs layout({ scope: "@hosti/" }) from house-rules
 ├── biome.json              extends the house-rules Biome preset, plus excludes
@@ -24,7 +24,7 @@ It is a GitHub template. Create a repo from it with `gh repo create <name> --tem
 ```
 
 ```text
-pnpm check ─> pins ─> env:check ─> biome ─> lint ─> turbo run typecheck ─> deps
+pnpm check ─> pins ─> migrations ─> env:check ─> biome ─> lint ─> turbo run typecheck ─> deps
 pnpm test  ─> node --test tests/ ─> turbo run test
 ```
 
@@ -32,7 +32,7 @@ Root tools run once over the whole repo. Turborepo runs `typecheck` and `test` i
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.5.0`. Biome skips `packages/rules/tests/fixtures`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.6.0`. Biome skips `packages/rules/tests/fixtures`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
@@ -78,6 +78,8 @@ These are what a reviewer checks. A green `pnpm check` says nothing about them.
 - React code follows React semantics, not only the filename rule.
 - Nobody loosens a compiler option in a `tsconfig.json`. TypeScript accepts `strict: true` next to `strictNullChecks: false`.
 - Nobody switches off or weakens a preset rule in a thin config. The wiring test only checks that each preset is still extended.
+- A cartridge passes the pull-out test. Delete its package and its one `Layer.provide` line, and the rest still builds and passes. A reviewer runs the test in their head for each new cartridge.
+- One module write method is one transaction; a read method may run without one. A use-case never opens one. The migrations bin catches only `withTransaction` and a `begin` string in a use-case.
 
 ## Fence
 
@@ -196,7 +198,7 @@ apps/api
       └──────────────────────> @hosti/bookings  (types only)
 ```
 
-The package exposes a `Bookings` service and a typed `BookingNotFound` error. The `showBooking` use-case yields the service. The HTTP handler maps `BookingNotFound` to a 404 once, so its error channel is `never`. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
+The package exposes a `Bookings` service, a `Booking` schema, and a typed `BookingNotFound` error. The `showBooking` use-case is a capability: a contract that names `Booking` as its output and `BookingNotFound` as its failure, plus a handler that yields the service. The HTTP handler calls `showBooking.handler({ id })` and maps `BookingNotFound` to a 404 once, so its error channel is `never`. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
 
 ## Commands
 

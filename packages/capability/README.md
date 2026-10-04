@@ -1,6 +1,6 @@
 # @house-rules/capability
 
-A capability is one named action an app offers, such as "show a booking". It has a contract and one handler. The contract holds the name, a description, Effect Schemas for the input, the output and the failure, and two flags: `readOnly` and `destructive`. The handler is an Effect that takes the decoded input and gets its services from Layers. Adapters for HTTP, MCP or a CLI can later be built from the contract, so each action is written once.
+A capability is one named action an app offers, such as "show a booking". It has a contract and one handler. The contract holds the name, a description, Effect Schemas for the input, the output and the failure, and two flags: `readOnly` and `destructive`. The handler is an Effect that takes the decoded input and gets its services from Layers. An MCP tool is built from the contract with `toTool`, and HTTP or CLI adapters can later be built the same way, so each action is written once.
 
 ```text
 adapter      HTTP route   MCP tool   CLI command    decides who calls, maps errors
@@ -107,10 +107,42 @@ The package is not on npm. Install it from GitHub, pinned to a full 40-character
 8. [ ] The usage example is a test, so it needs two dev dependencies, pinned exactly: `"@effect/vitest": "4.0.0-rc.117"` and `"vitest": "5.0.1"` (the versions this repo uses). Run the code through a tool that compiles dependencies. Vitest does, so the test above runs as is. Plain `node` will not strip types inside `node_modules`, and fails with `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`.
 9. [ ] To upgrade, change the SHA and run `pnpm install`.
 
+## An MCP tool from a contract
+
+`toTool(contract, options)` builds an `effect/unstable/ai` `Tool` from a contract, so an MCP adapter does not write the tool by hand. The contract gives the name, the description, the parameters (`contract.input`), and the `Tool.Readonly` and `Tool.Destructive` annotations. The options carry what only MCP needs:
+
+| Option | Required | Becomes |
+| --- | --- | --- |
+| `title` | yes | `Tool.Title` |
+| `idempotent` | yes | `Tool.Idempotent` |
+| `openWorld` | yes | `Tool.OpenWorld` |
+| `success` | no | the tool's success schema; defaults to `contract.output` |
+| `failure` | no | the tool's failure schema; defaults to `contract.failure` |
+
+```ts
+import { Toolkit } from "effect/unstable/ai";
+import { toTool } from "@house-rules/capability";
+
+export const Greet = toTool(greet.contract, {
+  title: "Greet someone",
+  idempotent: true,
+  openWorld: false,
+});
+
+export const tools = Toolkit.make(Greet);
+export const toolHandlers = tools.toLayer({ greet: (input) => greet.handler(input) });
+```
+
+`idempotent` and `openWorld` are required because Effect defaults `openWorld` to `true`, and an agent client reads the hint. Each MCP adapter decides them. Pass `success` when the tool returns a view of the output, and `failure` when the adapter maps the contract's errors to its own error, such as a `ToolProblem`. The handler you pass to `toLayer` then maps to those schemas.
+
+The tool type keeps the contract's exact types: `Tool<"greet", { parameters: typeof GreetInput; success: ...; failure: ... }>`. `toTool` is typed over `Contract<Name, Input, Output, Failure>`, not over `C extends AnyContract`. The constraint form widens the input to `InputSchema`, so the tool loses its exact parameter type. An override the options type marks optional, such as `success?: typeof View`, types the schema as `typeof View | typeof Output`, because at run time it may be either one. A `NoInput` contract renders its parameters as `{"type":"object","additionalProperties":false}`.
+
+The house plugin's `no-hand-rolled-surface` rule fails on `Tool.make` outside this package, so every MCP tool comes from a contract.
+
 ## Limits
 
-This is v0. It has `defineContract`, `implement` and `NoInput`, and nothing else. There is no registry of capabilities, and nothing turns a contract into an HTTP route, an MCP tool or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job, and no adapter exists yet.
+This is v0. It has `defineContract`, `implement`, `NoInput` and `toTool`, and nothing else. There is no registry of capabilities, and nothing turns a contract into an HTTP route or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job. For MCP, Effect's `McpServer` decodes it with the tool's parameters.
 
 ## Exports
 
-`defineContract`, `implement`, the `NoInput` schema, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, and `Capability`.
+`defineContract`, `implement`, `toTool`, the `NoInput` schema, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `Capability`, `ContractTool`, and `ToToolOptions`.

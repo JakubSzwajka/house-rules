@@ -117,6 +117,11 @@ for (const preset of ["tsconfig/strict.json", "tsconfig/effect.json", "biome"]) 
 const pins = spawnSync("node_modules/.bin/house-rules-pins", ["pinned.json"], { encoding: "utf8" });
 assert.equal(pins.status, 0, pins.stderr);
 assert.match(pins.stdout, /pins: every dependency is exact in pinned[.]json/);
+const migrations = spawnSync("node_modules/.bin/house-rules-migrations", [], { encoding: "utf8" });
+assert.equal(migrations.status, 0, migrations.stderr);
+assert.match(migrations.stdout, /migrations: no SQL migrations found/);
+assert.equal(houseRules.configs.capability[0].rules["house-rules/no-hand-rolled-surface"], "error");
+assert.equal(houseRules.configs.capability[1].rules["house-rules/use-case-is-capability"], "error");
 
 const dependencyCruiserConfig = createRequire(import.meta.url)("./.dependency-cruiser.cjs");
 assert.deepEqual(dependencyCruiserConfig, layout({ scope: "@acme/" }));
@@ -188,7 +193,7 @@ assert.deepEqual(
   );
 }
 
-test("packs and installs the exact package before linting fresh JS, TS, Markdown, and design fixtures, loading the dependency-cruiser preset, resolving the config presets, and running the pins bin", async () => {
+test("packs and installs the exact package before linting fresh JS, TS, Markdown, and design fixtures, loading the dependency-cruiser preset, resolving the config presets, and running the pins and migrations bins", async () => {
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "house-rules-pack-"));
   const packageDirectory = path.join(temporaryDirectory, "package");
   const fixtureDirectory = path.join(temporaryDirectory, "fixture");

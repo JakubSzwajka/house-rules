@@ -1,9 +1,11 @@
 import { Schema } from "effect";
 
-export type Booking = Readonly<{
-  id: string;
-  guestName: string;
-}>;
+export const Booking = Schema.Struct({
+  id: Schema.String,
+  guestName: Schema.String,
+});
+
+export type Booking = typeof Booking.Type;
 
 export class BookingNotFound extends Schema.TaggedError<BookingNotFound>()("BookingNotFound", {
   id: Schema.String,

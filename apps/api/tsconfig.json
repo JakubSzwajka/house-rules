@@ -1,6 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "jsx": "preserve"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "vitest.config.ts"]

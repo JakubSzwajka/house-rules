@@ -1,2 +1,2 @@
 export { Bookings } from "./facade.js";
-export { type Booking, BookingNotFound } from "./types.js";
+export { Booking, BookingNotFound } from "./types.js";

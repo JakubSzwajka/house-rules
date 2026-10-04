@@ -1,6 +1,6 @@
 # MCP adapter
 
-Status: accepted. The reference implementation is Trippy, which serves a read-only MCP server with three tools. Claude Code signed in there end to end over OAuth on 30 Sep 2026.
+Status: accepted. The reference implementation is Trippy. It first served a read-only MCP server with three tools, and now has nine, five of them writes. Claude Code signed in there end to end over OAuth on 30 Sep 2026.
 
 ## Context
 
@@ -52,7 +52,7 @@ The MCP code uses `McpServer`, `Tool`, and `Toolkit` from `effect/unstable/ai`, 
 - A session holds no user data. The route checks the bearer on every request. Sessions never expire, a small memory leak, because Effect has no public expiry. The catalogue and the auth code know nothing of sessions, so a later move changes only the transport file.
 - MCP works on one host, the canonical URL. The metadata and the token audience both name it.
 - Clerk copies the RFC 8707 `resource` parameter into the token's `aud` only when "Include audience" is on, and it is off by default. `docs/mcp-clerk.md` lists the settings. A new project runs its end-to-end smoke test before it trusts the setup.
-- Rules in `AGENTS.md` describe the pattern. No tool checks them yet, so they are review rules.
+- Two lint rules check part of the pattern. `use-case-is-capability` checks that each use-case file exports one capability. `no-hand-rolled-surface` checks that no tool is built by hand, so each tool comes from a contract through `toTool`. The other rules in `AGENTS.md`, such as the `Viewer`, the access tests, and the bearer check, stay review rules.
 
 ## Rejected
 
