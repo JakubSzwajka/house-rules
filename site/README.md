@@ -40,16 +40,37 @@ Astro telemetry is off: every script sets `ASTRO_TELEMETRY_DISABLED=1`.
 
 ## Look
 
-The theme is the "door policy": oxblood and brass in dark, cream paper in light. Four CSS files under `src/styles/` and two component overrides carry it. `src/styles/theme.css` is the only file with raw colours; the rest read its `--hr-*` tokens.
+The theme is an assembly manual. Light mode is a white instruction sheet: black line, and safety yellow as the one accent. Dark mode is a blueprint: navy paper, pale line, the same yellow. A thin construction layer sits on top: hazard tape under the header and above each section on the home page, and a faint blueprint grid behind the home page.
+
+Docs pages stay documentation first: Starlight's sidebar and contents list, dense text. Graphics live in three places only:
+
+1. The home page: the cover with the confused figure holding a `^`, and the three numbered assembly steps.
+2. The 404 page: the same figure.
+3. A small kit for the docs pages: yellow step badges on the numbered checkbox lists of procedure pages (the start guide, the Effect guide, and the skill pages), the parts list box on each generated rule page, and the yellow title band with a warning triangle on caution asides and on the fence page's safety guard notice.
+
+Pressing the figure takes the caret away. Every transition stops under `prefers-reduced-motion`.
 
 | File | Owns |
 | --- | --- |
-| `src/styles/fonts.css` | the self-hosted faces from `public/fonts/` (see `FONTS.txt` there) |
-| `src/styles/theme.css` | colours, fonts, and radius as `--hr-*` tokens, mapped onto Starlight's custom properties |
-| `src/styles/chrome.css` | header, sidebar, contents list, pager |
-| `src/styles/content.css` | page titles, prose, tables, notes, code |
-| `src/components/door-hero.astro` | the home page hero (Starlight `Hero`) |
-| `src/components/page-title.astro` | the page title (Starlight `PageTitle`) |
+| `src/styles/fonts.css` | the self-hosted faces from `public/fonts/` (see `FONTS.txt` there): Public Sans and Red Hat Mono |
+| `src/styles/theme.css` | colours, fonts, radius, line width and the hazard tape as `--hr-*` tokens named by role, mapped onto Starlight's `--sl-color-*` |
+| `src/styles/chrome.css` | header, sidebar, contents list, pager, buttons |
+| `src/styles/content.css` | page titles, prose, tables, step badges, asides, code frames, and the home page grid and tape |
+| `src/components/manual-hero.astro` | the home page cover and assembly steps (Starlight `Hero`) |
+| `src/components/manual-figure.astro` | the figure, a toggle button; home and 404 only |
+| `src/components/page-title.astro` | the page title (Starlight `PageTitle`), plus the parts list on rule pages and the safety guard on the fence page |
+| `src/components/parts-list.astro` | the parts list box |
+| `src/components/warning-triangle.astro` | the warning triangle |
+| `src/pages/404.astro` | the 404 page, through `StarlightPage`; `disable404Route` turns off Starlight's own |
+| `src/assets/logo.svg` | the header logo |
+
+`src/styles/theme.css` is the only stylesheet with raw colours. The tokens name a role, not a colour: `--hr-paper`, `--hr-ink`, `--hr-line`, `--hr-accent`, `--hr-caution`, `--hr-refuse`, `--hr-ok`, and so on. A palette swap is a change to that file. The logo SVG carries its own two colours, because an `<img>` cannot read CSS variables.
+
+The parts list is the one metadata block on a rule page. `astro.config.ts` reads `packages/rules/README.md` through `scripts/rule-rows.ts`, plus each generated page's own Field | Value rows, and serves them to components as the virtual module `virtual:house-rules/parts`. `content.css` hides the page's own table, so the same facts show once. The generated rule pages stay untouched.
+
+Step badges are opt-in by page. The same module lists the procedure pages (`PROCEDURE_ROUTES` and `PROCEDURE_ROUTE_PREFIXES` in `astro.config.ts`), and `page-title.astro` marks them with `data-hr-procedure`. A numbered checkbox list elsewhere, such as the fence's blocked commands, stays plain.
+
+Home grid lines are opaque, not alpha, so where lines cross the colour stays one line colour and body text keeps at least 4.5:1 over it.
 
 `scripts/accessible-blocks.ts` adds two build-time fixes to rendered Markdown: each task-list checkbox gets an `aria-label` from its item, and each code block can take keyboard focus, since a wide one scrolls sideways.
 

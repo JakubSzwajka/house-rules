@@ -1,36 +1,42 @@
-/* The room: page titles, prose, the guest-list tables, house notes, code, and the doorman's stamps. */
+/* The sheet: page titles, prose, tables, step lists, asides, code, and the small graphics kit. */
 
-:root {
-  --hr-table-paper: var(--hr-paper);
-}
-
-:root[data-theme="light"] {
-  --hr-table-paper: #fffaf0;
-}
-
-/* Bungee is wide and loud: page titles and h2 only. h3 and below stay in Barlow. */
-h1#_top,
-.sl-markdown-content h2:not(:where(.not-content *)) {
-  font-family: var(--hr-font-display);
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
+h1#_top {
+  font-family: var(--hr-font-body);
+  font-weight: 700;
+  letter-spacing: -0.025em;
   line-height: 1.08;
   text-wrap: balance;
   overflow-wrap: anywhere;
-  color: var(--hr-heading);
+  color: var(--hr-ink-strong);
+}
+
+/* h2 opens a new section of the manual: a black rule across the column, like a page break in the booklet.
+   Starlight wraps each heading with its anchor link, so the rule sits on that wrapper. */
+.sl-markdown-content .sl-heading-wrapper.level-h2:not(:where(.not-content *)) {
+  margin-top: 2.75rem;
+  padding-top: 0.9rem;
+  border-top: var(--hr-line-width) solid var(--hr-line);
+}
+
+.sl-markdown-content > .sl-heading-wrapper.level-h2:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .sl-markdown-content h2:not(:where(.not-content *)) {
-  margin-top: 2.6rem;
-  margin-bottom: 0.9rem;
+  margin-bottom: 0.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  color: var(--hr-ink-strong);
 }
 
 .sl-markdown-content :is(h3, h4, h5, h6):not(:where(.not-content *)) {
-  font-family: var(--hr-font-body);
   font-weight: 700;
-  color: var(--hr-heading);
-  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--hr-ink-strong);
 }
 
 .sl-markdown-content h3:not(:where(.not-content *)) {
@@ -43,12 +49,16 @@ h1#_top,
 
 .sl-markdown-content a:not(:where(.not-content *)) {
   color: var(--hr-link);
+  text-decoration-color: var(--hr-link-line);
   text-decoration-thickness: 2px;
   text-underline-offset: 0.2em;
+  transition: background-color var(--hr-duration) var(--hr-ease-out);
 }
 
 .sl-markdown-content a:not(:where(.not-content *)):hover {
-  color: var(--hr-link-hover);
+  background: var(--hr-accent);
+  color: var(--hr-on-accent);
+  text-decoration-color: var(--hr-on-accent);
 }
 
 .sl-markdown-content code:not(:where(.not-content *)) {
@@ -59,48 +69,33 @@ h1#_top,
 }
 
 .sl-markdown-content strong:not(:where(.not-content *)) {
-  color: var(--hr-heading);
+  color: var(--hr-ink-strong);
   font-weight: 700;
 }
 
 .sl-markdown-content hr:not(:where(.not-content *)) {
   border: 0;
-  border-top: 2px solid var(--hr-rule);
+  border-top: var(--hr-line-width) solid var(--hr-line);
 }
 
 .sl-markdown-content blockquote:not(:where(.not-content *)) {
-  border-inline-start: 2px solid var(--hr-rule);
-  color: var(--hr-muted);
+  border-inline-start: var(--hr-line-width) solid var(--hr-hairline);
+  color: var(--hr-ink-soft);
 }
 
-.sl-markdown-content input[type="checkbox"] {
-  accent-color: var(--hr-link);
-}
-
-/* tables are the guest list: a cream sheet with ruled lines */
+/* tables: ruled lines, a black rule under the header, no card */
 .sl-markdown-content table:not(:where(.not-content *)) {
-  background: var(--hr-table-paper);
-  color: var(--hr-ink);
-  border-radius: 3px;
-  box-shadow: var(--hr-edge);
-  padding: 0.35rem 1.1rem 0.6rem;
-  font-size: 0.97rem;
+  font-size: 0.95rem;
   line-height: 1.45;
-  border-collapse: separate;
-  border-spacing: 0;
+  border-collapse: collapse;
   width: fit-content;
   max-width: 100%;
 }
 
-:root[data-theme="light"] .sl-markdown-content table:not(:where(.not-content *)) {
-  box-shadow:
-    0 0 0 1px var(--hr-paper-line),
-    0 10px 20px -14px rgb(53 7 20 / 0.45);
-}
-
 .sl-markdown-content :is(th, td):not(:where(.not-content *)) {
-  border-bottom: 1px solid var(--hr-paper-line);
-  padding: 0.6rem 1rem 0.6rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--hr-hairline);
+  padding: 0.55rem 1.1rem 0.55rem 0;
   background: transparent;
 }
 
@@ -108,41 +103,21 @@ h1#_top,
   padding-inline-end: 0;
 }
 
-.sl-markdown-content tr:last-child td:not(:where(.not-content *)) {
-  border-bottom: 0;
-}
-
 .sl-markdown-content th:not(:where(.not-content *)) {
-  font: 700 0.78rem / 1.2 var(--hr-font-body);
-  letter-spacing: 0.1em;
+  font: 700 0.75rem / 1.2 var(--hr-font-body);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--hr-velvet);
-  border-bottom: 3px solid var(--hr-velvet);
+  color: var(--hr-ink-strong);
+  border-bottom: var(--hr-line-width) solid var(--hr-line);
   vertical-align: bottom;
 }
 
 .sl-markdown-content td:first-child:not(:where(.not-content *)) {
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--hr-ink-strong);
 }
 
-.sl-markdown-content table a:not(:where(.not-content *)) {
-  color: var(--hr-wine);
-}
-
-.sl-markdown-content table a:not(:where(.not-content *)):hover {
-  color: var(--hr-ink);
-}
-
-.sl-markdown-content table code:not(:where(.not-content *)) {
-  background: var(--hr-paper-code);
-  color: var(--hr-ink);
-}
-
-.sl-markdown-content table :focus-visible {
-  outline-color: var(--hr-velvet);
-}
-
-/* on a phone a cramped sheet scrolls sideways instead of stacking one word per line */
+/* on a phone a cramped table scrolls sideways instead of stacking one word per line */
 @media (max-width: 50rem) {
   .sl-markdown-content :is(th, td):not(:where(.not-content *)) {
     min-width: 8rem;
@@ -152,24 +127,101 @@ h1#_top,
   }
 }
 
-/* asides are house notes pinned by the door: brass frame, sign-painted title */
-.starlight-aside {
-  background: var(--hr-aside-bg);
-  border: 2px solid var(--hr-rule);
-  border-radius: var(--hr-radius);
-  color: var(--hr-text);
-  --sl-color-asides-text-accent: var(--hr-aside-title);
+/* step badges: on a procedure page (marked by the page title), a numbered list of checkboxes gets numbered yellow badges.
+   Elsewhere the same list is a checklist of rules and stays plain. */
+main:has([data-hr-procedure])
+  .sl-markdown-content
+  ol.contains-task-list:not(:where(.not-content *)) {
+  list-style: none;
+  counter-reset: hr-step;
+  padding-inline-start: 0;
 }
 
-.starlight-aside--caution,
-.starlight-aside--danger {
-  border-color: var(--hr-rope);
+main:has([data-hr-procedure])
+  .sl-markdown-content
+  ol.contains-task-list
+  > li:not(:where(.not-content *)) {
+  position: relative;
+  counter-increment: hr-step;
+  padding-inline-start: 2.6rem;
+  min-height: 1.9rem;
+}
+
+main:has([data-hr-procedure])
+  .sl-markdown-content
+  ol.contains-task-list
+  > li
+  + li:not(:where(.not-content *)) {
+  margin-top: 0.6rem;
+}
+
+main:has([data-hr-procedure])
+  .sl-markdown-content
+  ol.contains-task-list
+  > li:not(:where(.not-content *))::before {
+  content: counter(hr-step);
+  position: absolute;
+  inset-inline-start: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  border: var(--hr-line-width) solid var(--hr-on-accent);
+  background: var(--hr-accent);
+  color: var(--hr-on-accent);
+  font: 700 0.9rem / 1 var(--hr-font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.sl-markdown-content input[type="checkbox"] {
+  accent-color: var(--hr-accent);
+  margin-inline-end: 0.4rem;
+}
+
+/* A rule page's Field | Value table is generated; the parts list under the title shows the same rows, so hide the copy. */
+main:has(.parts) .sl-markdown-content > table:first-child {
+  display: none;
+}
+
+/* asides: a ruled box; caution and danger carry a coloured title band with Starlight's triangle */
+.starlight-aside {
+  background: var(--hr-paper);
+  border: var(--hr-line-width) solid var(--hr-line);
+  border-radius: var(--hr-radius);
+  color: var(--hr-ink);
+  padding: 0;
+  overflow: hidden;
+  --sl-color-asides-text-accent: var(--hr-ink-strong);
+  --sl-color-asides-border: var(--hr-line);
 }
 
 .starlight-aside__title {
-  font: 400 0.95rem / 1.1 var(--hr-font-display);
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font: 700 0.85rem / 1.2 var(--hr-font-body);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--hr-hairline);
+}
+
+.starlight-aside__content {
+  padding: 0.75rem 1rem 0.9rem;
+}
+
+.starlight-aside--caution .starlight-aside__title {
+  background: var(--hr-caution);
+  color: var(--hr-on-caution);
+  border-bottom: var(--hr-line-width) solid var(--hr-on-caution);
+}
+
+.starlight-aside--danger {
+  border-color: var(--hr-refuse);
+}
+
+.starlight-aside--danger .starlight-aside__title {
+  color: var(--hr-refuse);
 }
 
 .starlight-aside__content a {
@@ -184,52 +236,47 @@ kbd,
   font-variant-ligatures: none;
 }
 
-/* code blocks: deep velvet in the dark room, a brass hairline in the light one */
-.expressive-code .frame {
-  border-radius: var(--hr-radius);
-}
-
 .sl-markdown-content :is(pre, .expressive-code) {
-  font-size: 0.92em;
+  font-size: 0.9em;
 }
 
-/* the doorman's rubber stamp */
-.hr-stamp {
-  display: inline-block;
-  font: 400 0.85rem / 1 var(--hr-font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 0.4rem 0.55rem;
-  border: 3px solid currentColor;
-  border-radius: var(--hr-radius);
-  transform: rotate(-6deg);
-  white-space: nowrap;
+/* code blocks: a ruled frame in the line colour, no drop shadow */
+.expressive-code .frame {
+  --ec-brdCol: var(--hr-code-frame);
+  --ec-brdWd: var(--hr-line-width);
+  --ec-brdRad: var(--hr-radius);
+  box-shadow: none;
 }
 
-.hr-stamp--no {
-  color: var(--hr-no);
+/* Home only: the sheet sits on a faint blueprint grid, and hazard tape replaces the black rule above h2. */
+:root[data-has-hero] body {
+  background-image:
+    linear-gradient(var(--hr-grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hr-grid-major) 1px, transparent 1px),
+    linear-gradient(var(--hr-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hr-grid) 1px, transparent 1px);
+  background-size:
+    120px 120px,
+    120px 120px,
+    24px 24px,
+    24px 24px;
+  background-position: -1px -1px;
 }
 
-.hr-stamp--ok {
-  color: var(--hr-ok);
-  transform: rotate(3deg);
+:root[data-has-hero] .sl-markdown-content .sl-heading-wrapper.level-h2:not(:where(.not-content *)) {
+  position: relative;
+  margin-top: 3.5rem;
+  padding-top: 1.75rem;
+  border-top: 0;
 }
 
-.hr-stamp--brass {
-  color: var(--hr-rule);
-}
-
-:root[data-theme="light"] .hr-stamp--brass {
-  color: var(--hr-wine);
-}
-
-/* borrowed from the permit office: the double-ruled DENIED */
-.hr-stamp--denied {
-  font-size: 1.7rem;
-  padding: 0.55rem 1rem 0.5rem;
-  border-width: 4px;
-  outline: 2px solid currentColor;
-  outline-offset: -10px;
-  color: var(--hr-no);
-  transform: rotate(-7deg);
+:root[data-has-hero]
+  .sl-markdown-content
+  .sl-heading-wrapper.level-h2:not(:where(.not-content *))::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 8px;
+  background: var(--hr-tape);
 }

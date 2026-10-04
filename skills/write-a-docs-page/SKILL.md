@@ -60,8 +60,17 @@ ESLint's `no-broken-relative-links` checks each path against the files git track
 | Choices or facts per item | a table |
 | Files | a shallow tree |
 | Steps the reader does | a numbered list with checkboxes |
+| A trap the reader must not fall into | a `:::caution` aside |
 
 Keep diagrams under 100 columns.
+
+The theme is an assembly manual, and a docs page stays documentation first. Write Markdown and let the theme draw. It adds a small kit on its own:
+
+- A numbered list with checkboxes gets yellow number badges only on a procedure page. The pages are `start/adopt`, `guides/effect`, and every page under `skills/`, listed in `PROCEDURE_ROUTES` and `PROCEDURE_ROUTE_PREFIXES` in `site/astro.config.ts`, and the theme marks them with `data-hr-procedure`. Any other numbered checkbox list, such as a list of rules, stays plain.
+- A `:::caution` aside gets a yellow title band with a warning triangle.
+- Each generated rule page gets a parts list box under its title, built from the rules table.
+
+Do not add drawings, images, or inline SVG to a docs page. The illustrated steps and the figure with the `^` belong to the home page and the 404 page only.
 
 ## 5. Prove it
 
@@ -73,4 +82,4 @@ pnpm test
 
 The build writes `site/dist/llms.txt`, `site/dist/llms-full.txt`, and `site/dist/<path>.md` for your page. Open the `.md` copy and check that its links point at `https://stack.kubaszwajka.com/...md` or GitHub.
 
-The theme lives in `site/src/styles/theme.css`. A page never sets colors or fonts itself.
+The theme lives in `site/src/styles/theme.css`, and `site/README.md` maps the rest of the look. A page never sets colors or fonts itself.
