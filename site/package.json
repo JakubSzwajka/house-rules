@@ -8,7 +8,7 @@
   "scripts": {
     "generate": "node scripts/generate.ts",
     "dev": "node scripts/generate.ts && ASTRO_TELEMETRY_DISABLED=1 astro dev",
-    "build": "node scripts/generate.ts && ASTRO_TELEMETRY_DISABLED=1 astro build && node scripts/llms.ts",
+    "build": "node scripts/generate.ts && ASTRO_TELEMETRY_DISABLED=1 astro build && node scripts/source-links.ts && node scripts/llms.ts",
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
     "typecheck": "tsc --project tsconfig.json",
     "test": "node --test \"scripts/tests/*.test.ts\""

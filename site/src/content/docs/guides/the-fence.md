@@ -5,7 +5,7 @@ sidebar:
   order: 3
 ---
 
-The fence is everything that stops an agent from skipping the checks: exact pins, `pnpm check`, `pnpm test`, the lefthook pre-commit hook, and the harness hooks that block `git ... --no-verify`.
+The fence is the doorman. It is everything that stops an agent from skipping the checks: exact pins, `pnpm check`, `pnpm test`, the lefthook pre-commit hook, and the harness hooks that block `git ... --no-verify`.
 
 ```text
 git commit ──> lefthook pre-commit ──> pnpm check ──> pnpm test

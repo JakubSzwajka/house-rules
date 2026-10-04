@@ -2,7 +2,11 @@
 # Build from the repo root: docker build -f site/Dockerfile .
 FROM node:24.21.0-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS build
 
+# The branch, tag or commit that source links point at. The default is main.
+ARG SITE_SOURCE_REF=main
+
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+  SITE_SOURCE_REF=$SITE_SOURCE_REF \
   ASTRO_TELEMETRY_DISABLED=1 \
   TURBO_TELEMETRY_DISABLED=1
 RUN corepack enable

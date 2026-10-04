@@ -2,7 +2,15 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { pageUrl, rawPath, rawUrl, resolveLink } from "./links.ts";
 import { parseFrontmatter, rewriteLinks } from "./markdown-text.ts";
-import { contentRoot, SECTIONS, SITE_SUMMARY, SITE_TITLE, SITE_URL } from "./site-map.ts";
+import {
+  atSourceRef,
+  contentRoot,
+  SECTIONS,
+  SITE_SUMMARY,
+  SITE_TITLE,
+  SITE_URL,
+  SOURCE_REF,
+} from "./site-map.ts";
 
 export interface ContentPage {
   readonly contentPath: string;
@@ -78,7 +86,7 @@ export const readContentPages = (): readonly ContentPage[] =>
 const indexEntry = (page: ContentPage): string =>
   `- [${page.title}](${rawUrl(page.contentPath)})${page.description === "" ? "" : `: ${page.description}`}`;
 
-const llmsIndex = (pages: readonly ContentPage[]): string => {
+const llmsIndex = (pages: readonly ContentPage[], ref: string): string => {
   const sections = SECTIONS.map((section) => {
     const own = pages.filter((page) => page.contentPath.startsWith(`${section.directory}/`));
     return `## ${section.label}\n\n${own.map(indexEntry).join("\n")}`;
@@ -88,18 +96,30 @@ const llmsIndex = (pages: readonly ContentPage[]): string => {
     `> ${SITE_SUMMARY}`,
     [
       `Every page below is a Markdown file. The same page as HTML lives at the path without \`.md\`. ${SITE_URL}/llms-full.txt holds every page in one file.`,
-      "The law for code in house-rules is AGENTS.md in the repository. Generated rule and skill pages come from packages/rules and skills/, so they match the code on main.",
+      `The law for code in house-rules is AGENTS.md in the repository. Generated rule and skill pages come from packages/rules and skills/, so they match the code at the \`${ref}\` ref, and every source link points at that ref.`,
     ].join(" "),
     ...sections,
   ].join("\n\n");
 };
 
-export const llmsFiles = (pages: readonly ContentPage[]): ReadonlyMap<string, string> =>
-  new Map([
-    ["llms.txt", `${llmsIndex(pages)}\n`],
-    ["llms-full.txt", `${pages.map((page) => page.markdown).join("\n\n---\n\n")}\n`],
-    ...pages.map((page): [string, string] => [rawPath(page.contentPath), `${page.markdown}\n`]),
+export const llmsFiles = (
+  pages: readonly ContentPage[],
+  ref: string = SOURCE_REF,
+): ReadonlyMap<string, string> => {
+  const retarget = (page: ContentPage): ContentPage => ({
+    ...page,
+    markdown: atSourceRef(page.markdown, ref),
+  });
+  const retargeted = pages.map(retarget);
+  return new Map([
+    ["llms.txt", `${llmsIndex(retargeted, ref)}\n`],
+    ["llms-full.txt", `${retargeted.map((page) => page.markdown).join("\n\n---\n\n")}\n`],
+    ...retargeted.map((page): [string, string] => [
+      rawPath(page.contentPath),
+      `${page.markdown}\n`,
+    ]),
   ]);
+};
 
 export const writeLlmsFiles = (outDir: string): number => {
   const files = llmsFiles(readContentPages());

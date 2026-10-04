@@ -1,0 +1,126 @@
+---
+// PageTitle override: rule pages get the doorman's "checked" stamp, the fence page gets the permit office's DENIED slip.
+const { id, entry } = Astro.locals.starlightRoute;
+const parts = id.split("/");
+const isRulePage = parts[0] === "rules" && parts.length === 3;
+const isFence = id === "guides/the-fence";
+---
+
+<div class="title-row">
+  <h1 id="_top">{entry.data.title}</h1>
+  {isRulePage && <span class="hr-stamp hr-stamp--brass" aria-hidden="true">Checked</span>}
+</div>
+{
+  isFence && (
+    <div class="slip">
+      <p class="ask">
+        <span class="label">Asked at the door</span>
+        <code>git commit --no-verify</code>
+      </p>
+      <span class="hr-stamp hr-stamp--denied">Denied</span>
+      <p class="note">
+        Same answer for <code>git commit -n</code>, a <code>git</code> command with <code>core.hooksPath</code>, and
+        anything that sets <code>LEFTHOOK=0</code>.
+      </p>
+    </div>
+  )
+}
+
+<style>
+  .title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.5rem;
+    margin-top: 1rem;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: var(--sl-text-h1);
+    min-width: 0;
+  }
+
+  .title-row .hr-stamp {
+    font-size: 1rem;
+    padding: 0.5rem 0.7rem;
+  }
+
+  .slip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.4rem 1.5rem;
+    margin-top: 1.5rem;
+    padding: 1rem 1.5rem 1.1rem;
+    max-width: 38rem;
+    background: var(--hr-table-paper);
+    color: var(--hr-ink);
+    border-radius: 3px;
+    box-shadow: var(--hr-edge);
+  }
+
+  :global(:root[data-theme="light"]) .slip {
+    box-shadow:
+      0 0 0 1px var(--hr-paper-line),
+      0 10px 20px -14px rgb(53 7 20 / 0.45);
+  }
+
+  .ask {
+    margin: 0;
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .label {
+    font: 700 0.75rem / 1.2 var(--hr-font-body);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--hr-ink-soft);
+  }
+
+  .ask code {
+    font: 600 1.05rem / 1.3 var(--hr-font-mono);
+    color: var(--hr-ink);
+    overflow-wrap: anywhere;
+  }
+
+  .note {
+    grid-column: 1 / -1;
+    margin: 0.3rem 0 0;
+    font-size: 0.92rem;
+    color: var(--hr-ink-soft);
+  }
+
+  .note code {
+    font-family: var(--hr-font-mono);
+    background: var(--hr-paper-code);
+    padding: 0.05em 0.3em;
+    border-radius: 3px;
+    color: var(--hr-ink);
+  }
+
+  /* the one moment on this page: the stamp lands */
+  @media (prefers-reduced-motion: no-preference) {
+    .slip .hr-stamp {
+      animation: thud 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.35s backwards;
+    }
+    @keyframes thud {
+      from {
+        opacity: 0;
+        scale: 2.4;
+      }
+    }
+  }
+
+  @media (max-width: 30rem) {
+    .slip {
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: start;
+    }
+    .slip .hr-stamp {
+      font-size: 1.4rem;
+      margin: 0.4rem 0 0.2rem 0.3rem;
+    }
+  }
+</style>

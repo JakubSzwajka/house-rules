@@ -3,7 +3,8 @@ title: house-rules
 description: A TypeScript monorepo template and the house plugin behind it. Checked rules for code that agents write.
 template: splash
 hero:
-  tagline: Agents take the shortest path. house-rules puts the rules on that path, as checks that fail the commit.
+  title: Not on <em>the list.</em>
+  tagline: house-rules is the door policy for your repo. Agents take the shortest path, so house-rules puts the rules on that path, as checks that fail the commit.
   actions:
     - text: Start here
       link: /start/what-is-house-rules/
@@ -22,6 +23,19 @@ hero:
 2. **The house plugin, `@house-rules/rules`.** ESLint rules, a Dependency Cruiser layout, TypeScript and Biome presets, and two bins. Other apps install it from GitHub at a pinned commit. Read [all rules](rules/index.md).
 3. **Capabilities, `@house-rules/capability`.** One contract and one handler per action, with permission and approval gates, and MCP tools built from the contract. Read [capabilities](guides/capabilities.md).
 4. **The fence.** `pnpm check` and `pnpm test` run before every commit, and agent harnesses block `--no-verify`. Read [the fence](guides/the-fence.md).
+
+## The guest list
+
+A few of the rules at the door, and the tool that checks each one. [All rules](rules/index.md) has the full list.
+
+| Rule | Turns away | Checked by |
+| --- | --- | --- |
+| [Exact pins](rules/node/exact-pins.md) | A dependency that is not an exact version, `workspace:<exact>`, or a Git spec with a full commit SHA | Node |
+| [use-case-is-capability](rules/eslint/use-case-is-capability.md) | A use-case file that does not export exactly one `implement(...)` capability | ESLint |
+| [no-hand-rolled-surface](rules/eslint/no-hand-rolled-surface.md) | `Tool.make`, `Rpc.make`, or `HttpApiEndpoint.<method>` outside `packages/capability/**` | ESLint |
+| [no-cycles](rules/dependency-cruiser/no-cycles.md) | Circular imports | Dependency Cruiser |
+| [noNonNullAssertion](rules/biome/no-non-null-assertion.md) | `!` non-null assertions | Biome |
+| [house-rules-migrations](rules/node/house-rules-migrations.md) | Cross-module foreign keys, SQL that touches another package's tables, use-cases that open a transaction | Node |
 
 ## If you are an agent
 

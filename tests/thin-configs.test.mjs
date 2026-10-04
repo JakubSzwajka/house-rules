@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { describe, it } from "node:test";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { cruise } from "dependency-cruiser";
 import { ESLint } from "eslint";
 
 const PLUGIN = "@house-rules/rules";
@@ -31,6 +35,7 @@ describe("thin configs over the house plugin", () => {
     const config = require("../.dependency-cruiser.cjs");
     const rules = layout({ scope: "@hosti/", adapterPackages: ["migrations"] }).forbidden;
     for (const rule of rules) {
+      if (rule.name === "no-unresolved-imports") continue;
       const expected = rules.filter(({ name }) => name === rule.name);
       const local = config.forbidden.filter(({ name }) => name === rule.name);
       assert.deepEqual(local, expected, `layout rule ${rule.name}`);
@@ -47,11 +52,38 @@ describe("thin configs over the house plugin", () => {
     ]);
   });
 
-  it(".dependency-cruiser.cjs excludes only the in-repo plugin and Astro's virtual modules on top of the preset's excludes", () => {
+  it(".dependency-cruiser.cjs excludes only the in-repo plugin on top of the preset's excludes", () => {
     const { layout } = require(`${PLUGIN}/dependency-cruiser`);
     const config = require("../.dependency-cruiser.cjs");
     const preset = layout({ scope: "@hosti/" }).options.exclude.path;
-    assert.equal(config.options.exclude.path, `${preset}|^packages/rules/|^astro:`);
+    assert.equal(config.options.exclude.path, `${preset}|^packages/rules/`);
+  });
+
+  it(".dependency-cruiser.cjs allows astro: imports from site/ and still flags them elsewhere", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "house-rules-astro-"));
+    try {
+      for (const file of ["site/page.ts", "scripts/page.ts"]) {
+        await mkdir(dirname(join(workspace, file)), { recursive: true });
+        await writeFile(
+          join(workspace, file),
+          'import { getCollection } from "astro:content";\nexport const all = getCollection;\n',
+        );
+      }
+      const config = require("../.dependency-cruiser.cjs");
+      const { output } = await cruise(["site", "scripts"], {
+        ...structuredClone(config.options),
+        baseDir: workspace,
+        ruleSet: { forbidden: structuredClone(config.forbidden) },
+        validate: true,
+        outputType: "json",
+      });
+      const violations = JSON.parse(output).summary.violations.map(
+        ({ from, rule }) => `${from}: ${rule.name}`,
+      );
+      assert.deepEqual(violations, ["scripts/page.ts: no-unresolved-imports"]);
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
   });
 
   it("the root uses the in-repo plugin as a workspace package", () => {

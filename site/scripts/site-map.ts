@@ -8,6 +8,25 @@ export const SITE_SUMMARY =
 export const GITHUB_REPO = "https://github.com/JakubSzwajka/house-rules";
 export const GITHUB_BRANCH = "main";
 
+const readSourceRef = (value: string | undefined): string => {
+  const ref = value?.trim() ?? "";
+  if (ref === "") {
+    return GITHUB_BRANCH;
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(ref) || ref.includes("..")) {
+    throw new Error(`SITE_SOURCE_REF is not a plain branch, tag or commit name: ${ref}`);
+  }
+  return ref;
+};
+
+export const SOURCE_REF = readSourceRef(process.env["SITE_SOURCE_REF"]);
+
+export const atSourceRef = (text: string, ref: string = SOURCE_REF): string =>
+  text.replace(
+    new RegExp(`(${GITHUB_REPO.replaceAll(".", "\\.")}/(?:blob|tree)/)${GITHUB_BRANCH}(?=/)`, "g"),
+    (_match, prefix: string) => `${prefix}${ref}`,
+  );
+
 export const siteRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 export const repoRoot = dirname(siteRoot);
 export const contentRoot = join(siteRoot, "src", "content", "docs");

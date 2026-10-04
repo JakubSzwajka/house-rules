@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -8,7 +8,8 @@ import { generatedPages, staleGeneratedPages } from "../generation.ts";
 import { rawPath } from "../links.ts";
 import { llmsFiles, readContentPages, writeLlmsFiles } from "../llms-files.ts";
 import { readRuleRows } from "../rule-rows.ts";
-import { SITE_URL } from "../site-map.ts";
+import { retargetHtml } from "../source-links.ts";
+import { atSourceRef, GITHUB_REPO, SITE_URL } from "../site-map.ts";
 import { readSkills } from "../skill-pages.ts";
 
 const pages = generatedPages();
@@ -66,6 +67,54 @@ describe("agent-readable output", () => {
         }
         assert.ok(full.includes(`# ${page.title}\n`), `llms-full.txt misses ${page.contentPath}`);
       }
+    } finally {
+      rmSync(outDir, { recursive: true, force: true });
+    }
+  });
+
+  it("names the source ref and points every source link at it", () => {
+    const ref = "docs/site";
+    const branch = llmsFiles(content, ref);
+    const index = branch.get("llms.txt") ?? "";
+    assert.ok(index.includes("`docs/site` ref"), "llms.txt does not name the ref");
+    assert.ok(!index.includes("code on main"), "llms.txt still claims main");
+    for (const [path, text] of branch) {
+      assert.ok(
+        !new RegExp(`${GITHUB_REPO}/(?:blob|tree)/main/`).test(text),
+        `${path} links to main`,
+      );
+    }
+    const full = branch.get("llms-full.txt") ?? "";
+    assert.ok(full.includes(`${GITHUB_REPO}/blob/docs/site/skills/`), "no skill link at the ref");
+  });
+
+  it("retargets only this repository's source links", () => {
+    const own = `${GITHUB_REPO}/blob/main/skills/x/SKILL.md`;
+    const other = "https://github.com/someone/else/blob/main/a.md";
+    assert.equal(
+      atSourceRef(`${own} ${other}`, "v1.2.0"),
+      `${GITHUB_REPO}/blob/v1.2.0/skills/x/SKILL.md ${other}`,
+    );
+    assert.equal(
+      atSourceRef(`${GITHUB_REPO}/tree/main/skills`, "abc123"),
+      `${GITHUB_REPO}/tree/abc123/skills`,
+    );
+  });
+
+  it("retargets source links in built HTML and leaves other pages alone", () => {
+    const outDir = mkdtempSync(join(tmpdir(), "house-rules-html-"));
+    try {
+      mkdirSync(join(outDir, "a"));
+      writeFileSync(
+        join(outDir, "a", "index.html"),
+        `<a href="${GITHUB_REPO}/blob/main/x.md">x</a>`,
+      );
+      writeFileSync(join(outDir, "b.html"), "<p>no links</p>");
+      assert.equal(retargetHtml(outDir, "docs/site"), 1);
+      assert.equal(
+        readFileSync(join(outDir, "a", "index.html"), "utf8"),
+        `<a href="${GITHUB_REPO}/blob/docs/site/x.md">x</a>`,
+      );
     } finally {
       rmSync(outDir, { recursive: true, force: true });
     }

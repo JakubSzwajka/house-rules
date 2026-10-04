@@ -1,0 +1,217 @@
+/* The door: header, sidebar, contents list, pager, and the browser surfaces around them. */
+
+body {
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--hr-selection);
+  color: var(--hr-selection-text);
+}
+
+:focus-visible {
+  outline: 3px solid var(--hr-focus);
+  outline-offset: 3px;
+}
+
+html {
+  scrollbar-color: var(--hr-gray-4) var(--hr-bg-deep);
+  accent-color: var(--hr-accent);
+  caret-color: var(--hr-link);
+}
+
+/* header: a brass rail under the awning, the site name on a brass plaque */
+header.header {
+  border-bottom: 2px solid var(--hr-rule);
+}
+
+.site-title {
+  color: var(--hr-ink);
+}
+
+.site-title span {
+  display: inline-block;
+  background: var(--hr-brass);
+  color: var(--hr-ink);
+  font: 400 1rem / 1 var(--hr-font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  padding: 0.55rem 0.8rem 0.5rem;
+  border-radius: var(--hr-radius);
+  box-shadow:
+    0 1px 0 var(--hr-brass-hi) inset,
+    0 3px 6px rgb(0 0 0 / 0.35);
+}
+
+.site-title:hover span {
+  background: var(--hr-brass-hi);
+}
+
+@media (min-width: 50rem) {
+  site-search button[data-open-modal] {
+    background: var(--hr-bg);
+    border: 2px solid var(--hr-rule);
+    border-radius: var(--hr-radius);
+    color: var(--hr-text);
+  }
+
+  site-search button[data-open-modal]:hover {
+    border-color: var(--hr-link);
+    color: var(--hr-heading);
+  }
+}
+
+site-search button > kbd {
+  background: var(--hr-bg-deep);
+  color: var(--hr-muted);
+}
+
+site-search dialog {
+  background: var(--hr-bg-deep);
+  border-color: var(--hr-rule);
+}
+
+/* sidebar: the list at the door */
+.sidebar-content .large {
+  font: 700 0.8rem / 1.2 var(--hr-font-body);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hr-rule);
+}
+
+:root[data-theme="light"] .sidebar-content .large {
+  color: var(--hr-wine);
+}
+
+.sidebar-content a {
+  color: var(--hr-text);
+  border-radius: 3px;
+}
+
+.sidebar-content a:hover,
+.sidebar-content a:focus-visible {
+  background: var(--hr-bg-lift);
+  color: var(--hr-heading);
+}
+
+.sidebar-content a[aria-current="page"],
+.sidebar-content a[aria-current="page"]:hover,
+.sidebar-content a[aria-current="page"]:focus-visible {
+  background: var(--hr-link);
+  color: var(--hr-on-link);
+  font-weight: 700;
+}
+
+.sidebar-content ul ul li {
+  border-inline-start-color: var(--hr-hairline);
+}
+
+.sidebar-content summary .group-label .large {
+  font-size: 0.8rem;
+}
+
+/* table of contents */
+starlight-toc h2,
+mobile-starlight-toc .toggle {
+  font: 700 0.8rem / 1.2 var(--hr-font-body);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hr-rule);
+}
+
+:root[data-theme="light"] starlight-toc h2,
+:root[data-theme="light"] mobile-starlight-toc .toggle {
+  color: var(--hr-wine);
+}
+
+starlight-toc a,
+mobile-starlight-toc a {
+  color: var(--hr-muted);
+}
+
+starlight-toc a:hover,
+mobile-starlight-toc a:hover {
+  color: var(--hr-link);
+}
+
+starlight-toc a[aria-current="true"],
+mobile-starlight-toc a[aria-current="true"] {
+  color: var(--hr-link);
+  font-weight: 700;
+}
+
+/* pager: brass-framed doors to the next room */
+.pagination-links a {
+  border: 2px solid var(--hr-rule);
+  border-radius: var(--hr-radius);
+  box-shadow: none;
+  color: var(--hr-text);
+}
+
+.pagination-links a:hover {
+  background: var(--hr-link);
+  border-color: var(--hr-link);
+  color: var(--hr-on-link);
+}
+
+.pagination-links a:hover .link-title {
+  color: var(--hr-on-link);
+}
+
+.pagination-links .link-title {
+  font: 400 1.05rem / 1.2 var(--hr-font-display);
+  text-transform: uppercase;
+  color: var(--hr-heading);
+}
+
+/* buttons, hero and in-page */
+.sl-link-button {
+  border-radius: var(--hr-radius);
+  font: 400 1rem / 1 var(--hr-font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.sl-link-button.primary {
+  background: var(--hr-paper);
+  border-color: var(--hr-paper);
+  color: var(--hr-velvet);
+  box-shadow: 0 3px 0 var(--hr-brass);
+}
+
+.sl-link-button.primary:hover {
+  background: var(--hr-brass-hi);
+  color: var(--hr-ink);
+}
+
+:root[data-theme="light"] .sl-link-button.primary {
+  background: var(--hr-velvet);
+  border-color: var(--hr-velvet);
+  color: var(--hr-paper);
+}
+
+:root[data-theme="light"] .sl-link-button.primary:hover {
+  background: var(--hr-ink);
+  color: var(--hr-paper);
+}
+
+.sl-link-button.minimal,
+.sl-link-button.secondary {
+  padding-inline: 1.1rem;
+  border: 2px solid var(--hr-rule);
+  color: var(--hr-heading);
+}
+
+.sl-link-button.minimal:hover,
+.sl-link-button.secondary:hover {
+  background: var(--hr-link);
+  border-color: var(--hr-link);
+  color: var(--hr-on-link);
+}
+
+/* footer bits */
+.meta,
+footer .kudos {
+  color: var(--hr-muted);
+}
