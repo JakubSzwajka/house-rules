@@ -34,7 +34,7 @@ The rules table in the house-rules README lists every checked rule, its tool, an
 - An app or package imports another package by its name, such as `@hosti/bookings`, and declares it in its own `package.json` as `workspace:<exact version>`. Never import another package by a relative path.
 - A package has one public entry, `src/index.ts`, and its `package.json` `exports` names only that entry. Callers never import a file under the package's `src/internal/`, by name or by path.
 - Each workspace package has its own `tsconfig.json` that extends the root `tsconfig.base.json`, plus `typecheck` and `test` scripts.
-- The capability library (`defineContract`, `implement`, `toTool`, and the types) lives in `packages/capability`, `@house-rules/capability`. An app writes its own capabilities in its own code, as its use-cases, and imports the library by name. A capability handler is an Effect: it yields services and lets typed errors flow.
+- The capability library (`defineContract`, `implement`, `toTool`, the `Grant` and `Approval` slots, `definePolicy`, and the types) lives in `packages/capability`, `@house-rules/capability`. An app writes its own capabilities in its own code, as its use-cases, and imports the library by name. A capability handler is an Effect: it yields services and lets typed errors flow.
 - `packages/rules` is the exception. It is the plain-JavaScript house plugin, with many entries in `exports`, no `tsconfig.json`, and a `typecheck` script that runs `node --check` over each source file. The layout rules, the `comment-discipline` rule, and Biome on its test fixtures skip it. Its tests run in `pnpm test`.
 
 ## Layers inside an app
@@ -72,16 +72,18 @@ Before you edit Effect code, read `effect/AGENTS.md` and the docs under `effect/
 
 An app can let agents call its use-cases over MCP, and later over a CLI. Write each capability once, in a module and a use-case, and let each adapter reach it. `docs/mcp-adapter.md` records why. To add a tool, follow `skills/add-an-mcp-tool/SKILL.md`.
 
-- A service method that acts for a user takes that user as an explicit `Actor` argument. Access rules live inside the module, so no adapter can skip them.
+- A service method that acts for a user takes that user as an explicit `Actor` argument. Rules about one object, such as owner or shared, live inside the module, so no adapter can skip them.
+- Every contract declares a `permission`, a `resource:action` string the owning module names, or `"public"` on purpose. The type requires it. `implement` runs the `Grant` check, then `Approval` when the contract sets `needsApproval: true`, then the handler. The gates add `Grant` and `Approval` to the capability's requirements and `Forbidden` and `ApprovalDenied` to its failures.
 - A use-case that acts for a user yields the `Viewer` service, which holds the `Actor`, and passes it to the module. `Viewer` lives in a package, because more than one use-case needs it.
-- An adapter decides who the `Viewer` is, runs one use-case, and maps its typed errors to its own response. It holds no business logic and no access rule.
+- An adapter decides who the `Viewer` is, provides the `Grant` and `Approval` slots for that request, runs one use-case, and maps its typed errors, gate errors included, to its own response. It holds no business logic and no access rule.
+- The MCP adapter fills `Approval` with `elicitationApproval`. It asks the human through the client and fails closed when the client declines, cancels, answers no, or cannot elicit. An agent never answers its own approval.
 - Each adapter owns its error mapper. The MCP adapter does not reuse the web error view.
 - An MCP tool is one entry in the app's tool catalogue, in the delivery layer, such as `src/delivery/mcp/tools.ts`. Build it from the use-case's contract with `toTool`, which takes the name, the description, the input `Schema`, and the `Tool.Readonly` and `Tool.Destructive` annotations from the contract. The entry's options add the title and the `idempotent` and `openWorld` hints. Its handler runs the capability.
 - A tool handler calls a use-case. It never calls a module service, the database, or another adapter.
 - Every tool has a test that runs it with a fake `Viewer`. The tests include an access test: user B cannot read user A's data through the tool.
 - The first tools an app exposes are read-only. Every write or destructive tool is annotated as one and needs owner approval before it ships.
 - An agent gets the same access as the user has in the app. The module enforces what the `Viewer` may do, so an agent never gets more than the user has. A token scope is optional and only narrows access.
-- Tools that only the owner may run, or that are hard to undo, such as delete, share, and unshare, stay out of the catalogue until the owner approves each one by name.
+- Tools that only the owner may run, or that are hard to undo, such as delete, share, and unshare, stay out of the catalogue until the owner approves each one by name. Such a tool's contract sets `needsApproval: true`.
 - Keep the catalogue small. Each tool does one specific job and returns structured output. A big record gets a summary tool plus a separate read tool.
 - Tool output never carries instructions to the model. Text a user wrote goes out as a data field.
 - Use `McpServer`, `Tool`, and `Toolkit` from `effect/unstable/ai` in the pinned `effect` before any other MCP library.

@@ -1,6 +1,13 @@
 import { Context, type Schema } from "effect";
 import { Tool } from "effect/unstable/ai";
-import type { Contract, InputSchema, PlainSchema } from "./contract.ts";
+import {
+  type Contract,
+  type FailureSchemaOf,
+  failureSchemaOf,
+  type InputSchema,
+  type PlainSchema,
+} from "./contract.ts";
+import type { PermissionDeclaration } from "./permission.ts";
 
 export type ToToolOptions = Readonly<{
   title: string;
@@ -46,21 +53,23 @@ export const toTool = <
   Input extends InputSchema,
   Output extends PlainSchema,
   ContractFailure extends PlainSchema,
+  Permission extends PermissionDeclaration,
+  NeedsApproval extends boolean,
   Options extends ToToolOptions,
 >(
-  contract: Contract<Name, Input, Output, ContractFailure>,
+  contract: Contract<Name, Input, Output, ContractFailure, Permission, NeedsApproval>,
   options: Options,
 ): ContractTool<
   Name,
   Input,
   ToolSchema<Options, "success", Output>,
-  ToolSchema<Options, "failure", ContractFailure>
+  ToolSchema<Options, "failure", FailureSchemaOf<ContractFailure, Permission, NeedsApproval>>
 > => {
   const success = (options.success ?? contract.output) as ToolSchema<Options, "success", Output>;
-  const failure = (options.failure ?? contract.failure) as ToolSchema<
+  const failure = (options.failure ?? failureSchemaOf(contract)) as ToolSchema<
     Options,
     "failure",
-    ContractFailure
+    FailureSchemaOf<ContractFailure, Permission, NeedsApproval>
   >;
   return Tool.make(contract.name, {
     description: contract.description,

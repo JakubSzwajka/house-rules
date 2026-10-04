@@ -1,4 +1,4 @@
-import { Booking, BookingNotFound, Bookings } from "@hosti/bookings";
+import { Booking, BookingNotFound, BookingPermissions, Bookings } from "@hosti/bookings";
 import { defineContract, implement } from "@house-rules/capability";
 import { Effect, Schema } from "effect";
 
@@ -7,6 +7,7 @@ export const showBookingContract = defineContract("show_booking", {
   input: Schema.Struct({ id: Schema.String }),
   output: Booking,
   failure: BookingNotFound,
+  permission: BookingPermissions.read,
   annotations: { readOnly: true },
 });
 

@@ -66,7 +66,7 @@ Add the package to the app that uses it:
 pnpm --filter @hosti/api add @hosti/<name>
 ```
 
-The app also needs `@house-rules/capability`. `apps/api` already has it as `"workspace:0.3.0"`. An app outside this repo installs it from GitHub, as `packages/capability/README.md` shows.
+The app also needs `@house-rules/capability`. `apps/api` already has it as `"workspace:0.4.0"`. An app outside this repo installs it from GitHub, as `packages/capability/README.md` shows.
 
 `saveWorkspaceProtocol: true` and `saveExact: true` in `pnpm-workspace.yaml` make pnpm write `"@hosti/<name>": "workspace:0.0.0"` into the app's `package.json`. Do not name a spec such as `@workspace:0.0.0` on the command line: pnpm then writes `workspace:*`, which the pin check rejects.
 
@@ -75,7 +75,7 @@ Create `apps/<app>/src/use-cases/<action>.ts`. Import the module by its package 
 Every use-case is a capability. The file exports one contract and one capability, and nothing else but types:
 
 ```ts
-import { Booking, BookingNotFound, Bookings } from "@hosti/bookings";
+import { Booking, BookingNotFound, BookingPermissions, Bookings } from "@hosti/bookings";
 import { defineContract, implement } from "@house-rules/capability";
 import { Effect, Schema } from "effect";
 
@@ -84,6 +84,7 @@ export const showBookingContract = defineContract("show_booking", {
   input: Schema.Struct({ id: Schema.String }),
   output: Booking,
   failure: BookingNotFound,
+  permission: BookingPermissions.read,
   annotations: { readOnly: true },
 });
 
@@ -95,11 +96,11 @@ export const showBooking = implement(showBookingContract, ({ id }) =>
 );
 ```
 
-The handler yields the service and calls its methods. Let typed errors flow through the error channel. Do not catch them here, and do not open a transaction. Set `readOnly` when the action only reads, and `destructive` when it deletes or overwrites. An action with no input uses `NoInput` from `@house-rules/capability`. `use-case-is-capability` fails a use-case file that exports anything else.
+The handler yields the service and calls its methods. Let typed errors flow through the error channel. Do not catch them here, and do not open a transaction. Set `readOnly` when the action only reads, and `destructive` when it deletes or overwrites. Every contract names a `permission`, a `resource:action` string the module exports, such as `BookingPermissions.read`. Write `permission: "public"` only for an action any caller may run. Set `needsApproval: true` when a human must confirm each call. The package names its permissions next to its data, as `packages/bookings/src/permissions.ts` does. An action with no input uses `NoInput` from `@house-rules/capability`. `use-case-is-capability` fails a use-case file that exports anything else.
 
 ## 4. Map errors once in delivery
 
-Create the handler under `apps/<app>/src/delivery/`. It calls the use-case through its handler, such as `showBooking.handler({ id })`, and maps every typed error to a response in one place, with `Effect.catchTag` or `Effect.catchTags`. The handler's error channel ends as `never`.
+Create the handler under `apps/<app>/src/delivery/`. It calls the use-case through its handler, such as `showBooking.handler({ id })`, and maps every typed error to a response in one place, with `Effect.catchTag` or `Effect.catchTags`. That includes the gate errors: `Forbidden` when the contract names a permission, and `ApprovalDenied` when it needs approval. Delivery also provides the `Grant` and, when needed, the `Approval` slot for each request, as `apps/api/src/delivery/http/get-booking-route.ts` does with its visitor grant. The handler's error channel ends as `never`.
 
 Delivery returns an Effect. The entry point that owns the runtime runs it. Do not call `Effect.run*` inside Effect code.
 

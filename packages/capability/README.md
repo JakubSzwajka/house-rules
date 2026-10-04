@@ -1,16 +1,18 @@
 # @house-rules/capability
 
-A capability is one named action an app offers, such as "show a booking". It has a contract and one handler. The contract holds the name, a description, Effect Schemas for the input, the output and the failure, and two flags: `readOnly` and `destructive`. The handler is an Effect that takes the decoded input and gets its services from Layers. An MCP tool is built from the contract with `toTool`, and HTTP or CLI adapters can later be built the same way, so each action is written once.
+A capability is one named action an app offers, such as "show a booking". It has a contract and one handler. The contract holds the name, a description, Effect Schemas for the input, the output and the failure, two flags, `readOnly` and `destructive`, a `permission`, and `needsApproval`. The handler is an Effect that takes the decoded input and gets its services from Layers. An MCP tool is built from the contract with `toTool`, and HTTP or CLI adapters can later be built the same way, so each action is written once.
 
 ```text
 adapter      HTTP route   MCP tool   CLI command    decides who calls, maps errors
                   \           |          /
+gates               Grant, then Approval               may this caller, does a human mean it
+                              |
 capability          showBooking contract + handler     one action, typed in and out
                               |
-service             Bookings (a module's interface)     rules, access checks, data
+service             Bookings (a module's interface)     rules, checks of one object, data
 ```
 
-A module is a deep piece of behavior: an interface plus a private implementation. Its service, a `Context.Service` class, is that interface. A capability is one action offered on top of the service; the module knows nothing about it. Access and permission checks stay inside the service. The contract only carries the `readOnly` and `destructive` flags, so an adapter can tell a read from a write.
+A module is a deep piece of behavior: an interface plus a private implementation. Its service, a `Context.Service` class, is that interface. A capability is one action offered on top of the service; the module knows nothing about it. The contract declares its permission, and `implement` checks it before the handler runs. Checks of one object, such as whether this user owns this trip, stay inside the service. The `readOnly` and `destructive` flags tell an adapter a read from a write.
 
 ## Usage
 
@@ -35,6 +37,7 @@ const greetContract = defineContract("greet", {
   input: Schema.Struct({ name: Schema.String }),
   output: Schema.String,
   failure: NameIsEmpty,
+  permission: "public",
   annotations: { readOnly: true },
 });
 
@@ -59,7 +62,75 @@ it.layer(Greetings.layer)("greet", (test) => {
 
 `greet.handler` has the type `(input: { readonly name: string }) => Effect<string, NameIsEmpty, Greetings>`. The `Greetings` requirement comes from the handler itself. Provide it with a Layer, as the test does. A handler that fails with an error the contract does not declare, or returns a value the output schema does not allow, is a type error.
 
-`annotations` is optional. Each flag you leave out is `false`.
+`permission` is required. `"public"` says, on purpose, that any caller may run the action, and adds nothing to the handler's type. `annotations` is optional. Each flag you leave out is `false`.
+
+## Permissions and approval
+
+Each call runs two gates before the handler. They are `Context.Service` slots that the adapter provides for each request, the way it provides the `Viewer`.
+
+```text
+handler(input)
+  1 Grant      permission held?        no -> Forbidden({ capabilityName, permission })
+  2 Approval   human says yes?         no -> ApprovalDenied({ capabilityName, reason })
+  3 handler    the use-case itself
+```
+
+1. [ ] **Permission.** A `resource:action` string, such as `trips:delete`, or `"public"`. The module that owns the resource names its permissions. The type rejects a contract without one, and a string without a colon.
+2. [ ] **Grant.** `holds(permission) => Effect<boolean>`: does this caller hold the permission at all? It runs before any data is read, so it cannot leak whether a record exists. A non-public contract adds `Grant` to the handler's requirements and `Forbidden` to its failures.
+3. [ ] **Approval.** `approve(capabilityName, input) => Effect<void, ApprovalDenied>`: does a human mean this call, now? `needsApproval: true` adds `Approval` to the requirements and `ApprovalDenied` to the failures. `false`, the default, adds nothing.
+
+```ts
+import { Approval, defineContract, Grant, implement } from "@house-rules/capability";
+
+const removeTripContract = defineContract("remove_trip", {
+  description: "Delete one trip the caller owns.",
+  input: Schema.Struct({ tripId: Schema.String }),
+  output: Schema.Void,
+  failure: TripNotFound,
+  permission: "trips:delete",
+  needsApproval: true,
+  annotations: { destructive: true },
+});
+
+const removeTrip = implement(removeTripContract, ({ tripId }) => /* ... */);
+// removeTrip.handler: (input) =>
+//   Effect<void, TripNotFound | Forbidden | ApprovalDenied, Trips | Viewer | Grant | Approval>
+
+removeTrip.handler({ tripId }).pipe(
+  Effect.provideService(Grant, Grant.fromPermissions(memberPermissions)),
+  Effect.provide(Approval.allowAll),
+);
+```
+
+| Cartridge | Type | Use |
+| --- | --- | --- |
+| `Grant.allowAll`, `Grant.denyAll` | `Layer<Grant>` | tests, or a surface that trusts every caller |
+| `Grant.fromPermissions(list)` | `GrantService` value | `Effect.provideService(Grant, ...)` per request |
+| `Grant.layerFromPermissions(list)` | `Layer<Grant>` | the same, as a layer |
+| `Approval.allowAll`, `Approval.denyAll` | `Layer<Approval>` | the web, where the click is the yes; tests |
+| `elicitationApproval` | `Layer<Approval>` | MCP: ask the human through the client |
+
+`elicitationApproval` calls `McpServer.elicit` from `effect/unstable/ai` with a yes or no form, `ApprovalForm`. The message names the capability and shows its input as JSON data, never as instructions (`approvalMessage`). It reads the `McpServerClient` of the current request when `approve` runs, so it works whether you provide it per request or once at startup. It fails closed with `ApprovalDenied` when the human declines, cancels, or answers no, when the elicitation request fails, when the client does not advertise form elicitation, and when no MCP client is in context. An agent cannot answer its own approval: the client shows the form to the human. Whether each agent client supports elicitation is not checked here.
+
+A wide flag, such as a `needsApproval` typed only as `boolean`, gets both gates in the type. The safe side is to provide more.
+
+### Relations and policy
+
+A relation is how the caller stands to one object, such as owner or shared. The module checks the relation against its own data. `definePolicy` gives the shape:
+
+```ts
+import { definePolicy } from "@house-rules/capability";
+
+export const tripPolicy = definePolicy({
+  owner: ["trips:read", "trips:write", "trips:delete", "trips:share"],
+  shared: ["trips:read", "trips:write"],
+});
+
+tripPolicy.allows("shared", "trips:delete"); // false
+tripPolicy.table(); // { owner: { "trips:read": true, ... }, shared: { ..., "trips:delete": false } }
+```
+
+`table()` is pure, so a test compares the whole who × action table to a literal. A permission no relation holds does not appear in the table.
 
 ## An action with no input
 
@@ -74,6 +145,7 @@ const pingContract = defineContract("ping", {
   input: NoInput,
   output: Schema.String,
   failure: Schema.Never,
+  permission: "public",
   annotations: { readOnly: true },
 });
 
@@ -117,7 +189,7 @@ The package is not on npm. Install it from GitHub, pinned to a full 40-character
 | `idempotent` | yes | `Tool.Idempotent` |
 | `openWorld` | yes | `Tool.OpenWorld` |
 | `success` | no | the tool's success schema; defaults to `contract.output` |
-| `failure` | no | the tool's failure schema; defaults to `contract.failure` |
+| `failure` | no | the tool's failure schema; defaults to `failureSchemaOf(contract)`, the contract's failure plus `Forbidden` and `ApprovalDenied` when its gates add them |
 
 ```ts
 import { Toolkit } from "effect/unstable/ai";
@@ -133,7 +205,7 @@ export const tools = Toolkit.make(Greet);
 export const toolHandlers = tools.toLayer({ greet: (input) => greet.handler(input) });
 ```
 
-`idempotent` and `openWorld` are required because Effect defaults `openWorld` to `true`, and an agent client reads the hint. Each MCP adapter decides them. Pass `success` when the tool returns a view of the output, and `failure` when the adapter maps the contract's errors to its own error, such as a `ToolProblem`. The handler you pass to `toLayer` then maps to those schemas.
+`idempotent` and `openWorld` are required because Effect defaults `openWorld` to `true`, and an agent client reads the hint. Each MCP adapter decides them. Pass `success` when the tool returns a view of the output, and `failure` when the adapter maps the contract's errors to its own error, such as a `ToolProblem`. The handler you pass to `toLayer` then maps to those schemas. A `failure` override replaces the gate errors too, so that mapper maps `Forbidden` and `ApprovalDenied` as well.
 
 The tool type keeps the contract's exact types: `Tool<"greet", { parameters: typeof GreetInput; success: ...; failure: ... }>`. `toTool` is typed over `Contract<Name, Input, Output, Failure>`, not over `C extends AnyContract`. The constraint form widens the input to `InputSchema`, so the tool loses its exact parameter type. An override the options type marks optional, such as `success?: typeof View`, types the schema as `typeof View | typeof Output`, because at run time it may be either one. A `NoInput` contract renders its parameters as `{"type":"object","additionalProperties":false}`.
 
@@ -141,8 +213,8 @@ The house plugin's `no-hand-rolled-surface` rule fails on `Tool.make` outside th
 
 ## Limits
 
-This is v0. It has `defineContract`, `implement`, `NoInput` and `toTool`, and nothing else. There is no registry of capabilities, and nothing turns a contract into an HTTP route or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job. For MCP, Effect's `McpServer` decodes it with the tool's parameters.
+It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, and `definePolicy`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities, and nothing turns a contract into an HTTP route or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job. For MCP, Effect's `McpServer` decodes it with the tool's parameters.
 
 ## Exports
 
-`defineContract`, `implement`, `toTool`, the `NoInput` schema, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `Capability`, `ContractTool`, and `ToToolOptions`.
+`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant` and `Approval` services, the `Forbidden` and `ApprovalDenied` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `GrantRequirement`, `ApprovalRequirement`, `GateRequirements`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyTable`, `ContractTool`, and `ToToolOptions`.

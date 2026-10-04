@@ -169,7 +169,7 @@ An old pin keeps working until you move it. The old commits are in this repo's h
 }
 ```
 
-Its README lists the install steps and what v0 does not do yet.
+Its README lists the install steps, the permission and approval gates, and what it does not do yet.
 
 ### Add an app
 
@@ -195,10 +195,10 @@ Follow `skills/add-an-mcp-tool/SKILL.md`. `docs/mcp-adapter.md` records why an M
 ```text
 apps/api
   delivery ───> use-cases ───> @hosti/bookings  (packages/bookings/src/index.ts)
-      └──────────────────────> @hosti/bookings  (types only)
+      └──────────────────────> @hosti/bookings  (Bookings type, BookingPermissions value)
 ```
 
-The package exposes a `Bookings` service, a `Booking` schema, and a typed `BookingNotFound` error. The `showBooking` use-case is a capability: a contract that names `Booking` as its output and `BookingNotFound` as its failure, plus a handler that yields the service. The HTTP handler calls `showBooking.handler({ id })` and maps `BookingNotFound` to a 404 once, so its error channel is `never`. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
+The package exposes a `Bookings` service, a `Booking` schema, and a typed `BookingNotFound` error. The package also names its permission, `bookings:read`. The `showBooking` use-case is a capability: a contract that names `Booking` as its output, `BookingNotFound` as its failure, and `bookings:read` as its permission, plus a handler that yields the service. The HTTP handler calls `showBooking.handler({ id })`, maps `BookingNotFound` to a 404 and `Forbidden` to a 403 once, so its error channel is `never`. It provides a `Grant` for each request: the example has no sign-in, so every visitor holds `bookings:read`. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
 
 ## Commands
 

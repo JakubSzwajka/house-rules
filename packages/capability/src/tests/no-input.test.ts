@@ -8,6 +8,7 @@ const pingContract = defineContract("ping", {
   input: NoInput,
   output: Schema.String,
   failure: Schema.Never,
+  permission: "public",
   annotations: { readOnly: true },
 });
 

@@ -8,18 +8,18 @@ Owners want agents to use their apps: read a trip, list bookings, and later chan
 
 ## Decision
 
-Write each capability once. A module exposes an Effect service whose methods take the acting user as an explicit `Actor` and fail with typed errors. The module checks access itself. Trippy goes further and puts the access check inside each SQL statement. A use-case in the app yields the `Viewer`, which holds the `Actor`, and calls the module.
+Write each capability once. A module exposes an Effect service whose methods take the acting user as an explicit `Actor` and fail with typed errors. The module checks access to one object itself. Trippy goes further and puts that check inside each SQL statement. Each contract also declares a `permission`, and `implement` checks it with the `Grant` slot before the handler runs. A contract with `needsApproval: true` also asks the `Approval` slot, so a human confirms the call. A use-case in the app yields the `Viewer`, which holds the `Actor`, and calls the module.
 
-Each way in is an adapter. An adapter decides who the `Viewer` is, runs a use-case, and maps typed errors to its own response, once. It knows nothing else.
+Each way in is an adapter. An adapter decides who the `Viewer` is, provides the `Grant` and `Approval` slots for the request, runs a use-case, and maps typed errors to its own response, once. It knows nothing else. The MCP adapter fills `Approval` with `elicitationApproval`, which asks the human through the client's elicitation form and fails closed when the client cannot. An agent never answers its own approval.
 
 ```text
-  adapter (delivery)             app use-case      package (module)
-  who is calling                 what to do        what they may do
+  adapter (delivery)           gates (implement)       app use-case    package (module)
+  who is calling               may they, do they mean  what to do      may they, on this object
 
   web page  cookie session ──┐
-  MCP tool  OAuth bearer   ──┼─> Viewer(Actor) ─> use-case ─> service method(actor)
-  CLI       env credential ──┘                                 checks access itself
-  (later)
+  MCP tool  OAuth bearer   ──┼─> Viewer(Actor) ─> Grant ─> Approval ─> use-case ─> service method(actor)
+  CLI       env credential ──┘   + Grant, Approval                                  checks one object
+  (later)                        slots per request
 
   typed error <── each adapter maps it to its own response, once
 ```
@@ -63,7 +63,8 @@ The MCP code uses `McpServer`, `Tool`, and `Toolkit` from `effect/unstable/ai`, 
 
 ## Later
 
-- Write tools, each approved by the owner by name.
+- Write tools, each approved by the owner by name. A hard-to-undo one sets `needsApproval: true`.
+- Token scopes that narrow the `Grant` below the user's app role.
 - MCP Events. The spec is a draft, and ChatGPT supports only webhook delivery.
 - A CLI adapter over the same catalogue.
 - A catalogue package, once a second app needs the tools. Apps cannot import apps, so the use-cases move into that package with it.

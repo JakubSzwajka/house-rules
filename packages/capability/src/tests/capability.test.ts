@@ -20,6 +20,7 @@ const greetContract = defineContract("greet", {
   input: Schema.Struct({ name: Schema.String }),
   output: Schema.String,
   failure: NameIsEmpty,
+  permission: "public",
   annotations: { readOnly: true },
 });
 
@@ -47,6 +48,7 @@ it.effect("a contract with no annotations neither only reads nor destroys", () =
       input: Schema.Struct({ name: Schema.String }),
       output: Schema.Void,
       failure: Schema.Never,
+      permission: "public",
     });
 
     expect(contract.annotations).toEqual({ readOnly: false, destructive: false });
