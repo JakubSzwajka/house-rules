@@ -1,0 +1,11 @@
+# Context is the repo root. Keep the sources the generator reads; drop installs, builds and secrets.
+.git
+**/node_modules
+**/dist
+**/coverage
+**/.turbo
+**/.astro
+.agent_sources
+.env
+.env.local
+.env.*.local

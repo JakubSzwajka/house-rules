@@ -41,3 +41,5 @@ The words for wiring come from ports and adapters. A **port** is a **slot**: a s
 The **agent sources** are shallow clones of dependency source under `.agent_sources/`, made by `pnpm vendor:agent-sources`. Agents read them. Nothing imports them.
 
 The **fence** is what stops an agent from skipping the checks: exact pins, `pnpm check`, `pnpm test`, the lefthook pre-commit hook, and the harness hooks that block `git ... --no-verify`. Its code lives in `scripts/` and `.pi/extensions/`. **Law** is `AGENTS.md`. **Vision** is `VISION.md`, and each project made from the template writes its own.
+
+The **docs site** is `site/`, the workspace package `@house-rules/site`, served at `stack.kubaszwajka.com`. It explains the law, the words, and the rules; it does not replace them. A **generated page** is a page the site's generator writes from code: one per row of the plugin's rules table, and one per skill. A **guide** is a hand-written page. Every page also has a **raw copy**, the same page as Markdown at its path plus `.md`. `llms.txt` lists every raw copy, and `llms-full.txt` holds them all in one file.

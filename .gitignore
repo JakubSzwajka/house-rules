@@ -4,6 +4,8 @@ coverage/
 generated/
 .turbo/
 /.agent_sources/
+# Astro writes generated types here.
+.astro/
 # varlock: .env.schema is checked in; local values are not.
 .env
 .env.local

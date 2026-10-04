@@ -1,6 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "site"
 
 engineStrict: true
 saveExact: true
@@ -27,6 +28,8 @@ packageExtensions:
 # No dependency runs install scripts. The root `prepare` script patches tsc and installs the hook.
 # @swc/core ships its native binary as an optional dependency; its script only adds a wasm fallback.
 # lefthook's script runs `lefthook install`, which `prepare` already runs.
+# esbuild, pulled in by the site's Astro, ships its binary as an optional dependency; its script only checks it.
 allowBuilds:
   "@swc/core": false
+  esbuild: false
   lefthook: false

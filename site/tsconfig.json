@@ -1,0 +1,8 @@
+{
+  "extends": "@house-rules/rules/tsconfig/strict.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "allowImportingTsExtensions": true
+  },
+  "include": ["scripts/**/*.ts", "astro.config.ts"]
+}
