@@ -28,7 +28,7 @@ Links inside the Markdown copies point at other Markdown copies, or at the sourc
 
 | Job | Skill |
 | --- | --- |
-| Find your way around house-rules for the first time | [learn-house-rules](../skills/learn-house-rules.md) |
+| Find your way around House Rules for the first time | [learn-house-rules](../skills/learn-house-rules.md) |
 | Add a module as a workspace package | [add-an-effect-module](../skills/add-an-effect-module.md) |
 | Add one action to an app | [add-a-capability](../skills/add-a-capability.md) |
 | Let agents call a use-case over MCP | [add-an-mcp-tool](../skills/add-an-mcp-tool.md) |

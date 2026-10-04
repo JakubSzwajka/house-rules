@@ -1,6 +1,6 @@
 ---
 title: Docs in the repo
-description: The Markdown files in house-rules that this site links to, and what each one owns.
+description: The Markdown files in House Rules that this site links to, and what each one owns.
 sidebar:
   order: 3
 ---

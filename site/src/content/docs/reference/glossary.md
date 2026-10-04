@@ -1,6 +1,6 @@
 ---
 title: Glossary
-description: The words house-rules uses, in one line each. CONTEXT.md holds the full definitions.
+description: The words House Rules uses, in one line each. CONTEXT.md holds the full definitions.
 sidebar:
   order: 1
 ---

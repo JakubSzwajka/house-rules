@@ -96,7 +96,7 @@ const llmsIndex = (pages: readonly ContentPage[], ref: string): string => {
     `> ${SITE_SUMMARY}`,
     [
       `Every page below is a Markdown file. The same page as HTML lives at the path without \`.md\`. ${SITE_URL}/llms-full.txt holds every page in one file.`,
-      `The law for code in house-rules is AGENTS.md in the repository. Generated rule and skill pages come from packages/rules and skills/, so they match the code at the \`${ref}\` ref, and every source link points at that ref.`,
+      `The law for code in House Rules is AGENTS.md in the repository. Generated rule and skill pages come from packages/rules and skills/, so they match the code at the \`${ref}\` ref, and every source link points at that ref.`,
     ].join(" "),
     ...sections,
   ].join("\n\n");

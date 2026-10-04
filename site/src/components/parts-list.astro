@@ -119,13 +119,26 @@ const wide = part.facts.filter(([name]) => WIDE.has(name));
     background: var(--hr-code-bg);
     padding: 0.05em 0.3em;
     border-radius: 3px;
+    /* a rule id or path is one token: keep it whole, and let a long one scroll inside its chip */
+    display: inline-block;
+    max-width: 100%;
+    overflow-x: auto;
+    vertical-align: bottom;
+    white-space: nowrap;
+    scrollbar-width: none;
   }
 
   .parts :global(a) {
     color: var(--hr-link);
     text-decoration-color: var(--hr-link-line);
-    text-decoration-thickness: 2px;
-    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.22em;
+  }
+
+  /* an inline-block chip does not inherit the link's underline, so a linked chip draws its own */
+  .parts :global(a code) {
+    text-decoration: underline 1px var(--hr-link-line);
+    text-underline-offset: 0.22em;
   }
 
   .parts :global(a:hover) {
