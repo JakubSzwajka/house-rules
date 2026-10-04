@@ -1,34 +1,100 @@
-/* The one theme layer. A visual direction replaces the values below and nothing else. */
+/*
+ * The one theme layer: the door policy. Dark is oxblood velvet with brass, light is cream paper
+ * with oxblood ink. Raw colours live here only; the other style files read the --hr-* tokens.
+ */
 
 :root {
-  --hr-font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --hr-font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --hr-font-display: "Bungee", "Barlow", sans-serif;
+  --hr-font-body: "Barlow", system-ui, sans-serif;
+  --hr-font-mono: "Red Hat Mono", ui-monospace, monospace;
   --hr-radius: 4px;
 
-  --hr-accent-low: #1e2a3a;
-  --hr-accent: #5b8def;
-  --hr-accent-high: #c9dafc;
-  --hr-gray-1: #eceef2;
-  --hr-gray-2: #c0c2c7;
-  --hr-gray-3: #888b96;
-  --hr-gray-4: #545861;
-  --hr-gray-5: #353841;
-  --hr-gray-6: #24272f;
-  --hr-black: #17181c;
+  /* Fixed across modes: the brass fittings, the paper, and the doorman's verdict inks. */
+  --hr-brass: #dcb760;
+  --hr-brass-hi: #f3dc9a;
+  --hr-brass-deep: #9a7a2e;
+  --hr-rope: #c9213d;
+  --hr-rope-shade: #7d1226;
+  --hr-paper: #f6ecd6;
+  --hr-paper-line: #c9b88f;
+  --hr-ink: #24090f;
+  --hr-ink-soft: #5a3a40;
+  --hr-wine: #7a1228;
+  --hr-velvet: #4f0d1e;
+  --hr-velvet-deep: #350714;
+  --hr-ok: #1b6a39;
+  --hr-no: #a30f1e;
+  --hr-paper-code: rgb(79 13 30 / 0.1);
+  --hr-edge: 0 1px 0 rgb(255 255 255 / 0.08) inset, 0 14px 24px -14px rgb(0 0 0 / 0.65);
+
+  /* Dark: the velvet room. */
+  --hr-bg: #4f0d1e;
+  --hr-bg-deep: #350714;
+  --hr-bg-lift: #6b1529;
+  --hr-heading: #fbf3e1;
+  --hr-text: #efe1c3;
+  --hr-muted: #dcc3c7;
+  --hr-link: #f3dc9a;
+  --hr-link-hover: #ffffff;
+  --hr-rule: #dcb760;
+  --hr-hairline: #7a3345;
+  --hr-code-bg: rgb(0 0 0 / 0.24);
+  --hr-on-link: #24090f;
+  --hr-focus: #f3dc9a;
+  --hr-aside-bg: #6b1529;
+  --hr-aside-title: #f3dc9a;
+  --hr-selection: #dcb760;
+  --hr-selection-text: #24090f;
+  --hr-shadow-ticket: 0 8px 14px -8px rgb(0 0 0 / 0.7);
+  --hr-ticket: #f6ecd6;
+  --hr-hero-em: #dcb760;
+
+  --hr-accent-low: #350714;
+  --hr-accent: #dcb760;
+  --hr-accent-high: #f3dc9a;
+  --hr-gray-1: #fbf3e1;
+  --hr-gray-2: #efe1c3;
+  --hr-gray-3: #dcc3c7;
+  --hr-gray-4: #a87a83;
+  --hr-gray-5: #7a3345;
+  --hr-gray-6: #350714;
+  --hr-black: #4f0d1e;
 }
 
 :root[data-theme="light"] {
-  --hr-accent-low: #d7e3fb;
-  --hr-accent: #2d5fc4;
-  --hr-accent-high: #183466;
-  --hr-gray-1: #24272f;
-  --hr-gray-2: #353841;
-  --hr-gray-3: #545861;
-  --hr-gray-4: #888b96;
-  --hr-gray-5: #c0c2c7;
-  --hr-gray-6: #eceef2;
-  --hr-gray-7: #f5f6f8;
-  --hr-black: #ffffff;
+  /* Light: the same club before opening, cream walls and oxblood ink. */
+  --hr-bg: #f8f0de;
+  --hr-bg-deep: #efe2c4;
+  --hr-bg-lift: #f1e1b8;
+  --hr-heading: #4f0d1e;
+  --hr-text: #2e0f16;
+  --hr-muted: #5a3a40;
+  --hr-link: #7a1228;
+  --hr-link-hover: #24090f;
+  --hr-rule: #b08a2e;
+  --hr-hairline: #d9c79f;
+  --hr-code-bg: rgb(79 13 30 / 0.09);
+  --hr-on-link: #f8f0de;
+  --hr-focus: #7a1228;
+  --hr-aside-bg: #f1e1b8;
+  --hr-aside-title: #4f0d1e;
+  --hr-selection: #4f0d1e;
+  --hr-selection-text: #f8f0de;
+  --hr-shadow-ticket: 0 8px 14px -8px rgb(53 7 20 / 0.45);
+  --hr-ticket: #fffaf0;
+  --hr-hero-em: #a30f1e;
+
+  --hr-accent-low: #f1e1b8;
+  --hr-accent: #7a1228;
+  --hr-accent-high: #4f0d1e;
+  --hr-gray-1: #24090f;
+  --hr-gray-2: #2e0f16;
+  --hr-gray-3: #5a3a40;
+  --hr-gray-4: #8a6f68;
+  --hr-gray-5: #d9c79f;
+  --hr-gray-6: #efe2c4;
+  --hr-gray-7: #f3e8cf;
+  --hr-black: #f8f0de;
 }
 
 :root,
@@ -38,6 +104,7 @@
   --sl-color-accent-low: var(--hr-accent-low);
   --sl-color-accent: var(--hr-accent);
   --sl-color-accent-high: var(--hr-accent-high);
+  --sl-color-white: var(--hr-heading);
   --sl-color-gray-1: var(--hr-gray-1);
   --sl-color-gray-2: var(--hr-gray-2);
   --sl-color-gray-3: var(--hr-gray-3);
@@ -45,13 +112,23 @@
   --sl-color-gray-5: var(--hr-gray-5);
   --sl-color-gray-6: var(--hr-gray-6);
   --sl-color-black: var(--hr-black);
+  --sl-color-text: var(--hr-text);
+  --sl-color-text-accent: var(--hr-link);
+  --sl-color-text-invert: var(--hr-on-link);
+  --sl-color-bg: var(--hr-bg);
+  --sl-color-bg-nav: var(--hr-bg-deep);
+  --sl-color-bg-sidebar: var(--hr-bg-deep);
+  --sl-color-bg-inline-code: var(--hr-code-bg);
+  --sl-color-hairline-light: var(--hr-hairline);
+  --sl-color-hairline: var(--hr-hairline);
+  --sl-color-hairline-shade: var(--hr-rule);
+  --sl-text-h1: clamp(2rem, 1.4rem + 2.6vw, 3rem);
+  --sl-text-h2: 1.6rem;
+  --sl-text-h3: 1.3rem;
+  --sl-text-h4: 1.15rem;
+  --sl-line-height: 1.65;
 }
 
 :root[data-theme="light"] {
   --sl-color-gray-7: var(--hr-gray-7);
-}
-
-.sl-markdown-content :is(code, pre),
-.expressive-code .frame {
-  border-radius: var(--hr-radius);
 }

@@ -40,7 +40,29 @@ Astro telemetry is off: every script sets `ASTRO_TELEMETRY_DISABLED=1`.
 
 ## Look
 
-`src/styles/theme.css` is the one theme layer. It sets Starlight's custom properties from a few `--hr-*` values. A visual direction replaces that file and the home page frontmatter, nothing else.
+The theme is the "door policy": oxblood and brass in dark, cream paper in light. Four CSS files under `src/styles/` and two component overrides carry it. `src/styles/theme.css` is the only file with raw colours; the rest read its `--hr-*` tokens.
+
+| File | Owns |
+| --- | --- |
+| `src/styles/fonts.css` | the self-hosted faces from `public/fonts/` (see `FONTS.txt` there) |
+| `src/styles/theme.css` | colours, fonts, and radius as `--hr-*` tokens, mapped onto Starlight's custom properties |
+| `src/styles/chrome.css` | header, sidebar, contents list, pager |
+| `src/styles/content.css` | page titles, prose, tables, notes, code |
+| `src/components/door-hero.astro` | the home page hero (Starlight `Hero`) |
+| `src/components/page-title.astro` | the page title (Starlight `PageTitle`) |
+
+`scripts/accessible-blocks.ts` adds two build-time fixes to rendered Markdown: each task-list checkbox gets an `aria-label` from its item, and each code block can take keyboard focus, since a wide one scrolls sideways.
+
+## Source links
+
+Pages and generated rule and skill pages link to files in the repository. Committed pages point at `main`. The build retargets, in the HTML it writes and in the llms files, every link to `https://github.com/JakubSzwajka/house-rules/{blob,tree}/main/...` at the ref in `SITE_SOURCE_REF`, and `llms.txt` names that ref. Without the variable the ref is `main`. Use it while a page or skill exists only on a branch:
+
+```sh
+SITE_SOURCE_REF=docs/site pnpm --filter @house-rules/site build
+docker build -f site/Dockerfile --build-arg SITE_SOURCE_REF=docs/site -t house-rules-site .
+```
+
+The value must be a plain branch, tag, or commit name. The committed generated pages never change with it.
 
 ## Docker
 
@@ -61,6 +83,6 @@ The site is not an app or a package, so the layout rules do not fit it, and none
 | `site/tsconfig.json` | extends `@house-rules/rules/tsconfig/strict.json`, not the Effect preset | the generator is plain Node; Effect diagnostics such as `nodeBuiltinImport` fail every line of it |
 | `biome.json` | skips `site/dist` and `site/.astro` | build output and Astro's generated types |
 | `eslint.config.mjs` | ignores `site/.astro/` | Astro's generated types (`dist/` was already ignored) |
-| `.dependency-cruiser.cjs` | excludes `^astro:` | Astro's virtual modules, such as `astro:content`, exist on no disk |
+| `.dependency-cruiser.cjs` | splits `no-unresolved-imports`: importers under `site/` may import `astro:` modules, every other importer is checked as before | Astro's virtual modules, such as `astro:content`, exist on no disk |
 
 `pnpm-workspace.yaml` sets `esbuild: false` in `allowBuilds`. Astro's esbuild ships its binary as an optional dependency, and the build works without its install script.

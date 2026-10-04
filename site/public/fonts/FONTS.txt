@@ -1,0 +1,8 @@
+Fonts in this folder are the woff2 files published by Fontsource (latin subset).
+
+Bungee         Copyright 2008 The Bungee Project Authors (David Jonathan Ross)
+Barlow         Copyright 2017 The Barlow Project Authors (Jeremy Tribby)
+Red Hat Mono   Copyright 2021 Red Hat, Inc.
+
+All three are licensed under the SIL Open Font License, Version 1.1:
+https://openfontlicense.org/open-font-license-official-text/
