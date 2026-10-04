@@ -68,11 +68,14 @@ Four questions, in order, for every call:
 - 2026-10-04: house-rules capability 0.4.0 built. Verifier (other model family) failed it once: a malformed approval answer escaped as a defect instead of `ApprovalDenied`. Fixed and re-verified: PASS, 0 blocking.
 - 2026-10-04: Trippy preview built. Verifier failed it once: read, write and list bypassed `tripPolicy`, and a test helper threw inside Effect code. Fixed: the policy now decides every Trip operation, and `NotTripOwner` became `TripActionRefused({ tripId, permission })`. Re-verified: PASS, 0 blocking.
 - 2026-10-04: the owner approved shipping `remove_trip`, `share_trip` and `unshare_trip` to the production MCP catalogue behind approval. Both repos land through a branch and a PR. Trippy re-pins from `file:` to the merged house-rules SHA before its release.
+- 2026-10-04: shipped. house-rules #12 (merge `4d4c9f9`, capability 0.4.0). Trippy #23 (merge `48960fd`), released as Trippy v0.12.0, `fx release verify` 5 of 5.
+- 2026-10-04: the owner tested approval on prod from a real MCP client. The approval form appeared, "no" left the Trip in place, and "yes" removed it. Open 2 is answered for that client. Claude.ai and ChatGPT are still untested.
+- 2026-10-04: spec closed as done. The Open items below carry over to the house-rules and Trippy `TODO.md`, or to a later "authz v2: Grant from caller" spec.
 
 ## Open
 
 1. Scope narrowing: map token scopes to permissions once Clerk issues custom `trips:*` scopes.
-2. Is elicitation supported by the clients we care about (Claude Code, Claude.ai, ChatGPT)? Does it hold up on Trippy's deploy shape? The answer to the client's form arrives as a new request to the same process.
+2. Elicitation works on Trippy prod (one replica) from the client the owner tested. Still to check: Claude.ai and ChatGPT.
 3. Should `remove_item` need approval too?
 4. How do two-step approval and the web confirm fit, if elicitation turns out to be unreliable?
 5. Where do app roles live once there is more than one module: app server code, or a small roles package?
