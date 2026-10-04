@@ -9,8 +9,10 @@ There are two ways in. Start a new repo from the template, or bring the plugin i
 
 ## Start from the template
 
+You need the GitHub CLI, signed in, and Node 24.21 or later. The first command makes a private repo in your account and clones it. Pass `--public` instead of `--private` for a public one.
+
 ```sh
-gh repo create <name> --template JakubSzwajka/house-rules
+gh repo create <name> --private --clone --template JakubSzwajka/house-rules
 cd <name>
 corepack enable
 pnpm install --frozen-lockfile

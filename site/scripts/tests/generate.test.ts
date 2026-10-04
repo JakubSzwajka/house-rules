@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import { GENERATE_COMMAND } from "../generated-page.ts";
 import { generatedPages, staleGeneratedPages } from "../generation.ts";
 import { rawPath } from "../links.ts";
-import { llmsFiles, readContentPages, writeLlmsFiles } from "../llms-files.ts";
+import { llmsFileAt, llmsFiles, readContentPages, writeLlmsFiles } from "../llms-files.ts";
 import { readRuleRows } from "../rule-rows.ts";
 import { retargetHtml } from "../source-links.ts";
 import { atSourceRef, GITHUB_REPO, SITE_URL } from "../site-map.ts";
@@ -70,6 +70,16 @@ describe("agent-readable output", () => {
     } finally {
       rmSync(outDir, { recursive: true, force: true });
     }
+  });
+
+  it("serves the same files in dev that the build writes", () => {
+    assert.equal(llmsFileAt("/llms.txt")?.text, files.get("llms.txt"));
+    assert.equal(llmsFileAt("/llms.txt")?.contentType, "text/plain; charset=utf-8");
+    const page = rawPath("guides/the-fence.md");
+    assert.equal(llmsFileAt(`/${page}?x=1`)?.text, files.get(page));
+    assert.equal(llmsFileAt(`/${page}`)?.contentType, "text/markdown; charset=utf-8");
+    assert.equal(llmsFileAt("/guides/the-fence/"), undefined);
+    assert.equal(llmsFileAt("/nothing.md"), undefined);
   });
 
   it("names the source ref and points every source link at it", () => {

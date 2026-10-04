@@ -1,6 +1,8 @@
 ---
-// Hero override for the splash home: the cover sheet (title, counts, tagline, actions, the figure), then the
-// three numbered assembly steps. The counts come from the rules table through the parts module.
+// Hero override for the splash home: the cover (headline, sub-line, the template command with a copy
+// button, the step after it, what it needs, two actions, the section links, the figure), then three
+// small "stopped before the commit" cards with the rule count, and the way in for agents.
+// Every refusal below is copied from source; the file and line sit in the comment above each one.
 import { LinkButton } from "@astrojs/starlight/components";
 import { parts, toolCount } from "virtual:house-rules/parts";
 import ManualFigure from "./manual-figure.astro";
@@ -8,21 +10,43 @@ import ManualFigure from "./manual-figure.astro";
 const { data } = Astro.locals.starlightRoute.entry;
 const { title = data.title, tagline, actions = [] } = data.hero ?? {};
 
-const steps = [
+// gh needs a visibility flag when it gets a name, and --clone so the next step has a folder to enter.
+const command = "gh repo create my-app --private --clone --template JakubSzwajka/house-rules";
+const nextStep = "cd my-app && pnpm install && pnpm check";
+// Split on spaces so a narrow screen wraps between words, never inside a flag or a repo name.
+// Browsers break after "-", so "--no-verify" would split at its dashes.
+const words = (text: string): readonly string[] => text.split(" ");
+
+const sections = [
+  { text: "Guides", href: "/guides/the-stack/" },
+  { text: "Rules", href: "/rules/" },
+  { text: "Skills", href: "/skills/" },
+  { text: "For agents", href: "/start/for-agents/" },
+] as const;
+
+const cards = [
   {
-    drawing: "repo",
-    caption: "Make a repo from the template.",
-    commands: ["gh repo create <name> --template JakubSzwajka/house-rules"],
+    title: "The agent skips the hooks",
+    code: "git commit --no-verify -m wip",
+    // scripts/vcs-command-policy.mjs:39-40, HOOK_BYPASS_REASON, first two sentences
+    refusal:
+      "Blocked hook bypass. Do not use --no-verify, git commit -n, core.hooksPath, or LEFTHOOK=0.",
+    link: { text: "The fence", href: "/guides/the-fence/" },
   },
   {
-    drawing: "install",
-    caption: "Install from the lockfile.",
-    commands: ["corepack enable", "pnpm install --frozen-lockfile"],
+    title: "A module reads another's table",
+    code: "sql`select * from bookings`",
+    // packages/rules/bin/migrations.mjs:54 (path:line prefix) and :143 (message), first sentence
+    refusal:
+      'packages/trips/src/list-trips.ts:1: SQL names "bookings", a table packages/bookings owns.',
+    link: { text: "Modules and data", href: "/guides/modules-and-data/" },
   },
   {
-    drawing: "check",
-    caption: "Check, then test. Both must exit 0.",
-    commands: ["pnpm check", "pnpm test"],
+    title: "An MCP tool by hand",
+    code: 'Tool.make("remove_trip", …)',
+    // packages/rules/src/no-hand-rolled-surface.mjs:62, message "handRolled", first sentence
+    refusal: "Tool.make builds a surface by hand.",
+    link: { text: "Capabilities", href: "/guides/capabilities/" },
   },
 ] as const;
 ---
@@ -30,20 +54,36 @@ const steps = [
 <div class="cover">
   <div class="copy">
     <h1 id="_top" data-page-title set:html={title} />
-    <ul class="spec" aria-label="In the box">
-      <li><b>{parts.length}</b> rules</li>
-      <li><b>{toolCount}</b> tools</li>
-      <li>
-        <svg class="ticks" viewBox="0 0 52 24" aria-hidden="true" focusable="false">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M7.5 12 l3 3 l5.5 -6" />
-          <circle cx="40" cy="12" r="10" />
-          <path d="M35.5 12 l3 3 l5.5 -6" />
-        </svg>
-        <b>2</b> checks before every commit
-      </li>
-    </ul>
     {tagline && <p class="tagline" set:html={tagline} />}
+    <div class="command">
+      <code id="hr-command">
+        {words(command).map((word, at) => (
+          <>
+            {at > 0 && " "}
+            <span class="word">{word}</span>
+          </>
+        ))}
+      </code>
+      <button type="button" class="copy-button" data-hr-copy="#hr-command" aria-label="Copy the command">
+        <span data-hr-copy-label aria-hidden="true">Copy</span>
+        <span class="sr-only" role="status" data-hr-copy-status></span>
+      </button>
+    </div>
+    <p class="next">
+      Then
+      <code>
+        {words(nextStep).map((word, at) => (
+          <>
+            {at > 0 && " "}
+            <span class="word">{word}</span>
+          </>
+        ))}
+      </code>
+    </p>
+    <p class="needs">
+      Needs the GitHub CLI, signed in, Node 24.21 or later, and pnpm through <code>corepack enable</code>. It makes a
+      private repo in your account.
+    </p>
     {
       actions.length > 0 && (
         <div class="actions">
@@ -56,129 +96,198 @@ const steps = [
         </div>
       )
     }
+    <nav class="sections" aria-label="Docs sections">
+      <ul>
+        {
+          sections.map((section) => (
+            <li>
+              <a href={section.href}>{section.text}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
   </div>
   <div class="art">
     <ManualFigure grid />
   </div>
 </div>
 
-<section class="assembly" aria-labelledby="hr-assemble">
-  <h2 id="hr-assemble">Assemble a repo</h2>
-  <ol class="steps">
+<section class="stopped" aria-labelledby="hr-stopped">
+  <h2 id="hr-stopped">Stopped before the commit.</h2>
+  <p class="count">
+    <code>pnpm check</code> runs <b>{parts.length} rules</b> from <b>{toolCount} tools</b> before every commit.
+    <a href="/rules/">See every rule</a>
+  </p>
+  <ul class="cards">
     {
-      steps.map((step, index) => (
-        <li class="panel">
-          <span class="num" aria-hidden="true">
-            {index + 1}
-          </span>
-          <svg class="drawing" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
-            {step.drawing === "repo" ? (
+      cards.map((card) => (
+        <li class="card">
+          <h3>{card.title}</h3>
+          <code class="input">{card.code}</code>
+          <p class="refusal">
+            <span aria-hidden="true">✗ </span>
+            <span class="sr-only">Refused: </span>
+            {words(card.refusal).map((word, at) => (
               <>
-                <path class="paper" d="M30 24 H170 V128 H30 Z" />
-                <path d="M30 44 H170" />
-                <text x="42" y="38">
-                  &lt;name&gt;
-                </text>
-                <path d="M44 64 h70 M44 80 h96 M44 96 h50" />
-                <circle class="accent" cx="184" cy="46" r="26" />
-                <path class="thick" d="M184 34 V58 M172 46 H196" />
+                {at > 0 && " "}
+                {word.startsWith("-") ? <span class="word">{word}</span> : word}
               </>
-            ) : (
-              <>
-                <rect class="paper" x="14" y="12" width="202" height="116" rx="8" />
-                <path d="M14 36 H216" />
-                <circle class="ink" cx="30" cy="24" r="3" />
-                <circle class="ink" cx="42" cy="24" r="3" />
-                <text x="30" y="66">
-                  {step.drawing === "install" ? "$ pnpm install" : "$ pnpm check"}
-                </text>
-                <path d="M30 84 h70 M30 98 h46" />
-                <circle class="accent" cx="182" cy="96" r="24" />
-                <path class="thick" d="M170 96 L179 106 L196 84" />
-              </>
-            )}
-          </svg>
-          <p class="step-caption">
-            <span class="sr-only">Step {index + 1}. </span>
-            {step.caption}
+            ))}
           </p>
-          {step.commands.map((command) => (
-            <code>
-              {command.split(" ").map((word, at) => (
-                <>
-                  {at > 0 && " "}
-                  <span class="word">{word}</span>
-                </>
-              ))}
-            </code>
-          ))}
-          {index < steps.length - 1 && (
-            <svg class="arrow" viewBox="0 0 60 30" aria-hidden="true" focusable="false">
-              <path d="M4 15 H50 M38 5 L50 15 L38 25" />
-            </svg>
-          )}
+          <a class="more" href={card.link.href}>
+            {card.link.text} <span aria-hidden="true">→</span>
+          </a>
         </li>
       ))
     }
-  </ol>
+  </ul>
+  <p class="agents">
+    Briefing an agent? Give it <a href="/llms.txt"><code>/llms.txt</code></a>, or read{" "}
+    <a href="/start/for-agents/">For agents</a>.
+  </p>
 </section>
+
+<script>
+  const label = (button: HTMLElement, text: string): void => {
+    const visible = button.querySelector<HTMLElement>("[data-hr-copy-label]");
+    const status = button.querySelector<HTMLElement>("[data-hr-copy-status]");
+    if (visible) visible.textContent = text;
+    if (status) status.textContent = text === "Copy" ? "" : text;
+  };
+
+  const copyText = async (text: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Plain http or a blocked clipboard: fall back to a hidden textarea.
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.append(area);
+      area.select();
+      const done = document.execCommand("copy");
+      area.remove();
+      return done;
+    }
+  };
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-hr-copy]")) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    button.addEventListener("click", async () => {
+      const source = document.querySelector<HTMLElement>(button.dataset["hrCopy"] ?? "");
+      const ok = await copyText(source?.textContent?.replace(/\s+/g, " ").trim() ?? "");
+      label(button, ok ? "Copied" : "Press Ctrl+C");
+      clearTimeout(timer);
+      timer = setTimeout(() => label(button, "Copy"), 2000);
+    });
+  }
+</script>
 
 <style>
   .cover {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
     gap: 2rem 3rem;
     align-items: center;
-    padding-block: clamp(1.5rem, 1rem + 4vmin, 3.5rem) 2rem;
+    padding-block: clamp(1rem, 0.5rem + 2vmin, 2rem) 0;
   }
 
   h1 {
     margin: 0;
-    font: 700 clamp(3rem, 1.6rem + 5vw, 5.75rem) / 0.95 var(--hr-font-heading);
+    font: 700 clamp(3rem, 1.4rem + 4.2vw, 5rem) / 0.95 var(--hr-font-heading);
     letter-spacing: -0.015em;
+    text-wrap: balance;
     color: var(--hr-ink-strong);
-  }
-
-  .spec {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem 1.6rem;
-    margin: 1.25rem 0 0;
-    padding: 0.6rem 0;
-    list-style: none;
-    border-block: var(--hr-line-width) solid var(--hr-line);
-    font-size: 0.95rem;
-    color: var(--hr-ink);
-  }
-
-  .spec li {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    margin: 0;
-  }
-
-  .spec b {
-    color: var(--hr-ink-strong);
-  }
-
-  .ticks {
-    width: 2.6rem;
-    height: auto;
-    fill: var(--hr-accent);
-    stroke: var(--hr-on-accent);
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
   }
 
   .tagline {
-    max-width: 36rem;
+    max-width: 34rem;
     margin: 1.25rem 0 1.5rem;
     font-size: clamp(1.05rem, 1rem + 0.35vw, 1.2rem);
     line-height: 1.55;
+    text-wrap: pretty;
     color: var(--hr-ink);
+  }
+
+  .command {
+    display: flex;
+    align-items: stretch;
+    max-width: 100%;
+    width: fit-content;
+    margin: 0;
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: var(--hr-radius);
+    background: var(--hr-code-bg);
+  }
+
+  .command code {
+    min-width: 0;
+    padding: 0.7rem 0.9rem;
+    font: 400 0.85rem / 1.5 var(--hr-font-mono);
+    color: var(--hr-ink);
+  }
+
+  .word {
+    white-space: nowrap;
+  }
+
+  .copy-button {
+    flex: none;
+    min-width: 5.5rem;
+    min-height: 2.75rem;
+    padding: 0 0.9rem;
+    border: 0;
+    border-inline-start: var(--hr-line-width) solid var(--hr-line);
+    background: var(--hr-paper);
+    color: var(--hr-ink-strong);
+    font: 600 0.85rem var(--hr-font-body);
+    cursor: pointer;
+    transition: background var(--hr-duration) var(--hr-ease-out);
+  }
+
+  .copy-button:hover {
+    background: var(--hr-accent);
+    color: var(--hr-on-accent);
+  }
+
+  .copy-button:focus-visible {
+    outline: 3px solid var(--hr-focus);
+    outline-offset: 2px;
+  }
+
+  .next {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.6rem;
+    margin: 0.75rem 0 0;
+    font-weight: 600;
+    color: var(--hr-ink-strong);
+  }
+
+  .next code {
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--hr-radius);
+    background: var(--hr-code-bg);
+    font: 400 0.85rem / 1.5 var(--hr-font-mono);
+    font-weight: 400;
+    color: var(--hr-ink);
+  }
+
+  .needs {
+    max-width: 34rem;
+    margin: 0.6rem 0 1.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--hr-ink-soft);
+  }
+
+  .needs code {
+    font-size: 0.8rem;
   }
 
   .actions {
@@ -187,18 +296,66 @@ const steps = [
     gap: 0.75rem;
   }
 
+  .sections ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.5rem;
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .sections li {
+    margin: 0;
+  }
+
+  .sections a,
+  .count a,
+  .agents a,
+  .more {
+    color: var(--hr-ink-strong);
+    font-weight: 600;
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    text-decoration-color: var(--hr-link-line);
+  }
+
+  /* 44px touch targets; links inside a sentence grow their hit area without opening the line */
+  .sections a,
+  .more {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-block-size: 2.75rem;
+    min-inline-size: 2.75rem;
+  }
+
+  .count a,
+  .agents a {
+    padding-block: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .sections a:hover,
+  .count a:hover,
+  .agents a:hover,
+  .more:hover {
+    text-decoration-thickness: 3px;
+  }
+
   .art {
     display: grid;
     place-items: center;
   }
 
-  .assembly {
+  .stopped {
     position: relative;
-    margin-top: 1.5rem;
-    padding-top: 1.75rem;
+    margin-top: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+    padding-top: 1.5rem;
   }
 
-  .assembly::before {
+  .stopped::before {
     content: "";
     position: absolute;
     inset-inline: 0;
@@ -208,108 +365,84 @@ const steps = [
   }
 
   h2 {
-    margin: 0 0 1.25rem;
+    margin: 0;
     font: 700 var(--sl-text-h2) / 1.15 var(--hr-font-heading);
     color: var(--hr-ink-strong);
   }
 
-  .steps {
+  .count {
+    margin: 0.25rem 0 1.25rem;
+    color: var(--hr-ink);
+  }
+
+  .count b {
+    color: var(--hr-ink-strong);
+  }
+
+  .count a {
+    margin-inline-start: 0.25rem;
+  }
+
+  .cards {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 2.75rem;
+    gap: 1.5rem;
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  .panel {
-    position: relative;
+  .card {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.5rem;
+    gap: 0.9rem;
     margin: 0;
-    padding: 1rem 1.25rem 1.25rem;
+    padding: 1.25rem 1.25rem 0.75rem;
     background: var(--hr-paper);
     border: var(--hr-line-width) solid var(--hr-line);
     border-radius: 6px;
   }
 
-  .num {
-    font: 700 3.25rem / 1 var(--hr-font-heading);
-    color: var(--hr-ink-strong);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .drawing {
-    align-self: center;
-    width: min(100%, 13rem);
-    height: auto;
-    margin-block: 0.25rem 0.5rem;
-    fill: none;
-    stroke: var(--hr-line);
-    stroke-width: 3;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  .drawing .paper {
-    fill: var(--hr-paper);
-  }
-
-  .drawing .accent {
-    fill: var(--hr-accent);
-    stroke: var(--hr-on-accent);
-  }
-
-  .drawing .ink {
-    fill: var(--hr-line);
-    stroke: none;
-  }
-
-  .drawing .thick {
-    stroke: var(--hr-on-accent);
-    stroke-width: 6;
-  }
-
-  .drawing text {
-    fill: var(--hr-line);
-    stroke: none;
-    font: 600 13px var(--hr-font-mono);
-  }
-
-  .step-caption {
+  h3 {
     margin: 0;
-    font-weight: 700;
+    font: 700 1.25rem / 1.2 var(--hr-font-heading);
     color: var(--hr-ink-strong);
   }
 
-  .panel code {
+  .input {
     max-width: 100%;
-    padding: 0.3rem 0.55rem;
-    border: 1.5px solid var(--hr-line);
+    padding: 0.35rem 0.6rem;
     border-radius: var(--hr-radius);
-    background: var(--hr-paper);
+    background: var(--hr-code-bg);
     color: var(--hr-ink);
-    font: 400 0.82rem / 1.45 var(--hr-font-mono);
+    font: 400 0.85rem / 1.45 var(--hr-font-mono);
+    overflow-wrap: anywhere;
   }
 
-  /* a command wraps between words only, never inside a token such as a repo slug */
-  .panel .word {
-    white-space: nowrap;
+  .refusal {
+    margin: 0;
+    font: 400 0.875rem / 1.5 var(--hr-font-mono);
+    color: var(--hr-refuse);
+    overflow-wrap: break-word;
   }
 
-  .arrow {
-    position: absolute;
-    top: 50%;
-    inset-inline-end: -2.55rem;
-    width: 2.3rem;
-    height: auto;
-    fill: none;
-    stroke: var(--hr-line);
-    stroke-width: 3;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+  .refusal [aria-hidden] {
+    font-weight: 700;
+  }
+
+  .more {
+    margin-top: auto;
+  }
+
+  .agents {
+    margin: 1.25rem 0 0;
+    font-size: 1rem;
+    color: var(--hr-ink);
+  }
+
+  .agents code {
+    font-size: 0.9rem;
   }
 
   @media (max-width: 60rem) {
@@ -319,18 +452,31 @@ const steps = [
     .art :global(.sheet) {
       width: min(100%, 14rem);
     }
-    .steps {
+    .cards {
       grid-template-columns: minmax(0, 1fr);
-      gap: 2.25rem;
     }
-    .arrow {
-      top: auto;
-      bottom: -2.1rem;
-      inset-inline-start: 50%;
-      inset-inline-end: auto;
-      width: 1.9rem;
-      translate: -50% 0;
-      rotate: 90deg;
+  }
+
+  @media (max-width: 40rem) {
+    .actions :global(.sl-link-button) {
+      min-height: 2.75rem;
+    }
+  }
+
+  /* At 320px the repo name, which never breaks, is wider than the code box beside a full Copy button. */
+  @media (max-width: 22rem) {
+    .command code {
+      padding-inline: 0.6rem;
+    }
+    .copy-button {
+      min-width: 3.5rem;
+      padding-inline: 0.5rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .copy-button {
+      transition: none;
     }
   }
 </style>

@@ -32,6 +32,8 @@ header.header::after {
   bottom: 0;
   height: 5px;
   background: var(--hr-tape);
+  /* paint only: the theme select's lower edge sits under the tape on narrow screens */
+  pointer-events: none;
   border-top: var(--hr-line-width) solid var(--hr-line);
 }
 
@@ -45,6 +47,15 @@ header.header::after {
 .site-title img {
   height: 2rem;
   width: auto;
+}
+
+/* below the desktop pill the search is a bare icon: give it a full 44px touch target */
+@media (max-width: 49.99rem) {
+  site-search button[data-open-modal] {
+    min-inline-size: 2.75rem;
+    min-block-size: 2.75rem;
+    justify-content: center;
+  }
 }
 
 @media (min-width: 50rem) {

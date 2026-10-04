@@ -1,10 +1,12 @@
 import { readFileSync } from "node:fs";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { fileURLToPath } from "node:url";
 import starlight from "@astrojs/starlight";
 import type { AstroIntegration } from "astro";
 import { defineConfig, passthroughImageService } from "astro/config";
 import { accessibleBlocksIntegration, focusableCodeBlocks } from "./scripts/accessible-blocks.ts";
 import { relativeLinks } from "./scripts/link-plugin.ts";
+import { llmsFileAt } from "./scripts/llms-files.ts";
 import { readRuleRows, TOOLS } from "./scripts/rule-rows.ts";
 import { GITHUB_REPO, SECTIONS, SITE_SUMMARY, SITE_TITLE, SITE_URL } from "./scripts/site-map.ts";
 
@@ -55,6 +57,30 @@ const partsModule = () => ({
   load: (id: string) => (id === `\0${PARTS_MODULE}` ? partsSource() : undefined),
 });
 
+interface DevServer {
+  readonly middlewares: {
+    use(
+      handler: (request: IncomingMessage, response: ServerResponse, next: () => void) => void,
+    ): void;
+  };
+}
+
+const devLlmsFiles = () => ({
+  name: "house-rules-dev-llms",
+  apply: "serve" as const, // a build gets these files in dist/ from scripts/llms.ts instead
+  configureServer: (server: DevServer): void => {
+    server.middlewares.use((request, response, next) => {
+      const file = llmsFileAt(request.url ?? "");
+      if (file === undefined) {
+        next();
+        return;
+      }
+      response.setHeader("Content-Type", file.contentType);
+      response.end(file.text);
+    });
+  },
+});
+
 interface CodeNode {
   readonly tagName: string;
   readonly properties?: Readonly<Record<string, unknown>>;
@@ -99,7 +125,7 @@ export default defineConfig({
   site: SITE_URL,
   trailingSlash: "always",
   image: { service: passthroughImageService() },
-  vite: { plugins: [partsModule()] },
+  vite: { plugins: [partsModule(), devLlmsFiles()] },
   integrations: [
     relativeLinks(),
     accessibleBlocksIntegration(),
@@ -119,6 +145,8 @@ export default defineConfig({
       ],
       components: {
         Hero: "./src/components/manual-hero.astro",
+        Footer: "./src/components/manual-footer.astro",
+        Header: "./src/components/manual-header.astro",
         PageTitle: "./src/components/page-title.astro",
       },
       head: [

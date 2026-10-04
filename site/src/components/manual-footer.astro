@@ -1,0 +1,76 @@
+---
+// Footer override. The home page ends on the next step, then one line that leads to the author's blog;
+// every other page keeps Starlight's footer (edit link, last updated, pager).
+import { LinkButton } from "@astrojs/starlight/components";
+import DefaultFooter from "@astrojs/starlight/components/Footer.astro";
+
+const isHome = Astro.locals.starlightRoute.id === "";
+---
+
+{
+  isHome ? (
+    <footer class="home-footer">
+      <div class="next">
+        <p>Make your own repo from the template.</p>
+        <LinkButton href="/start/adopt/" icon="right-arrow">
+          Start a project
+        </LinkButton>
+      </div>
+      <p class="credit">
+        <a href="https://kubaszwajka.com">Built by Kuba Szwajka · kubaszwajka.com</a>
+      </p>
+    </footer>
+  ) : (
+    <DefaultFooter><slot /></DefaultFooter>
+  )
+}
+
+<style>
+  .home-footer {
+    margin-top: clamp(3rem, 2rem + 4vw, 5rem);
+  }
+
+  .next {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem 2rem;
+    padding: 1.5rem;
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: 6px;
+  }
+
+  .next p {
+    margin: 0;
+    font: 700 1.35rem / 1.25 var(--hr-font-heading);
+    color: var(--hr-ink-strong);
+  }
+
+  .next :global(.sl-link-button) {
+    min-height: 2.75rem;
+  }
+
+  .credit {
+    margin: 2rem 0 0;
+    padding-block: 1.5rem;
+    border-top: 1px solid var(--hr-hairline);
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  .credit a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: var(--hr-ink-soft);
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+  }
+
+  .credit a:hover {
+    color: var(--hr-ink-strong);
+    text-decoration-color: var(--hr-link-line);
+  }
+</style>

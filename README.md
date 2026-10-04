@@ -6,7 +6,7 @@ Every lint rule, preset, and check in `pnpm check` comes from the house plugin f
 
 The docs site, [stack.kubaszwajka.com](https://stack.kubaszwajka.com), explains all of it one topic per page, with a page per rule and per skill. Agents can read it as Markdown: `/llms.txt`, `/llms-full.txt`, or any page path plus `.md`. Its source is [`site/`](site/README.md).
 
-It is a GitHub template. Create a repo from it with `gh repo create <name> --template JakubSzwajka/house-rules`. It also carries the reference copy of the release workflow. See [`docs/release.md`](docs/release.md) to adopt it.
+It is a GitHub template. Create a repo from it with `gh repo create my-app --private --clone --template JakubSzwajka/house-rules`. It also carries the reference copy of the release workflow. See [`docs/release.md`](docs/release.md) to adopt it.
 
 ## Layout
 

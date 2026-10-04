@@ -121,6 +121,24 @@ export const llmsFiles = (
   ]);
 };
 
+export interface LlmsFile {
+  readonly contentType: string;
+  readonly text: string;
+}
+
+export const llmsFileAt = (urlPath: string): LlmsFile | undefined => {
+  const path = decodeURIComponent(urlPath.split(/[?#]/)[0] ?? "").replace(/^\/+/, "");
+  if (!/\.(?:txt|md)$/.test(path)) {
+    return undefined;
+  }
+  const text = llmsFiles(readContentPages()).get(path);
+  if (text === undefined) {
+    return undefined;
+  }
+  const contentType = path.endsWith(".md") ? "text/markdown" : "text/plain";
+  return { contentType: `${contentType}; charset=utf-8`, text };
+};
+
 export const writeLlmsFiles = (outDir: string): number => {
   const files = llmsFiles(readContentPages());
   for (const [path, text] of files) {
