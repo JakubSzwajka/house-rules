@@ -6,6 +6,8 @@ generated/
 /.agent_sources/
 .pi/*
 !.pi/extensions/
+# Astro writes generated types here.
+.astro/
 # varlock: .env.schema is checked in; local values are not.
 .env
 .env.local

@@ -47,11 +47,11 @@ describe("thin configs over the house plugin", () => {
     ]);
   });
 
-  it(".dependency-cruiser.cjs excludes only the in-repo plugin on top of the preset's excludes", () => {
+  it(".dependency-cruiser.cjs excludes only the in-repo plugin and Astro's virtual modules on top of the preset's excludes", () => {
     const { layout } = require(`${PLUGIN}/dependency-cruiser`);
     const config = require("../.dependency-cruiser.cjs");
     const preset = layout({ scope: "@hosti/" }).options.exclude.path;
-    assert.equal(config.options.exclude.path, `${preset}|^packages/rules/`);
+    assert.equal(config.options.exclude.path, `${preset}|^packages/rules/|^astro:`);
   });
 
   it("the root uses the in-repo plugin as a workspace package", () => {

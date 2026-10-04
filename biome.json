@@ -9,7 +9,9 @@
       "!!coverage",
       "!!generated",
       "!!.agent_sources",
-      "!!packages/rules/tests/fixtures"
+      "!!packages/rules/tests/fixtures",
+      "!!site/dist",
+      "!!site/.astro"
     ]
   }
 }

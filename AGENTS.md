@@ -22,6 +22,7 @@ This repo is a pnpm workspace run by Turborepo. Use pnpm, at the version `packag
 | `pnpm acceptance` | Clone the committed HEAD into a temp dir and run `pnpm install --frozen-lockfile`, `check`, and `test` there. |
 | `pnpm vendor:agent-sources` | Shallow-clone the Effect source at the pinned version into `.agent_sources/`. Not part of `check`. |
 | `pnpm --filter <package> add <dep>` | Add a dependency to one workspace package. `saveExact` writes an exact pin. |
+| `pnpm --filter @house-rules/site generate` | Rewrite the docs site's generated rule and skill pages. `build` and `dev` run it first. |
 
 Run `pnpm fix` or `pnpm format` only when you mean to rewrite files. Before you call a change ready, `pnpm check` and `pnpm test` must both exit 0.
 
@@ -31,7 +32,7 @@ The rules table in the house-rules README lists every checked rule, its tool, an
 
 ## Workspace, apps, and packages
 
-- An app lives in `apps/<name>`. A package lives in `packages/<name>`. `pnpm-workspace.yaml` lists both folders.
+- An app lives in `apps/<name>`. A package lives in `packages/<name>`. `pnpm-workspace.yaml` lists both folders, plus `site`, the docs site.
 - A package never imports an app. An app never imports another app.
 - An app or package imports another package by its name, such as `@hosti/bookings`, and declares it in its own `package.json` as `workspace:<exact version>`. Never import another package by a relative path.
 - A package has one public entry, `src/index.ts`, and its `package.json` `exports` names only that entry. Every other file in the package is private: no other workspace imports it, by name or by path.
@@ -120,6 +121,15 @@ An app can let agents call its use-cases over MCP, and later over a CLI. Write e
 - The session middleware treats the MCP route and the metadata paths as public. The MCP route does its own bearer check.
 - The app's canonical public URL is an environment variable declared in `.env.schema`.
 - Tests cover the 401 challenge, the metadata document, and the fail-closed path.
+
+## Docs site
+
+- The docs site lives in `site/`, the private workspace package `@house-rules/site`, built with Astro and Starlight. `site/README.md` says how it is built and served.
+- It is neither an app nor a package, so the layout rules do not apply to it. Its `tsconfig.json` extends the plugin's `strict.json`, not the Effect preset, because its code is plain Node. Every other check runs on it.
+- Pages under `site/src/content/docs/rules/` and `site/src/content/docs/skills/` are generated from `packages/rules` and `skills/*/SKILL.md`. Never edit them by hand. When you change a row of the rules table, a rule's `meta`, a rule doc, or a skill, run `pnpm --filter @house-rules/site generate` and commit the regenerated pages in the same change. `pnpm test` fails while a generated page is stale.
+- A page links to another page, or to a repo file, by its relative file path, such as `../guides/the-fence.md`. ESLint checks the path, and the build turns it into a route or a GitHub URL. Never link by a hand-written site URL.
+- The site explains; this file is the law. A page that disagrees with this file is wrong.
+- To add a page, follow `skills/write-a-docs-page/SKILL.md`.
 
 ## Prose rules
 
