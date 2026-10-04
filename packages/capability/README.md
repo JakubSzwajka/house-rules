@@ -132,6 +132,28 @@ tripPolicy.table(); // { owner: { "trips:read": true, ... }, shared: { ..., "tri
 
 `table()` is pure, so a test compares the whole who × action table to a literal. A permission no relation holds does not appear in the table.
 
+An object also has a state, such as a Trip that is active or frozen. `withStates` adds that dimension and leaves the relation-only policy as it was:
+
+```ts
+export const tripPolicy = definePolicy({
+  owner: ["trips:read", "trips:write", "trips:delete", "trips:share"],
+  shared: ["trips:read", "trips:write"],
+}).withStates({
+  active: ["trips:read", "trips:write", "trips:delete", "trips:share"],
+  frozen: ["trips:read", "trips:delete"],
+});
+
+tripPolicy.allows("owner", "frozen", "trips:write"); // false: the state does not carry it
+tripPolicy.allows("owner", "frozen", "trips:delete"); // true: both carry it
+tripPolicy.table(); // { owner: { active: { ... }, frozen: { "trips:write": false, ... } }, shared: { ... } }
+```
+
+`allows(relation, state, permission)` is true only when the relation's list and the state's list both hold the permission. `table()` covers relation × state × permission. A state can only list permissions the relations name, and an unknown state or permission does not compile. The types are `StatefulPolicy<Relation, State, P>` and `StatefulPolicyTable`. `Policy<Relation, P>` stays the four-field shape (`relations`, `permissions`, `allows`, `table`), so a hand-written one still type-checks. `definePolicy` returns `PolicyBuilder<Relation, P>`, a `Policy` plus `withStates`.
+
+### Plans
+
+A plan, such as free or paid, is a fact about the caller, so it feeds the Grant. The app builds a Grant for each request from the caller's plan, with `Grant.fromPermissions`. The state of an object goes in the stateful policy. For example, a Trip is frozen when its owner stopped paying, and the policy then drops write and share. A quota, such as five trips at most, needs a count, so the module counts inside its own write transaction.
+
 ## An action with no input
 
 Some actions take no input, such as "list my trips". Give them `NoInput` as the input schema:
@@ -213,8 +235,8 @@ The house plugin's `no-hand-rolled-surface` rule fails on `Tool.make` outside th
 
 ## Limits
 
-It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, and `definePolicy`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities, and nothing turns a contract into an HTTP route or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job. For MCP, Effect's `McpServer` decodes it with the tool's parameters.
+It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, and `definePolicy` with its `withStates`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities, and nothing turns a contract into an HTTP route or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job. For MCP, Effect's `McpServer` decodes it with the tool's parameters.
 
 ## Exports
 
-`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant` and `Approval` services, the `Forbidden` and `ApprovalDenied` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `GrantRequirement`, `ApprovalRequirement`, `GateRequirements`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyTable`, `ContractTool`, and `ToToolOptions`.
+`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant` and `Approval` services, the `Forbidden` and `ApprovalDenied` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `GrantRequirement`, `ApprovalRequirement`, `GateRequirements`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, and `ToToolOptions`.
