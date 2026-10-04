@@ -47,6 +47,11 @@ One billing cartridge will later fill three slots: `Grant` (framework), `OwnerSt
 - The "upgrade" response wording beyond the typed errors above.
 - Token scope narrowing, CallWatch, CLI, any push, PR or release.
 
+## Log
+
+- 2026-10-04: shipped. house-rules #15 (merge `8068d27`, capability 0.5.0, `definePolicy(...).withStates()`). Trippy #24 (merge `3a848d9`), released as Trippy v0.13.0, `fx release verify` 5 of 5. `pnpm check` and `pnpm test` passed in both repos. The cartridges mark every Owner active and set no limit, so nothing changed for users.
+- 2026-10-04: spec closed as done. The Open items below wait for real billing, which is a later spec.
+
 ## Open
 
 1. Plan source: Clerk Billing (`has({ feature })`) or our own billing module fed by Stripe webhooks.
