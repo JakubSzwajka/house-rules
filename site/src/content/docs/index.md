@@ -1,10 +1,10 @@
 ---
-title: house-rules
+title: House Rules
 description: A TypeScript monorepo template and the house plugin behind it. Checked rules for code that agents write.
 template: splash
 hero:
-  title: house-rules
-  tagline: A TypeScript monorepo template and the house plugin behind it. Agents take the shortest path, so house-rules puts the rules on that path, as checks that fail the commit.
+  title: House Rules
+  tagline: A TypeScript monorepo template and the house plugin behind it. Agents take the shortest path, so House Rules puts the rules on that path, as checks that fail the commit.
   actions:
     - text: Start here
       link: /start/what-is-house-rules/
@@ -19,7 +19,12 @@ hero:
 
 ## What you get
 
-1. **A template, the stack.** A pnpm workspace with Turborepo, TypeScript 7 and Effect 4, an example app and module, and the checks already wired. Start a repo from it with `gh repo create <name> --template JakubSzwajka/house-rules`. Read [the stack](guides/the-stack.md).
+1. **A template, the stack.** A pnpm workspace with Turborepo, TypeScript 7 and Effect 4, an example app and module, and the checks already wired. Read [the stack](guides/the-stack.md). Start a repo from it:
+
+   ```sh
+   gh repo create <name> --template JakubSzwajka/house-rules
+   ```
+
 2. **The house plugin, `@house-rules/rules`.** ESLint rules, a Dependency Cruiser layout, TypeScript and Biome presets, and two bins. Other apps install it from GitHub at a pinned commit. Read [all rules](rules/index.md).
 3. **Capabilities, `@house-rules/capability`.** One contract and one handler per action, with permission and approval gates, and MCP tools built from the contract. Read [capabilities](guides/capabilities.md).
 4. **The fence.** `pnpm check` and `pnpm test` run before every commit, and agent harnesses block `--no-verify`. Read [the fence](guides/the-fence.md).

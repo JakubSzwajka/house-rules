@@ -38,8 +38,8 @@ header.header::after {
 .site-title {
   gap: 0.6rem;
   color: var(--hr-ink-strong);
-  font: 700 1.2rem / 1 var(--hr-font-body);
-  letter-spacing: -0.02em;
+  font: 700 1.3rem / 1 var(--hr-font-heading);
+  letter-spacing: 0;
 }
 
 .site-title img {
@@ -157,7 +157,7 @@ mobile-starlight-toc a[aria-current="true"] {
 }
 
 .pagination-links .link-title {
-  font: 700 1.05rem / 1.25 var(--hr-font-body);
+  font: 700 1.1rem / 1.25 var(--hr-font-heading);
   color: var(--hr-ink-strong);
 }
 

@@ -1,57 +1,101 @@
 ---
-// The confused figure from the assembly manual. It holds a ^ and does not know where it goes.
-// It is a toggle button: pressing it takes the caret away and the figure is fine. Home and 404 only.
+// The figure from the assembly manual. He holds a part with a loose bolt that wobbles, and a wrench
+// hovers over it with a "tighten it" cue. It is a toggle button: pressing it (click, Enter or Space)
+// swings the wrench, the bolt seats, the wobble stops and he smiles. Home and 404 only.
 interface Props {
-  readonly before: string;
-  readonly after: string;
+  readonly before?: string;
+  readonly after?: string;
+  /** Draw the light construction grid around the drawing (home cover). Never behind the caption. */
+  readonly grid?: boolean;
 }
 
-const { before, after } = Astro.props;
-// Show each ^ in a caption as code, so the small glyph reads as the character it is.
-const withCarets = (text: string) =>
-  text.split("^").flatMap((part, index) => (index === 0 ? [part] : ["^", part]));
+const {
+  before = "Loose bolt. Tighten it.",
+  after = "Loose parts wobble. Pin them.",
+  grid = false,
+} = Astro.props;
 ---
 
-<button type="button" class="figure" aria-pressed="false" data-hr-figure>
-  <svg viewBox="0 -16 230 206" aria-hidden="true" focusable="false">
-    <path d="M66 128 L62 176 M94 128 L98 176 M62 176 h-12 M98 176 h12" />
-    <path class="accent" d="M50 72 Q80 64 110 72 L104 132 Q80 138 56 132 Z" />
-    <path d="M52 78 Q34 100 40 124" />
-    <path d="M108 78 Q130 72 134 52" />
-    <circle class="paper" cx="80" cy="38" r="26" />
-    <circle class="ink" cx="70" cy="37" r="3" />
-    <circle class="ink" cx="90" cy="37" r="3" />
-    <g class="before">
-      <path class="caret thick" d="M121 50 L134 24 L147 50" />
-      <path d="M63 28 q7 -5 14 0" />
-      <path d="M84 30 l12 -5" />
-      <path d="M71 51 q4 -5 8 0 t8 0" />
-      <text x="30" y="20">?</text>
-      <text x="100" y="-2">?</text>
-    </g>
-    <g class="after">
-      <path d="M63 28 q7 -3 14 0" />
-      <path d="M83 28 q7 -3 14 0" />
-      <path d="M70 48 q10 10 20 0" />
-      <path class="thick" d="M124 40 L134 52 L152 26" />
-    </g>
-  </svg>
-  <span class="caption">
-    <span class="before">{withCarets(before).map((part) => (part === "^" ? <code>^</code> : part))}</span>
-    <span class="after">{withCarets(after).map((part) => (part === "^" ? <code>^</code> : part))}</span>
-  </span>
-</button>
+<div class="figure-wrap">
+  <button
+    type="button"
+    class:list={["figure", { gridded: grid }]}
+    aria-pressed="false"
+    aria-label={before}
+    data-hr-figure
+    data-after={after}
+  >
+    <span class="sheet">
+      <svg viewBox="0 -28 244 218" aria-hidden="true" focusable="false">
+        <path d="M66 128 L62 176 M94 128 L98 176 M62 176 h-12 M98 176 h12" />
+        <path class="accent" d="M50 72 Q80 64 110 72 L104 132 Q80 138 56 132 Z" />
+        <path d="M52 78 Q34 100 40 124" />
+        <circle class="paper" cx="80" cy="38" r="26" />
+        <circle class="ink" cx="70" cy="37" r="3" />
+        <circle class="ink" cx="90" cy="37" r="3" />
+        <g class="face before">
+          <path d="M63 28 q7 -5 14 0" />
+          <path d="M84 30 l12 -5" />
+          <path d="M71 51 q4 -5 8 0 t8 0" />
+          <text class="label" x="26" y="20">?</text>
+        </g>
+        <g class="face after">
+          <path d="M63 28 q7 -3 14 0" />
+          <path d="M83 28 q7 -3 14 0" />
+          <path d="M70 48 q10 10 20 0" />
+        </g>
+        <path class="part paper" d="M120 92 H212 V106 H120 Z" />
+        <circle class="ink" cx="134" cy="99" r="2.5" />
+        <path d="M108 80 Q120 86 124 96" />
+        <g class="wobble" aria-hidden="true">
+          <path d="M164 54 q-6 7 0 14" />
+          <path d="M208 54 q6 7 0 14" />
+        </g>
+        <g class="wrench">
+          <path class="accent" d="M174 70 A15 15 0 1 1 174 84 L179 84 L179 70 Z" />
+          <path class="accent" d="M200 73 H232 a4 4 0 0 1 0 8 H198" />
+        </g>
+        <g class="bolt">
+          <path class="paper" d="M180 92 V72 H192 V92" />
+          <path class="thin" d="M180 79 h12 M180 85 h12" />
+          <rect class="paper" x="172" y="61" width="28" height="13" rx="2" />
+        </g>
+        <path class="tick after" d="M140 66 L148 74 L162 56" />
+        <g class="cue before">
+          <text class="label" x="62" y="-8">tighten it</text>
+          <path class="thin" d="M148 -14 Q170 -16 175 12" />
+          <path class="thin" d="M169 7 L175 13 L179 6" />
+        </g>
+      </svg>
+    </span>
+    <span class="caption" aria-hidden="true">
+      <span class="before">{before}</span>
+      <span class="after">{after}</span>
+    </span>
+  </button>
+  <p class="sr-only" aria-live="polite" data-hr-figure-status></p>
+</div>
 
 <script>
   for (const button of document.querySelectorAll<HTMLButtonElement>("[data-hr-figure]")) {
+    const status = button.parentElement?.querySelector<HTMLElement>("[data-hr-figure-status]");
     button.addEventListener("click", () => {
-      const pressed = button.getAttribute("aria-pressed") === "true";
-      button.setAttribute("aria-pressed", String(!pressed));
+      const pressed = button.getAttribute("aria-pressed") !== "true";
+      button.setAttribute("aria-pressed", String(pressed));
+      if (status) {
+        status.textContent = pressed ? (button.dataset["after"] ?? "") : "";
+      }
     });
   }
 </script>
 
 <style>
+  .figure-wrap {
+    display: grid;
+    justify-items: center;
+    width: 100%;
+  }
+
   .figure {
     display: grid;
     justify-items: center;
@@ -67,9 +111,32 @@ const withCarets = (text: string) =>
     cursor: pointer;
   }
 
+  .sheet {
+    display: block;
+    width: min(100%, 18rem);
+    padding: 0.75rem;
+    border-radius: var(--hr-radius);
+  }
+
+  /* The construction grid frames the drawing only; the caption sits outside it on plain paper. */
+  .gridded .sheet {
+    background-color: var(--hr-paper);
+    background-image:
+      linear-gradient(var(--hr-grid-major) 1px, transparent 1px),
+      linear-gradient(90deg, var(--hr-grid-major) 1px, transparent 1px),
+      linear-gradient(var(--hr-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--hr-grid) 1px, transparent 1px);
+    background-size:
+      96px 96px,
+      96px 96px,
+      24px 24px,
+      24px 24px;
+    background-position: -1px -1px;
+  }
+
   svg {
     display: block;
-    width: min(100%, 17rem);
+    width: 100%;
     height: auto;
     overflow: visible;
     fill: none;
@@ -92,14 +159,26 @@ const withCarets = (text: string) =>
     stroke: none;
   }
 
-  .thick {
-    stroke-width: 6;
+  .thin {
+    stroke-width: 2;
   }
 
-  text {
-    fill: var(--hr-line);
-    stroke: none;
-    font: 700 28px var(--hr-font-body);
+  .tick {
+    stroke-width: 5;
+  }
+
+  /* Text in the drawing carries a paper halo, so a grid line never runs through a letter. */
+  .label {
+    fill: var(--hr-ink-strong);
+    stroke: var(--hr-paper);
+    stroke-width: 6px;
+    paint-order: stroke;
+    font: 700 17px var(--hr-font-heading);
+    letter-spacing: 0.02em;
+  }
+
+  .face .label {
+    font-size: 28px;
   }
 
   .caption {
@@ -107,28 +186,13 @@ const withCarets = (text: string) =>
     font-weight: 600;
     font-size: 0.95rem;
     text-decoration: underline;
-    text-decoration-thickness: 2px;
-    text-underline-offset: 0.2em;
-  }
-
-  .caption code {
-    padding: 0 0.3em;
-    border-radius: 3px;
-    background: var(--hr-code-bg);
-    font: 600 1em / 1 var(--hr-font-mono);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.22em;
   }
 
   /* before and after share one spot and swap */
   .caption > span {
     grid-area: 1 / 1;
-  }
-
-  .before,
-  .after {
-    transition:
-      opacity var(--hr-duration) var(--hr-ease-out),
-      visibility var(--hr-duration),
-      translate 420ms var(--hr-ease-out);
   }
 
   .after,
@@ -142,28 +206,125 @@ const withCarets = (text: string) =>
     visibility: visible;
   }
 
-  /* the one moment: the caret drops out of the hand */
-  [aria-pressed="true"] .caret {
-    translate: 0 40px;
-  }
-
-  .caret {
-    transition: translate 420ms var(--hr-ease-out);
-  }
-
   .figure:hover .caption {
     background: var(--hr-accent);
     color: var(--hr-on-accent);
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .before,
-    .after,
-    .caret {
-      transition: none;
+  /* Positions. The bolt pivots where it enters the part; the wrench pivots on the seated bolt head. */
+  .bolt {
+    transform-box: view-box;
+    transform-origin: 186px 92px;
+    transform: translate(0, -6px) rotate(16deg);
+  }
+
+  .wrench {
+    transform-box: view-box;
+    transform-origin: 186px 77px;
+    transform: translate(-6px, -42px) rotate(-30deg);
+  }
+
+  [aria-pressed="true"] .bolt {
+    transform: translate(0, 8px) rotate(0deg);
+  }
+
+  [aria-pressed="true"] .wrench {
+    transform: translate(0, 0) rotate(20deg);
+  }
+
+  [aria-pressed="true"] .wobble {
+    visibility: hidden;
+  }
+
+  .figure:hover .wrench path,
+  .figure:focus-visible .wrench path {
+    stroke-width: 4;
+  }
+
+  /* Motion: the bolt wobbles and the wrench bobs until pressed; pressing swings the wrench and seats the bolt. */
+  @media (prefers-reduced-motion: no-preference) {
+    .bolt {
+      animation: hr-wobble 0.45s ease-in-out infinite alternate;
     }
-    [aria-pressed="true"] .caret {
-      translate: none;
+
+    .wobble {
+      animation: hr-blink 0.9s steps(2, jump-none) infinite;
+    }
+
+    .wrench {
+      animation: hr-bob 1.6s ease-in-out infinite;
+    }
+
+    [aria-pressed="true"] .bolt {
+      animation: hr-seat 0.8s var(--hr-ease-out) both;
+    }
+
+    [aria-pressed="true"] .wrench {
+      animation: hr-swing 0.8s var(--hr-ease-out) both;
+    }
+
+    .before,
+    .after {
+      transition:
+        opacity var(--hr-duration) var(--hr-ease-out),
+        visibility var(--hr-duration);
+    }
+
+    /* he smiles once the bolt is seated, not before */
+    [aria-pressed="true"] :is(.face, .tick) {
+      transition-delay: 0.55s;
+    }
+  }
+
+  @keyframes hr-wobble {
+    from {
+      transform: translate(0, -6px) rotate(9deg);
+    }
+    to {
+      transform: translate(0, -6px) rotate(23deg);
+    }
+  }
+
+  @keyframes hr-blink {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.2;
+    }
+  }
+
+  @keyframes hr-bob {
+    0%,
+    100% {
+      transform: translate(-6px, -42px) rotate(-30deg);
+    }
+    50% {
+      transform: translate(-6px, -50px) rotate(-38deg);
+    }
+  }
+
+  @keyframes hr-swing {
+    0% {
+      transform: translate(-6px, -42px) rotate(-30deg);
+    }
+    35% {
+      transform: translate(0, 0) rotate(-30deg);
+    }
+    100% {
+      transform: translate(0, 0) rotate(20deg);
+    }
+  }
+
+  @keyframes hr-seat {
+    0% {
+      transform: translate(0, -6px) rotate(16deg);
+    }
+    35% {
+      transform: translate(0, -6px) rotate(0deg);
+    }
+    100% {
+      transform: translate(0, 8px) rotate(0deg);
     }
   }
 </style>

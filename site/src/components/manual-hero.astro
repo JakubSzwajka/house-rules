@@ -58,7 +58,7 @@ const steps = [
     }
   </div>
   <div class="art">
-    <ManualFigure before="Click the ^ to put it down." after="Put down. Exact versions only." />
+    <ManualFigure grid />
   </div>
 </div>
 
@@ -103,7 +103,14 @@ const steps = [
             {step.caption}
           </p>
           {step.commands.map((command) => (
-            <code>{command}</code>
+            <code>
+              {command.split(" ").map((word, at) => (
+                <>
+                  {at > 0 && " "}
+                  <span class="word">{word}</span>
+                </>
+              ))}
+            </code>
           ))}
           {index < steps.length - 1 && (
             <svg class="arrow" viewBox="0 0 60 30" aria-hidden="true" focusable="false">
@@ -127,8 +134,8 @@ const steps = [
 
   h1 {
     margin: 0;
-    font: 700 clamp(3rem, 1.6rem + 5vw, 5.75rem) / 0.95 var(--hr-font-body);
-    letter-spacing: -0.035em;
+    font: 700 clamp(3rem, 1.6rem + 5vw, 5.75rem) / 0.95 var(--hr-font-heading);
+    letter-spacing: -0.015em;
     color: var(--hr-ink-strong);
   }
 
@@ -202,8 +209,7 @@ const steps = [
 
   h2 {
     margin: 0 0 1.25rem;
-    font: 700 var(--sl-text-h2) / 1.15 var(--hr-font-body);
-    letter-spacing: -0.02em;
+    font: 700 var(--sl-text-h2) / 1.15 var(--hr-font-heading);
     color: var(--hr-ink-strong);
   }
 
@@ -230,8 +236,7 @@ const steps = [
   }
 
   .num {
-    font: 700 3.25rem / 1 var(--hr-font-body);
-    letter-spacing: -0.03em;
+    font: 700 3.25rem / 1 var(--hr-font-heading);
     color: var(--hr-ink-strong);
     font-variant-numeric: tabular-nums;
   }
@@ -287,7 +292,11 @@ const steps = [
     background: var(--hr-paper);
     color: var(--hr-ink);
     font: 400 0.82rem / 1.45 var(--hr-font-mono);
-    overflow-wrap: anywhere;
+  }
+
+  /* a command wraps between words only, never inside a token such as a repo slug */
+  .panel .word {
+    white-space: nowrap;
   }
 
   .arrow {
@@ -307,8 +316,8 @@ const steps = [
     .cover {
       grid-template-columns: minmax(0, 1fr);
     }
-    .art :global(svg) {
-      width: min(100%, 11rem);
+    .art :global(.sheet) {
+      width: min(100%, 14rem);
     }
     .steps {
       grid-template-columns: minmax(0, 1fr);

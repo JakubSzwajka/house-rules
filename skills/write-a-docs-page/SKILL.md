@@ -1,6 +1,6 @@
 ---
 name: write-a-docs-page
-description: Add or change a page on the house-rules docs site in site/. Decide whether the page is hand-written or generated, place it, link it by relative path, and prove the build, the llms files and the checks.
+description: Add or change a page on the House Rules docs site in site/. Decide whether the page is hand-written or generated, place it, link it by relative path, and prove the build, the llms files and the checks.
 ---
 
 # Write a docs page

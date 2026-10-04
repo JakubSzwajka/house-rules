@@ -1,11 +1,11 @@
 ---
-title: What house-rules is
+title: What House Rules is
 description: A template for TypeScript monorepos, the plugin that checks it, and the fence that makes agents run the checks.
 sidebar:
   order: 1
 ---
 
-house-rules is how a new TypeScript project starts. Every repo made from it gets the same checks, the same pins and the same hooks. Nobody sets them up by hand, and no two repos drift apart.
+House Rules is how a new TypeScript project starts. Every repo made from it gets the same checks, the same pins and the same hooks. Nobody sets them up by hand, and no two repos drift apart.
 
 ## Why it exists
 

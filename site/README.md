@@ -1,6 +1,6 @@
 # @house-rules/site
 
-The house-rules docs site, for people and agents. It is built with [Astro](https://astro.build) and [Starlight](https://starlight.astro.build), and served at `https://stack.kubaszwajka.com`.
+The House Rules docs site, for people and agents. It is built with [Astro](https://astro.build) and [Starlight](https://starlight.astro.build), and served at `https://stack.kubaszwajka.com`.
 
 ## Where pages come from
 
@@ -40,24 +40,26 @@ Astro telemetry is off: every script sets `ASTRO_TELEMETRY_DISABLED=1`.
 
 ## Look
 
-The theme is an assembly manual. Light mode is a white instruction sheet: black line, and safety yellow as the one accent. Dark mode is a blueprint: navy paper, pale line, the same yellow. A thin construction layer sits on top: hazard tape under the header and above each section on the home page, and a faint blueprint grid behind the home page.
+The theme is an assembly manual. Light mode is a white instruction sheet: black line, and safety yellow as the one accent. Dark mode is the same sheet inverted: true black paper, white line, the same yellow. No paper in either mode has a hue. A thin construction layer sits on top: hazard tape under the header and above each section on the home page, and a grid around the home figure in light mode only. No grid sits behind text.
+
+Type is IBM Plex: Plex Sans for body text, Plex Sans Condensed Bold for headings, Plex Mono for code. Prose stops at about 70 characters a line (`--hr-measure`). An inline code chip never breaks in the middle, link underlines are 1px, and the first column of a table, usually a rule name, is set in mono at body weight.
 
 Docs pages stay documentation first: Starlight's sidebar and contents list, dense text. Graphics live in three places only:
 
-1. The home page: the cover with the confused figure holding a `^`, and the three numbered assembly steps.
+1. The home page: the cover with the figure holding a part with a loose bolt, and the three numbered assembly steps.
 2. The 404 page: the same figure.
 3. A small kit for the docs pages: yellow step badges on the numbered checkbox lists of procedure pages (the start guide, the Effect guide, and the skill pages), the parts list box on each generated rule page, and the yellow title band with a warning triangle on caution asides and on the fence page's safety guard notice.
 
-Pressing the figure takes the caret away. Every transition stops under `prefers-reduced-motion`.
+The figure is a toggle button (`aria-pressed`, so click, Enter and Space all work). Until pressed, the bolt wobbles, a wrench bobs above it and a "tighten it" cue points at the wrench. Pressing swings the wrench, seats the bolt, stops the wobble and makes him smile, and the caption becomes "Loose parts wobble. Pin them." Under `prefers-reduced-motion` nothing moves: the bolt sits crooked and the cue stays, and pressing switches straight to the tightened state.
 
 | File | Owns |
 | --- | --- |
-| `src/styles/fonts.css` | the self-hosted faces from `public/fonts/` (see `FONTS.txt` there): Public Sans and Red Hat Mono |
-| `src/styles/theme.css` | colours, fonts, radius, line width and the hazard tape as `--hr-*` tokens named by role, mapped onto Starlight's `--sl-color-*` |
+| `src/styles/fonts.css` | the self-hosted faces from `public/fonts/` (see `FONTS.txt` and the `LICENSE-*.txt` files there): IBM Plex Sans, IBM Plex Sans Condensed and IBM Plex Mono |
+| `src/styles/theme.css` | colours, fonts, measure, radius, line width and the hazard tape as `--hr-*` tokens named by role, mapped onto Starlight's `--sl-color-*` |
 | `src/styles/chrome.css` | header, sidebar, contents list, pager, buttons |
-| `src/styles/content.css` | page titles, prose, tables, step badges, asides, code frames, and the home page grid and tape |
+| `src/styles/content.css` | page titles, prose, tables, step badges, asides, code frames, and the home page tape |
 | `src/components/manual-hero.astro` | the home page cover and assembly steps (Starlight `Hero`) |
-| `src/components/manual-figure.astro` | the figure, a toggle button; home and 404 only |
+| `src/components/manual-figure.astro` | the figure with the loose bolt, a toggle button, and the grid around it on the home page; home and 404 only |
 | `src/components/page-title.astro` | the page title (Starlight `PageTitle`), plus the parts list on rule pages and the safety guard on the fence page |
 | `src/components/parts-list.astro` | the parts list box |
 | `src/components/warning-triangle.astro` | the warning triangle |
@@ -70,7 +72,7 @@ The parts list is the one metadata block on a rule page. `astro.config.ts` reads
 
 Step badges are opt-in by page. The same module lists the procedure pages (`PROCEDURE_ROUTES` and `PROCEDURE_ROUTE_PREFIXES` in `astro.config.ts`), and `page-title.astro` marks them with `data-hr-procedure`. A numbered checkbox list elsewhere, such as the fence's blocked commands, stays plain.
 
-Home grid lines are opaque, not alpha, so where lines cross the colour stays one line colour and body text keeps at least 4.5:1 over it.
+Grid lines are opaque, not alpha, so where lines cross the colour stays one line colour. The words inside the drawing carry a paper-coloured halo, so no line runs through a letter.
 
 `scripts/accessible-blocks.ts` adds two build-time fixes to rendered Markdown: each task-list checkbox gets an `aria-label` from its item, and each code block can take keyboard focus, since a wide one scrolls sideways.
 

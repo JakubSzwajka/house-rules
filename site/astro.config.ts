@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import starlight from "@astrojs/starlight";
+import type { AstroIntegration } from "astro";
 import { defineConfig, passthroughImageService } from "astro/config";
 import { accessibleBlocksIntegration, focusableCodeBlocks } from "./scripts/accessible-blocks.ts";
 import { relativeLinks } from "./scripts/link-plugin.ts";
@@ -51,6 +52,46 @@ const partsModule = () => ({
   load: (id: string) => (id === `\0${PARTS_MODULE}` ? partsSource() : undefined),
 });
 
+interface CodeNode {
+  readonly tagName: string;
+  readonly properties?: Readonly<Record<string, unknown>>;
+}
+
+interface CodeContext {
+  setProperty(node: CodeNode, key: string, value: unknown): void;
+  parent(node: CodeNode): CodeNode | undefined;
+  textContent(node: CodeNode): string;
+}
+
+const markTokens = () => ({
+  name: "house-rules-inline-tokens",
+  element: {
+    filter: ["code"],
+    visit: (node: CodeNode, context: CodeContext): void => {
+      const text = context.textContent(node);
+      // hr-token keeps a path, rule name or short command on one line; browsers break after "-" and "/".
+      if (context.parent(node)?.tagName === "pre" || (/\s/.test(text) && text.length > 32)) {
+        return;
+      }
+      const className = node.properties?.["className"];
+      context.setProperty(node, "className", [
+        ...(Array.isArray(className) ? className : []),
+        "hr-token",
+      ]);
+    },
+  },
+});
+
+const inlineTokens = (): AstroIntegration => ({
+  name: "house-rules-inline-tokens",
+  hooks: {
+    "astro:config:setup": ({ config }) => {
+      const options = config.markdown.processor.options as { hastPlugins?: unknown[] };
+      options.hastPlugins = [...(options.hastPlugins ?? []), markTokens];
+    },
+  },
+});
+
 export default defineConfig({
   site: SITE_URL,
   trailingSlash: "always",
@@ -59,6 +100,7 @@ export default defineConfig({
   integrations: [
     relativeLinks(),
     accessibleBlocksIntegration(),
+    inlineTokens(),
     starlight({
       title: SITE_TITLE,
       description: SITE_SUMMARY,
@@ -77,16 +119,18 @@ export default defineConfig({
         PageTitle: "./src/components/page-title.astro",
       },
       head: [
-        {
-          tag: "link",
-          attrs: {
-            rel: "preload",
-            href: "/fonts/public-sans-latin-700-normal.woff2",
-            as: "font",
-            type: "font/woff2",
-            crossorigin: true,
-          },
-        },
+        ...["ibm-plex-sans-latin-400-normal", "ibm-plex-sans-condensed-latin-700-normal"].map(
+          (face) => ({
+            tag: "link" as const,
+            attrs: {
+              rel: "preload",
+              href: `/fonts/${face}.woff2`,
+              as: "font",
+              type: "font/woff2",
+              crossorigin: true,
+            },
+          }),
+        ),
         {
           tag: "link",
           attrs: { rel: "alternate", type: "text/plain", title: "llms.txt", href: "/llms.txt" },

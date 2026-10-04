@@ -2,7 +2,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const SITE_URL = "https://stack.kubaszwajka.com";
-export const SITE_TITLE = "house-rules";
+export const SITE_TITLE = "House Rules";
 export const SITE_SUMMARY =
   "A TypeScript monorepo template and the house plugin behind it: checked rules for code that agents write.";
 export const GITHUB_REPO = "https://github.com/JakubSzwajka/house-rules";
