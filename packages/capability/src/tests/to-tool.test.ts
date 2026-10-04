@@ -1,7 +1,7 @@
 import { expect, expectTypeOf, it } from "@effect/vitest";
 import { Context, Effect, Schema } from "effect";
 import { McpServer, Tool, Toolkit } from "effect/unstable/ai";
-import { defineContract, implement, NoInput, toTool } from "../index.ts";
+import { ApprovalDenied, defineContract, Forbidden, implement, NoInput, toTool } from "../index.ts";
 
 class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {}) {}
 
@@ -16,6 +16,7 @@ const greetContract = defineContract("greet", {
   input: GreetInput,
   output: Schema.String,
   failure: NameIsEmpty,
+  permission: "public",
   annotations: { readOnly: true },
 });
 
@@ -24,6 +25,7 @@ const forgetContract = defineContract("forget", {
   input: GreetInput,
   output: Schema.Void,
   failure: Schema.Never,
+  permission: "public",
   annotations: { destructive: true },
 });
 
@@ -32,6 +34,7 @@ const pingContract = defineContract("ping", {
   input: NoInput,
   output: Schema.String,
   failure: Schema.Never,
+  permission: "public",
   annotations: { readOnly: true },
 });
 
@@ -168,6 +171,67 @@ it.effect("an override set to undefined keeps the contract schema", () =>
 
     expect(unset.successSchema).toBe(Schema.String);
     expectTypeOf(unset.successSchema).toEqualTypeOf<typeof Schema.String>();
+  }),
+);
+
+it.effect("the default failure schema carries the gate errors of the contract", () =>
+  Effect.sync(() => {
+    const ReadTool = toTool(
+      defineContract("read_greeting", {
+        description: "Read a greeting.",
+        input: GreetInput,
+        output: Schema.String,
+        failure: NameIsEmpty,
+        permission: "greetings:read",
+      }),
+      mcpOnly,
+    );
+    const SendTool = toTool(
+      defineContract("send_greeting", {
+        description: "Send a greeting.",
+        input: GreetInput,
+        output: Schema.String,
+        failure: NameIsEmpty,
+        permission: "greetings:send",
+        needsApproval: true,
+      }),
+      mcpOnly,
+    );
+
+    expectTypeOf(ReadTool.failureSchema).toEqualTypeOf<
+      Schema.Union<readonly [typeof NameIsEmpty, typeof Forbidden]>
+    >();
+    expectTypeOf(SendTool.failureSchema).toEqualTypeOf<
+      Schema.Union<readonly [typeof NameIsEmpty, typeof Forbidden, typeof ApprovalDenied]>
+    >();
+    expect(ReadTool.failureSchema.members).toEqual([NameIsEmpty, Forbidden]);
+    expect(SendTool.failureSchema.members).toEqual([NameIsEmpty, Forbidden, ApprovalDenied]);
+    expect(
+      Schema.is(SendTool.failureSchema)(
+        new ApprovalDenied({ capabilityName: "send_greeting", reason: "no" }),
+      ),
+    ).toBe(true);
+  }),
+);
+
+it.effect("an approval-only public contract adds only ApprovalDenied", () =>
+  Effect.sync(() => {
+    const AskTool = toTool(
+      defineContract("ask_greeting", {
+        description: "Greet after asking.",
+        input: GreetInput,
+        output: Schema.String,
+        failure: NameIsEmpty,
+        permission: "public",
+        needsApproval: true,
+      }),
+      mcpOnly,
+    );
+
+    expect(AskTool.failureSchema.members).toEqual([NameIsEmpty, ApprovalDenied]);
+    expectTypeOf(AskTool.failureSchema).toEqualTypeOf<
+      Schema.Union<readonly [typeof NameIsEmpty, typeof ApprovalDenied]>
+    >();
   }),
 );
 
