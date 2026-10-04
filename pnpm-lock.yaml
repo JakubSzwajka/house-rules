@@ -208,7 +208,7 @@ importers:
         specifier: workspace:0.0.0
         version: link:../../packages/bookings
       '@house-rules/capability':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.5.0
         version: link:../../packages/capability
       effect:
         specifier: 4.0.0-rc.117

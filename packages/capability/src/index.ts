@@ -20,5 +20,12 @@ export { ApprovalDenied, Forbidden } from "./gate-errors.ts";
 export { Grant, type GrantService } from "./grant.ts";
 export { type Capability, type HandlerOf, implement } from "./implement.ts";
 export type { Permission, PermissionDeclaration } from "./permission.ts";
-export { definePolicy, type Policy, type PolicyTable } from "./policy.ts";
+export {
+  definePolicy,
+  type Policy,
+  type PolicyBuilder,
+  type PolicyTable,
+  type StatefulPolicy,
+  type StatefulPolicyTable,
+} from "./policy.ts";
 export { type ContractTool, type ToToolOptions, toTool } from "./to-tool.ts";
