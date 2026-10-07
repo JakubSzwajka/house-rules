@@ -1,6 +1,6 @@
 # @house-rules/rules
 
-House rules and house configs. One exact GitHub commit pin brings all of it: eight ESLint rules, 16 Dependency Cruiser layout rules, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, an exact-pins checker, and a module-owned SQL checker. Private, not on npm.
+House rules and house configs. One exact GitHub commit pin brings all of it: eight ESLint rules, 16 Dependency Cruiser layout rules, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Private, not on npm.
 
 ## Install
 
@@ -14,13 +14,14 @@ Node `>=24.21.0` only. The pins and migrations bins use `fs.globSync`, with no f
 }
 ```
 
-`@eslint/css`, `@eslint/markdown`, and `dependency-cruiser` are optional peer dependencies, so pnpm does not install them. Install the ones your entry points need, each pinned exactly. Importing `/design` without `@eslint/css` fails with `ERR_MODULE_NOT_FOUND`.
+`@eslint/css`, `@eslint/markdown`, `@shadcn/lint`, and `dependency-cruiser` are optional peer dependencies, so pnpm does not install them. Install the ones your entry points need, each pinned exactly. Importing `/design` without `@eslint/css`, or `/shadcn` without `@shadcn/lint`, fails with `ERR_MODULE_NOT_FOUND`.
 
 | Entry point | Install in the app, exact pin |
 | --- | --- |
 | `@house-rules/rules` | `eslint` `10.11.0` |
 | `@house-rules/rules/markdown` | `@eslint/markdown` `8.0.3` |
 | `@house-rules/rules/design` | `@eslint/css` `2.0.0` |
+| `@house-rules/rules/shadcn` | `@shadcn/lint` `0.2.0` |
 | `@house-rules/rules/dependency-cruiser` | `dependency-cruiser` `18.4.0` |
 | `@house-rules/rules/biome` | `@biomejs/biome` `2.5.14` |
 | `@house-rules/rules/tsconfig/*.json` | `typescript`, nothing else |
@@ -39,6 +40,7 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `design-no-raw-color-literal` | Raw hex, rgb(), hsl(), etc. in JS/TS strings | ESLint | `design()` factory | [design-no-raw-color-literal.md](docs/design-no-raw-color-literal.md) |
 | `design-no-unknown-token` | `var(--name)` with no definition | ESLint | `design()` factory | [design-no-unknown-token.md](docs/design-no-unknown-token.md) |
 | `design-scale-value` | CSS values off a fixed scale | ESLint | `design()` factory | [design-scale-value.md](docs/design-scale-value.md) |
+| `shadcn/*` (six rules from `@shadcn/lint`) | Restyled design-system components, raw palette colours, arbitrary values, inline styles, dynamic class names, and unknown Tailwind classes in JSX and TSX | ESLint | `shadcn()` factory | `docs/shadcn.md` |
 | `use-case-is-capability` | A use-case file that does not export exactly one `implement(...)` capability, exports a second contract, or exports another value | ESLint | `configs.capability` | [use-case-is-capability.md](docs/use-case-is-capability.md) |
 | `no-hand-rolled-surface` | `Tool.make`, `Rpc.make`, or `HttpApiEndpoint.<method>` outside `packages/capability/**` | ESLint | `configs.capability` | [no-hand-rolled-surface.md](docs/no-hand-rolled-surface.md) |
 | `no-cycles` | Circular imports | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
@@ -74,6 +76,7 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 import houseRules from "@house-rules/rules";
 import houseRulesMarkdown from "@house-rules/rules/markdown";
 import design from "@house-rules/rules/design";
+import shadcn from "@house-rules/rules/shadcn";
 
 export default [
   { ignores: ["dist/**", "coverage/**"] },
@@ -86,6 +89,7 @@ export default [
     source: { files: ["**/*.{ts,tsx}"] },
     rules: { "design-scale-value": [{ property: "^border-radius$", allowed: ["0", "4px", "8px"] }] },
   }),
+  ...shadcn({ components: ["src/components/ui/**"], severity: "warn" }),
   // Override narrowly with a reason:
   { files: ["scripts/vendor/**"], rules: { "house-rules/comment-discipline": "off" } },
 ];
@@ -127,6 +131,8 @@ module.exports = require("@house-rules/rules/dependency-cruiser").layout({
 ```
 
 `configs.capability` runs `no-hand-rolled-surface` on JS, JSX, MJS, CJS, TS, TSX, MTS, and CTS files, and `use-case-is-capability` on TS, TSX, MTS, and CTS files. Its defaults match the stack layout: use-cases in `apps/*/src/use-cases/`, surfaces built only in `packages/capability/`. Set the `include`, `exclude`, or `allow` option only when the layout differs.
+
+`shadcn()` runs `@shadcn/lint` on JSX and TSX with the setup its adoption guide gives: five rules at `error` and `no-unknown-classes` at `warn`, with three rules off in the component folder. An app that already has findings starts with `severity: "warn"`, as above. `docs/shadcn.md` covers the options, the TypeScript 7 caveat, and how it overlaps the design rules.
 
 Biome replaces an extended `files.includes` instead of merging, so it stays in the consumer. See per-tool docs for options, detailed behavior, and limitations.
 
