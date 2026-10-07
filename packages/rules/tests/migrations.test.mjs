@@ -1,53 +1,13 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
-
-const script = fileURLToPath(new URL("../bin/migrations.mjs", import.meta.url));
-
-const WORKSPACE = {
-  "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n  - packages/*\n',
-  "package.json": "{}",
-  "apps/web/package.json": "{}",
-  "packages/trips/package.json": "{}",
-  "packages/auth/package.json": "{}",
-  "packages/db/package.json": "{}",
-};
-
-const AUTH_MIGRATION = 'create table if not exists "user" (\n  id text primary key\n);\n';
-const TRIPS_MIGRATION = `-- The trips module owns trip and place.
-create table trip (
-  id text primary key,
-  owner_id text not null
-);
-create table public.place (
-  id text primary key,
-  trip_id text not null references trip (id)
-);
-`;
-
-const run = (files) => {
-  const dir = mkdtempSync(join(tmpdir(), "house-rules-migrations-"));
-  try {
-    for (const [path, content] of Object.entries({ ...WORKSPACE, ...files })) {
-      mkdirSync(join(dir, path, ".."), { recursive: true });
-      writeFileSync(join(dir, path), content);
-    }
-    return spawnSync(process.execPath, [script], { cwd: dir, encoding: "utf8" });
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-};
-
-const problemLines = (result) =>
-  result.stderr
-    .split("\n")
-    .filter((line) => line.startsWith("  "))
-    .map((line) => line.trim().split(": ")[0]);
+import {
+  AUTH_MIGRATION,
+  problemLines,
+  run,
+  script,
+  TRIPS_MIGRATION,
+} from "./migrations-helpers.mjs";
 
 describe("house-rules-migrations", () => {
   it("is the package bin", () => {

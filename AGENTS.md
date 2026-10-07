@@ -17,6 +17,7 @@ This repo is a pnpm workspace run by Turborepo. Use pnpm, at the version `packag
 | `pnpm test` | Node test runner over `tests/**/*.test.mjs`, then `test` (Vitest) in each workspace package through Turborepo. |
 | `pnpm fix` | Apply Biome formatting and safe lint fixes. |
 | `pnpm format` | Apply Biome formatting only. |
+| `docker compose up -d` | Start the local Postgres that database tests need. Each test file creates and drops its own database on it, through `TEST_DATABASE_ADMIN_URL` in `.env.schema`. CI runs the same server as a service. |
 | `pnpm acceptance` | Clone the committed HEAD into a temp dir and run `pnpm install --frozen-lockfile`, `check`, and `test` there. |
 | `pnpm vendor:agent-sources` | Shallow-clone the Effect source at the pinned version into `.agent_sources/`. Not part of `check`. |
 | `pnpm --filter <package> add <dep>` | Add a dependency to one workspace package. `saveExact` writes an exact pin. |
@@ -54,7 +55,9 @@ The rules table in the house-rules README lists every checked rule, its tool, an
 - No cross-module foreign keys. Keep another module's id as a plain column, and ask that module's service for the record.
 - A module's SQL names only its own tables, in migrations and in `src/`. To read another module's data, call its service. A plumbing package, such as a `db` package with the connection, owns no tables a module queries.
 - One module write method is one transaction. The service method opens it; a read method may run without one. A use-case never opens one, and never spans two modules in one transaction.
-- `pnpm run migrations` (the `house-rules-migrations` bin) checks the first three, and catches a use-case that calls `withTransaction` or sends `begin`. The rest of the transaction rule is a review rule.
+- A module registers its migrations in the module list, `migrations.json` at the repository root: `{ "workspace": "packages/<name>" }`, or `{ "package": "<name>" }` for an installed framework package. A framework package names its folder in its `package.json` as `"houseRules": { "migrations": "migrations" }` and lists that folder in `files`. `@house-rules/migrations` runs every listed module, each into its own history table, `<module>_migrations` by default, in one transaction.
+- `pnpm run migrations` (the `house-rules-migrations` bin) checks the first three, fails when a module with migrations is missing from the module list, and catches a use-case that calls `withTransaction` or sends `begin`. The rest of the transaction rule is a review rule.
+- No ORM and no query builder. A module writes plain SQL through `SqlClient` from `effect/unstable/sql`, decodes each row with a `Schema`, and tests its SQL against a real Postgres, never a mock: `MigrationsTesting.database` from `@house-rules/migrations` gives each test file a throwaway database.
 - A cartridge passes the pull-out test, a review rule. It pushes in with one `Layer.provide` line. Deleting its package and that line leaves the rest building and passing. That holds only when the caller side owns the port: if a use-case imports the cartridge's package, the capability has to go with it.
 
 ## Effect

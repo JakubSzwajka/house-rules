@@ -1,34 +1,27 @@
 {
-  "name": "@house-rules/call-audit",
+  "name": "@house-rules/migrations",
   "version": "0.1.0",
   "private": true,
-  "description": "Audit every capability call: one log line per call, a row per call in a table, or an in-memory log for tests.",
+  "description": "Run SQL migrations for many modules, each with its own folder and its own history table.",
   "license": "MIT",
   "type": "module",
   "files": [
-    "src",
-    "migrations"
+    "src"
   ],
   "exports": {
     ".": "./src/index.ts"
-  },
-  "houseRules": {
-    "migrations": "migrations"
   },
   "scripts": {
     "typecheck": "tsc --project tsconfig.json",
     "test": "varlock run --path ../../ -- vitest run"
   },
   "peerDependencies": {
-    "@house-rules/capability": "0.7.0",
     "effect": "4.0.0-rc.117"
   },
   "devDependencies": {
     "@effect/platform-node": "4.0.0-rc.117",
     "@effect/sql-pg": "4.0.0-rc.117",
     "@effect/vitest": "4.0.0-rc.117",
-    "@house-rules/capability": "workspace:0.7.0",
-    "@house-rules/migrations": "workspace:0.1.0",
     "effect": "4.0.0-rc.117",
     "typescript": "7.0.2",
     "vitest": "5.0.1"

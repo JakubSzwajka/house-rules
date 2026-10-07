@@ -12,12 +12,16 @@ It is a GitHub template. Create a repo from it with `gh repo create <name> --tem
 .
 ├── apps/api/               @hosti/api: delivery, server, use-cases
 ├── packages/bookings/      @hosti/bookings: one Effect module, src/index.ts is its only export
+├── packages/call-audit/    @house-rules/call-audit: an audit trail of capability calls, as log lines or table rows
 ├── packages/capability/    @house-rules/capability: contracts, handlers, and toTool
+├── packages/migrations/    @house-rules/migrations: runs the migrations of every listed module
 ├── packages/rules/         @house-rules/rules: the house rules, presets, and bins
 ├── tests/                  fence and thin-config wiring tests
 ├── .dependency-cruiser.cjs layout({ scope: "@hosti/" }) from house-rules
 ├── biome.json              extends the house-rules Biome preset, plus excludes
+├── docker-compose.yml      the local Postgres that database tests use
 ├── eslint.config.mjs       the house-rules ESLint configs
+├── migrations.json         the module list: every module whose migrations the app runs
 ├── tsconfig.base.json      extends the house-rules Effect preset
 ├── pnpm-workspace.yaml     workspace folders and install policy
 └── turbo.json              typecheck and test order
@@ -38,6 +42,8 @@ House-rules cannot ship these, because they live in files a package cannot hand 
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
 - **Environment.** varlock checks `.env.schema` inside `pnpm check`. Its telemetry is off.
 - **Turborepo telemetry off.** Every script that calls `turbo` sets `TURBO_TELEMETRY_DISABLED=1`, and so does CI.
+- **The module list**, `migrations.json`. It names every module whose migrations the app runs, for `@house-rules/migrations` and for the migrations bin, which fails when a module with migrations is missing from it.
+- **A test Postgres.** `docker compose up -d` starts it on `127.0.0.1:55435`, and CI runs the same server as a service. Database tests create and drop their own database on it through `TEST_DATABASE_ADMIN_URL`. The test scripts that need it run under `varlock run --path ../../`, so they read the root `.env.schema`.
 - **Wiring tests** in `tests/`. They prove each thin config still extends its preset, and that the fence behaves.
 
 ## TypeScript 7 and Effect
@@ -110,7 +116,7 @@ The fence is adapted from [rat-stack](https://github.com/joelhooks/rat-stack) by
 Start from the template, or copy these into an existing pnpm workspace:
 
 1. [ ] The thin configs: `biome.json`, `eslint.config.mjs`, `tsconfig.base.json`, `.dependency-cruiser.cjs`.
-2. [ ] The stack files: `turbo.json`, `pnpm-workspace.yaml`, `.github/workflows/ci.yml`, `.env.schema`, `.varlock/config.json`, and the `.env` lines from `.gitignore`.
+2. [ ] The stack files: `turbo.json`, `pnpm-workspace.yaml`, `.github/workflows/ci.yml`, `.env.schema`, `.varlock/config.json`, `docker-compose.yml`, `migrations.json`, and the `.env` lines from `.gitignore`.
 3. [ ] The root `package.json` `scripts`, `devDependencies`, `engines`, and `packageManager`. Replace the `workspace:` house-rules dependency with the Git spec in [Using the rules in another app](#using-the-rules-in-another-app).
 4. [ ] The fence: `.nvmrc`, `lefthook.yml`, `scripts/`, `tests/`, `.agents/settings.json`, `.pi/extensions/git-interceptor.ts`, `NOTICE`. Add `skills/` if your agents should use them.
 5. [ ] `AGENTS.md`, rewritten for your project. Write your own `VISION.md`.

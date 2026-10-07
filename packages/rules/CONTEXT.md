@@ -22,7 +22,7 @@ This package owns house rules and house configs. A consumer repository keeps onl
 - **Layout preset**: the Dependency Cruiser config returned by the `layout(options)` factory, the named export of the `@house-rules/rules/dependency-cruiser` subpath. It is not an ESLint preset and not one of the four presets above. It returns a whole Dependency Cruiser config, `forbidden` plus `options`, holding 16 **layout rules**. Layout rules are Dependency Cruiser rules, not ESLint rules, and are not counted among the eight.
 - **Config preset**: a JSON file another tool extends by package specifier. There are three: `tsconfig/strict.json`, `tsconfig/effect.json` (extends `strict.json`, adds the `@effect/language-service` plugin block), and `biome/preset.json`, exported as `@house-rules/rules/biome`. They are not ESLint presets.
 - **Pins bin**: `house-rules-pins`, `bin/pins.mjs`. It fails when a dependency in the root or a workspace `package.json` is not an exact version, `workspace:<exact>`, or a Git spec pinned to a full commit.
-- **Migrations bin**: `house-rules-migrations`, `bin/migrations.mjs`. It fails when one workspace package's migrations or SQL strings reach another package's tables, when a `.sql` file sits outside a `<package>/migrations/` folder and outside a package's `fixtures/` or `tests/` folder, or when a use-case opens a transaction.
+- **Migrations bin**: `house-rules-migrations`, `bin/migrations.mjs`. It fails when one workspace package's migrations or SQL strings reach another package's tables, when a `.sql` file sits outside a `<package>/migrations/` folder and outside a package's `fixtures/` or `tests/` folder, when a use-case opens a transaction, or when the **module list** (`migrations.json`) leaves out a module that has migrations: a workspace package with a `migrations/` folder, or a dependency whose `package.json` declares `houseRules.migrations`.
 - **Owning package**: the workspace package whose migration creates a table.
 - **Consumer**: a repository that installs this package from GitHub and uses one or more of its presets or its bin.
 - **Exception**: one closed, syntax-owned directive or legal header accepted by `comment-discipline`.
@@ -53,7 +53,7 @@ This package owns house rules and house configs. A consumer repository keeps onl
 - The `comment-discipline` source and tests are ported from Hosti. Packaging and config are generalized; its semantics are not changed.
 - The `no-broken-relative-links` resolution logic and tests are ported from `pubnub/blocksnetwork` `scripts/check-md-links.mjs`. `@eslint/markdown` does the parsing. The hard-coded published subtree became the `roots` option.
 - The `recommended` preset does not change when Markdown, design, or capability support changes. The capability rules have their own preset, so a `recommended` consumer gets no new errors on upgrade.
-- The migrations bin reads files with regular expressions and a small string lexer, kept in `src/sql-text.mjs`. It has no SQL or TypeScript parser dependency.
+- The migrations bin reads files with regular expressions and a small string lexer, kept in `src/sql-text.mjs`. It has no SQL or TypeScript parser dependency. Its module list check sits in `src/module-list.mjs`.
 - The design rules were specified from a read-only probe of Hosti's styles. `tests/fixtures/hosti/` keeps a trimmed copy of real Hosti cases as the parity fixture. The code is written fresh; nothing is copied from `pubnub/blocksnetwork`.
 
 ## Layout

@@ -1,0 +1,24 @@
+# Local test database server. Test suites create and drop their own
+# throwaway databases on it, through TEST_DATABASE_ADMIN_URL in .env.schema.
+name: house-rules
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: house_rules
+      POSTGRES_USER: house_rules
+      POSTGRES_PASSWORD: house_rules
+    ports:
+      - "127.0.0.1:55435:5432"
+    volumes:
+      - house-rules-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U house_rules -d house_rules"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  house-rules-pgdata:
