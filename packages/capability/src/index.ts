@@ -1,4 +1,5 @@
 export { Approval, type ApprovalService } from "./approval.ts";
+export { type Around, CallWatch, type CallWatchService } from "./call-watch.ts";
 export {
   type Annotations,
   type AnyContract,

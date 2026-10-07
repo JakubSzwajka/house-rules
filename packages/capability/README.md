@@ -116,6 +116,43 @@ Each decision writes one log line with Effect logging: `Effect.logInfo` "Approva
 
 A wide flag, such as a `needsApproval` typed only as `boolean`, gets both gates in the type. The safe side is to provide more.
 
+### Watching every call
+
+`CallWatch` is a hook around every call, on every surface. `implement` runs each call as `watch.around(contract, input, run)`, where `run` is the Grant check, then Approval, then the handler. So the watch also sees `Forbidden` and `ApprovalDenied`, and it can measure the whole call. `input` is the decoded input.
+
+`CallWatch` is a `Context.Reference` with a pass-through default. Provide nothing and the call behaves as before. It adds no requirement and no failure to any capability. A watch is trusted code. It must return the exit of `run` unchanged: no `Effect.orDie`, and no skipping `run`. The `Around` type keeps the channels, but it cannot enforce that behaviour.
+
+```ts
+import { CallWatch } from "@house-rules/capability";
+import { Clock, Effect, Layer } from "effect";
+
+const loggingWatch = Layer.succeed(CallWatch, {
+  around: (contract, _input, run) =>
+    Effect.gen(function* logCall() {
+      const start = yield* Clock.currentTimeMillis;
+      return yield* run.pipe(
+        Effect.onExit((exit) =>
+          Effect.gen(function* logExit() {
+            const end = yield* Clock.currentTimeMillis;
+            yield* Effect.logInfo("capability call").pipe(
+              Effect.annotateLogs({
+                capability: contract.name,
+                permission: contract.permission,
+                outcome: exit._tag,
+                ms: end - start,
+              }),
+            );
+          }),
+        ),
+      );
+    }),
+});
+```
+
+The example logs no input values, because input is often user data. A watch that wants the viewer reads it with `Effect.serviceOption`, so it adds no requirement either.
+
+You do not have to write the watch yourself. `@house-rules/call-audit` (`packages/call-audit`, see its README) is one that writes a log line per call, or keeps the entries in memory for tests.
+
 ### Relations and policy
 
 A relation is how the caller stands to one object, such as owner or shared. The module checks the relation against its own data. `definePolicy` gives the shape:
@@ -237,8 +274,8 @@ The house plugin's `no-hand-rolled-surface` rule fails on `Tool.make` outside th
 
 ## Limits
 
-It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, and `definePolicy` with its `withStates`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities, and nothing turns a contract into an HTTP route or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job. For MCP, Effect's `McpServer` decodes it with the tool's parameters.
+It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, the `CallWatch` hook, and `definePolicy` with its `withStates`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities, and nothing turns a contract into an HTTP route or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job. For MCP, Effect's `McpServer` decodes it with the tool's parameters.
 
 ## Exports
 
-`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant` and `Approval` services, the `Forbidden` and `ApprovalDenied` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `GrantRequirement`, `ApprovalRequirement`, `GateRequirements`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, and `ToToolOptions`.
+`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, and `CallWatch` services, the `Forbidden` and `ApprovalDenied` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `GrantRequirement`, `ApprovalRequirement`, `GateRequirements`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, and `ToToolOptions`.

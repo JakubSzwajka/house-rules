@@ -34,7 +34,7 @@ The rules table in the house-rules README lists every checked rule, its tool, an
 - An app or package imports another package by its name, such as `@hosti/bookings`, and declares it in its own `package.json` as `workspace:<exact version>`. Never import another package by a relative path.
 - A package has one public entry, `src/index.ts`, and its `package.json` `exports` names only that entry. Callers never import a file under the package's `src/internal/`, by name or by path.
 - Each workspace package has its own `tsconfig.json` that extends the root `tsconfig.base.json`, plus `typecheck` and `test` scripts.
-- The capability library (`defineContract`, `implement`, `toTool`, the `Grant` and `Approval` slots, `definePolicy`, and the types) lives in `packages/capability`, `@house-rules/capability`. An app writes its own capabilities in its own code, as its use-cases, and imports the library by name. A capability handler is an Effect: it yields services and lets typed errors flow.
+- The capability library (`defineContract`, `implement`, `toTool`, the `Grant`, `Approval`, and `CallWatch` slots, `definePolicy`, and the types) lives in `packages/capability`, `@house-rules/capability`. An app writes its own capabilities in its own code, as its use-cases, and imports the library by name. A capability handler is an Effect: it yields services and lets typed errors flow.
 - `packages/rules` is the exception. It is the plain-JavaScript house plugin, with many entries in `exports`, no `tsconfig.json`, and a `typecheck` script that runs `node --check` over each source file. The layout rules, the `comment-discipline` rule, and Biome on its test fixtures skip it. Its tests run in `pnpm test`.
 
 ## Layers inside an app
