@@ -8,6 +8,9 @@ import { relativeLinks } from "./scripts/link-plugin.ts";
 import { readRuleRows, TOOLS } from "./scripts/rule-rows.ts";
 import { GITHUB_REPO, SECTIONS, SITE_SUMMARY, SITE_TITLE, SITE_URL } from "./scripts/site-map.ts";
 
+const SHARE_IMAGE = `${SITE_URL}/og-image.png`;
+const SHARE_IMAGE_ALT = "House Rules: checked rules for code that agents write.";
+
 const PARTS_MODULE = "virtual:house-rules/parts";
 
 const PROCEDURE_ROUTES = ["start/adopt", "guides/effect"];
@@ -135,6 +138,13 @@ export default defineConfig({
           tag: "link",
           attrs: { rel: "alternate", type: "text/plain", title: "llms.txt", href: "/llms.txt" },
         },
+        { tag: "link", attrs: { rel: "apple-touch-icon", href: "/apple-touch-icon.png" } },
+        { tag: "meta", attrs: { property: "og:image", content: SHARE_IMAGE } },
+        { tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
+        { tag: "meta", attrs: { property: "og:image:height", content: "630" } },
+        { tag: "meta", attrs: { property: "og:image:alt", content: SHARE_IMAGE_ALT } },
+        { tag: "meta", attrs: { name: "twitter:image", content: SHARE_IMAGE } },
+        { tag: "meta", attrs: { name: "twitter:image:alt", content: SHARE_IMAGE_ALT } },
       ],
       sidebar: SECTIONS.map((section) => ({
         label: section.label,
