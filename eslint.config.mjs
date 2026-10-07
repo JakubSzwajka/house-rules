@@ -2,7 +2,16 @@ import houseRules from "@house-rules/rules";
 import houseRulesMarkdown from "@house-rules/rules/markdown";
 
 export default [
-  { ignores: ["**/node_modules/", "**/dist/", "**/coverage/", "**/generated/", ".agent_sources/"] },
+  {
+    ignores: [
+      "**/node_modules/",
+      "**/dist/",
+      "**/coverage/",
+      "**/generated/",
+      ".agent_sources/",
+      ".pi/specs/**/prototypes/",
+    ],
+  },
   ...houseRules.configs.recommended,
   ...houseRules.configs.capability,
   ...houseRulesMarkdown,

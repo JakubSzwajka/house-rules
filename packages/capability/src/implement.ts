@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { Approval } from "./approval.ts";
+import { CallWatch } from "./call-watch.ts";
 import type { AnyContract, FailureOf, GateRequirements } from "./contract.ts";
 import { Forbidden } from "./gate-errors.ts";
 import { Grant } from "./grant.ts";
@@ -26,18 +27,22 @@ export const implement = <Contract extends AnyContract, Requirements = never>(
 ): Capability<Contract, Requirements> => {
   const { name, permission, needsApproval } = contract;
   const gated = (input: Contract["input"]["Type"]) =>
-    Effect.gen(function* gatedHandler() {
-      if (permission !== "public") {
-        const grant = yield* Grant;
-        if (!(yield* grant.holds(permission))) {
-          return yield* new Forbidden({ capabilityName: name, permission });
+    Effect.gen(function* watchedCall() {
+      const watch = yield* CallWatch;
+      const run = Effect.gen(function* gatedHandler() {
+        if (permission !== "public") {
+          const grant = yield* Grant;
+          if (!(yield* grant.holds(permission))) {
+            return yield* new Forbidden({ capabilityName: name, permission });
+          }
         }
-      }
-      if (needsApproval) {
-        const approval = yield* Approval;
-        yield* approval.approve(name, input);
-      }
-      return yield* handler(input);
+        if (needsApproval) {
+          const approval = yield* Approval;
+          yield* approval.approve(name, input);
+        }
+        return yield* handler(input);
+      });
+      return yield* watch.around(contract, input, run);
     });
   // The runtime branches read the same permission and needsApproval the contract type carries.
   return { _tag: "Capability", contract, handler: gated } as Capability<Contract, Requirements>;
