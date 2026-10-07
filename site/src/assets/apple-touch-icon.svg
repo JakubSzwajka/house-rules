@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180" fill="none" stroke="#161616" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Source of public/apple-touch-icon.png: the logo on a white sheet. iOS rounds the corners itself. -->
+  <rect width="180" height="180" fill="#fff" stroke="none"/>
+  <circle cx="90" cy="90" r="68" fill="#ffd21a"/>
+  <circle cx="65" cy="78" r="8" fill="#161616" stroke="none"/>
+  <circle cx="115" cy="78" r="8" fill="#161616" stroke="none"/>
+  <path d="M61 112 q29 22 58 0"/>
+</svg>

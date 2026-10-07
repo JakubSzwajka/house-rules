@@ -65,6 +65,9 @@ The figure is a toggle button (`aria-pressed`, so click, Enter and Space all wor
 | `src/components/warning-triangle.astro` | the warning triangle |
 | `src/pages/404.astro` | the 404 page, through `StarlightPage`; `disable404Route` turns off Starlight's own |
 | `src/assets/logo.svg` | the header logo |
+| `src/assets/og-image.svg` | the source of `public/og-image.png`, the share card |
+| `src/assets/apple-touch-icon.svg` | the source of `public/apple-touch-icon.png` |
+| `public/favicon.svg` | the favicon; a copy of `logo.svg` |
 
 `src/styles/theme.css` is the only stylesheet with raw colours. The tokens name a role, not a colour: `--hr-paper`, `--hr-ink`, `--hr-line`, `--hr-accent`, `--hr-caution`, `--hr-refuse`, `--hr-ok`, and so on. A palette swap is a change to that file. The logo SVG carries its own two colours, because an `<img>` cannot read CSS variables.
 
@@ -75,6 +78,23 @@ Step badges are opt-in by page. The same module lists the procedure pages (`PROC
 Grid lines are opaque, not alpha, so where lines cross the colour stays one line colour. The words inside the drawing carry a paper-coloured halo, so no line runs through a letter.
 
 `scripts/accessible-blocks.ts` adds two build-time fixes to rendered Markdown: each task-list checkbox gets an `aria-label` from its item, and each code block can take keyboard focus, since a wide one scrolls sideways.
+
+## Share card and icons
+
+Every page carries `og:image` and `twitter:image` (the absolute URL `https://stack.kubaszwajka.com/og-image.png`, 1200x630) and `<link rel="apple-touch-icon">`, set in the `head` array of `astro.config.ts`. Starlight links `/favicon.svg` on its own.
+
+The PNGs are committed; regenerate them after a change to their SVG source:
+
+```sh
+# apple-touch-icon (no fonts in it)
+rsvg-convert -w 180 -h 180 site/src/assets/apple-touch-icon.svg -o site/public/apple-touch-icon.png
+# og image: needs a browser, because the SVG loads the woff2 fonts from public/fonts
+agent-browser set viewport 1200 630
+agent-browser open file://$PWD/site/src/assets/og-image.svg
+agent-browser screenshot site/public/og-image.png
+```
+
+`scripts/tests/share-assets.test.ts` checks that the files exist and have the right pixel size.
 
 ## Source links
 
