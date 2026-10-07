@@ -1,5 +1,6 @@
 {
   "schemaVersion": 1,
   "title": "CallWatch: one hook around every capability call",
-  "status": "pending"
+  "status": "done",
+  "completedAt": "2026-10-07T15:25:00Z"
 }

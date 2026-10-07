@@ -28,3 +28,7 @@ Asked by the owner on 2026-10-07: take the "Capability hook" item from `TODO.md`
 - A persistent audit table, an audit UI, or a devtools package like rat-stack's.
 - Logging input values.
 - Commit, push, PR or release before the owner approves.
+
+## Log
+
+- 2026-10-07: shipped. house-rules #19 (merge `f9692f3`): capability 0.7.0 with `CallWatch`, and `@house-rules/call-audit` 0.1.0 (decision C6). Trippy #28 (merge `e1c61cd`), released as Trippy v0.14.0, `fx release verify` 5 of 5, migrations "applied none". Cross-family review caught and fixed: a multi-line log, a logger that could turn success into a defect, `who` read after the call naming a swapped-in caller, a missing Dockerfile COPY, and a missing `transpilePackages` entry. The stored audit (`layerTable`) waits for the many-module migration runner.

@@ -14,6 +14,22 @@ env:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      # Throwaway cluster for the test suites; each suite creates and drops its own database.
+      # It listens where the .env.schema defaults point, so CI needs no .env.local.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: house_rules
+          POSTGRES_PASSWORD: house_rules
+          POSTGRES_DB: house_rules
+        ports:
+          - 55435:5432
+        options: >-
+          --health-cmd "pg_isready -U house_rules -d house_rules"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

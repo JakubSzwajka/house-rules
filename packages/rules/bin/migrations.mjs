@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import * as fs from "node:fs";
 import path from "node:path";
+import { checkModuleList, LIST_FILE } from "../src/module-list.mjs";
 import {
   CREATE_TABLE,
   blankSql,
@@ -56,6 +57,8 @@ const report = (file, line, message) => problems.push(`  ${relative(file)}:${lin
 const workspaces = workspaceDirectories();
 const migrationFolders = new Map(workspaces.map((dir) => [path.resolve(dir, "migrations"), dir]));
 const migrations = [];
+const moduleList = checkModuleList(workspaces);
+
 const TEST_FOLDERS = new Set(["fixtures", "tests"]);
 
 // A .sql file under a fixtures/ or tests/ folder inside a workspace package is test data, not a migration.
@@ -82,6 +85,11 @@ for (const file of walk(process.cwd(), (name) => name.endsWith(".sql"))) {
     migrations.push({ file, owner, sql: blankSql(fs.readFileSync(file, "utf8")) });
   }
 }
+
+for (const { file, owner } of moduleList.installedMigrations) {
+  migrations.push({ file, owner, sql: blankSql(fs.readFileSync(file, "utf8")) });
+}
+for (const problem of moduleList.problems) report(path.resolve(LIST_FILE), 1, problem);
 
 migrations.sort((a, b) => a.file.localeCompare(b.file));
 const owners = new Map();
@@ -127,41 +135,55 @@ for (const { file, owner, sql } of migrations) {
   }
 }
 
+// SQL in one package's source may name only tables that package owns. Use-case rules apply to workspace packages.
+const checkSource = (file, owner, useCases) => {
+  const source = fs.readFileSync(file, "utf8");
+  const { strings, sql, code } = lexSource(source);
+  if (owners.size > 0) {
+    for (const { text, at } of sqlTexts(sql)) {
+      for (const { name, index } of tableReferences(text)) {
+        const other = foreignOwner(name, owner);
+        if (other === undefined) continue;
+        report(
+          file,
+          lineAt(source, at[index]),
+          `SQL names "${tableName(name)}", a table ${other} owns. A module's SQL touches only its own tables: call ${other}'s service, or move the table's migration into this package if it owns the table.`,
+        );
+      }
+    }
+  }
+  if (useCases === undefined || !file.startsWith(`${useCases}${path.sep}`)) return;
+  const opening = [
+    ...code.map((part) => ({ part, match: OPENS_TRANSACTION_CALL.exec(part.text) })),
+    ...strings.map((part) => ({ part, match: OPENS_TRANSACTION_SQL.exec(part.text) })),
+  ].find(({ match }) => match !== null);
+  if (opening !== undefined) {
+    report(
+      file,
+      lineAt(source, opening.part.start + opening.match.index),
+      "a use-case opens a transaction. One module write method is one transaction; a read method may run without one. Move this work into a write method of the module's service.",
+    );
+  }
+};
+
 for (const workspace of workspaces) {
   const useCases = path.resolve(workspace, "src", "use-cases");
   for (const file of walk(path.resolve(workspace, "src"), (name) => SOURCE_FILE.test(name))) {
-    const source = fs.readFileSync(file, "utf8");
-    const { strings, sql, code } = lexSource(source);
-    if (owners.size > 0) {
-      for (const { text, at } of sqlTexts(sql)) {
-        for (const { name, index } of tableReferences(text)) {
-          const other = foreignOwner(name, workspace);
-          if (other === undefined) continue;
-          report(
-            file,
-            lineAt(source, at[index]),
-            `SQL names "${tableName(name)}", a table ${other} owns. A module's SQL touches only its own tables: call ${other}'s service, or move the table's migration into this package if it owns the table.`,
-          );
-        }
-      }
-    }
-    if (!file.startsWith(`${useCases}${path.sep}`)) continue;
-    const opening = [
-      ...code.map((part) => ({ part, match: OPENS_TRANSACTION_CALL.exec(part.text) })),
-      ...strings.map((part) => ({ part, match: OPENS_TRANSACTION_SQL.exec(part.text) })),
-    ].find(({ match }) => match !== null);
-    if (opening !== undefined) {
-      report(
-        file,
-        lineAt(source, opening.part.start + opening.match.index),
-        "a use-case opens a transaction. One module write method is one transaction; a read method may run without one. Move this work into a write method of the module's service.",
-      );
-    }
+    checkSource(file, workspace, useCases);
+  }
+}
+
+// A listed installed package ships its src/, and its SQL is held to the same own-tables rule.
+for (const { owner, directory } of moduleList.installedSources) {
+  for (const file of walk(directory, (name) => SOURCE_FILE.test(name))) {
+    checkSource(file, owner, undefined);
   }
 }
 
 if (problems.length > 0) {
-  console.error(`migrations: ${problems.length} problem(s) with module-owned SQL:`);
+  console.error(
+    `migrations: ${problems.length} problem(s) with module-owned SQL or the module list:`,
+  );
   for (const problem of problems) console.error(problem);
   process.exit(1);
 }
@@ -170,5 +192,5 @@ const ownerCount = new Set([...owners.values()].flat()).size;
 console.log(
   migrations.length === 0
     ? "migrations: no SQL migrations found"
-    : `migrations: ${owners.size} table(s) owned by ${ownerCount} package(s); no cross-module foreign keys or SQL`,
+    : `migrations: ${owners.size} table(s) owned by ${ownerCount} package(s); no cross-module foreign keys or SQL; ${moduleList.listed} module(s) listed in ${LIST_FILE}`,
 );

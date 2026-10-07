@@ -53,8 +53,11 @@ If the module stores data, it owns its tables:
 2. No foreign key to another package's table. Keep the other module's id as a plain column, and ask that module's service for the record.
 3. The module's SQL names only its own tables. To read another module's data, call its service.
 4. A service method that writes is one transaction, and the method opens it. A read method may run without one. A use-case never opens one.
+5. Register the module in `migrations.json` at the repository root: add `{ "workspace": "packages/<name>" }` to `"modules"`. `@house-rules/migrations` then runs its files into its own history table, `<name>_migrations`. Name each file `<id>_<name>.sql`, such as `0001_booking.sql`, and never edit one after it ran: the runner checks each file's SHA-256.
+6. No ORM and no query builder. Write plain SQL through `SqlClient` from `effect/unstable/sql`, inside the service, and decode each row with a `Schema` before it leaves the module.
+7. Test the SQL against a real Postgres, not a fake client. Run `docker compose up -d` once. In the test, build the database with `MigrationsTesting.database` from `@house-rules/migrations`, run the module's migrations with `Migrations.run`, and provide the service on top, as `packages/call-audit/src/tests/call-audit-table.test.ts` does. The package's `test` script runs `varlock run --path ../../ -- vitest run`, so the test reads `TEST_DATABASE_ADMIN_URL` from the root `.env.schema`. The Postgres driver (`@effect/sql-pg`) and `@effect/platform-node` are devDependencies there; adding them to a new package is a dependency change, so ask the owner first.
 
-`pnpm run migrations` checks the first three with a text scan, and catches a use-case that calls `withTransaction` or sends `begin`. The rest of rule 4 is a review rule. `packages/rules/docs/migrations.md` lists what the scan misses.
+`pnpm run migrations` checks the first three with a text scan, fails when a package with a `migrations/` folder is missing from `migrations.json`, and catches a use-case that calls `withTransaction` or sends `begin`. The rest of rule 4 is a review rule. `packages/rules/docs/migrations.md` lists what the scan misses.
 
 The dependency-cruiser rules already cover a new package. `packages-public-entry-only` and `packages-imported-by-name` apply to every folder under `packages/`. If you use a new scope, change the `scope` option passed to `layout()` in `.dependency-cruiser.cjs`.
 
@@ -125,7 +128,7 @@ pnpm test
 | --- | --- |
 | `pnpm run pins` | Every `package.json` in the workspace pins exact versions, including `workspace:0.0.0`. The plugin's `house-rules-pins` bin runs the check. |
 | `pnpm run typecheck` | Effect diagnostics in every workspace package: no floating Effects, no global `Error` in the failure channel, no `Effect.run*` inside Effect code, no leaked requirements. |
-| `pnpm run migrations` | Each module's migrations sit in `packages/<name>/migrations/`, and no foreign key or SQL string the scan can read names another package's table. No use-case calls `withTransaction` or sends `begin`. It is a text scan, so a review still checks that each write method opens its own transaction. |
+| `pnpm run migrations` | Each module's migrations sit in `packages/<name>/migrations/`, `migrations.json` lists every module that has them, and no foreign key or SQL string the scan can read names another package's table. No use-case calls `withTransaction` or sends `begin`. It is a text scan, so a review still checks that each write method opens its own transaction. |
 | `pnpm run deps` | Packages do not import apps, apps import packages only by name and only through `src/index.ts`, use-cases do not import delivery, server, or each other, app code sits in a layer, and no file is named `utils`, `helpers`, or `misc`. |
 | `pnpm run lint` | No comments that restate the code. Each use-case file exports one capability. No MCP tool, RPC, or HTTP endpoint is built by hand. |
 | `pnpm run biome` | Named barrel exports and file names. |

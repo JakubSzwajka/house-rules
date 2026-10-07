@@ -65,7 +65,7 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `useFilenamingConvention` | Files not kebab-case or export | Biome | `@house-rules/rules/biome` | [biome.md](docs/biome.md) |
 | Formatter | indentWidth 2, lineWidth 100, indentStyle space | Biome | `@house-rules/rules/biome` | [biome.md](docs/biome.md) |
 | Exact pins | Every dependency must be an exact version, `workspace:<exact>`, or a Git spec with full commit SHA | Node | `house-rules-pins` bin | [pins.md](docs/pins.md) |
-| `house-rules-migrations` | Cross-module foreign keys, migrations or SQL strings that touch another package's tables, `.sql` files outside `<package>/migrations/` (a package's `fixtures/` and `tests/` excepted), use-cases that open a transaction | Node | `house-rules-migrations` bin | [migrations.md](docs/migrations.md) |
+| `house-rules-migrations` | Cross-module foreign keys, migrations or SQL strings that touch another package's tables, `.sql` files outside `<package>/migrations/` (a package's `fixtures/` and `tests/` excepted), use-cases that open a transaction, a module with migrations that `migrations.json` does not list | Node | `house-rules-migrations` bin | [migrations.md](docs/migrations.md) |
 
 ## Wire it up
 
