@@ -21,6 +21,7 @@ async function writeFixtureFiles(fixtureDirectory) {
         dependencies: {
           "@eslint/css": devDependencies["@eslint/css"],
           "@eslint/markdown": devDependencies["@eslint/markdown"],
+          "@shadcn/lint": devDependencies["@shadcn/lint"],
           eslint: devDependencies.eslint,
         },
       },
@@ -31,7 +32,7 @@ async function writeFixtureFiles(fixtureDirectory) {
 
   await writeFile(
     path.join(fixtureDirectory, "eslint.config.mjs"),
-    'import houseRules from "@house-rules/rules";\nimport design from "@house-rules/rules/design";\nimport houseRulesMarkdown from "@house-rules/rules/markdown";\n\nexport default [\n  ...houseRules.configs.recommended,\n  ...houseRulesMarkdown,\n  ...design({\n    tokenFiles: ["styles/tokens.css"],\n    source: { files: ["**/*.tsx"] },\n    rules: { "design-scale-value": [{ property: "radius$", allowed: ["4px"] }] },\n  }),\n];\n',
+    'import houseRules from "@house-rules/rules";\nimport design from "@house-rules/rules/design";\nimport houseRulesMarkdown from "@house-rules/rules/markdown";\nimport shadcn from "@house-rules/rules/shadcn";\n\nexport default [\n  ...houseRules.configs.recommended,\n  ...houseRulesMarkdown,\n  ...design({\n    tokenFiles: ["styles/tokens.css"],\n    source: { files: ["**/*.tsx"] },\n    rules: { "design-scale-value": [{ property: "radius$", allowed: ["4px"] }] },\n  }),\n  ...shadcn({ files: ["ui/**/*.tsx"] }),\n];\n',
   );
   await writeFile(
     path.join(fixtureDirectory, ".dependency-cruiser.cjs"),
@@ -92,6 +93,12 @@ async function writeFixtureFiles(fixtureDirectory) {
     'export const A = () => <div style={{ color: "#2b3133" }} />;\n',
   );
 
+  await mkdir(path.join(fixtureDirectory, "ui"));
+  await writeFile(
+    path.join(fixtureDirectory, "ui", "page.tsx"),
+    'export const Page = () => <p className="bg-pink-500" style={{ padding: 4 }} />;\n',
+  );
+
   await writeFile(
     path.join(fixtureDirectory, "verify-install.mjs"),
     `import assert from "node:assert/strict";
@@ -107,6 +114,7 @@ assert.equal(houseRules.configs.recommended[0].rules["house-rules/comment-discip
 assert.match(import.meta.resolve("@house-rules/rules"), /node_modules/);
 assert.match(import.meta.resolve("@house-rules/rules/markdown"), /node_modules/);
 assert.match(import.meta.resolve("@house-rules/rules/design"), /node_modules/);
+assert.match(import.meta.resolve("@house-rules/rules/shadcn"), /node_modules/);
 assert.match(import.meta.resolve("@house-rules/rules/dependency-cruiser"), /node_modules/);
 assert.equal(houseRules.meta.version, ${JSON.stringify(packageVersion)});
 for (const preset of ["tsconfig/strict.json", "tsconfig/effect.json", "biome"]) {
@@ -189,11 +197,20 @@ assert.deepEqual(
   sourceFailing.messages.map(({ ruleId, line }) => ({ ruleId, line })),
   [{ ruleId: "house-rules/design-no-raw-color-literal", line: 1 }],
 );
+
+const [shadcnFailing] = await eslint.lintFiles(["ui/page.tsx"]);
+assert.deepEqual(
+  shadcnFailing.messages.map(({ ruleId, severity }) => ({ ruleId, severity })),
+  [
+    { ruleId: "shadcn/no-raw-colors", severity: 2 },
+    { ruleId: "shadcn/no-inline-styles", severity: 2 },
+  ],
+);
 `,
   );
 }
 
-test("packs and installs the exact package before linting fresh JS, TS, Markdown, and design fixtures, loading the dependency-cruiser preset, resolving the config presets, and running the pins and migrations bins", async () => {
+test("packs and installs the exact package before linting fresh JS, TS, Markdown, design, and shadcn fixtures, loading the dependency-cruiser preset, resolving the config presets, and running the pins and migrations bins", async () => {
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "house-rules-pack-"));
   const packageDirectory = path.join(temporaryDirectory, "package");
   const fixtureDirectory = path.join(temporaryDirectory, "fixture");
