@@ -16,6 +16,7 @@ Create `packages/<name>/` with these files, copied from `packages/bookings`:
 1. `package.json`. Set `name` to `@hosti/<name>`, or your own scope. `exports` names one entry, `"." : "./src/index.ts"`. Add no other `exports` path. Keep the `typecheck` and `test` scripts. Pin `effect`, `@effect/vitest`, `typescript`, and `vitest` to the same exact versions the other workspace packages use. A module that stores data also depends on `@house-rules/capability`, for `UnitOfWork`.
 2. `tsconfig.json`, which extends `../../tsconfig.base.json`. A package that imports `@house-rules/capability` or `@house-rules/migrations` sets `allowImportingTsExtensions`, as `packages/bookings/tsconfig.json` does.
 3. `vitest.config.ts`.
+4. A framework package that apps mount, such as `@house-rules/call-audit`, also gets an `AGENTS.md` in its root, listed in `files` in its `package.json`. It says what the package does, how an app mounts it (the layer line, the `migrations.json` line, the hooks the app must wire), its options and presets, and its fixed rules. Add the package to the list in `tests/framework-agents.test.mjs`. An app's own module needs none.
 
 Then run `pnpm install` so pnpm links the new package and updates `pnpm-lock.yaml`.
 

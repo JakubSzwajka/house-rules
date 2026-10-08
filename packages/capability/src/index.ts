@@ -1,9 +1,22 @@
 export { Approval, type ApprovalService } from "./approval.ts";
+export {
+  CallChannel,
+  type CallFacts,
+  type CallKind,
+  CallRequestId,
+  isMcpChannel,
+  maxClientNameLength,
+  maxTargetIdLength,
+  mcpChannel,
+  unknownCallFacts,
+} from "./call-facts.ts";
 export { type Around, CallWatch, type CallWatchService } from "./call-watch.ts";
 export {
   type Annotations,
   type AnyContract,
   type ApprovalRequirement,
+  type AuditDeclaration,
+  type AuditOptions,
   type Contract,
   type DefineContractOptions,
   defineContract,
@@ -15,6 +28,7 @@ export {
   type InputSchema,
   NoInput,
   type PlainSchema,
+  type StringKeyOf,
   type UnitOfWorkRequirement,
 } from "./contract.ts";
 export { ApprovalForm, approvalMessage, elicitationApproval } from "./elicitation-approval.ts";

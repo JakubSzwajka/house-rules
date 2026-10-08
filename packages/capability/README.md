@@ -118,7 +118,7 @@ A wide flag, such as a `needsApproval` typed only as `boolean`, gets both gates 
 
 ### Watching every call
 
-`CallWatch` is a hook around every call, on every surface. `implement` runs each call as `watch.around(contract, input, run)`, where `run` is the Grant check, then Approval, then the handler. So the watch also sees `Forbidden` and `ApprovalDenied`, and it can measure the whole call. `input` is the decoded input.
+`CallWatch` is a hook around every call, on every surface. `implement` runs each call as `watch.around(contract, input, run, facts)`, where `facts` is optional (a caller that passes three arguments gets `unknownCallFacts(contract)`: the kind from the contract, no target, channel `"unknown"`, no request id) and `run` is the Grant check, then Approval, then the handler. So the watch also sees `Forbidden` and `ApprovalDenied`, and it can measure the whole call. `input` is the decoded input.
 
 `CallWatch` is a `Context.Reference` with a pass-through default. Provide nothing and the call behaves as before. It adds no requirement and no failure to any capability. A watch is trusted code. It must return the exit of `run` unchanged: no `Effect.orDie`, and no skipping `run`. The `Around` type keeps the channels, but it cannot enforce that behaviour.
 
@@ -152,6 +152,23 @@ const loggingWatch = Layer.succeed(CallWatch, {
 The example logs no input values, because input is often user data. A watch that wants the viewer reads it with `Effect.serviceOption`, so it adds no requirement either.
 
 You do not have to write the watch yourself. `@house-rules/call-audit` (`packages/call-audit`, see its README) is one that writes a log line per call, or keeps the entries in memory for tests.
+
+### Call facts: kind, target, channel, request id
+
+The watch gets a fourth argument, `facts`, a `CallFacts`. A watch that takes three arguments still type-checks.
+
+| Fact | Where it comes from |
+| --- | --- |
+| `kind` | `"read"` when the contract has `annotations: { readOnly: true }`, else `"write"` |
+| `targetId` | the input field the contract names in `audit: { target: "tripId" }`, only when its value is a string, capped at 256 characters; else `null` |
+| `channel` | `"mcp"` or `"mcp:<client name>"` during an MCP tool call; else the `CallChannel` reference, `"unknown"` by default |
+| `requestId` | the `CallRequestId` reference, `null` by default |
+
+`audit.target` must name a key of the input whose type can be a string. Naming a number field or a missing key is a type error. It is a field name, not a function, so no computed value can reach the audit.
+
+Review rule: `audit.target` must name an id field, such as `tripId`, never free text such as a title or a note. The type only checks that the value is a string. It cannot prove the string is an id, so `audit: { target: "note" }` compiles and stores the note. Reviewers check each `audit.target` by hand.
+
+The MCP channel needs no wiring. The Effect `McpServer` provides `McpRequestContext` to every tool call, including the tools `toTool` builds, and the facts read the client name from it. The name keeps only letters, digits, `.`, `_`, `-` and spaces, at most 40 characters. An MCP call wins over any `CallChannel` the app set. The app sets the other channels itself, such as `Effect.provideService(CallChannel, "web")` in its web runner, and may set `CallRequestId` per request so the calls of one request group together.
 
 ### Units of work
 
@@ -309,8 +326,8 @@ The house plugin's `no-hand-rolled-surface` rule fails on `Tool.make` outside th
 
 ## Limits
 
-It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, the `CallWatch` hook, the `UnitOfWork` slot with its SQL and memory adapters, and `definePolicy` with its `withStates`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities, and nothing turns a contract into an HTTP route or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job. For MCP, Effect's `McpServer` decodes it with the tool's parameters.
+It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, the `CallWatch` hook with its call facts, the `UnitOfWork` slot with its SQL and memory adapters, and `definePolicy` with its `withStates`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities, and nothing turns a contract into an HTTP route or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job. For MCP, Effect's `McpServer` decodes it with the tool's parameters.
 
 ## Exports
 
-`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, `CallWatch`, `UnitOfWork`, and `CurrentUnit` services, `sqlUnitOfWork` and `memoryUnitOfWork`, the `Forbidden`, `ApprovalDenied`, `NoOpenUnit`, and `UnitOfWorkFailed` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `GrantRequirement`, `ApprovalRequirement`, `UnitOfWorkRequirement`, `GateRequirements`, `UnitOfWorkService`, `OpenUnit`, `Atomic`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, and `ToToolOptions`.
+`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, `CallWatch`, `UnitOfWork`, and `CurrentUnit` services, the `CallChannel` and `CallRequestId` references, `mcpChannel`, `isMcpChannel`, `maxClientNameLength`, `maxTargetIdLength`, `sqlUnitOfWork` and `memoryUnitOfWork`, the `Forbidden`, `ApprovalDenied`, `NoOpenUnit`, and `UnitOfWorkFailed` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `CallFacts`, `CallKind`, `AuditDeclaration`, `AuditOptions`, `StringKeyOf`, `GrantRequirement`, `ApprovalRequirement`, `UnitOfWorkRequirement`, `GateRequirements`, `UnitOfWorkService`, `OpenUnit`, `Atomic`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, and `ToToolOptions`.

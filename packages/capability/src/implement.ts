@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { Approval } from "./approval.ts";
+import { callFactsOf } from "./call-facts.ts";
 import { CallWatch } from "./call-watch.ts";
 import type { AnyContract, FailureOf, GateRequirements } from "./contract.ts";
 import { Forbidden } from "./gate-errors.ts";
@@ -43,7 +44,8 @@ export const implement = <Contract extends AnyContract, Requirements = never>(
         }
         return yield* transactional ? UnitOfWork.atomic(handler(input)) : handler(input);
       });
-      return yield* watch.around(contract, input, run);
+      const facts = yield* callFactsOf(contract, input);
+      return yield* watch.around(contract, input, run, facts);
     });
   // The runtime branches read the same permission, needsApproval and transactional the contract type carries.
   return { _tag: "Capability", contract, handler: gated } as Capability<Contract, Requirements>;

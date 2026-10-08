@@ -61,10 +61,14 @@ layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
         expect(typeof found[0]?.ms).toBe("number");
         expect(Object.keys(found[0] ?? {}).sort()).toEqual([
           "capability",
+          "channel",
+          "kind",
           "ms",
           "outcome",
           "permission",
           "recordedAt",
+          "requestId",
+          "targetId",
           "viewerId",
         ]);
       }),

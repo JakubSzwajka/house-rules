@@ -1,12 +1,13 @@
 {
   "name": "@house-rules/capability",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Capabilities for Effect apps: one named, schema-described action with one handler.",
   "license": "MIT",
   "type": "module",
   "files": [
-    "src"
+    "src",
+    "AGENTS.md"
   ],
   "exports": {
     ".": "./src/index.ts"
