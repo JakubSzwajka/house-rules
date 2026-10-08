@@ -3,7 +3,7 @@
 title: "app-code-in-layers"
 description: "App code outside layer folders"
 sidebar:
-  order: 22
+  order: 24
 ---
 
 | Field | Value |

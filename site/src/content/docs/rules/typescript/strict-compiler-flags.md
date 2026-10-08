@@ -3,7 +3,7 @@
 title: "Strict compiler flags"
 description: "15 flags: strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes, and more"
 sidebar:
-  order: 25
+  order: 33
 ---
 
 | Field | Value |

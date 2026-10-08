@@ -3,7 +3,7 @@
 title: "use-cases-do-not-import-use-cases"
 description: "Use-case importing another use-case"
 sidebar:
-  order: 23
+  order: 25
 ---
 
 | Field | Value |

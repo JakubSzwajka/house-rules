@@ -3,7 +3,7 @@
 title: "Effect diagnostics"
 description: "31 diagnostics set to error"
 sidebar:
-  order: 26
+  order: 34
 ---
 
 | Field | Value |

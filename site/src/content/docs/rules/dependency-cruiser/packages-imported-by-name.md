@@ -3,7 +3,7 @@
 title: "packages-imported-by-name"
 description: "Local imports of packages by path instead of name"
 sidebar:
-  order: 12
+  order: 14
 ---
 
 | Field | Value |

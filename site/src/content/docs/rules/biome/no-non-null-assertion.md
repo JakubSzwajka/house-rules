@@ -3,7 +3,7 @@
 title: "noNonNullAssertion"
 description: "! non-null assertions"
 sidebar:
-  order: 29
+  order: 37
 ---
 
 | Field | Value |

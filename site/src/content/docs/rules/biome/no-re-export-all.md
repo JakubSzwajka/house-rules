@@ -3,7 +3,7 @@
 title: "noReExportAll"
 description: "export * from"
 sidebar:
-  order: 27
+  order: 35
 ---
 
 | Field | Value |

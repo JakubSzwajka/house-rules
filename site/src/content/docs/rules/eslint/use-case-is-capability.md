@@ -3,7 +3,7 @@
 title: "use-case-is-capability"
 description: "A use-case file that does not export exactly one implement(...) capability, exports a second contract, or exports another value"
 sidebar:
-  order: 7
+  order: 8
 ---
 
 | Field | Value |

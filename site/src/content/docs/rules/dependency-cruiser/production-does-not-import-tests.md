@@ -3,7 +3,7 @@
 title: "production-does-not-import-tests"
 description: "Production code importing tests"
 sidebar:
-  order: 18
+  order: 20
 ---
 
 | Field | Value |

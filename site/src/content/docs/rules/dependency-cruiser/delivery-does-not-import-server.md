@@ -3,7 +3,7 @@
 title: "delivery-does-not-import-server"
 description: "Delivery layer importing server layer"
 sidebar:
-  order: 14
+  order: 16
 ---
 
 | Field | Value |

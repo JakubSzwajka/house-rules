@@ -3,7 +3,7 @@
 title: "tests-do-not-import-internals"
 description: "Tests importing package internals"
 sidebar:
-  order: 20
+  order: 22
 ---
 
 | Field | Value |

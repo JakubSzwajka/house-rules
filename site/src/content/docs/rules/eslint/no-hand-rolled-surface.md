@@ -3,7 +3,7 @@
 title: "no-hand-rolled-surface"
 description: "Tool.make, Rpc.make, or HttpApiEndpoint.<method> outside packages/capability/**"
 sidebar:
-  order: 8
+  order: 9
 ---
 
 | Field | Value |

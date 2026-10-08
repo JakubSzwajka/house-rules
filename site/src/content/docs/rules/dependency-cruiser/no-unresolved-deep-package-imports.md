@@ -3,7 +3,7 @@
 title: "no-unresolved-deep-package-imports"
 description: "Unresolved deep package imports"
 sidebar:
-  order: 17
+  order: 19
 ---
 
 | Field | Value |

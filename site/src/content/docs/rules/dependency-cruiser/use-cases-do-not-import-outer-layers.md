@@ -3,7 +3,7 @@
 title: "use-cases-do-not-import-outer-layers"
 description: "Use-cases importing delivery or server"
 sidebar:
-  order: 16
+  order: 18
 ---
 
 | Field | Value |

@@ -3,7 +3,7 @@
 title: "useFilenamingConvention"
 description: "Files not kebab-case or export"
 sidebar:
-  order: 30
+  order: 38
 ---
 
 | Field | Value |

@@ -3,7 +3,7 @@
 title: "no-cycles"
 description: "Circular imports"
 sidebar:
-  order: 9
+  order: 11
 ---
 
 | Field | Value |

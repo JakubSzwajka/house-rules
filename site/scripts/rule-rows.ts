@@ -50,11 +50,11 @@ const toolNamed = (name: string): Tool => {
 };
 
 const docTarget = (cell: string): string => {
-  const target = /\]\(([^)]+)\)/.exec(cell)?.[1];
+  const target = /\]\(([^)]+)\)/.exec(cell)?.[1] ?? /^`([^`]+\.md)`$/.exec(cell)?.[1];
   if (target === undefined) {
     throw new Error(`${RULES_README}: no docs link in "${cell}".`);
   }
-  return `packages/rules/${target}`;
+  return `packages/rules/${target.replace(/#.*$/, "")}`;
 };
 
 export const readRuleRows = (): readonly RuleRow[] => {
@@ -75,7 +75,7 @@ export const readRuleRows = (): readonly RuleRow[] => {
     ) {
       throw new Error(`${RULES_README}: a rules table row needs five cells: ${line}`);
     }
-    const id = name.replaceAll("`", "");
+    const id = name.replace(/ \(.*\)$/, "").replaceAll("`", "");
     return {
       id,
       slug: kebab(id),

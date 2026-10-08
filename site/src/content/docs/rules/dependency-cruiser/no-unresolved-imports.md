@@ -3,7 +3,7 @@
 title: "no-unresolved-imports"
 description: "Unresolved imports"
 sidebar:
-  order: 21
+  order: 23
 ---
 
 | Field | Value |

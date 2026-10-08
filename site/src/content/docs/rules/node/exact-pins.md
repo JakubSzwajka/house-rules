@@ -3,7 +3,7 @@
 title: "Exact pins"
 description: "Every dependency must be an exact version, workspace:<exact>, or a Git spec with full commit SHA"
 sidebar:
-  order: 32
+  order: 40
 ---
 
 | Field | Value |

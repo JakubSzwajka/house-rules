@@ -3,7 +3,7 @@
 title: "Formatter"
 description: "indentWidth 2, lineWidth 100, indentStyle space"
 sidebar:
-  order: 31
+  order: 39
 ---
 
 | Field | Value |

@@ -3,7 +3,7 @@
 title: "apps-do-not-import-other-apps"
 description: "Apps importing other apps"
 sidebar:
-  order: 11
+  order: 13
 ---
 
 | Field | Value |

@@ -3,7 +3,7 @@
 title: "noExcessiveLinesPerFile"
 description: "Files over 300 lines (warn)"
 sidebar:
-  order: 28
+  order: 36
 ---
 
 | Field | Value |

@@ -3,7 +3,7 @@
 title: "packages-do-not-import-apps"
 description: "Packages importing apps"
 sidebar:
-  order: 10
+  order: 12
 ---
 
 | Field | Value |

@@ -3,7 +3,7 @@
 title: "packages-public-entry-only"
 description: "Imports of package internals"
 sidebar:
-  order: 13
+  order: 15
 ---
 
 | Field | Value |

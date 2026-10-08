@@ -39,6 +39,15 @@ const factsTable = (facts: readonly (readonly [string, string])[]): string =>
 
 const eslintSections = (row: RuleRow): { facts: [string, string][]; sections: string[] } => {
   const meta = plugin.rules[row.id]?.meta;
+  if (meta === undefined && row.id.includes("/")) {
+    return {
+      facts: [
+        ["Rule IDs", `\`${row.id}\``],
+        ["Source", link("packages/rules/src/shadcn.mjs")],
+      ],
+      sections: [`## In one line\n\n${row.catches}`],
+    };
+  }
   if (meta === undefined) {
     throw new Error(
       `${RULES_README} lists ESLint rule ${row.id}, but the plugin has no such rule.`,
@@ -121,7 +130,10 @@ const typescriptSections = (row: RuleRow): { facts: [string, string][]; sections
 const nodeSections = (row: RuleRow): { facts: [string, string][]; sections: string[] } => {
   const stem = row.docPath.replace(/^.*\/|\.md$/g, "");
   const bins = asRecord(asRecord(readJson("packages/rules/package.json"))["bin"]);
-  const bin = Object.entries(bins).find(([, path]) => path === `bin/${stem}.mjs`);
+  const named = /`(house-rules-[a-z]+)` bin/.exec(row.enableVia)?.[1];
+  const bin = Object.entries(bins).find(
+    ([name, path]) => name === named || path === `bin/${stem}.mjs`,
+  );
   if (bin === undefined || typeof bin[1] !== "string") {
     return { facts: [], sections: [] };
   }

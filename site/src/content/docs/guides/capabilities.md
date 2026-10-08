@@ -54,7 +54,7 @@ Each call answers four questions, in this order:
 | Does a human mean it, now? | `Approval`, when `needsApproval: true` | `ApprovalDenied` |
 | May the caller act on this one object? | The module, with its own data | "not found" |
 
-A **permission** is a `resource:action` string, such as `bookings:read`. The module that owns the resource names it, as [`permissions.ts`](../../../../../packages/bookings/src/permissions.ts) does. A contract that any caller may run says `permission: "public"` on purpose. The type rejects a contract with no permission.
+A **permission** is a `resource:action` string, such as `bookings:read`. The module that owns the resource names it, as [`permissions.ts`](../../../../../packages/bookings/src/booking/permissions.ts) does. A contract that any caller may run says `permission: "public"` on purpose. The type rejects a contract with no permission.
 
 The Grant runs before any data is read, so it cannot leak whether a record exists. Approval is consent, not permission: on MCP it asks the human through the client, and an agent can never answer its own approval.
 
