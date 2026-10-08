@@ -1,7 +1,7 @@
 export { memoryAuditStore } from "./adapters/memory/memory-audit-store.ts";
 export { postgresAuditStore } from "./adapters/postgres/postgres-audit-store.ts";
 export { CallAudit, type MemoryAuditLog, memoryAuditLog } from "./facade.ts";
-export { classOf } from "./policy.ts";
+export { classOf } from "./policy/policy.ts";
 export { AuditStore } from "./storage.ts";
 export {
   type AuditClass,
@@ -16,5 +16,5 @@ export {
   type RetentionCutoffs,
   type RetentionOptions,
   type RetentionRun,
-} from "./types.ts";
-export type { AuditEntry } from "./types.ts";
+} from "./audit/audit.ts";
+export type { AuditEntry } from "./audit/audit.ts";

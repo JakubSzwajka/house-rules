@@ -6,7 +6,7 @@ import type {
   ReadRowsOptions,
   RetentionCutoffs,
   RetentionRun,
-} from "./types.ts";
+} from "./audit/audit.ts";
 
 export class AuditStore extends Context.Service<
   AuditStore,

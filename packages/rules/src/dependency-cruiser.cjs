@@ -6,12 +6,26 @@ const DEFAULTS = {
   publicEntry: "src/index.ts",
   internalDir: "src/internal",
   adaptersDir: "src/adapters",
+  facadeFile: "src/facade.ts",
   testsDir: "tests",
 };
 const DEFAULT_LAYERS = { delivery: "delivery", server: "server", useCases: "use-cases" };
 const DEFAULT_NAME_LISTS = {
   appEntryFiles: ["main.ts", "index.ts"],
   ownerlessNames: ["utils", "helpers", "misc"],
+  mechanismNames: [
+    "types",
+    "models",
+    "schemas",
+    "drafts",
+    "errors",
+    "validate",
+    "validation",
+    "constants",
+    "interfaces",
+    "internal",
+  ],
+  packageRootFiles: ["index.ts", "facade.ts", "storage.ts"],
   adapterPackages: [],
 };
 const DEFAULT_ADAPTER_IMPORTS = Object.freeze([
@@ -53,7 +67,7 @@ function scopeName(scope) {
   return scope.endsWith("/") ? scope : `${scope}/`;
 }
 
-function nameListOption(names, label, { allowEmpty }) {
+function nameListOption(names, label, { allowEmpty }, toPattern = escape) {
   const valid =
     Array.isArray(names) &&
     (allowEmpty || names.length > 0) &&
@@ -62,7 +76,19 @@ function nameListOption(names, label, { allowEmpty }) {
     const size = allowEmpty ? "an array" : "a non-empty array";
     throw new TypeError(`layout(): ${label} must be ${size} of names without "/".`);
   }
-  return names.map(escape);
+  return names.map(toPattern);
+}
+
+// A mechanism name matches in any letter case, so `Types.ts` and `Errors/` fail like `types.ts`.
+// Dependency Cruiser patterns carry no flags, so each letter becomes a class such as `[tT]`.
+function caseless(name) {
+  return [...name]
+    .map((char) =>
+      char.toLowerCase() === char.toUpperCase()
+        ? escape(char)
+        : `[${char.toLowerCase()}${char.toUpperCase()}]`,
+    )
+    .join("");
 }
 
 const glob = (value) => value.split("*").map(escape).join("[^/]*");
@@ -156,6 +182,18 @@ function patterns(options) {
       allowEmpty: false,
     },
   );
+  const mechanism = nameListOption(
+    settings.mechanismNames ?? DEFAULT_NAME_LISTS.mechanismNames,
+    "mechanismNames",
+    { allowEmpty: true },
+    caseless,
+  );
+  const rootFiles = nameListOption(
+    settings.packageRootFiles ?? DEFAULT_NAME_LISTS.packageRootFiles,
+    "packageRootFiles",
+    { allowEmpty: false },
+  );
+  const adapters = pathOption(settings.adaptersDir, "adaptersDir");
   const adapterPackages = nameListOption(
     settings.adapterPackages ?? DEFAULT_NAME_LISTS.adapterPackages,
     "adapterPackages",
@@ -184,14 +222,40 @@ function patterns(options) {
     ],
     useCaseEntry: `^(${apps}/[^/]+/src/${layers.useCases}/[^/]+)`,
     useCaseAny: `^${apps}/[^/]+/src/${layers.useCases}/[^/]+`,
-    ownerlessPath: `^(?:${apps}|${packages})/(?:.*/)?(?:${ownerless.join("|")})(?:[.][^/]*)?(?:/|$)`,
+    ownerlessPath: [
+      `^(?:${apps}|${packages})/(?:.*/)?(?:${ownerless.join("|")})(?:[.][^/]*)?(?:/|$)`,
+      ...(mechanism.length
+        ? [`^${packages}/[^/]+/(?:.*/)?(?:${mechanism.join("|")})(?:[.][^/]*)?(?:/|$)`]
+        : []),
+    ],
+    packageRootFile: `^${packages}/[^/]+/src/[^/]+$`,
+    packageRootFileAllowed: `^${packages}/[^/]+/src/(?:${rootFiles.join("|")})$`,
+    // $1 is the package folder. Only the public entry and the facade wire the package's own adapters.
+    packageCode: `^(${packages}/[^/]+)/src/`,
+    adapterImporters: [
+      `^${packages}/[^/]+/${adapters}(?:/|$)`,
+      `^${packages}/[^/]+/${pathOption(settings.publicEntry, "publicEntry")}$`,
+      `^${packages}/[^/]+/${pathOption(settings.facadeFile, "facadeFile")}$`,
+    ],
+    ownAdapters: `^$1/${adapters}(?:/|$)`,
+    // A file in a subject folder, and the package's own root barrel ($1 is the package folder).
+    subjectFile: `^(${packages}/[^/]+)/src/[^/]+/`,
+    ownRootBarrel: `^$1/(?:${pathOption(settings.publicEntry, "publicEntry")}|${pathOption(settings.facadeFile, "facadeFile")})$`,
+    // $1 is the package's src folder and $2 the subject folder, a folder directly under src/.
+    subjectFolder: `^(${packages}/[^/]+/src)/([^/]+)`,
+    otherSubjectFolder: `^$1/[^/]+`,
+    notSubjectFolder: [
+      "^$1/$2(?:/|$)",
+      `^${packages}/[^/]+/${adapters}(?:/|$)`,
+      `^${packages}/[^/]+/src/(?:${testDirs})(?:/|$)`,
+    ],
     testPath: `(?:^|/)(?:${testDirs})(?:/|$)|${testFile}`,
     testFile: `^(?:${apps}|${packages})/[^/]+/.*${testFile}`,
     testFileInTestsDir: `^(?:${apps}|${packages})/[^/]+/src/(?:${tests}|.*/${tests})/[^/]+${testFile}`,
     packageNamespace: `^${escape(scope)}`,
     packageSourceRoot: `^${packages}/[^/]+/src/`,
     adapterCode: [
-      `^${packages}/[^/]+/${pathOption(settings.adaptersDir, "adaptersDir")}(?:/|$)`,
+      `^${packages}/[^/]+/${adapters}(?:/|$)`,
       ...(adapterPackages.length ? [`^${packages}/(?:${adapterPackages.join("|")})/`] : []),
     ],
     adapterImports: adapterImportsOption(
@@ -273,6 +337,35 @@ function layout(options = {}) {
         { path: p.useCaseAny, pathNot: ["^$1(?:/|$)", p.testPath] },
       ),
       moduleRule("no-ownerless-files", { path: p.ownerlessPath }),
+      moduleRule("package-root-files", {
+        path: p.packageRootFile,
+        pathNot: [p.packageRootFileAllowed, p.testPath],
+      }),
+      rule(
+        "domain-does-not-import-adapters",
+        { path: p.packageCode, pathNot: p.adapterImporters },
+        { path: p.ownAdapters },
+      ),
+      // A subject reaches another subject directly, never through the package's own index.ts or
+      // facade.ts: that barrel re-exports every subject, so it would hide a cycle between two
+      // subjects from the folder rule below. storage.ts stays importable.
+      rule(
+        "subjects-do-not-import-package-root",
+        {
+          path: p.subjectFile,
+          pathNot: [...p.notSubjectFolder.slice(1), p.testPath],
+        },
+        { path: p.ownRootBarrel },
+      ),
+      // A folder rule: Dependency Cruiser rolls modules up into folders and finds cycles there,
+      // so two subjects that import each other through different files still fail.
+      {
+        name: "no-subject-folder-cycles",
+        severity: "error",
+        scope: "folder",
+        from: { path: p.subjectFolder, pathNot: p.notSubjectFolder.slice(1) },
+        to: { path: p.otherSubjectFolder, pathNot: p.notSubjectFolder, circular: true },
+      },
       // Domain code names its storage port; only an adapter imports SQL or platform packages.
       // A listed workspace package gets its own rule, with an exact exception for its own folder,
       // so it may import its own files and no other package's folder can pass for it.

@@ -1,14 +1,14 @@
 import { Effect, Layer } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 import type { Connection } from "effect/unstable/sql/SqlConnection";
-import { auditClasses, clampBatchSize, noneDeleted } from "../../internal/limits.ts";
+import { auditClasses, clampBatchSize, noneDeleted } from "../../audit/limits.ts";
 import { AuditStore } from "../../storage.ts";
 import {
   type AuditClass,
   AuditStoreUnavailable,
   type RetentionCutoffs,
   type RetentionRun,
-} from "../../types.ts";
+} from "../../audit/audit.ts";
 import { readRows } from "./read-rows.ts";
 
 const unavailable = (message: string) => (cause: { readonly message: string }) =>

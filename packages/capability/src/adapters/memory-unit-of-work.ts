@@ -1,5 +1,5 @@
 import { Effect, Layer, Semaphore } from "effect";
-import { makeUnitOfWork, UnitOfWork } from "../unit-of-work.ts";
+import { makeUnitOfWork, UnitOfWork } from "../unit-of-work/unit-of-work.ts";
 
 export const memoryUnitOfWork: Layer.Layer<UnitOfWork> = Layer.effect(
   UnitOfWork,

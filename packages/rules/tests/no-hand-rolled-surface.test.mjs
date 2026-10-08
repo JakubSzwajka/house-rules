@@ -74,12 +74,12 @@ function inner(HttpApiEndpoint) {
 
 test("allows packages/capability by default, and honours a custom allow list", () => {
   const code = 'import { Tool } from "effect/unstable/ai";\nTool.make("ping");';
-  assert.deepEqual(lint(code, "packages/capability/src/to-tool.ts"), []);
+  assert.deepEqual(lint(code, "packages/capability/src/contract/to-tool.ts"), []);
   assert.deepEqual(
     lint(code, "packages/surfaces/src/tool.ts", { allow: ["packages/surfaces/**"] }),
     [],
   );
-  assert.deepEqual(lint(code, "packages/capability/src/to-tool.ts", { allow: [] }), [
+  assert.deepEqual(lint(code, "packages/capability/src/contract/to-tool.ts", { allow: [] }), [
     ["Tool.make", 2],
   ]);
 });

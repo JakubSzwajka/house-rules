@@ -1,6 +1,6 @@
 # @house-rules/rules
 
-House rules and house configs. One exact GitHub commit pin brings all of it: nine ESLint rules, 17 Dependency Cruiser layout rules, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Private, not on npm.
+House rules and house configs. One exact GitHub commit pin brings all of it: nine ESLint rules, 21 Dependency Cruiser layout rules, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Private, not on npm.
 
 ## Install
 
@@ -59,7 +59,11 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `no-unresolved-imports` | Unresolved imports | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `app-code-in-layers` | App code outside layer folders | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `use-cases-do-not-import-use-cases` | Use-case importing another use-case | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
-| `no-ownerless-files` | `utils/`, `helpers/`, `misc/` files or folders | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
+| `no-ownerless-files` | `utils/`, `helpers/`, `misc/` files or folders, and mechanism names (`types`, `errors`, `validation`, `internal`, ...) in packages, in any letter case | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
+| `package-root-files` | A loose file in a package's `src/` other than `index.ts`, `facade.ts`, `storage.ts` | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
+| `domain-does-not-import-adapters` | A package file other than `index.ts`, `facade.ts`, or an adapter importing the package's own `src/adapters/` | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
+| `subjects-do-not-import-package-root` | A file in a subject folder importing its own package's `index.ts` or `facade.ts` | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
+| `no-subject-folder-cycles` | Two subject folders of one package importing each other | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
 | `adapter-imports-only-in-adapters` | A package file outside `src/adapters/` importing `effect/unstable/sql`, `@effect/sql-*`, `@effect/platform-*`, or a workspace package listed in `adapterImports` (always an error) | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | Strict compiler flags | 15 flags: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and more | TypeScript | `tsconfig/strict.json` | [tsconfig.md](docs/tsconfig.md) |
 | Effect diagnostics | 31 diagnostics set to error | TypeScript | `tsconfig/effect.json` | [tsconfig.md](docs/tsconfig.md) |

@@ -11,7 +11,7 @@ test("adapter-imports-only-in-adapters reports SQL and platform imports outside 
   assert.deepEqual(fromPaths(violations), [
     "adapter-imports-only-in-adapters: packages/db/src/index.ts -> node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/unstable/sql/index.js",
     "adapter-imports-only-in-adapters: packages/trips/src/tests/trips.test.ts -> node_modules/@effect/platform-node/dist/index.js",
-    "adapter-imports-only-in-adapters: packages/trips/src/trips.ts -> node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/unstable/sql/SqlClient.js",
+    "adapter-imports-only-in-adapters: packages/trips/src/trip/trips.ts -> node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/unstable/sql/SqlClient.js",
   ]);
 });
 
@@ -35,8 +35,8 @@ test("a workspace package in adapterImports fences a domain file that imports it
   assert.deepEqual(fromPaths(fenced), [
     "adapter-imports-only-in-adapters: packages/db/src/index.ts -> node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/unstable/sql/index.js",
     "adapter-imports-only-in-adapters: packages/trips/src/tests/trips.test.ts -> node_modules/@effect/platform-node/dist/index.js",
-    "adapter-imports-only-in-adapters: packages/trips/src/trip-count.ts -> packages/db/src/index.ts",
-    "adapter-imports-only-in-adapters: packages/trips/src/trips.ts -> node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/unstable/sql/SqlClient.js",
+    "adapter-imports-only-in-adapters: packages/trips/src/trip/trip-count.ts -> packages/db/src/index.ts",
+    "adapter-imports-only-in-adapters: packages/trips/src/trip/trips.ts -> node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/unstable/sql/SqlClient.js",
   ]);
   const plumbing = await violatedRules(
     fixture,
@@ -44,8 +44,8 @@ test("a workspace package in adapterImports fences a domain file that imports it
   );
   assert.deepEqual(plumbing.map(({ from }) => from).sort(), [
     "packages/trips/src/tests/trips.test.ts",
-    "packages/trips/src/trip-count.ts",
-    "packages/trips/src/trips.ts",
+    "packages/trips/src/trip/trip-count.ts",
+    "packages/trips/src/trip/trips.ts",
   ]);
 });
 
@@ -102,7 +102,7 @@ test("adapterPackages and adapterImports change the adapter rule", async () => {
   const named = await violatedRules(fixture, layout({ scope: "@acme/", adapterPackages: ["db"] }));
   assert.deepEqual(named.map(({ from }) => from).sort(), [
     "packages/trips/src/tests/trips.test.ts",
-    "packages/trips/src/trips.ts",
+    "packages/trips/src/trip/trips.ts",
   ]);
   const platformOnly = await violatedRules(
     fixture,

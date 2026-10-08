@@ -1,7 +1,7 @@
 import { UnitOfWork } from "@house-rules/capability";
 import { Effect, Layer } from "effect";
 import { BookingStore } from "../../storage.js";
-import type { Booking } from "../../types.js";
+import type { Booking } from "../../booking/booking.js";
 
 export const memoryBookingStore = (records: readonly Booking[] = []): Layer.Layer<BookingStore> =>
   Layer.sync(BookingStore, () => {

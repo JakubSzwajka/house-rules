@@ -1,4 +1,4 @@
-export { Approval, type ApprovalService } from "./approval.ts";
+export { Approval, type ApprovalService } from "./gates/approval.ts";
 export {
   CallChannel,
   type CallFacts,
@@ -9,8 +9,8 @@ export {
   maxTargetIdLength,
   mcpChannel,
   unknownCallFacts,
-} from "./call-facts.ts";
-export { type Around, CallWatch, type CallWatchService } from "./call-watch.ts";
+} from "./call/call-facts.ts";
+export { type Around, CallWatch, type CallWatchService } from "./call/call-watch.ts";
 export {
   type Annotations,
   type AnyContract,
@@ -30,12 +30,16 @@ export {
   type PlainSchema,
   type StringKeyOf,
   type UnitOfWorkRequirement,
-} from "./contract.ts";
-export { ApprovalForm, approvalMessage, elicitationApproval } from "./elicitation-approval.ts";
-export { ApprovalDenied, Forbidden } from "./gate-errors.ts";
-export { Grant, type GrantService } from "./grant.ts";
-export { type Capability, type HandlerOf, implement } from "./implement.ts";
-export type { Permission, PermissionDeclaration } from "./permission.ts";
+} from "./contract/contract.ts";
+export {
+  ApprovalForm,
+  approvalMessage,
+  elicitationApproval,
+} from "./gates/elicitation-approval.ts";
+export { ApprovalDenied, Forbidden } from "./gates/gate-errors.ts";
+export { Grant, type GrantService } from "./gates/grant.ts";
+export { type Capability, type HandlerOf, implement } from "./implement/implement.ts";
+export type { Permission, PermissionDeclaration } from "./gates/permission.ts";
 export {
   definePolicy,
   type Policy,
@@ -43,9 +47,9 @@ export {
   type PolicyTable,
   type StatefulPolicy,
   type StatefulPolicyTable,
-} from "./policy.ts";
-export { newRequestId, requestIdHeader, requestIdOf, withRequestId } from "./request-id.ts";
-export { type ContractTool, type ToToolOptions, toTool } from "./to-tool.ts";
+} from "./gates/policy.ts";
+export { newRequestId, requestIdHeader, requestIdOf, withRequestId } from "./call/request-id.ts";
+export { type ContractTool, type ToToolOptions, toTool } from "./contract/to-tool.ts";
 export {
   type Atomic,
   CurrentUnit,
@@ -54,6 +58,6 @@ export {
   UnitOfWork,
   UnitOfWorkFailed,
   type UnitOfWorkService,
-} from "./unit-of-work.ts";
+} from "./unit-of-work/unit-of-work.ts";
 export { memoryUnitOfWork } from "./adapters/memory-unit-of-work.ts";
 export { sqlUnitOfWork } from "./adapters/sql-unit-of-work.ts";

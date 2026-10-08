@@ -2,7 +2,7 @@
 
 This file is the law for agents and people working in this repo, and in any project made from its template, the stack. Read `VISION.md` for why. It does not override this file. Read `CONTEXT.md` for the words this repo uses.
 
-The house rules and the tool configs come from the plugin `@house-rules/rules`, which lives in `packages/rules`. The root uses it as `workspace:0.9.0`. This repo keeps thin configs that extend its presets, the project values such as the `@hosti/` scope, and the files no tool can inherit. Change a house rule in `packages/rules`, not by copying a preset into a thin config.
+The house rules and the tool configs come from the plugin `@house-rules/rules`, which lives in `packages/rules`. The root uses it as `workspace:0.10.0`. This repo keeps thin configs that extend its presets, the project values such as the `@hosti/` scope, and the files no tool can inherit. Change a house rule in `packages/rules`, not by copying a preset into a thin config.
 
 ## Commands
 
@@ -33,7 +33,7 @@ The rules table in the house-rules README lists every checked rule, its tool, an
 - An app lives in `apps/<name>`. A package lives in `packages/<name>`. `pnpm-workspace.yaml` lists both folders.
 - A package never imports an app. An app never imports another app.
 - An app or package imports another package by its name, such as `@hosti/bookings`, and declares it in its own `package.json` as `workspace:<exact version>`. Never import another package by a relative path.
-- A package has one public entry, `src/index.ts`, and its `package.json` `exports` names only that entry. Callers never import a file under the package's `src/internal/`, by name or by path.
+- A package has one public entry, `src/index.ts`, and its `package.json` `exports` names only that entry. Every other file in the package is private: no other workspace imports it, by name or by path.
 - Each workspace package has its own `tsconfig.json` that extends the root `tsconfig.base.json`, plus `typecheck` and `test` scripts.
 - The capability library (`defineContract`, `implement`, `toTool`, the `Grant`, `Approval`, and `CallWatch` slots, `UnitOfWork` with its `sqlUnitOfWork` and `memoryUnitOfWork` adapters, `definePolicy`, and the types) lives in `packages/capability`, `@house-rules/capability`. An app writes its own capabilities in its own code, as its use-cases, and imports the library by name. A capability handler is an Effect: it yields services and lets typed errors flow.
 - Every framework package an app mounts, now `@house-rules/capability`, `@house-rules/call-audit`, and `@house-rules/migrations`, has an `AGENTS.md` in its root and lists it in its `package.json` `files`, so it ships into the app's `node_modules`. It says what the package does, how an app mounts it (the layer line, the `migrations.json` line, the hooks the app must wire), its options and presets, and its fixed rules. Keep it short. `tests/framework-agents.test.mjs` checks it.
@@ -41,7 +41,7 @@ The rules table in the house-rules README lists every checked rule, its tool, an
 
 ## Layers inside an app
 
-- An app is cut by layer first, on purpose: delivery, server, use-cases, because the layer rules check the imports between them. A package is cut by module.
+- An app is cut by layer first, on purpose: delivery, server, use-cases, because the layer rules check the imports between them. A package is one module, and inside it is cut by subject: see "Inside a package".
 - Delivery and server never import each other.
 - Each entry point has one **composition root**: `src/server/`, or `src/main.ts` when the app has no server folder. Only the root provides services and slots: module layers, storage adapters, cartridges, and a `Grant` or `Approval` that is the same for every request. Delivery provides only per-request values: the `Viewer`, the `CallChannel`, the request id through `withRequestId`, and the `Grant` and `Approval` an adapter fills for this one request. `apps/api/src/server/app-layer.ts` is the example root. It provides `Bookings` and the visitor `Grant`, and the route provides nothing.
 - The entry point joins delivery and the root. It runs a delivery handler over the root's layer. When the root needs a delivery value, such as an MCP toolkit, it takes the value as an argument and never imports it.
@@ -52,7 +52,19 @@ The rules table in the house-rules README lists every checked rule, its tool, an
 - App code sits in `src/delivery/`, `src/server/`, or `src/use-cases/`. Only `src/main.ts` and `src/index.ts` sit directly in `src/`.
 - Never name a file or folder `utils`, `helpers`, or `misc`. Name it after what it owns.
 - No import cycles. No deep package imports. Production code never imports tests.
-- A test file sits directly in a `tests/` folder inside the folder it tests, such as `src/use-cases/tests/show-booking.test.ts`. Tests never import any package's `src/internal/`; a package's own tests import its `src/index.ts`.
+- A test file sits directly in a `tests/` folder inside the folder it tests, such as `src/use-cases/tests/show-booking.test.ts`. A package's own tests import its `src/index.ts`. Only tests under `src/adapters/` import an adapter directly.
+
+## Inside a package
+
+- Modules are cut by life cycle, not by noun. A module holds one consistency and access boundary: everything that only exists inside it. Trippy's `trips` keeps the trip, its days, its items and its shares, because an item's access is checked in the same SQL statement as the write, deleting a trip cascades in the database, and items change together. A thing with its own life becomes its own module. One module per noun is rejected: it would lose the in-statement guard and the cascades under the module-owns-its-tables rules.
+- Modules are composed in use-cases. One use-case may call several modules, and one unit of work may span them. No package composes other packages while there is one app; revisit that when a second app needs the same composition.
+- Every package lays its code out as subject folders, even a package with one subject, such as `packages/bookings/src/booking/`. A subject folder holds one subject's schema, errors and logic, in files named after what they own.
+- A package's `src/` holds only `index.ts`, `facade.ts`, `storage.ts`, `adapters/`, `tests/`, and subject folders. `package-root-files` fails any other loose file.
+- No file or folder in a package is named after a mechanism: `types`, `models`, `schemas`, `drafts`, `errors`, `validate`, `validation`, `constants`, `interfaces`, or `internal`, in any letter case, so `Types.ts` and `Errors/` fail too. `no-ownerless-files` checks this next to `utils`, `helpers`, and `misc`. A package needs no `internal/` folder, because every file but `index.ts` is private.
+- Only `index.ts` and `facade.ts` import the package's own `src/adapters/`. `index.ts` exports the adapters, and the facade wires the package's default adapter layers, such as `Bookings.fromRecords`. `storage.ts`, the subject folders, and tests outside `src/adapters/` never do. `domain-does-not-import-adapters` checks this.
+- Subject folders import each other in one direction. The root subject, such as Trippy's `trip/`, is the shared kernel for the ids and errors several subjects use. `no-subject-folder-cycles` fails two subject folders that import each other, even through different files. A file in a subject folder never imports its own package's `index.ts` or `facade.ts`, because that barrel would hide a cycle between two subjects; `subjects-do-not-import-package-root` checks this. `storage.ts` stays importable.
+- Adapters mirror the subjects: `adapters/<kind>/<subject>.ts` holds that subject's SQL or memory code. That is a review rule; no check covers it.
+- `packages/rules` is exempt from these rules, as it is from the other layout rules.
 
 ## Modules own their data
 

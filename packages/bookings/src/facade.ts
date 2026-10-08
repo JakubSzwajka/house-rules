@@ -2,8 +2,8 @@ import type { NoOpenUnit } from "@house-rules/capability";
 import { Context, Effect, Layer } from "effect";
 import { memoryBookingStore } from "./adapters/memory/memory-booking-store.js";
 import { BookingStore } from "./storage.js";
-import type { BookingStoreUnavailable } from "./store-unavailable.js";
-import { type Booking, BookingAlreadyExists, BookingNotFound } from "./types.js";
+import type { BookingStoreUnavailable } from "./booking/store-unavailable.js";
+import { type Booking, BookingAlreadyExists, BookingNotFound } from "./booking/booking.js";
 
 export class Bookings extends Context.Service<
   Bookings,

@@ -3,8 +3,8 @@ import { Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 import * as SqlSchema from "effect/unstable/sql/SqlSchema";
 import { BookingStore } from "../../storage.js";
-import { BookingStoreUnavailable } from "../../store-unavailable.js";
-import { Booking } from "../../types.js";
+import { BookingStoreUnavailable } from "../../booking/store-unavailable.js";
+import { Booking } from "../../booking/booking.js";
 
 const unavailable = (message: string) => (cause: { readonly message: string }) =>
   new BookingStoreUnavailable({ message: `${message}: ${cause.message}`, cause });

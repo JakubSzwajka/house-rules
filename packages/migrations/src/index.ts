@@ -1,5 +1,5 @@
 export { Migrations } from "./facade.ts";
-export { MigrationsTesting, type TestDatabaseOptions } from "./testing.ts";
+export { MigrationsTesting, type TestDatabaseOptions } from "./test-database/test-database.ts";
 export {
   type AppliedMigration,
   MigrationFailed,
@@ -7,4 +7,4 @@ export {
   type MigrationReport,
   type ModuleReport,
   UnsafeTestDatabase,
-} from "./types.ts";
+} from "./migration/migration.ts";
