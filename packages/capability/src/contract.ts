@@ -21,6 +21,17 @@ export type Annotations = Readonly<{
   destructive: boolean;
 }>;
 
+export type AuditDeclaration = Readonly<{ target: string }>;
+
+export type StringKeyOf<Input extends InputSchema> = {
+  [Key in keyof Input["Type"]]-?: [Extract<Input["Type"][Key], string>] extends [never]
+    ? never
+    : Key;
+}[keyof Input["Type"]] &
+  string;
+
+export type AuditOptions<Input extends InputSchema> = Readonly<{ target: StringKeyOf<Input> }>;
+
 export type Contract<
   Name extends string,
   Input extends InputSchema,
@@ -40,6 +51,7 @@ export type Contract<
   permission: Permission;
   needsApproval: NeedsApproval;
   transactional: Transactional;
+  audit?: AuditDeclaration;
 }>;
 
 export type AnyContract = Contract<
@@ -116,6 +128,7 @@ export type DefineContractOptions<
   needsApproval?: NeedsApproval;
   transactional?: Transactional;
   annotations?: Partial<Annotations>;
+  audit?: AuditOptions<Input>;
 }>;
 
 const defaultAnnotations: Annotations = { readOnly: false, destructive: false };
@@ -142,6 +155,7 @@ export const defineContract = <
   permission: options.permission,
   needsApproval: (options.needsApproval ?? false) as NeedsApproval,
   transactional: (options.transactional ?? false) as Transactional,
+  ...(options.audit === undefined ? {} : { audit: { target: options.audit.target } }),
 });
 
 export const failureSchemaOf = <

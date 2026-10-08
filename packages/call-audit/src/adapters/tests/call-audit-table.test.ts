@@ -72,8 +72,32 @@ layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
         const written = yield* rows;
         expect(written).toHaveLength(2);
         expect(written.map((row) => Object.keys(row).sort())).toEqual([
-          ["capability", "id", "ms", "outcome", "permission", "recorded_at", "viewer_id"],
-          ["capability", "id", "ms", "outcome", "permission", "recorded_at", "viewer_id"],
+          [
+            "capability",
+            "channel",
+            "id",
+            "kind",
+            "ms",
+            "outcome",
+            "permission",
+            "recorded_at",
+            "request_id",
+            "target_id",
+            "viewer_id",
+          ],
+          [
+            "capability",
+            "channel",
+            "id",
+            "kind",
+            "ms",
+            "outcome",
+            "permission",
+            "recorded_at",
+            "request_id",
+            "target_id",
+            "viewer_id",
+          ],
         ]);
         expect(written).toMatchObject([
           {
@@ -93,7 +117,7 @@ layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
       }),
     );
 
-    it.effect("indexes both read patterns, newest first", () =>
+    it.effect("indexes both read patterns, newest first, and retention by class", () =>
       Effect.gen(function* readIndexes() {
         const found = yield* SqlClient.use(
           (sql) =>
@@ -107,6 +131,7 @@ layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
         );
         expect(columns).toEqual({
           call_audit_recorded_at: "(recorded_at DESC, id DESC)",
+          call_audit_retention: "(outcome, kind, recorded_at, id)",
           call_audit_viewer_recorded_at: "(viewer_id, recorded_at DESC, id DESC)",
         });
       }),

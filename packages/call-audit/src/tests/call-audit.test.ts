@@ -83,6 +83,10 @@ it.effect("records a success with capability, permission, viewer and duration", 
         viewerId: "user_ana",
         outcome: "success",
         ms: 0,
+        kind: "write",
+        targetId: null,
+        channel: "unknown",
+        requestId: null,
       },
     ]);
   }),
@@ -250,9 +254,13 @@ it.effect("never keeps input values, in the entry or in the log line", () =>
       );
     expect(Object.keys(log.entries()[0] ?? {}).sort()).toEqual([
       "capability",
+      "channel",
+      "kind",
       "ms",
       "outcome",
       "permission",
+      "requestId",
+      "targetId",
       "viewerId",
     ]);
     expect(JSON.stringify(log.entries())).not.toContain(secret);
@@ -277,7 +285,7 @@ it.effect("the production layer writes one physical line per call", () =>
     expect(written.every((part) => typeof part === "string" && !part.includes("\n"))).toBe(true);
     const rendered = written.join(" ");
     expect(rendered).toContain(
-      'capability call {"capability":"read_greeting","permission":"greetings:read","viewerId":"user_ana","outcome":"success","ms":0}',
+      'capability call {"capability":"read_greeting","permission":"greetings:read","viewerId":"user_ana","outcome":"success","ms":0,"kind":"write","targetId":null,"channel":"unknown","requestId":null}',
     );
     expect(rendered.match(/capability call/g)).toHaveLength(1);
   }).pipe(Effect.provide(TestConsole.layer)),

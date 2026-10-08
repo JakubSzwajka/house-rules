@@ -208,7 +208,7 @@ importers:
         specifier: workspace:0.0.0
         version: link:../../packages/bookings
       '@house-rules/capability':
-        specifier: workspace:0.8.0
+        specifier: workspace:0.9.0
         version: link:../../packages/capability
       effect:
         specifier: 4.0.0-rc.117
@@ -227,7 +227,7 @@ importers:
   packages/bookings:
     dependencies:
       '@house-rules/capability':
-        specifier: workspace:0.8.0
+        specifier: workspace:0.9.0
         version: link:../capability
       effect:
         specifier: 4.0.0-rc.117
@@ -264,7 +264,7 @@ importers:
         specifier: 4.0.0-rc.117
         version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)))
       '@house-rules/capability':
-        specifier: workspace:0.8.0
+        specifier: workspace:0.9.0
         version: link:../capability
       '@house-rules/migrations':
         specifier: workspace:0.1.0

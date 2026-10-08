@@ -1,10 +1,12 @@
 import { Context, type Effect } from "effect";
+import type { CallFacts } from "./call-facts.ts";
 import type { AnyContract } from "./contract.ts";
 
 export type Around = <A, E, R>(
   contract: AnyContract,
   input: unknown,
   run: Effect.Effect<A, E, R>,
+  facts?: CallFacts,
 ) => Effect.Effect<A, E, R>;
 
 export type CallWatchService = Readonly<{ around: Around }>;
