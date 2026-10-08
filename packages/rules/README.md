@@ -1,6 +1,6 @@
 # @house-rules/rules
 
-House rules and house configs. One exact GitHub commit pin brings all of it: eight ESLint rules, 16 Dependency Cruiser layout rules, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, an exact-pins checker, and a module-owned SQL checker. Private, not on npm.
+House rules and house configs. One exact GitHub commit pin brings all of it: eight ESLint rules, 17 Dependency Cruiser layout rules, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, an exact-pins checker, and a module-owned SQL checker. Private, not on npm.
 
 ## Install
 
@@ -57,6 +57,7 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `app-code-in-layers` | App code outside layer folders | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `use-cases-do-not-import-use-cases` | Use-case importing another use-case | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `no-ownerless-files` | `utils/`, `helpers/`, `misc/` files or folders | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
+| `adapter-imports-only-in-adapters` | A package file outside `src/adapters/` importing `effect/unstable/sql`, `@effect/sql-*`, or `@effect/platform-*` (warn by default) | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | Strict compiler flags | 15 flags: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and more | TypeScript | `tsconfig/strict.json` | [tsconfig.md](docs/tsconfig.md) |
 | Effect diagnostics | 31 diagnostics set to error | TypeScript | `tsconfig/effect.json` | [tsconfig.md](docs/tsconfig.md) |
 | `noReExportAll` | `export * from` | Biome | `@house-rules/rules/biome` | [biome.md](docs/biome.md) |
@@ -65,7 +66,7 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `useFilenamingConvention` | Files not kebab-case or export | Biome | `@house-rules/rules/biome` | [biome.md](docs/biome.md) |
 | Formatter | indentWidth 2, lineWidth 100, indentStyle space | Biome | `@house-rules/rules/biome` | [biome.md](docs/biome.md) |
 | Exact pins | Every dependency must be an exact version, `workspace:<exact>`, or a Git spec with full commit SHA | Node | `house-rules-pins` bin | [pins.md](docs/pins.md) |
-| `house-rules-migrations` | Cross-module foreign keys, migrations or SQL strings that touch another package's tables, `.sql` files outside `<package>/migrations/` (a package's `fixtures/` and `tests/` excepted), use-cases that open a transaction, a module with migrations that `migrations.json` does not list | Node | `house-rules-migrations` bin | [migrations.md](docs/migrations.md) |
+| `house-rules-migrations` | Cross-module foreign keys, migrations or SQL strings that touch another package's tables, `.sql` files outside `<package>/migrations/` (a package's `fixtures/` and `tests/` excepted), a raw `withTransaction` or `begin` outside an adapter package, a module that opens a unit of work, a module with migrations that `migrations.json` does not list | Node | `house-rules-migrations` bin | [migrations.md](docs/migrations.md) |
 
 ## Wire it up
 

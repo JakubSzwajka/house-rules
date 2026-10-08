@@ -29,10 +29,20 @@ describe("thin configs over the house plugin", () => {
     );
     const { layout } = require(`${PLUGIN}/dependency-cruiser`);
     const config = require("../.dependency-cruiser.cjs");
-    for (const rule of layout({ scope: "@hosti/" }).forbidden) {
+    for (const rule of layout({ scope: "@hosti/", adapterPackages: ["migrations"] }).forbidden) {
       const local = config.forbidden.find(({ name }) => name === rule.name);
       assert.deepEqual(local, rule, `layout rule ${rule.name}`);
     }
+  });
+
+  it(".dependency-cruiser.cjs names @house-rules/migrations as an adapter package, and only it", () => {
+    const config = require("../.dependency-cruiser.cjs");
+    const rule = config.forbidden.find(({ name }) => name === "adapter-imports-only-in-adapters");
+    assert.equal(rule.severity, "warn");
+    assert.deepEqual(rule.from.pathNot, [
+      "^packages/[^/]+/src/adapters(?:/|$)",
+      "^packages/(?:migrations)/",
+    ]);
   });
 
   it(".dependency-cruiser.cjs excludes only the in-repo plugin on top of the preset's excludes", () => {

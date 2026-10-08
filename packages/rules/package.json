@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/rules",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "House rules and house configs for AI-assisted codebases: ESLint rules (comment discipline, broken Markdown links, design tokens), a Dependency Cruiser layout preset, TypeScript and Biome presets, and an exact-pins checker.",
   "license": "MIT",

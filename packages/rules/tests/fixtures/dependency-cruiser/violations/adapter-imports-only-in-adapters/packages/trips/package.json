@@ -1,0 +1,1 @@
+{ "name": "@acme/trips", "private": true, "exports": { ".": "./src/index.ts" } }

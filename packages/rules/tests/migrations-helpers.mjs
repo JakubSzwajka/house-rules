@@ -39,7 +39,7 @@ const listFor = (files) => {
 };
 
 // With `cwd`, the defaults and the run happen in that folder of the scratch root, so a test can put files beside it.
-export const run = (files, { list = true, cwd = "." } = {}) => {
+export const run = (files, { list = true, cwd = ".", args = [] } = {}) => {
   const dir = mkdtempSync(join(tmpdir(), "house-rules-migrations-"));
   const inCwd = (entries) =>
     Object.fromEntries(Object.entries(entries).map(([path, text]) => [join(cwd, path), text]));
@@ -52,7 +52,10 @@ export const run = (files, { list = true, cwd = "." } = {}) => {
       mkdirSync(join(dir, path, ".."), { recursive: true });
       writeFileSync(join(dir, path), content);
     }
-    return spawnSync(process.execPath, [script], { cwd: join(dir, cwd), encoding: "utf8" });
+    return spawnSync(process.execPath, [script, ...args], {
+      cwd: join(dir, cwd),
+      encoding: "utf8",
+    });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

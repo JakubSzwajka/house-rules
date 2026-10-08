@@ -11,7 +11,7 @@ import { useCaseIsCapabilityRule } from "./use-case-is-capability.mjs";
 const plugin = {
   meta: {
     name: "@house-rules/rules",
-    version: "0.6.0",
+    version: "0.7.0",
   },
   rules: {
     "comment-discipline": commentDisciplineRule,

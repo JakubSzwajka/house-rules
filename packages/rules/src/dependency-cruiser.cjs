@@ -5,23 +5,30 @@ const DEFAULTS = {
   packagesDir: "packages",
   publicEntry: "src/index.ts",
   internalDir: "src/internal",
+  adaptersDir: "src/adapters",
   testsDir: "tests",
 };
 const DEFAULT_LAYERS = { delivery: "delivery", server: "server", useCases: "use-cases" };
 const DEFAULT_NAME_LISTS = {
   appEntryFiles: ["main.ts", "index.ts"],
   ownerlessNames: ["utils", "helpers", "misc"],
+  adapterPackages: [],
 };
+const DEFAULT_ADAPTER_IMPORTS = ["effect/unstable/sql", "@effect/sql-*", "@effect/platform-*"];
+const SEVERITIES = ["error", "warn", "info"];
 const OPTION_NAMES = new Set([
   "scope",
   "layers",
+  "adapterImports",
+  "adapterImportsSeverity",
   ...Object.keys(DEFAULTS),
   ...Object.keys(DEFAULT_NAME_LISTS),
 ]);
 const BUILT_IN_TEST_DIRS = new Set(["test", "tests", "__tests__"]);
 
+// node_modules is not followed, but stays in the graph, so a rule can see which package a file imports.
 const EXCLUDED_PATH =
-  "(?:^|/)(?:node_modules|dist|coverage|generated|[.]turbo|[.]agent_sources)(?:/|$)";
+  "^(?!.*node_modules/)(?:|.*/)(?:dist|coverage|generated|[.]turbo|[.]agent_sources)(?:/|$)";
 
 // Dots become `[.]` so the default patterns stay byte-equal to drunk-cat-stack's hand-written ones.
 function escape(value) {
@@ -54,6 +61,43 @@ function nameListOption(names, label, { allowEmpty }) {
     throw new TypeError(`layout(): ${label} must be ${size} of names without "/".`);
   }
   return names.map(escape);
+}
+
+const glob = (value) => value.split("*").map(escape).join("[^/]*");
+
+// A bare specifier becomes a pattern over the resolved path under node_modules. The subpath may sit
+// one folder down, such as effect's `dist/`, as package `exports` maps usually put it.
+function adapterImportsOption(specifiers) {
+  const valid =
+    Array.isArray(specifiers) &&
+    specifiers.length > 0 &&
+    specifiers.every(
+      (specifier) =>
+        typeof specifier === "string" &&
+        /^(?:@[^/]+\/)?[^@./][^/]*(?:\/[^/]+)*$/u.test(specifier) &&
+        !specifier.endsWith("/"),
+    );
+  if (!valid) {
+    throw new TypeError(
+      'layout(): adapterImports must be a non-empty array of bare import specifiers, such as "effect/unstable/sql" or "@effect/sql-*".',
+    );
+  }
+  return specifiers.map((specifier) => {
+    const parts = specifier.split("/");
+    const nameLength = specifier.startsWith("@") ? 2 : 1;
+    const name = parts.slice(0, nameLength).map(glob).join("/");
+    const subpath = parts.slice(nameLength).map(glob).join("/");
+    return `(?:^|/)node_modules/${name}/${subpath ? `(?:[^/]+/|)${subpath}(?:[/.]|$)` : ""}`;
+  });
+}
+
+function severityOption(severity) {
+  if (!SEVERITIES.includes(severity)) {
+    throw new TypeError(
+      `layout(): adapterImportsSeverity must be one of ${SEVERITIES.join(", ")}.`,
+    );
+  }
+  return severity;
 }
 
 function layerOptions(layers) {
@@ -100,6 +144,11 @@ function patterns(options) {
       allowEmpty: false,
     },
   );
+  const adapterPackages = nameListOption(
+    settings.adapterPackages ?? DEFAULT_NAME_LISTS.adapterPackages,
+    "adapterPackages",
+    { allowEmpty: true },
+  );
   const testDirs = BUILT_IN_TEST_DIRS.has(settings.testsDir)
     ? "tests?|__tests__"
     : `tests?|__tests__|${tests}`;
@@ -128,6 +177,13 @@ function patterns(options) {
     testFile: `^(?:${apps}|${packages})/[^/]+/.*${testFile}`,
     testFileInTestsDir: `^(?:${apps}|${packages})/[^/]+/src/(?:${tests}|.*/${tests})/[^/]+${testFile}`,
     packageNamespace: `^${scopeOption(settings.scope)}`,
+    packageSource: `^${packages}/[^/]+/src/`,
+    adapterCode: [
+      `^${packages}/[^/]+/${pathOption(settings.adaptersDir, "adaptersDir")}(?:/|$)`,
+      ...(adapterPackages.length ? [`^${packages}/(?:${adapterPackages.join("|")})/`] : []),
+    ],
+    adapterImports: adapterImportsOption(settings.adapterImports ?? DEFAULT_ADAPTER_IMPORTS),
+    adapterImportsSeverity: severityOption(settings.adapterImportsSeverity ?? "warn"),
   };
 }
 
@@ -202,6 +258,15 @@ function layout(options = {}) {
         { path: p.useCaseAny, pathNot: ["^$1(?:/|$)", p.testPath] },
       ),
       moduleRule("no-ownerless-files", { path: p.ownerlessPath }),
+      // Domain code names its storage port; only an adapter imports SQL or platform packages.
+      {
+        ...rule(
+          "adapter-imports-only-in-adapters",
+          { path: p.packageSource, pathNot: p.adapterCode },
+          { path: p.adapterImports },
+        ),
+        severity: p.adapterImportsSeverity,
+      },
     ],
     options: {
       parser: "swc",

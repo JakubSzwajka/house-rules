@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@hosti/bookings": "workspace:0.0.0",
-    "@house-rules/capability": "workspace:0.7.0",
+    "@house-rules/capability": "workspace:0.8.0",
     "effect": "4.0.0-rc.117"
   },
   "devDependencies": {

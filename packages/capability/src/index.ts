@@ -15,6 +15,7 @@ export {
   type InputSchema,
   NoInput,
   type PlainSchema,
+  type UnitOfWorkRequirement,
 } from "./contract.ts";
 export { ApprovalForm, approvalMessage, elicitationApproval } from "./elicitation-approval.ts";
 export { ApprovalDenied, Forbidden } from "./gate-errors.ts";
@@ -30,3 +31,14 @@ export {
   type StatefulPolicyTable,
 } from "./policy.ts";
 export { type ContractTool, type ToToolOptions, toTool } from "./to-tool.ts";
+export {
+  type Atomic,
+  CurrentUnit,
+  NoOpenUnit,
+  type OpenUnit,
+  UnitOfWork,
+  UnitOfWorkFailed,
+  type UnitOfWorkService,
+} from "./unit-of-work.ts";
+export { memoryUnitOfWork } from "./adapters/memory-unit-of-work.ts";
+export { sqlUnitOfWork } from "./adapters/sql-unit-of-work.ts";

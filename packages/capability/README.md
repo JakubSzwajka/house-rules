@@ -1,6 +1,6 @@
 # @house-rules/capability
 
-A capability is one named action an app offers, such as "show a booking". It has a contract and one handler. The contract holds the name, a description, Effect Schemas for the input, the output and the failure, two flags, `readOnly` and `destructive`, a `permission`, and `needsApproval`. The handler is an Effect that takes the decoded input and gets its services from Layers. An MCP tool is built from the contract with `toTool`, and HTTP or CLI adapters can later be built the same way, so each action is written once.
+A capability is one named action an app offers, such as "show a booking". It has a contract and one handler. The contract holds the name, a description, Effect Schemas for the input, the output and the failure, two flags, `readOnly` and `destructive`, a `permission`, `needsApproval`, and `transactional`. The handler is an Effect that takes the decoded input and gets its services from Layers. An MCP tool is built from the contract with `toTool`, and HTTP or CLI adapters can later be built the same way, so each action is written once.
 
 ```text
 adapter      HTTP route   MCP tool   CLI command    decides who calls, maps errors
@@ -153,6 +153,41 @@ The example logs no input values, because input is often user data. A watch that
 
 You do not have to write the watch yourself. `@house-rules/call-audit` (`packages/call-audit`, see its README) is one that writes a log line per call, or keeps the entries in memory for tests.
 
+### Units of work
+
+A use-case owns the transaction, not the module. One unit of work may cover writes in several modules. `UnitOfWork` is a slot like `Grant`, with two adapters:
+
+| Adapter | Type | Use |
+| --- | --- | --- |
+| `sqlUnitOfWork` | `Layer<UnitOfWork, never, SqlClient>` | Postgres: one `SqlClient.withTransaction` per unit |
+| `memoryUnitOfWork` | `Layer<UnitOfWork>` | memory stores: runs the effect, and on failure runs the rollback hooks the stores registered; one unit at a time |
+
+A use-case opens a unit in one of two ways:
+
+1. [ ] The contract sets `transactional: true`. `implement` runs Grant, then Approval, then the handler inside `UnitOfWork.atomic`, all inside `CallWatch`. A refused call opens no unit. The flag adds `UnitOfWork` to the requirements and `UnitOfWorkFailed` to the failures. `false`, the default, adds nothing.
+2. [ ] The handler calls `UnitOfWork.atomic(effect)` around only the part that must be atomic. That adds `UnitOfWork` and `UnitOfWorkFailed` to that effect.
+
+A nested `atomic` joins the open unit: no new transaction, no savepoint. A failure that leaves the outermost unit rolls everything back. `UnitOfWorkFailed({ reason })` means the SQL unit could not begin, commit or roll back. The work's own errors and defects pass through unchanged. When a rollback fails, the cause holds `UnitOfWorkFailed` first, then the work's own failure.
+
+Memory stores have no row locks, so `memoryUnitOfWork` runs top-level units one at a time, per layer instance. A second top-level `atomic` waits until the open unit has committed or run its rollback hooks. Without that wait, a unit whose undo puts back a whole earlier state could wipe out another unit's commit. A nested `atomic`, in the same fiber or in one it forked, joins the open unit and never waits, so it cannot deadlock. A unit is open only while its work runs. It closes when the work ends, before COMMIT, ROLLBACK and the undo hooks. A fiber that outlives or races that end, such as a daemon forked inside it, gets `NoOpenUnit` from `required` and `onRollback`, and should open its own unit with `atomic`: that waits for the permit here, which the closing unit holds until its undo hooks finish, and starts a new transaction in the SQL adapter. On rollback every undo hook runs, newest first, even when one fails or dies, and the unit's cause keeps the work's cause plus each hook's failure. The memory adapter is for tests and scripts; it does not model concurrent transactions.
+
+A module never opens a unit. Its write path checks for one, with no requirement added to the service method:
+
+```ts
+// In a module's Postgres store: fails with NoOpenUnit when no unit is open.
+put: (booking) => UnitOfWork.required.pipe(Effect.andThen(sql`insert into booking ...`)),
+
+// In a module's memory store: register the undo, then change the map.
+put: (booking) =>
+  UnitOfWork.onRollback(Effect.sync(() => rows.delete(booking.id))).pipe(
+    Effect.andThen(Effect.sync(() => rows.set(booking.id, booking))),
+  ),
+```
+
+`CurrentUnit` is a `Context.Reference` holding the open unit, `undefined` by default, so reading it adds no requirement. The SQL adapter puts the transaction connection in the fiber's context, so every statement on the same `SqlClient` inside the unit joins it. Build the module stores and `sqlUnitOfWork` from one `SqlClient` layer. Scripts and tests open a unit themselves: `memoryUnitOfWork` with memory stores, or `sqlUnitOfWork` with Postgres stores. `UnitOfWork.make(transaction)` builds another adapter from a function that wraps an effect in a transaction.
+
+A `CallWatch` runs outside the unit, so an audit row written there survives a rollback.
+
 ### Relations and policy
 
 A relation is how the caller stands to one object, such as owner or shared. The module checks the relation against its own data. `definePolicy` gives the shape:
@@ -191,7 +226,7 @@ tripPolicy.table(); // { owner: { active: { ... }, frozen: { "trips:write": fals
 
 ### Plans
 
-A plan, such as free or paid, is a fact about the caller, so it feeds the Grant. The app builds a Grant for each request from the caller's plan, with `Grant.fromPermissions`. The state of an object goes in the stateful policy. For example, a Trip is frozen when its owner stopped paying, and the policy then drops write and share. A quota, such as five trips at most, needs a count, so the module counts inside its own write transaction.
+A plan, such as free or paid, is a fact about the caller, so it feeds the Grant. The app builds a Grant for each request from the caller's plan, with `Grant.fromPermissions`. The state of an object goes in the stateful policy. For example, a Trip is frozen when its owner stopped paying, and the policy then drops write and share. A quota, such as five trips at most, needs a count, so the module counts inside the unit of work its write runs in.
 
 ## An action with no input
 
@@ -250,7 +285,7 @@ The package is not on npm. Install it from GitHub, pinned to a full 40-character
 | `idempotent` | yes | `Tool.Idempotent` |
 | `openWorld` | yes | `Tool.OpenWorld` |
 | `success` | no | the tool's success schema; defaults to `contract.output` |
-| `failure` | no | the tool's failure schema; defaults to `failureSchemaOf(contract)`, the contract's failure plus `Forbidden` and `ApprovalDenied` when its gates add them |
+| `failure` | no | the tool's failure schema; defaults to `failureSchemaOf(contract)`, the contract's failure plus `Forbidden`, `ApprovalDenied` and `UnitOfWorkFailed` when its gates and `transactional` add them |
 
 ```ts
 import { Toolkit } from "effect/unstable/ai";
@@ -274,8 +309,8 @@ The house plugin's `no-hand-rolled-surface` rule fails on `Tool.make` outside th
 
 ## Limits
 
-It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, the `CallWatch` hook, and `definePolicy` with its `withStates`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities, and nothing turns a contract into an HTTP route or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job. For MCP, Effect's `McpServer` decodes it with the tool's parameters.
+It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, the `CallWatch` hook, the `UnitOfWork` slot with its SQL and memory adapters, and `definePolicy` with its `withStates`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities, and nothing turns a contract into an HTTP route or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job. For MCP, Effect's `McpServer` decodes it with the tool's parameters.
 
 ## Exports
 
-`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, and `CallWatch` services, the `Forbidden` and `ApprovalDenied` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `GrantRequirement`, `ApprovalRequirement`, `GateRequirements`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, and `ToToolOptions`.
+`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, `CallWatch`, `UnitOfWork`, and `CurrentUnit` services, `sqlUnitOfWork` and `memoryUnitOfWork`, the `Forbidden`, `ApprovalDenied`, `NoOpenUnit`, and `UnitOfWorkFailed` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `GrantRequirement`, `ApprovalRequirement`, `UnitOfWorkRequirement`, `GateRequirements`, `UnitOfWorkService`, `OpenUnit`, `Atomic`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, and `ToToolOptions`.

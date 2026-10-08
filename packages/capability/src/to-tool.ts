@@ -55,21 +55,34 @@ export const toTool = <
   ContractFailure extends PlainSchema,
   Permission extends PermissionDeclaration,
   NeedsApproval extends boolean,
+  Transactional extends boolean,
   Options extends ToToolOptions,
 >(
-  contract: Contract<Name, Input, Output, ContractFailure, Permission, NeedsApproval>,
+  contract: Contract<
+    Name,
+    Input,
+    Output,
+    ContractFailure,
+    Permission,
+    NeedsApproval,
+    Transactional
+  >,
   options: Options,
 ): ContractTool<
   Name,
   Input,
   ToolSchema<Options, "success", Output>,
-  ToolSchema<Options, "failure", FailureSchemaOf<ContractFailure, Permission, NeedsApproval>>
+  ToolSchema<
+    Options,
+    "failure",
+    FailureSchemaOf<ContractFailure, Permission, NeedsApproval, Transactional>
+  >
 > => {
   const success = (options.success ?? contract.output) as ToolSchema<Options, "success", Output>;
   const failure = (options.failure ?? failureSchemaOf(contract)) as ToolSchema<
     Options,
     "failure",
-    FailureSchemaOf<ContractFailure, Permission, NeedsApproval>
+    FailureSchemaOf<ContractFailure, Permission, NeedsApproval, Transactional>
   >;
   return Tool.make(contract.name, {
     description: contract.description,

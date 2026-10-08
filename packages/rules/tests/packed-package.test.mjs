@@ -125,7 +125,7 @@ assert.equal(houseRules.configs.capability[1].rules["house-rules/use-case-is-cap
 
 const dependencyCruiserConfig = createRequire(import.meta.url)("./.dependency-cruiser.cjs");
 assert.deepEqual(dependencyCruiserConfig, layout({ scope: "@acme/" }));
-assert.equal(dependencyCruiserConfig.forbidden.length, 16);
+assert.equal(dependencyCruiserConfig.forbidden.length, 17);
 assert.equal(dependencyCruiserConfig.options.parser, "swc");
 
 const eslint = new ESLint({ cwd: process.cwd(), overrideConfigFile: "eslint.config.mjs" });

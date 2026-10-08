@@ -172,12 +172,29 @@
         "numberOfDependentsLessThan": 100
       },
       "from": {}
+    },
+    {
+      "name": "adapter-imports-only-in-adapters",
+      "severity": "warn",
+      "from": {
+        "path": "^packages/[^/]+/src/",
+        "pathNot": [
+          "^packages/[^/]+/src/adapters(?:/|$)"
+        ]
+      },
+      "to": {
+        "path": [
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)unstable/sql(?:[/.]|$)",
+          "(?:^|/)node_modules/@effect/sql-[^/]*/",
+          "(?:^|/)node_modules/@effect/platform-[^/]*/"
+        ]
+      }
     }
   ],
   "options": {
     "parser": "swc",
     "exclude": {
-      "path": "(?:^|/)(?:node_modules|dist|coverage|generated|[.]turbo|[.]agent_sources)(?:/|$)"
+      "path": "^(?!.*node_modules/)(?:|.*/)(?:dist|coverage|generated|[.]turbo|[.]agent_sources)(?:/|$)"
     },
     "doNotFollow": {
       "path": "(?:^|/)node_modules(?:/|$)"

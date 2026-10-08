@@ -44,10 +44,33 @@ export const tableReferences = (sql) => {
 
 const blank = (text, fill = " ") => text.replace(/[^\n]/gu, fill);
 
-// Blanks SQL comments and string literals, keeping offsets so line numbers stay true. Quoted identifiers stay.
-export const blankSql = (sql) => {
+// A Postgres dollar-quote delimiter, $$ or $tag$. Its tag cannot start with a digit, so $1 is a parameter.
+const DOLLAR_DELIMITER = /\$(?:[A-Za-z_\u0080-\uffff][\w\u0080-\uffff]*)?\$/uy;
+const IDENTIFIER_CHARACTER = /[\w$\u0080-\uffff]/u;
+
+// Blanks SQL comments and string literals, keeping offsets so line numbers stay true. Quoted identifiers stay,
+// unless identifiers is false. With dollarQuotes, the same scan also blanks $tag$ bodies, such as the
+// PL/pgSQL body of DO $$ ... $$.
+export const blankSql = (sql, { dollarQuotes = false, identifiers = true } = {}) => {
   let out = "";
   let index = 0;
+  // Postgres block comments nest: /* a /* b */ c */ is one comment.
+  const commentEnd = (from) => {
+    let depth = 1;
+    let end = from;
+    while (end < sql.length) {
+      const pair = sql.slice(end, end + 2);
+      if (pair === "/*") depth += 1;
+      else if (pair === "*/") depth -= 1;
+      else {
+        end += 1;
+        continue;
+      }
+      end += 2;
+      if (depth === 0) return end;
+    }
+    return sql.length;
+  };
   const closing = (quote, from, backslashes) => {
     let end = from;
     while (end < sql.length) {
@@ -63,9 +86,12 @@ export const blankSql = (sql) => {
     const pair = sql.slice(index, index + 2);
     let end = index + 1;
     let keep = true;
-    if (pair === "--" || pair === "/*") {
-      const close = sql.indexOf(pair === "--" ? "\n" : "*/", index + 2);
-      end = close === -1 ? sql.length : close + (pair === "--" ? 0 : 2);
+    if (pair === "--") {
+      const close = sql.indexOf("\n", index + 2);
+      end = close === -1 ? sql.length : close;
+      keep = false;
+    } else if (pair === "/*") {
+      end = commentEnd(index + 2);
       keep = false;
     } else if (character === "'") {
       const escapeString = /(?:^|[^\w$])[eE]$/u.test(sql.slice(Math.max(0, index - 2), index));
@@ -73,6 +99,20 @@ export const blankSql = (sql) => {
       keep = false;
     } else if (character === '"' || character === "\x60") {
       end = closing(character, index + 1, false);
+      keep = identifiers;
+    } else if (
+      character === "$" &&
+      dollarQuotes &&
+      !IDENTIFIER_CHARACTER.test(sql[index - 1] ?? "")
+    ) {
+      DOLLAR_DELIMITER.lastIndex = index;
+      const delimiter = DOLLAR_DELIMITER.exec(sql)?.[0];
+      // An unclosed body is a syntax error in Postgres; leave its text in view rather than hide it.
+      const close = delimiter === undefined ? -1 : sql.indexOf(delimiter, index + delimiter.length);
+      if (close !== -1) {
+        end = close + delimiter.length;
+        keep = false;
+      }
     }
     const text = sql.slice(index, Math.min(end, sql.length));
     out += keep ? text : blank(text);
@@ -121,7 +161,8 @@ export const sqlTexts = (sql) => {
       text += decoded;
       at.push(...offsets);
     }
-    return { text: blankSql(text), at };
+    // raw is the joined text before blanking, for a scan that needs its own blanking, such as dollar quotes.
+    return { text: blankSql(text), raw: text, at };
   });
 };
 

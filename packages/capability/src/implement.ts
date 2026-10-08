@@ -4,6 +4,7 @@ import { CallWatch } from "./call-watch.ts";
 import type { AnyContract, FailureOf, GateRequirements } from "./contract.ts";
 import { Forbidden } from "./gate-errors.ts";
 import { Grant } from "./grant.ts";
+import { UnitOfWork } from "./unit-of-work.ts";
 
 export type HandlerOf<Contract extends AnyContract, Requirements = never> = (
   input: Contract["input"]["Type"],
@@ -25,7 +26,7 @@ export const implement = <Contract extends AnyContract, Requirements = never>(
   contract: Contract,
   handler: HandlerOf<Contract, Requirements>,
 ): Capability<Contract, Requirements> => {
-  const { name, permission, needsApproval } = contract;
+  const { name, permission, needsApproval, transactional } = contract;
   const gated = (input: Contract["input"]["Type"]) =>
     Effect.gen(function* watchedCall() {
       const watch = yield* CallWatch;
@@ -40,10 +41,10 @@ export const implement = <Contract extends AnyContract, Requirements = never>(
           const approval = yield* Approval;
           yield* approval.approve(name, input);
         }
-        return yield* handler(input);
+        return yield* transactional ? UnitOfWork.atomic(handler(input)) : handler(input);
       });
       return yield* watch.around(contract, input, run);
     });
-  // The runtime branches read the same permission and needsApproval the contract type carries.
+  // The runtime branches read the same permission, needsApproval and transactional the contract type carries.
   return { _tag: "Capability", contract, handler: gated } as Capability<Contract, Requirements>;
 };
