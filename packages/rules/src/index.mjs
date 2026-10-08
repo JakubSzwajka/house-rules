@@ -6,12 +6,13 @@ import { designNoUnknownTokenRule } from "./design-no-unknown-token.mjs";
 import { designScaleValueRule } from "./design-scale-value.mjs";
 import { noBrokenRelativeLinksRule } from "./no-broken-relative-links.mjs";
 import { noHandRolledSurfaceRule } from "./no-hand-rolled-surface.mjs";
+import { noHandRunEffectRule } from "./no-hand-run-effect.mjs";
 import { useCaseIsCapabilityRule } from "./use-case-is-capability.mjs";
 
 const plugin = {
   meta: {
     name: "@house-rules/rules",
-    version: "0.8.0",
+    version: "0.9.0",
   },
   rules: {
     "comment-discipline": commentDisciplineRule,
@@ -22,6 +23,7 @@ const plugin = {
     "design-scale-value": designScaleValueRule,
     "use-case-is-capability": useCaseIsCapabilityRule,
     "no-hand-rolled-surface": noHandRolledSurfaceRule,
+    "no-hand-run-effect": noHandRunEffectRule,
   },
   configs: {},
 };
@@ -71,6 +73,15 @@ plugin.configs.capability = [
     files: ["**/*.{ts,tsx,mts,cts}"],
     rules: {
       "house-rules/use-case-is-capability": "error",
+    },
+  },
+  {
+    files: [
+      "**/{tests,test,__tests__}/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}",
+      "**/*.{test,spec}.{js,jsx,mjs,cjs,ts,tsx,mts,cts}",
+    ],
+    rules: {
+      "house-rules/no-hand-run-effect": "error",
     },
   },
 ];

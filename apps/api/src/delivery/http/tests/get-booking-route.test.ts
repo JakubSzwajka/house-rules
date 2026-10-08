@@ -1,12 +1,18 @@
-import { Bookings, BookingStore, BookingStoreUnavailable } from "@hosti/bookings";
+import {
+  BookingPermissions,
+  Bookings,
+  BookingStore,
+  BookingStoreUnavailable,
+} from "@hosti/bookings";
 import { expect, it } from "@effect/vitest";
 import { Grant } from "@house-rules/capability";
 import { Effect, Layer } from "effect";
-import { bookingResponse, getBookingRoute } from "../get-booking-route.js";
+import { getBookingRoute } from "../get-booking-route.js";
 
 const bookings = Bookings.fromRecords([{ id: "b-1", guestName: "Ada" }]);
+const reader = Grant.layerFromPermissions([BookingPermissions.read]);
 
-it.layer(bookings)("getBookingRoute", (test) => {
+it.layer(Layer.merge(bookings, reader))("getBookingRoute", (test) => {
   test.effect("answers 200 with the booking", () =>
     Effect.gen(function* answersOk() {
       expect(yield* getBookingRoute("b-1")).toEqual({ status: 200, body: "Ada (b-1)" });
@@ -23,14 +29,14 @@ it.layer(bookings)("getBookingRoute", (test) => {
   );
 });
 
-it.layer(Layer.merge(bookings, Grant.denyAll))("bookingResponse without bookings:read", (test) => {
+it.layer(Layer.merge(bookings, Grant.denyAll))("getBookingRoute without bookings:read", (test) => {
   test.effect("maps Forbidden to 403 before it reads the booking", () =>
     Effect.gen(function* answersForbidden() {
-      expect(yield* bookingResponse("b-1")).toEqual({
+      expect(yield* getBookingRoute("b-1")).toEqual({
         status: 403,
         body: "You may not read bookings.",
       });
-      expect(yield* bookingResponse("missing")).toEqual({
+      expect(yield* getBookingRoute("missing")).toEqual({
         status: 403,
         body: "You may not read bookings.",
       });
@@ -44,7 +50,7 @@ const brokenStore = Layer.succeed(BookingStore, {
   insert: () => Effect.die("not used"),
 });
 
-it.layer(Bookings.layer.pipe(Layer.provide(brokenStore)))(
+it.layer(Layer.merge(Bookings.layer.pipe(Layer.provide(brokenStore)), reader))(
   "getBookingRoute with a broken store",
   (test) => {
     test.effect("maps BookingStoreUnavailable to 503", () =>

@@ -1,6 +1,6 @@
-import { BookingPermissions, type Bookings } from "@hosti/bookings";
-import { Grant } from "@house-rules/capability";
-import { Effect, type Layer } from "effect";
+import type { Bookings } from "@hosti/bookings";
+import type { Grant } from "@house-rules/capability";
+import { Effect } from "effect";
 import { showBooking } from "../../use-cases/show-booking.js";
 
 export type BookingResponse = Readonly<{
@@ -8,11 +8,7 @@ export type BookingResponse = Readonly<{
   body: string;
 }>;
 
-export const visitorGrant: Layer.Layer<Grant> = Grant.layerFromPermissions([
-  BookingPermissions.read,
-]);
-
-export const bookingResponse = (
+export const getBookingRoute = (
   id: string,
 ): Effect.Effect<BookingResponse, never, Bookings | Grant> =>
   showBooking.handler({ id }).pipe(
@@ -34,6 +30,3 @@ export const bookingResponse = (
         Effect.succeed<BookingResponse>({ status: 403, body: "You may not read bookings." }),
     }),
   );
-
-export const getBookingRoute = (id: string): Effect.Effect<BookingResponse, never, Bookings> =>
-  bookingResponse(id).pipe(Effect.provide(visitorGrant));

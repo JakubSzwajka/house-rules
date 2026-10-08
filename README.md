@@ -36,7 +36,7 @@ Root tools run once over the whole repo. Turborepo runs `typecheck` and `test` i
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.8.0`. Biome skips `packages/rules/tests/fixtures`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.9.0`. Biome skips `packages/rules/tests/fixtures`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
@@ -75,7 +75,6 @@ These are what a reviewer checks. A green `pnpm check` says nothing about them.
 
 - A one-line comment gives a real reason. It does not restate the code.
 - Errors are designed, not just typed. Delivery maps them in one place.
-- Tests use `it.effect` or `it.layer`, never `Effect.run*`, even outside Effect code.
 - Every Effect package shares one version across the workspace.
 - A cast has a stated intent.
 - Folders are named after what they own. Seams sit where callers need them. A new module that stands alone gets its own package.
@@ -87,6 +86,8 @@ These are what a reviewer checks. A green `pnpm check` says nothing about them.
 - A cartridge passes the pull-out test. Delete its package and its one `Layer.provide` line, and the rest still builds and passes. A reviewer runs the test in their head for each new cartridge.
 - A module opens no transaction. The use-case opens the unit of work (`transactional: true`, or `UnitOfWork.atomic` in its handler), and a module's write runs inside it. The migrations bin catches a raw `withTransaction` or `begin` outside an adapter package and a module that calls `UnitOfWork.atomic`; it cannot see a unit opened through an alias.
 - Domain code decides, the store answers. A module's port never decides a permission, a standing, or a limit.
+- Only the composition root, `src/server/` or `src/main.ts`, provides services and slots. Delivery provides only per-request values: the Viewer, the call channel, the request id, and a Grant or Approval it fills for this request.
+- One service per file, named after its job, with its Layer beside it as a static member. A storage port is the exception: its layers are the adapters under `src/adapters/`.
 
 ## Fence
 
@@ -182,7 +183,7 @@ Its README lists the install steps, the permission and approval gates, and what 
 ### Add an app
 
 1. Create `apps/<name>/` from `apps/api`: `package.json` with a new `name`, `tsconfig.json`, and `vitest.config.ts`.
-2. Put code under `src/delivery/`, `src/server/`, and `src/use-cases/`. Only `src/main.ts` and `src/index.ts` sit directly in `src/`.
+2. Put code under `src/delivery/`, `src/server/`, and `src/use-cases/`. Only `src/main.ts` and `src/index.ts` sit directly in `src/`. The services and slots go in one composition root, `src/server/`, as `apps/api/src/server/app-layer.ts` shows.
 3. Add each package with `pnpm --filter <app name> add <package name>`.
 4. Run `pnpm install`, `pnpm check`, and `pnpm test`.
 
@@ -203,10 +204,11 @@ Follow `skills/add-an-mcp-tool/SKILL.md`. `docs/mcp-adapter.md` records why an M
 ```text
 apps/api
   delivery ───> use-cases ───> @hosti/bookings  (packages/bookings/src/index.ts)
-      └──────────────────────> @hosti/bookings  (Bookings type, BookingPermissions value)
+      └──────────────────────> @hosti/bookings  (Bookings type)
+  server   ──────────────────> @hosti/bookings  (Bookings layer, BookingPermissions value)
 ```
 
-The package exposes a `Bookings` service, a `Booking` schema, and typed `BookingNotFound`, `BookingAlreadyExists`, and `BookingStoreUnavailable` errors. The package also names its permission, `bookings:read`. `Bookings` talks only to its storage port, `BookingStore`. The package ships two adapters for it: a memory adapter (`memoryBookingStore`, behind `Bookings.fromRecords`) and a Postgres adapter in plain SQL (`postgresBookingStore`, with its migration in `packages/bookings/migrations/`). One shared suite in `src/adapters/tests/` runs every store case on both. `Bookings.create` is the write path: it runs inside an open unit of work and fails with `NoOpenUnit` without one, and the memory adapter registers an undo with `UnitOfWork.onRollback` so a rollback leaves no row. The `showBooking` use-case is a capability: a contract that names `Booking` as its output, `BookingNotFound` and `BookingStoreUnavailable` as its failures, and `bookings:read` as its permission, plus a handler that yields the service. The HTTP handler calls `showBooking.handler({ id })`, maps `BookingNotFound` to a 404, `BookingStoreUnavailable` to a 503, and `Forbidden` to a 403 once, so its error channel is `never`. It provides a `Grant` for each request: the example has no sign-in, so every visitor holds `bookings:read`. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
+The package exposes a `Bookings` service, a `Booking` schema, and typed `BookingNotFound`, `BookingAlreadyExists`, and `BookingStoreUnavailable` errors. The package also names its permission, `bookings:read`. `Bookings` talks only to its storage port, `BookingStore`. The package ships two adapters for it: a memory adapter (`memoryBookingStore`, behind `Bookings.fromRecords`) and a Postgres adapter in plain SQL (`postgresBookingStore`, with its migration in `packages/bookings/migrations/`). One shared suite in `src/adapters/tests/` runs every store case on both. `Bookings.create` is the write path: it runs inside an open unit of work and fails with `NoOpenUnit` without one, and the memory adapter registers an undo with `UnitOfWork.onRollback` so a rollback leaves no row. The `showBooking` use-case is a capability: a contract that names `Booking` as its output, `BookingNotFound` and `BookingStoreUnavailable` as its failures, and `bookings:read` as its permission, plus a handler that yields the service. The HTTP handler calls `showBooking.handler({ id })`, maps `BookingNotFound` to a 404, `BookingStoreUnavailable` to a 503, and `Forbidden` to a 403 once, so its error channel is `never`. It provides nothing. The composition root, `src/server/app-layer.ts`, provides `Bookings` and the `Grant`: the example has no sign-in, so every visitor holds `bookings:read`, and a Grant that is the same for every request belongs in the root. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
 
 ## Commands
 
