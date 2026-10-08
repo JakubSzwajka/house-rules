@@ -32,11 +32,11 @@ pnpm check ─> pins ─> migrations ─> env:check ─> biome ─> lint ─> tu
 pnpm test  ─> node --test tests/ ─> turbo run test
 ```
 
-Root tools run once over the whole repo. The layout bin checks production subject-folder cycles after Dependency Cruiser; test paths, adapters and package-root files do not add edges. Turborepo runs `typecheck` and `test` in each workspace package, in dependency order. Packages export TypeScript source, so there is no build step. Caching is off, so a gate always runs. CI runs `pnpm install --frozen-lockfile`, `pnpm check`, and `pnpm test`, nothing else.
+Root tools run once over the whole repo. The layout bin checks production subject-folder and package cycles after Dependency Cruiser; test paths, adapters and package-root files do not add subject-folder edges. Turborepo runs `typecheck` and `test` in each workspace package, in dependency order. Packages export TypeScript source, so there is no build step. Caching is off, so a gate always runs. CI runs `pnpm install --frozen-lockfile`, `pnpm check`, and `pnpm test`, nothing else.
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.10.0`. Biome skips `packages/rules/tests/fixtures`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.11.0`. Biome skips `packages/rules/tests/fixtures`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
@@ -88,8 +88,9 @@ These are what a reviewer checks. A green `pnpm check` says nothing about them.
 - Domain code decides, the store answers. A module's port never decides a permission, a standing, or a limit.
 - Only the composition root, `src/server/` or `src/main.ts`, provides services and slots. Delivery provides only per-request values: the Viewer, the call channel, the request id, and a Grant or Approval it fills for this request.
 - One service per file, named after its job, with its Layer beside it as a static member. A storage port is the exception: its layers are the adapters under `src/adapters/`.
-- A module is cut by life cycle, not by noun. It holds one consistency and access boundary, and a thing with its own life gets its own module.
-- Modules are composed in use-cases. No package composes other packages while there is one app.
+- Modules are cut by life cycle, not by noun. A package holds one module around a consistency and access boundary. A thing with its own life gets its own module.
+- Packages may use other packages through their public entries. The package graph has no cycles or fixed levels, enforced by `no-package-cycles`. A package calls another package's service, never its tables or SQL.
+- Use-cases are the app's feature list: each is a thin feature exposed by delivery over HTTP, MCP, CLI, or another mechanism. A use-case may call several packages and opens the unit of work.
 - Adapters mirror the subjects: `adapters/<kind>/<subject>.ts` holds that subject's SQL or memory code.
 
 ## Fence

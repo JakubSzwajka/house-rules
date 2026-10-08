@@ -2,6 +2,7 @@
 import path from "node:path";
 import { createRequire } from "node:module";
 import { cruise } from "dependency-cruiser";
+import { findPackageCycles } from "../src/package-cycles.mjs";
 import { findSubjectFolderCycles } from "../src/subject-folder-cycles.mjs";
 
 const usage = "Usage: house-rules-layout [--cwd <workspace>]";
@@ -39,23 +40,39 @@ async function check(workspace) {
     outputType: "json",
   });
   const report = JSON.parse(output);
-  const cycles = findSubjectFolderCycles(report.modules, config, workspace);
+  const subjectCycles = findSubjectFolderCycles(report.modules, config, workspace);
+  const packageCycles = await findPackageCycles(report.modules, config, { baseDir: workspace });
 
-  if (cycles.length > 0) {
+  if (subjectCycles.length > 0) {
     console.error(
-      `no-subject-folder-cycles: ${cycles.length} cycle(s) in package subject folders:`,
+      `no-subject-folder-cycles: ${subjectCycles.length} cycle(s) in package subject folders:`,
     );
-    for (const { cycle, examples } of cycles) {
+    for (const { cycle, examples } of subjectCycles) {
       console.error(`  ${cycle.join(" -> ")}`);
       for (const { fromFolder, toFolder, from, to } of examples) {
         console.error(`    ${fromFolder} -> ${toFolder}: ${from} -> ${to}`);
       }
     }
+  }
+
+  if (packageCycles.length > 0) {
+    console.error(
+      `no-package-cycles: ${packageCycles.length} cycle(s) between workspace packages:`,
+    );
+    for (const { cycle, examples } of packageCycles) {
+      console.error(`  ${cycle.join(" -> ")}`);
+      for (const { fromPackage, toPackage, from, to } of examples) {
+        console.error(`    ${fromPackage} -> ${toPackage}: ${from} -> ${to}`);
+      }
+    }
+  }
+
+  if (subjectCycles.length > 0 || packageCycles.length > 0) {
     process.exitCode = 1;
     return;
   }
 
-  console.log("layout: no subject-folder cycles");
+  console.log("layout: no package or subject-folder cycles");
 }
 
 try {
