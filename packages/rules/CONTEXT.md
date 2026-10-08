@@ -37,7 +37,7 @@ This package owns house rules and house configs. A consumer repository keeps onl
 
 ## Contract
 
-- Package name and version are `@house-rules/rules@0.7.0` until an intentional release decision changes them. `package.json` and `plugin.meta.version` carry the same version, and `plugin.meta.name` is the package name.
+- Package name and version are `@house-rules/rules@0.8.0` until an intentional release decision changes them. `package.json` and `plugin.meta.version` carry the same version, and `plugin.meta.name` is the package name.
 - The package is ESM, runs checked-in `.mjs` source directly (plus the one `.cjs` layout preset), and supports Node `>=24.21.0`, matching every consumer (all pin Node 24.21.0 in `.nvmrc` and `engines: >=24.21.0`). CI reads `.nvmrc`.
 - `private: true` stays set. Do not npm-publish.
 - The plugin key is `house-rules`.

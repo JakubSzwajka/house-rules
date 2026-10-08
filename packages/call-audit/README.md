@@ -14,7 +14,7 @@ An entry holds these fields and nothing else:
 | `kind` | `read` when the contract is `readOnly`, else `write` |
 | `targetId` | the input field the contract names in `audit: { target }`, when it is a string, else `null` |
 | `channel` | `mcp` or `mcp:<client>` for MCP calls, else the app's `CallChannel`, `unknown` by default |
-| `requestId` | the app's `CallRequestId`, or `null` |
+| `requestId` | the app's `CallRequestId`, set by `withRequestId` from `@house-rules/capability`, or `null` |
 
 It never records the input, and never an error message. Input is often user data.
 

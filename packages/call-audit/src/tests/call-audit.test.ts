@@ -1,4 +1,4 @@
-import { defineContract, Grant, implement } from "@house-rules/capability";
+import { defineContract, Grant, implement, withRequestId } from "@house-rules/capability";
 import { expect, it } from "@effect/vitest";
 import {
   Cause,
@@ -14,7 +14,7 @@ import {
   Schema,
 } from "effect";
 import { TestClock, TestConsole } from "effect/testing";
-import { CallAudit, memoryAuditLog } from "../index.ts";
+import { type AuditRow, CallAudit, memoryAuditLog, memoryAuditStore } from "../index.ts";
 
 class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {}) {}
 
@@ -43,6 +43,10 @@ const explodingGreeting = implement(
 const failThenCleanupDies = implement(
   defineContract("cleanup_dies_greeting", { ...base, permission: "public" }),
   () => Effect.fail(new NameIsEmpty()).pipe(Effect.ensuring(Effect.die("cleanup defect"))),
+);
+const chattyGreeting = implement(
+  defineContract("chatty_greeting", { ...base, permission: "public" }),
+  (input) => Effect.log("greeting someone").pipe(Effect.andThen(greetHandler(input))),
 );
 const stuckGreeting = implement(
   defineContract("stuck_greeting", { ...base, permission: "public" }),
@@ -289,6 +293,34 @@ it.effect("the production layer writes one physical line per call", () =>
     );
     expect(rendered.match(/capability call/g)).toHaveLength(1);
   }).pipe(Effect.provide(TestConsole.layer)),
+);
+
+it.effect(
+  "inside withRequestId, the stored row, the audit line and the handler's own log line carry the id",
+  () =>
+    Effect.gen(function* requestIdEverywhere() {
+      const rows: Array<AuditRow> = [];
+      const lines: Array<{ message: unknown; annotations: unknown }> = [];
+      const capture = Logger.layer([
+        Logger.make(({ message, fiber }) => {
+          lines.push({ message, annotations: fiber.getRef(References.CurrentLogAnnotations) });
+        }),
+      ]);
+      const audit = CallAudit.layer({ who, policy: CallAudit.presets.strict, log: true }).pipe(
+        Layer.provide(memoryAuditStore(rows)),
+      );
+      yield* chattyGreeting
+        .handler({ name: "Ada" })
+        .pipe(withRequestId("req-7"), Effect.provide(Layer.mergeAll(audit, capture)));
+      expect(rows.map((row) => row.requestId)).toEqual(["req-7"]);
+      expect(lines).toHaveLength(2);
+      expect(lines[0]).toEqual({
+        message: ["greeting someone"],
+        annotations: { requestId: "req-7" },
+      });
+      expect(lines[1]?.annotations).toEqual({ requestId: "req-7" });
+      expect(String(lines[1]?.message)).toContain('"requestId":"req-7"');
+    }),
 );
 
 const brokenWho = Effect.sync(() => {

@@ -38,7 +38,7 @@ describe("thin configs over the house plugin", () => {
   it(".dependency-cruiser.cjs names @house-rules/migrations as an adapter package, and only it", () => {
     const config = require("../.dependency-cruiser.cjs");
     const rule = config.forbidden.find(({ name }) => name === "adapter-imports-only-in-adapters");
-    assert.equal(rule.severity, "warn");
+    assert.equal(rule.severity, "error");
     assert.deepEqual(rule.from.pathNot, [
       "^packages/[^/]+/src/adapters(?:/|$)",
       "^packages/(?:migrations)/",

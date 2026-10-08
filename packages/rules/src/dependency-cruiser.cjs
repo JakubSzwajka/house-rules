@@ -14,13 +14,15 @@ const DEFAULT_NAME_LISTS = {
   ownerlessNames: ["utils", "helpers", "misc"],
   adapterPackages: [],
 };
-const DEFAULT_ADAPTER_IMPORTS = ["effect/unstable/sql", "@effect/sql-*", "@effect/platform-*"];
-const SEVERITIES = ["error", "warn", "info"];
+const DEFAULT_ADAPTER_IMPORTS = Object.freeze([
+  "effect/unstable/sql",
+  "@effect/sql-*",
+  "@effect/platform-*",
+]);
 const OPTION_NAMES = new Set([
   "scope",
   "layers",
   "adapterImports",
-  "adapterImportsSeverity",
   ...Object.keys(DEFAULTS),
   ...Object.keys(DEFAULT_NAME_LISTS),
 ]);
@@ -44,11 +46,11 @@ function pathOption(value, label) {
   return escape(value);
 }
 
-function scopeOption(scope) {
+function scopeName(scope) {
   if (typeof scope !== "string" || !scope || scope === "/") {
     throw new TypeError('layout(): scope is required, for example "@acme/".');
   }
-  return escape(scope.endsWith("/") ? scope : `${scope}/`);
+  return scope.endsWith("/") ? scope : `${scope}/`;
 }
 
 function nameListOption(names, label, { allowEmpty }) {
@@ -66,8 +68,11 @@ function nameListOption(names, label, { allowEmpty }) {
 const glob = (value) => value.split("*").map(escape).join("[^/]*");
 
 // A bare specifier becomes a pattern over the resolved path under node_modules. The subpath may sit
-// one folder down, such as effect's `dist/`, as package `exports` maps usually put it.
-function adapterImportsOption(specifiers) {
+// one folder down, such as effect's `dist/`, as package `exports` maps usually put it. A specifier in
+// the layout's scope also matches the workspace folder under packagesDir named after it, where
+// a workspace link resolves to: `@acme/db` matches `packages/db/`. Returns the installed patterns
+// and, per workspace package, its folder pattern and its import pattern.
+function adapterImportsOption(specifiers, scope, packages) {
   const valid =
     Array.isArray(specifiers) &&
     specifiers.length > 0 &&
@@ -82,22 +87,23 @@ function adapterImportsOption(specifiers) {
       'layout(): adapterImports must be a non-empty array of bare import specifiers, such as "effect/unstable/sql" or "@effect/sql-*".',
     );
   }
-  return specifiers.map((specifier) => {
+  const installed = [];
+  const workspace = [];
+  for (const specifier of specifiers) {
     const parts = specifier.split("/");
     const nameLength = specifier.startsWith("@") ? 2 : 1;
     const name = parts.slice(0, nameLength).map(glob).join("/");
     const subpath = parts.slice(nameLength).map(glob).join("/");
-    return `(?:^|/)node_modules/${name}/${subpath ? `(?:[^/]+/|)${subpath}(?:[/.]|$)` : ""}`;
-  });
-}
-
-function severityOption(severity) {
-  if (!SEVERITIES.includes(severity)) {
-    throw new TypeError(
-      `layout(): adapterImportsSeverity must be one of ${SEVERITIES.join(", ")}.`,
-    );
+    const rest = subpath ? `(?:[^/]+/|)${subpath}(?:[/.]|$)` : "";
+    installed.push(`(?:^|/)node_modules/${name}/${rest}`);
+    if (specifier.startsWith(scope) && nameLength === 2) {
+      workspace.push({
+        folder: `^${packages}/${glob(parts[1])}/`,
+        path: `^${packages}/${glob(parts[1])}/${rest}`,
+      });
+    }
   }
-  return severity;
+  return { installed, workspace };
 }
 
 function layerOptions(layers) {
@@ -118,6 +124,11 @@ function layerOptions(layers) {
 }
 
 function patterns(options) {
+  if (Object.hasOwn(options, "adapterImportsSeverity")) {
+    throw new TypeError(
+      "layout(): adapterImportsSeverity was removed in 0.8.0. adapter-imports-only-in-adapters is always an error: move the import into an adapter, or name the package in adapterPackages.",
+    );
+  }
   const unknown = Object.keys(options).filter((name) => !OPTION_NAMES.has(name));
   if (unknown.length) {
     throw new TypeError(
@@ -125,6 +136,7 @@ function patterns(options) {
     );
   }
   const settings = { ...DEFAULTS, ...options };
+  const scope = scopeName(settings.scope);
   const apps = pathOption(settings.appsDir, "appsDir");
   const packages = pathOption(settings.packagesDir, "packagesDir");
   const tests = pathOption(settings.testsDir, "testsDir");
@@ -176,14 +188,17 @@ function patterns(options) {
     testPath: `(?:^|/)(?:${testDirs})(?:/|$)|${testFile}`,
     testFile: `^(?:${apps}|${packages})/[^/]+/.*${testFile}`,
     testFileInTestsDir: `^(?:${apps}|${packages})/[^/]+/src/(?:${tests}|.*/${tests})/[^/]+${testFile}`,
-    packageNamespace: `^${scopeOption(settings.scope)}`,
-    packageSource: `^${packages}/[^/]+/src/`,
+    packageNamespace: `^${escape(scope)}`,
+    packageSourceRoot: `^${packages}/[^/]+/src/`,
     adapterCode: [
       `^${packages}/[^/]+/${pathOption(settings.adaptersDir, "adaptersDir")}(?:/|$)`,
       ...(adapterPackages.length ? [`^${packages}/(?:${adapterPackages.join("|")})/`] : []),
     ],
-    adapterImports: adapterImportsOption(settings.adapterImports ?? DEFAULT_ADAPTER_IMPORTS),
-    adapterImportsSeverity: severityOption(settings.adapterImportsSeverity ?? "warn"),
+    adapterImports: adapterImportsOption(
+      settings.adapterImports ?? DEFAULT_ADAPTER_IMPORTS,
+      scope,
+      packages,
+    ),
   };
 }
 
@@ -259,14 +274,20 @@ function layout(options = {}) {
       ),
       moduleRule("no-ownerless-files", { path: p.ownerlessPath }),
       // Domain code names its storage port; only an adapter imports SQL or platform packages.
-      {
-        ...rule(
+      // A listed workspace package gets its own rule, with an exact exception for its own folder,
+      // so it may import its own files and no other package's folder can pass for it.
+      rule(
+        "adapter-imports-only-in-adapters",
+        { path: p.packageSourceRoot, pathNot: p.adapterCode },
+        { path: p.adapterImports.installed },
+      ),
+      ...p.adapterImports.workspace.map(({ folder, path }) =>
+        rule(
           "adapter-imports-only-in-adapters",
-          { path: p.packageSource, pathNot: p.adapterCode },
-          { path: p.adapterImports },
+          { path: p.packageSourceRoot, pathNot: [...p.adapterCode, folder] },
+          { path },
         ),
-        severity: p.adapterImportsSeverity,
-      },
+      ),
     ],
     options: {
       parser: "swc",
@@ -282,4 +303,4 @@ function layout(options = {}) {
   };
 }
 
-module.exports = { layout };
+module.exports = { layout, DEFAULT_ADAPTER_IMPORTS };

@@ -44,6 +44,7 @@ export {
   type StatefulPolicy,
   type StatefulPolicyTable,
 } from "./policy.ts";
+export { newRequestId, requestIdHeader, requestIdOf, withRequestId } from "./request-id.ts";
 export { type ContractTool, type ToToolOptions, toTool } from "./to-tool.ts";
 export {
   type Atomic,
