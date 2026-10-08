@@ -68,7 +68,7 @@ Add the package to the app that uses it:
 pnpm --filter @hosti/api add @hosti/<name>
 ```
 
-The app also needs `@house-rules/capability`. `apps/api` already has it as `"workspace:0.4.0"`. An app outside this repo installs it from GitHub, as `packages/capability/README.md` shows.
+The app also needs `@house-rules/capability`. `apps/api` already has it as `"workspace:0.8.0"`. An app outside this repo installs it from GitHub, as `packages/capability/README.md` shows.
 
 `saveWorkspaceProtocol: true` and `saveExact: true` in `pnpm-workspace.yaml` make pnpm write `"@hosti/<name>": "workspace:0.0.0"` into the app's `package.json`. Do not name a spec such as `@workspace:0.0.0` on the command line: pnpm then writes `workspace:*`, which the pin check rejects.
 
@@ -77,7 +77,13 @@ Create `apps/<app>/src/use-cases/<action>.ts`. Import the module by its package 
 Every use-case is a capability. The file exports one contract and one capability, and nothing else but types:
 
 ```ts
-import { Booking, BookingNotFound, BookingPermissions, Bookings } from "@hosti/bookings";
+import {
+  Booking,
+  BookingNotFound,
+  BookingPermissions,
+  Bookings,
+  BookingStoreUnavailable,
+} from "@hosti/bookings";
 import { defineContract, implement } from "@house-rules/capability";
 import { Effect, Schema } from "effect";
 
@@ -85,7 +91,7 @@ export const showBookingContract = defineContract("show_booking", {
   description: "Show one booking by its id.",
   input: Schema.Struct({ id: Schema.String }),
   output: Booking,
-  failure: BookingNotFound,
+  failure: Schema.Union([BookingNotFound, BookingStoreUnavailable]),
   permission: BookingPermissions.read,
   annotations: { readOnly: true },
 });

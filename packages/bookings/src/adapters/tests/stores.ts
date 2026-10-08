@@ -3,8 +3,7 @@ import { PgClient } from "@effect/sql-pg";
 import { memoryUnitOfWork, sqlUnitOfWork } from "@house-rules/capability";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { Layer } from "effect";
-import { memoryBookingStore } from "../memory/memory-booking-store.js";
-import { postgresBookingStore } from "../postgres/postgres-booking-store.js";
+import { memoryBookingStore, postgresBookingStore } from "../../index.js";
 
 const migrationsDirectory = new URL("../../../migrations", import.meta.url).pathname;
 
