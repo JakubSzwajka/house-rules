@@ -29,9 +29,11 @@ describe("thin configs over the house plugin", () => {
     );
     const { layout } = require(`${PLUGIN}/dependency-cruiser`);
     const config = require("../.dependency-cruiser.cjs");
-    for (const rule of layout({ scope: "@hosti/", adapterPackages: ["migrations"] }).forbidden) {
-      const local = config.forbidden.find(({ name }) => name === rule.name);
-      assert.deepEqual(local, rule, `layout rule ${rule.name}`);
+    const rules = layout({ scope: "@hosti/", adapterPackages: ["migrations"] }).forbidden;
+    for (const rule of rules) {
+      const expected = rules.filter(({ name }) => name === rule.name);
+      const local = config.forbidden.filter(({ name }) => name === rule.name);
+      assert.deepEqual(local, expected, `layout rule ${rule.name}`);
     }
   });
 
@@ -64,10 +66,15 @@ describe("thin configs over the house plugin", () => {
     assert.equal(readJson("package.json").scripts.pins, "house-rules-pins");
   });
 
-  it("the migrations script runs the plugin's bin, and check runs it", () => {
+  it("the layout script runs the plugin's bin after Dependency Cruiser", () => {
     const { scripts } = readJson("package.json");
-    assert.equal(scripts.migrations, "house-rules-migrations");
+    assert.equal(scripts.layout, "house-rules-layout");
+    assert.equal(
+      readJson("packages/rules/package.json").bin["house-rules-layout"],
+      "bin/layout.mjs",
+    );
     assert.match(scripts.check, /pnpm run migrations &&/);
+    assert.match(scripts.check, /pnpm run deps && pnpm run layout$/);
   });
 
   it("eslint.config.mjs turns on the capability rules for use-cases, delivery, and tests", async () => {

@@ -28,7 +28,6 @@ const RULES = [
   "package-root-files",
   "domain-does-not-import-adapters",
   "subjects-do-not-import-package-root",
-  "no-subject-folder-cycles",
   "adapter-imports-only-in-adapters",
 ];
 // An unresolvable deep import is also an unresolved import; both rules are meant to fire.
@@ -36,6 +35,7 @@ const RULES = [
 const ALSO_FIRES = {
   "no-unresolved-deep-package-imports": ["no-unresolved-imports"],
   "tests-do-not-import-internals": ["no-ownerless-files"],
+  "domain-does-not-import-adapters": ["production-does-not-import-tests"],
 };
 
 // Refresh after an intentional rule change:
@@ -48,7 +48,14 @@ test("layout() with drunk-cat-stack's scope matches the snapshot", async () => {
   assert.deepEqual(config, snapshot);
   assert.deepEqual(
     config.forbidden.map(({ name, severity }) => [name, severity]),
-    RULES.map((name) => [name, "error"]),
+    RULES.flatMap((name) =>
+      name === "domain-does-not-import-adapters"
+        ? [
+            [name, "error"],
+            [name, "error"],
+          ]
+        : [[name, "error"]],
+    ),
   );
 });
 
@@ -57,7 +64,7 @@ test("layout() is exported for require and import, returns a fresh config, and v
   assert.equal(require("../src/dependency-cruiser.cjs").layout, layout);
   const first = layout({ scope: "@acme/" });
   first.forbidden.push({ name: "project-rule", from: {}, to: {} });
-  assert.equal(layout({ scope: "@acme/" }).forbidden.length, RULES.length);
+  assert.equal(layout({ scope: "@acme/" }).forbidden.length, RULES.length + 1);
   assert.deepEqual(layout({ scope: "@acme" }).forbidden, layout({ scope: "@acme/" }).forbidden);
 
   const renamed = layout({

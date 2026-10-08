@@ -28,11 +28,11 @@ It is a GitHub template. Create a repo from it with `gh repo create <name> --tem
 ```
 
 ```text
-pnpm check ─> pins ─> migrations ─> env:check ─> biome ─> lint ─> turbo run typecheck ─> deps
+pnpm check ─> pins ─> migrations ─> env:check ─> biome ─> lint ─> turbo run typecheck ─> deps ─> layout
 pnpm test  ─> node --test tests/ ─> turbo run test
 ```
 
-Root tools run once over the whole repo. Turborepo runs `typecheck` and `test` in each workspace package, in dependency order. Packages export TypeScript source, so there is no build step. Caching is off, so a gate always runs. CI runs `pnpm install --frozen-lockfile`, `pnpm check`, and `pnpm test`, nothing else.
+Root tools run once over the whole repo. The layout bin checks production subject-folder cycles after Dependency Cruiser; test paths, adapters and package-root files do not add edges. Turborepo runs `typecheck` and `test` in each workspace package, in dependency order. Packages export TypeScript source, so there is no build step. Caching is off, so a gate always runs. CI runs `pnpm install --frozen-lockfile`, `pnpm check`, and `pnpm test`, nothing else.
 
 ## What the stack adds
 

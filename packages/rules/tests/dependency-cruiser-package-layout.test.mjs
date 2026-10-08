@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { layout } from "../src/dependency-cruiser.cjs";
-import { fromPaths, violatedRules } from "./dependency-cruiser-helpers.mjs";
+import { findSubjectFolderCycles } from "../src/subject-folder-cycles.mjs";
+import { cruiseFixture, fromPaths, violatedRules } from "./dependency-cruiser-helpers.mjs";
 
-// The package layout rules: mechanism names (part of no-ownerless-files), package-root-files,
+// The package checks: mechanism names (part of no-ownerless-files), package-root-files,
 // domain-does-not-import-adapters, subjects-do-not-import-package-root and no-subject-folder-cycles.
 test("the package layout rules build their patterns from the options", () => {
   const byName = Object.fromEntries(
@@ -18,7 +19,12 @@ test("the package layout rules build their patterns from the options", () => {
     byName["package-root-files"].module.pathNot[0],
     "^libs/[^/]+/src/(?:index[.]ts|facade[.]ts|storage[.]ts)$",
   );
-  assert.deepEqual(byName["domain-does-not-import-adapters"].from, {
+  const adapterRules = layout({
+    scope: "@my.org/",
+    packagesDir: "libs",
+    publicEntry: "src/main.ts",
+  }).forbidden.filter((rule) => rule.name === "domain-does-not-import-adapters");
+  assert.deepEqual(adapterRules[0].from, {
     path: "^(libs/[^/]+)/src/",
     pathNot: [
       "^libs/[^/]+/src/adapters(?:/|$)",
@@ -26,11 +32,24 @@ test("the package layout rules build their patterns from the options", () => {
       "^libs/[^/]+/src/facade[.]ts$",
     ],
   });
+  assert.deepEqual(adapterRules[0].to, {
+    path: "^$1/src/adapters(?:/|$)",
+    pathNot: "^$1/src/adapters/tests(?:/|$)",
+  });
+  assert.deepEqual(adapterRules[1].from, {
+    path: "^(libs/[^/]+)/src/",
+    pathNot: [
+      "^libs/[^/]+/src/adapters(?:/|$)",
+      "^libs/[^/]+/src/main[.]ts$",
+      "^libs/[^/]+/src/facade[.]ts$",
+      "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$",
+    ],
+  });
+  assert.deepEqual(adapterRules[1].to, { path: "^$1/src/adapters/tests(?:/|$)" });
   assert.deepEqual(byName["subjects-do-not-import-package-root"].to, {
     path: "^$1/(?:src/main[.]ts|src/facade[.]ts)$",
   });
-  assert.equal(byName["no-subject-folder-cycles"].scope, "folder");
-  assert.equal(byName["no-subject-folder-cycles"].from.path, "^(libs/[^/]+/src)/([^/]+)");
+  assert.equal(byName["no-subject-folder-cycles"], undefined);
 
   const custom = Object.fromEntries(
     layout({
@@ -136,27 +155,64 @@ test("package-root-files reports a loose file in a package's src/, not the entry
   ]);
 });
 
-test("domain-does-not-import-adapters lets only the public entry, the facade and adapters import adapters", async () => {
+test("domain-does-not-import-adapters allows test support only from tests", async () => {
   const violations = await violatedRules(
     "violations/domain-does-not-import-adapters",
     layout({ scope: "@acme/" }),
   );
   assert.deepEqual(fromPaths(violations), [
-    "domain-does-not-import-adapters: packages/a/src/booking/describe.ts -> packages/a/src/adapters/memory/booking.ts",
+    "domain-does-not-import-adapters: packages/a/src/booking/describe.ts -> packages/a/src/adapters/tests/support.ts",
     "domain-does-not-import-adapters: packages/a/src/storage.ts -> packages/a/src/adapters/memory/booking.ts",
     "domain-does-not-import-adapters: packages/a/src/tests/bookings.test.ts -> packages/a/src/adapters/memory/booking.ts",
+    "domain-does-not-import-adapters: packages/a/src/tests/bookings.test.ts -> packages/a/src/adapters/postgres/booking.ts",
+    "production-does-not-import-tests: packages/a/src/booking/describe.ts -> packages/a/src/adapters/tests/support.ts",
   ]);
 });
 
-test("no-subject-folder-cycles reports subjects that import each other through different files", async () => {
-  const violations = await violatedRules(
-    "violations/no-subject-folder-cycles",
-    layout({ scope: "@acme/" }),
+test("no-subject-folder-cycles catches a production cycle that crosses files", async () => {
+  const config = layout({ scope: "@acme/" });
+  const { modules } = await cruiseFixture(
+    "subject-folder-cycles/production-two-folder-cycle",
+    config,
   );
-  assert.deepEqual(fromPaths(violations), [
-    "no-subject-folder-cycles: packages/a/src/items -> packages/a/src/places",
-    "no-subject-folder-cycles: packages/a/src/places -> packages/a/src/items",
+  const cycles = findSubjectFolderCycles(modules, config);
+  assert.deepEqual(
+    cycles.map(({ cycle }) => cycle.join(" -> ")),
+    ["packages/a/src/items -> packages/a/src/places -> packages/a/src/items"],
+  );
+  assert.deepEqual(cycles[0].examples, [
+    {
+      fromFolder: "packages/a/src/items",
+      toFolder: "packages/a/src/places",
+      from: "packages/a/src/items/item.ts",
+      to: "packages/a/src/places/place-id.ts",
+    },
+    {
+      fromFolder: "packages/a/src/places",
+      toFolder: "packages/a/src/items",
+      from: "packages/a/src/places/place.ts",
+      to: "packages/a/src/items/item-ref.ts",
+    },
   ]);
+  const reversed = { ...config, forbidden: [...config.forbidden].reverse() };
+  assert.deepEqual(findSubjectFolderCycles(modules, reversed), cycles);
+});
+
+test("no-subject-folder-cycles ignores the Trippy-shaped test-only route", async () => {
+  const config = layout({ scope: "@acme/" });
+  const { modules } = await cruiseFixture("no-subject-folder-test-cycles", config);
+  assert.deepEqual(findSubjectFolderCycles(modules, config), []);
+});
+
+test("no-subject-folder-cycles catches a three-subject production cycle through tests-utils", async () => {
+  const config = layout({ scope: "@acme/" });
+  const { modules } = await cruiseFixture("no-subject-folder-three-cycles", config);
+  assert.deepEqual(
+    findSubjectFolderCycles(modules, config).map(({ cycle }) => cycle.join(" -> ")),
+    [
+      "packages/a/src/items -> packages/a/src/places -> packages/a/src/tests-utils -> packages/a/src/items",
+    ],
+  );
 });
 
 test("subjects-do-not-import-package-root reports a subject file that imports its package's index.ts or facade.ts", async () => {

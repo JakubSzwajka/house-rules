@@ -238,12 +238,10 @@ function patterns(options) {
       `^${packages}/[^/]+/${pathOption(settings.facadeFile, "facadeFile")}$`,
     ],
     ownAdapters: `^$1/${adapters}(?:/|$)`,
+    ownAdapterTests: `^$1/${adapters}/tests(?:/|$)`,
     // A file in a subject folder, and the package's own root barrel ($1 is the package folder).
     subjectFile: `^(${packages}/[^/]+)/src/[^/]+/`,
     ownRootBarrel: `^$1/(?:${pathOption(settings.publicEntry, "publicEntry")}|${pathOption(settings.facadeFile, "facadeFile")})$`,
-    // $1 is the package's src folder and $2 the subject folder, a folder directly under src/.
-    subjectFolder: `^(${packages}/[^/]+/src)/([^/]+)`,
-    otherSubjectFolder: `^$1/[^/]+`,
     notSubjectFolder: [
       "^$1/$2(?:/|$)",
       `^${packages}/[^/]+/${adapters}(?:/|$)`,
@@ -344,11 +342,16 @@ function layout(options = {}) {
       rule(
         "domain-does-not-import-adapters",
         { path: p.packageCode, pathNot: p.adapterImporters },
-        { path: p.ownAdapters },
+        { path: p.ownAdapters, pathNot: p.ownAdapterTests },
+      ),
+      rule(
+        "domain-does-not-import-adapters",
+        { path: p.packageCode, pathNot: [...p.adapterImporters, p.testPath] },
+        { path: p.ownAdapterTests },
       ),
       // A subject reaches another subject directly, never through the package's own index.ts or
-      // facade.ts: that barrel re-exports every subject, so it would hide a cycle between two
-      // subjects from the folder rule below. storage.ts stays importable.
+      // facade.ts: that barrel re-exports every subject, so it would hide a cycle from the
+      // subject-folder check. storage.ts stays importable.
       rule(
         "subjects-do-not-import-package-root",
         {
@@ -357,15 +360,6 @@ function layout(options = {}) {
         },
         { path: p.ownRootBarrel },
       ),
-      // A folder rule: Dependency Cruiser rolls modules up into folders and finds cycles there,
-      // so two subjects that import each other through different files still fail.
-      {
-        name: "no-subject-folder-cycles",
-        severity: "error",
-        scope: "folder",
-        from: { path: p.subjectFolder, pathNot: p.notSubjectFolder.slice(1) },
-        to: { path: p.otherSubjectFolder, pathNot: p.notSubjectFolder, circular: true },
-      },
       // Domain code names its storage port; only an adapter imports SQL or platform packages.
       // A listed workspace package gets its own rule, with an exact exception for its own folder,
       // so it may import its own files and no other package's folder can pass for it.
@@ -396,4 +390,20 @@ function layout(options = {}) {
   };
 }
 
-module.exports = { layout, DEFAULT_ADAPTER_IMPORTS };
+function subjectFolderPatterns(config) {
+  const rules = config?.forbidden;
+  const sourceRule = rules?.find(({ name }) => name === "domain-does-not-import-adapters");
+  const testRule = rules?.find(({ name }) => name === "production-does-not-import-tests");
+  const packageMatch = sourceRule?.from?.path?.match(/^\^\((.*)\)\/src\//u);
+  const adapterPath = sourceRule?.to?.path;
+  if (!packageMatch || typeof adapterPath !== "string" || typeof testRule?.to?.path !== "string") {
+    throw new Error("layout config is missing subject-folder path patterns");
+  }
+  return {
+    package: sourceRule.from.path,
+    adapter: adapterPath.replace(/^\^\$1\//u, `^${packageMatch[1]}/`),
+    test: testRule.to.path,
+  };
+}
+
+module.exports = { layout, DEFAULT_ADAPTER_IMPORTS, subjectFolderPatterns };

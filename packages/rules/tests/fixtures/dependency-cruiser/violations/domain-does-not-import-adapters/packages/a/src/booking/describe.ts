@@ -1,2 +1,2 @@
-import { memoryBookingStore } from "../adapters/memory/booking";
-export const describeBooking = () => memoryBookingStore;
+import { support } from "../adapters/tests/support";
+export const describeBooking = () => support;

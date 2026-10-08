@@ -201,7 +201,24 @@
         ]
       },
       "to": {
-        "path": "^$1/src/adapters(?:/|$)"
+        "path": "^$1/src/adapters(?:/|$)",
+        "pathNot": "^$1/src/adapters/tests(?:/|$)"
+      }
+    },
+    {
+      "name": "domain-does-not-import-adapters",
+      "severity": "error",
+      "from": {
+        "path": "^(packages/[^/]+)/src/",
+        "pathNot": [
+          "^packages/[^/]+/src/adapters(?:/|$)",
+          "^packages/[^/]+/src/index[.]ts$",
+          "^packages/[^/]+/src/facade[.]ts$",
+          "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+        ]
+      },
+      "to": {
+        "path": "^$1/src/adapters/tests(?:/|$)"
       }
     },
     {
@@ -217,27 +234,6 @@
       },
       "to": {
         "path": "^$1/(?:src/index[.]ts|src/facade[.]ts)$"
-      }
-    },
-    {
-      "name": "no-subject-folder-cycles",
-      "severity": "error",
-      "scope": "folder",
-      "from": {
-        "path": "^(packages/[^/]+/src)/([^/]+)",
-        "pathNot": [
-          "^packages/[^/]+/src/adapters(?:/|$)",
-          "^packages/[^/]+/src/(?:tests?|__tests__)(?:/|$)"
-        ]
-      },
-      "to": {
-        "path": "^$1/[^/]+",
-        "pathNot": [
-          "^$1/$2(?:/|$)",
-          "^packages/[^/]+/src/adapters(?:/|$)",
-          "^packages/[^/]+/src/(?:tests?|__tests__)(?:/|$)"
-        ],
-        "circular": true
       }
     },
     {

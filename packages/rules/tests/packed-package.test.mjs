@@ -22,6 +22,7 @@ async function writeFixtureFiles(fixtureDirectory) {
           "@eslint/css": devDependencies["@eslint/css"],
           "@eslint/markdown": devDependencies["@eslint/markdown"],
           "@shadcn/lint": devDependencies["@shadcn/lint"],
+          "dependency-cruiser": devDependencies["dependency-cruiser"],
           eslint: devDependencies.eslint,
         },
       },
@@ -128,6 +129,9 @@ assert.match(pins.stdout, /pins: every dependency is exact in pinned[.]json/);
 const migrations = spawnSync("node_modules/.bin/house-rules-migrations", [], { encoding: "utf8" });
 assert.equal(migrations.status, 0, migrations.stderr);
 assert.match(migrations.stdout, /migrations: no SQL migrations found/);
+const layoutBin = spawnSync("node_modules/.bin/house-rules-layout", [], { encoding: "utf8" });
+assert.equal(layoutBin.status, 0, layoutBin.stderr);
+assert.match(layoutBin.stdout, /layout: no subject-folder cycles/);
 assert.equal(houseRules.configs.capability[0].rules["house-rules/no-hand-rolled-surface"], "error");
 assert.equal(houseRules.configs.capability[1].rules["house-rules/use-case-is-capability"], "error");
 assert.equal(houseRules.configs.capability[2].rules["house-rules/no-hand-run-effect"], "error");
@@ -211,7 +215,7 @@ assert.deepEqual(
   );
 }
 
-test("packs and installs the exact package before linting fresh JS, TS, Markdown, design, and shadcn fixtures, loading the dependency-cruiser preset, resolving the config presets, and running the pins and migrations bins", async () => {
+test("packs and installs the exact package before linting fresh JS, TS, Markdown, design, and shadcn fixtures, loading the dependency-cruiser preset, resolving the config presets, and running the pins, migrations, and layout bins", async () => {
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "house-rules-pack-"));
   const packageDirectory = path.join(temporaryDirectory, "package");
   const fixtureDirectory = path.join(temporaryDirectory, "fixture");
