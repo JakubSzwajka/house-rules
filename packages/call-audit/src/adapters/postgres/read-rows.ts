@@ -1,7 +1,7 @@
 import { Effect, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 import * as SqlSchema from "effect/unstable/sql/SqlSchema";
-import { AuditReadFailed, AuditRow, type ReadRowsOptions } from "../types.ts";
+import { AuditReadFailed, AuditRow, type ReadRowsOptions } from "../../types.ts";
 
 export const defaultLimit = 100;
 export const maxLimit = 1000;

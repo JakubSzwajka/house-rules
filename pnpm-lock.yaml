@@ -178,7 +178,7 @@ importers:
         specifier: 8.0.3
         version: 8.0.3(supports-color@7.2.0)
       '@house-rules/rules':
-        specifier: workspace:0.6.0
+        specifier: workspace:0.7.0
         version: link:packages/rules
       '@swc/core':
         specifier: 1.16.2
@@ -208,7 +208,7 @@ importers:
         specifier: workspace:0.0.0
         version: link:../../packages/bookings
       '@house-rules/capability':
-        specifier: workspace:0.7.0
+        specifier: workspace:0.8.0
         version: link:../../packages/capability
       effect:
         specifier: 4.0.0-rc.117
@@ -216,7 +216,7 @@ importers:
     devDependencies:
       '@effect/vitest':
         specifier: 4.0.0-rc.117
-        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(vite@8.3.0))
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)))
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -226,13 +226,25 @@ importers:
 
   packages/bookings:
     dependencies:
+      '@house-rules/capability':
+        specifier: workspace:0.8.0
+        version: link:../capability
       effect:
         specifier: 4.0.0-rc.117
         version: 4.0.0-rc.117
     devDependencies:
+      '@effect/platform-node':
+        specifier: 4.0.0-rc.117
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(redis@6.3.0)
+      '@effect/sql-pg':
+        specifier: 4.0.0-rc.117
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)
       '@effect/vitest':
         specifier: 4.0.0-rc.117
-        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(vite@8.3.0))
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)))
+      '@house-rules/migrations':
+        specifier: workspace:0.1.0
+        version: link:../migrations
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -250,9 +262,9 @@ importers:
         version: 4.0.0-rc.117(effect@4.0.0-rc.117)
       '@effect/vitest':
         specifier: 4.0.0-rc.117
-        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(vite@8.3.0))
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)))
       '@house-rules/capability':
-        specifier: workspace:0.7.0
+        specifier: workspace:0.8.0
         version: link:../capability
       '@house-rules/migrations':
         specifier: workspace:0.1.0
@@ -269,9 +281,15 @@ importers:
 
   packages/capability:
     devDependencies:
+      '@effect/sql-pg':
+        specifier: 4.0.0-rc.117
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)
       '@effect/vitest':
         specifier: 4.0.0-rc.117
-        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(vite@8.3.0))
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)))
+      '@house-rules/migrations':
+        specifier: workspace:0.1.0
+        version: link:../migrations
       effect:
         specifier: 4.0.0-rc.117
         version: 4.0.0-rc.117
@@ -292,7 +310,7 @@ importers:
         version: 4.0.0-rc.117(effect@4.0.0-rc.117)
       '@effect/vitest':
         specifier: 4.0.0-rc.117
-        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(vite@8.3.0))
+        version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)))
       effect:
         specifier: 4.0.0-rc.117
         version: 4.0.0-rc.117
@@ -2221,7 +2239,7 @@ snapshots:
       '@effect/tsgo-win32-arm64': 0.45.0
       '@effect/tsgo-win32-x64': 0.45.0
 
-  '@effect/vitest@4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(vite@8.3.0))':
+  '@effect/vitest@4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)))':
     dependencies:
       effect: 4.0.0-rc.117
       vitest: 5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4))

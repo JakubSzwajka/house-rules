@@ -5,7 +5,7 @@ import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { expect, layer } from "@effect/vitest";
 import { Context, Effect, Exit, Layer, Logger, Option, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
-import { CallAudit } from "../index.ts";
+import { CallAudit } from "../../index.ts";
 
 class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {}) {}
 
@@ -26,7 +26,7 @@ const who = Effect.serviceOption(Viewer).pipe(
   Effect.map((viewer) => (Option.isSome(viewer) ? viewer.value.userId : null)),
 );
 
-const migrationsDirectory = new URL("../../migrations", import.meta.url).pathname;
+const migrationsDirectory = new URL("../../../migrations", import.meta.url).pathname;
 
 const migratedDatabase = Layer.effectDiscard(
   Migrations.run([

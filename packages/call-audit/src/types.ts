@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { type Effect, Schema } from "effect";
 
 export type AuditEntry = Readonly<{
   capability: string;
@@ -27,3 +27,12 @@ export class AuditReadFailed extends Schema.TaggedError<AuditReadFailed>()("Audi
   message: Schema.String,
   cause: Schema.optional(Schema.Defect()),
 }) {}
+
+export type CallAuditOptions = Readonly<{
+  who: Effect.Effect<string | null>;
+}>;
+
+export type CallAuditTableOptions = CallAuditOptions &
+  Readonly<{
+    log?: boolean;
+  }>;

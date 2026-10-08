@@ -42,3 +42,6 @@ export const makeWatch = (
       );
     }),
 });
+
+export const logLine = (entry: AuditEntry) =>
+  Effect.logInfo(`capability call ${JSON.stringify(entry)}`);

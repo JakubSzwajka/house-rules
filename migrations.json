@@ -1,3 +1,3 @@
 {
-  "modules": [{ "workspace": "packages/call-audit" }]
+  "modules": [{ "workspace": "packages/call-audit" }, { "workspace": "packages/bookings" }]
 }

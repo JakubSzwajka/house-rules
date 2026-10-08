@@ -17,7 +17,44 @@ const WORKSPACE_LIST_ITEM = /^\s+-\s+["']?([^"'#\s]+)["']?\s*$/u;
 const SOURCE_FILE = /\.(?:ts|tsx|mts|cts)$/u;
 const SKIPPED_DIRECTORY = (name) => name === "node_modules" || name.startsWith(".");
 const OPENS_TRANSACTION_CALL = /\bwithTransaction\b/u;
-const OPENS_TRANSACTION_SQL = /^\s*(?:begin|start\s+transaction)\b/iu;
+// In SQL text, any statement that starts with begin or start transaction, in any case. The text is blanked
+// first, in one scan: comments, strings and dollar-quoted bodies, so the BEGIN of a DO $$ ... $$ block passes.
+const STARTS_TRANSACTION = /(?:^|;)\s*(begin|start\s+transaction)\b/iu;
+// SQL text: a template tagged like sql, or the text of a raw query call.
+const SQL_TAG = /[\w$]*sql[\w$]*\s*$/iu;
+const RAW_QUERY_CALL = /\.\s*(?:unsafe|execute|executeUnprepared|executeRaw|query)\s*\(\s*$/u;
+// In a use-case, any string that starts with begin fails, as before. Any other string fails only when
+// the whole string is a transaction statement, so UI text such as "Begin" or "Begin your trip" passes.
+const STARTS_WITH_TRANSACTION = /^\s*(?:begin|start\s+transaction)\b/iu;
+const WHOLE_TRANSACTION_STRING =
+  /^\s*(?:begin|BEGIN|start\s+transaction|START\s+TRANSACTION)(?:\s+(?:transaction|work|isolation|read|TRANSACTION|WORK|ISOLATION|READ)\b[^;]*)?\s*;?\s*$/u;
+const OPENS_UNIT = /\b[Uu]nitOfWork\s*\.\s*atomic\b/u;
+const TEST_SOURCE = /(?:^|\/)(?:tests?|__tests__)\/|\.(?:test|spec)\.[^/]+$/u;
+// A UnitOfWork adapter and the migration runner may open a raw transaction. --adapter-package adds more.
+const DEFAULT_ADAPTER_PACKAGES = ["@house-rules/capability", "@house-rules/migrations"];
+const ADAPTER_FLAG = "--adapter-package";
+
+const adapterPackages = (args) => {
+  const names = new Set(DEFAULT_ADAPTER_PACKAGES);
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    const name = arg.startsWith(`${ADAPTER_FLAG}=`)
+      ? arg.slice(ADAPTER_FLAG.length + 1)
+      : arg === ADAPTER_FLAG
+        ? args[++index]
+        : undefined;
+    if (name === undefined || name === "" || name.startsWith("-")) {
+      console.error(
+        `migrations: unknown argument "${arg}". Usage: house-rules-migrations [${ADAPTER_FLAG} <package name>]...`,
+      );
+      process.exit(1);
+    }
+    names.add(name);
+  }
+  return names;
+};
+
+const adapters = adapterPackages(process.argv.slice(2));
 
 const relative = (file) => path.relative(process.cwd(), file).split(path.sep).join("/");
 
@@ -135,10 +172,60 @@ for (const { file, owner, sql } of migrations) {
   }
 }
 
-// SQL in one package's source may name only tables that package owns. Use-case rules apply to workspace packages.
-const checkSource = (file, owner, useCases) => {
+const packageName = (workspace) => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(workspace, "package.json"), "utf8")).name;
+  } catch {
+    return undefined;
+  }
+};
+
+// The source offset of the first match of pattern in parts, or undefined.
+const firstMatch = (parts, pattern) => {
+  for (const part of parts) {
+    const match = pattern.exec(part.text);
+    if (match !== null) return part.start + match.index;
+  }
+  return undefined;
+};
+
+// The source offset of the first statement in SQL text that opens a transaction, or undefined.
+const firstTransactionStart = ({ strings, code }, inUseCase) => {
+  const codeBefore = new Map(code.map((part) => [part.start + part.text.length, part.text]));
+  const before = (part) => codeBefore.get(part.start - 1) ?? "";
+  const isQuery = (part) => SQL_TAG.test(before(part)) || RAW_QUERY_CALL.test(before(part));
+  // Only a template's first part sits right after its tag; later parts sit after a `${...}`.
+  const seen = new Set();
+  const tagged = new Set();
+  for (const part of strings) {
+    if (part.template === undefined || seen.has(part.template)) continue;
+    seen.add(part.template);
+    if (isQuery(part)) tagged.add(part.template);
+  }
+  const isSql = (part) => (part.template === undefined ? isQuery(part) : tagged.has(part.template));
+  for (const { raw, at } of sqlTexts(strings.filter(isSql))) {
+    // Quoted identifiers are blanked for this scan only; the table checks still read them.
+    const match = STARTS_TRANSACTION.exec(
+      blankSql(raw, { dollarQuotes: true, identifiers: false }),
+    );
+    if (match !== null) return at[match.index + match[0].length - match[1].length];
+  }
+  // In a use-case, main's floor holds for every string, SQL text included: any template part that
+  // starts with begin after a `${...}` fails, even where the joined SQL text reads `?begin`.
+  return inUseCase
+    ? firstMatch(strings, STARTS_WITH_TRANSACTION)
+    : firstMatch(
+        strings.filter((part) => !isSql(part)),
+        WHOLE_TRANSACTION_STRING,
+      );
+};
+
+// SQL in one package's source may name only tables that package owns. Only an adapter package opens
+// a raw transaction, and a module's own code never opens a unit of work: the use-case does.
+const checkSource = (file, owner, { adapter, module, useCases }) => {
   const source = fs.readFileSync(file, "utf8");
-  const { strings, sql, code } = lexSource(source);
+  const lexed = lexSource(source);
+  const { sql, code } = lexed;
   if (owners.size > 0) {
     for (const { text, at } of sqlTexts(sql)) {
       for (const { name, index } of tableReferences(text)) {
@@ -152,31 +239,44 @@ const checkSource = (file, owner, useCases) => {
       }
     }
   }
-  if (useCases === undefined || !file.startsWith(`${useCases}${path.sep}`)) return;
-  const opening = [
-    ...code.map((part) => ({ part, match: OPENS_TRANSACTION_CALL.exec(part.text) })),
-    ...strings.map((part) => ({ part, match: OPENS_TRANSACTION_SQL.exec(part.text) })),
-  ].find(({ match }) => match !== null);
-  if (opening !== undefined) {
+  if (adapter) return;
+  const inUseCase = useCases !== undefined && file.startsWith(`${useCases}${path.sep}`);
+  const raw = firstMatch(code, OPENS_TRANSACTION_CALL) ?? firstTransactionStart(lexed, inUseCase);
+  if (raw !== undefined) {
     report(
       file,
-      lineAt(source, opening.part.start + opening.match.index),
-      "a use-case opens a transaction. One module write method is one transaction; a read method may run without one. Move this work into a write method of the module's service.",
+      lineAt(source, raw),
+      `opens a raw transaction. A use-case opens a unit of work instead: \`transactional: true\` on its contract, or \`UnitOfWork.atomic\` in its handler. Only a UnitOfWork adapter or a named adapter package (${ADAPTER_FLAG}) calls withTransaction or sends begin.`,
+    );
+  }
+  const unit =
+    module && !TEST_SOURCE.test(relative(file)) ? firstMatch(code, OPENS_UNIT) : undefined;
+  if (unit !== undefined) {
+    report(
+      file,
+      lineAt(source, unit),
+      "a module opens a unit of work. A module never opens one: its writes run in the unit the use-case opened, and fail with NoOpenUnit without one. Move UnitOfWork.atomic into the use-case.",
     );
   }
 };
 
+const APP_ROOT = /^apps\//u;
+
 for (const workspace of workspaces) {
-  const useCases = path.resolve(workspace, "src", "use-cases");
+  const options = {
+    adapter: adapters.has(packageName(workspace)),
+    module: !APP_ROOT.test(workspace),
+    useCases: path.resolve(workspace, "src", "use-cases"),
+  };
   for (const file of walk(path.resolve(workspace, "src"), (name) => SOURCE_FILE.test(name))) {
-    checkSource(file, workspace, useCases);
+    checkSource(file, workspace, options);
   }
 }
 
-// A listed installed package ships its src/, and its SQL is held to the same own-tables rule.
+// A listed installed package ships its src/, and is held to the same rules.
 for (const { owner, directory } of moduleList.installedSources) {
   for (const file of walk(directory, (name) => SOURCE_FILE.test(name))) {
-    checkSource(file, owner, undefined);
+    checkSource(file, owner, { adapter: adapters.has(owner), module: true });
   }
 }
 

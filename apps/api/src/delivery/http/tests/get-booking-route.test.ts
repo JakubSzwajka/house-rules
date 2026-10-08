@@ -1,4 +1,4 @@
-import { Bookings } from "@hosti/bookings";
+import { Bookings, BookingStore, BookingStoreUnavailable } from "@hosti/bookings";
 import { expect, it } from "@effect/vitest";
 import { Grant } from "@house-rules/capability";
 import { Effect, Layer } from "effect";
@@ -37,3 +37,23 @@ it.layer(Layer.merge(bookings, Grant.denyAll))("bookingResponse without bookings
     }),
   );
 });
+
+const brokenStore = Layer.succeed(BookingStore, {
+  find: () =>
+    Effect.fail(new BookingStoreUnavailable({ message: "The Booking could not be read." })),
+  insert: () => Effect.die("not used"),
+});
+
+it.layer(Bookings.layer.pipe(Layer.provide(brokenStore)))(
+  "getBookingRoute with a broken store",
+  (test) => {
+    test.effect("maps BookingStoreUnavailable to 503", () =>
+      Effect.gen(function* answersUnavailable() {
+        expect(yield* getBookingRoute("b-1")).toEqual({
+          status: 503,
+          body: "Bookings are unavailable right now.",
+        });
+      }),
+    );
+  },
+);

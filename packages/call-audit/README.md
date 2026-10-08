@@ -57,6 +57,8 @@ The table comes from this package's own migration, `migrations/0001_call_audit.s
 { "package": "@house-rules/call-audit" }
 ```
 
+The SQL lives in the package's Postgres adapter, `src/adapters/postgres/` (the insert and `readRows`), with its tests in `src/adapters/tests/`. No other file imports `effect/unstable/sql`, as the `adapter-imports-only-in-adapters` rule asks.
+
 `house-rules-migrations` fails when an app depends on this package and its list leaves it out. App code never queries `call_audit` directly: the table belongs to this package. Read it with `CallAudit.readRows`. Rows stay until someone deletes them; there is no retention job yet.
 
 ## Reading the audit: `readRows`

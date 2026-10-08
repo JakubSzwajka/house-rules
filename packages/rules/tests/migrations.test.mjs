@@ -182,20 +182,72 @@ describe("house-rules-migrations", () => {
     assert.deepEqual(problemLines(result).sort(), ["fixtures/seed.sql:1", "tests/seed.sql:1"]);
   });
 
-  it("fails a use-case that opens a transaction", () => {
+  it("fails a raw transaction anywhere outside an adapter package", () => {
     const result = run({
       "apps/web/src/use-cases/trips/move-trip.ts": [
         'import { SqlClient } from "effect/unstable/sql";',
         "export const run = (sql) => sql.withTransaction(work);",
       ].join("\n"),
       "apps/web/src/use-cases/begin.ts": "export const q = sql`begin`;\n",
+      "apps/web/src/delivery/copy.ts": 'export const cta = "Begin your trip";\n',
       "packages/trips/src/facade.ts": "export const run = (sql) => sql.withTransaction(work);\n",
+      "packages/trips/src/adapters/postgres/store.ts":
+        "export const run = (sql) => sql.withTransaction(work);\n",
+      "packages/trips/src/tests/store.test.ts": "export const q = sql`BEGIN TRANSACTION;`;\n",
     });
     assert.equal(result.status, 1);
     assert.deepEqual(problemLines(result).sort(), [
       "apps/web/src/use-cases/begin.ts:1",
       "apps/web/src/use-cases/trips/move-trip.ts:2",
+      "packages/trips/src/adapters/postgres/store.ts:1",
+      "packages/trips/src/facade.ts:1",
+      "packages/trips/src/tests/store.test.ts:1",
     ]);
-    assert.match(result.stderr, /a use-case opens a transaction/);
+    assert.match(
+      result.stderr,
+      /opens a raw transaction\. A use-case opens a unit of work instead/,
+    );
+  });
+
+  it("passes a raw transaction in an adapter package, named by default or by --adapter-package", () => {
+    const files = {
+      "packages/capability/package.json": '{ "name": "@house-rules/capability" }',
+      "packages/capability/src/adapters/sql-unit-of-work.ts":
+        "export const atomic = (sql) => sql.withTransaction(work);\n",
+      "packages/db/package.json": '{ "name": "@trippy/db" }',
+      "packages/db/src/internal/tx.ts": "export const q = sql`begin`;\n",
+    };
+    const unnamed = run(files);
+    assert.equal(unnamed.status, 1);
+    assert.deepEqual(problemLines(unnamed), ["packages/db/src/internal/tx.ts:1"]);
+    const named = run(files, { args: ["--adapter-package", "@trippy/db"] });
+    assert.equal(named.status, 0, named.stderr);
+    const equals = run(files, { args: ["--adapter-package=@trippy/db"] });
+    assert.equal(equals.status, 0, equals.stderr);
+  });
+
+  it("fails an unknown argument", () => {
+    const result = run({}, { args: ["--adapter-packages", "@trippy/db"] });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /unknown argument "--adapter-packages"/);
+  });
+
+  it("lets a use-case open a unit of work, and fails a module that opens one", () => {
+    const result = run({
+      "apps/web/src/use-cases/move-trip.ts": "export const run = UnitOfWork.atomic(work);\n",
+      "apps/web/src/server/seed.ts": "export const seed = UnitOfWork.atomic(rows);\n",
+      "packages/trips/src/facade.ts": [
+        "export const move = Effect.gen(function* () {",
+        "  const unitOfWork = yield* UnitOfWork;",
+        "  return yield* unitOfWork.atomic(work);",
+        "});",
+      ].join("\n"),
+      "packages/trips/src/adapters/memory/store.ts":
+        "export const put = UnitOfWork.required.pipe(Effect.andThen(write));\n",
+      "packages/trips/src/tests/facade.test.ts": "export const t = UnitOfWork.atomic(work);\n",
+    });
+    assert.equal(result.status, 1);
+    assert.deepEqual(problemLines(result), ["packages/trips/src/facade.ts:3"]);
+    assert.match(result.stderr, /a module opens a unit of work/);
   });
 });
