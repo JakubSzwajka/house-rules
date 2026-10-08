@@ -162,13 +162,41 @@ The watch gets a fourth argument, `facts`, a `CallFacts`. A watch that takes thr
 | `kind` | `"read"` when the contract has `annotations: { readOnly: true }`, else `"write"` |
 | `targetId` | the input field the contract names in `audit: { target: "tripId" }`, only when its value is a string, capped at 256 characters; else `null` |
 | `channel` | `"mcp"` or `"mcp:<client name>"` during an MCP tool call; else the `CallChannel` reference, `"unknown"` by default |
-| `requestId` | the `CallRequestId` reference, `null` by default |
+| `requestId` | the `CallRequestId` reference, which `withRequestId` sets; `null` by default |
 
 `audit.target` must name a key of the input whose type can be a string. Naming a number field or a missing key is a type error. It is a field name, not a function, so no computed value can reach the audit.
 
 Review rule: `audit.target` must name an id field, such as `tripId`, never free text such as a title or a note. The type only checks that the value is a string. It cannot prove the string is an id, so `audit: { target: "note" }` compiles and stores the note. Reviewers check each `audit.target` by hand.
 
-The MCP channel needs no wiring. The Effect `McpServer` provides `McpRequestContext` to every tool call, including the tools `toTool` builds, and the facts read the client name from it. The name keeps only letters, digits, `.`, `_`, `-` and spaces, at most 40 characters. An MCP call wins over any `CallChannel` the app set. The app sets the other channels itself, such as `Effect.provideService(CallChannel, "web")` in its web runner, and may set `CallRequestId` per request so the calls of one request group together.
+The MCP channel needs no wiring. The Effect `McpServer` provides `McpRequestContext` to every tool call, including the tools `toTool` builds, and the facts read the client name from it. The name keeps only letters, digits, `.`, `_`, `-` and spaces, at most 40 characters. An MCP call wins over any `CallChannel` the app set. The app sets the other channels itself, such as `Effect.provideService(CallChannel, "web")` in its web runner. The request id is wired at the app's edge too; see the next section.
+
+### Request id
+
+One id per incoming request ties its audit rows and its log lines together, so a bug report can quote it. The package ships the pieces; the app wires them at its edge:
+
+| Export | What it does |
+| --- | --- |
+| `requestIdHeader` | `"x-request-id"`, the header the app reads, forwards and echoes |
+| `requestIdOf(value)` | the value when it is a safe id (`^[A-Za-z0-9._:-]{1,128}$`), else `null` |
+| `newRequestId` | an `Effect<string>`: 32 random hex characters from Effect's `Random`, so a test can seed it |
+| `withRequestId(id)` | wraps an effect: provides `CallRequestId` and adds the log annotation `requestId`, so every log line inside carries it, not only the audit line |
+
+```
+client ──► proxy / server middleware
+             id = requestIdOf(incoming x-request-id) ?? fresh id
+             forwards it on the request, echoes it on the response
+           ──► route / page / action / MCP route
+                 effect.pipe(withRequestId(id))
+                 ──► capability ──► audit row request_id = id
+                                    log lines {requestId: id}
+```
+
+```ts
+const id = requestIdOf(request.headers.get(requestIdHeader)) ?? (yield* newRequestId);
+return yield* capability.handler(input).pipe(withRequestId(id));
+```
+
+A valid incoming id is kept, so an id set by a proxy or a client in front can be followed through. Anything else is replaced. The id only traces a request: it grants nothing and never decides access, so a client that sends its own id can only confuse its own trail. Free text never reaches the audit, because `requestIdOf` lets only id characters through. `withRequestId` is dual: `withRequestId(effect, id)` works too. An inner `withRequestId` wins over an outer one.
 
 ### Units of work
 
@@ -330,4 +358,4 @@ It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Appr
 
 ## Exports
 
-`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, `CallWatch`, `UnitOfWork`, and `CurrentUnit` services, the `CallChannel` and `CallRequestId` references, `mcpChannel`, `isMcpChannel`, `maxClientNameLength`, `maxTargetIdLength`, `sqlUnitOfWork` and `memoryUnitOfWork`, the `Forbidden`, `ApprovalDenied`, `NoOpenUnit`, and `UnitOfWorkFailed` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `CallFacts`, `CallKind`, `AuditDeclaration`, `AuditOptions`, `StringKeyOf`, `GrantRequirement`, `ApprovalRequirement`, `UnitOfWorkRequirement`, `GateRequirements`, `UnitOfWorkService`, `OpenUnit`, `Atomic`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, and `ToToolOptions`.
+`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, `CallWatch`, `UnitOfWork`, and `CurrentUnit` services, the `CallChannel` and `CallRequestId` references, `withRequestId`, `requestIdOf`, `newRequestId`, `requestIdHeader`, `mcpChannel`, `isMcpChannel`, `maxClientNameLength`, `maxTargetIdLength`, `sqlUnitOfWork` and `memoryUnitOfWork`, the `Forbidden`, `ApprovalDenied`, `NoOpenUnit`, and `UnitOfWorkFailed` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `CallFacts`, `CallKind`, `AuditDeclaration`, `AuditOptions`, `StringKeyOf`, `GrantRequirement`, `ApprovalRequirement`, `UnitOfWorkRequirement`, `GateRequirements`, `UnitOfWorkService`, `OpenUnit`, `Atomic`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, and `ToToolOptions`.

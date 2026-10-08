@@ -30,7 +30,7 @@
     "@biomejs/biome": "2.5.14",
     "@effect/tsgo": "0.45.0",
     "@eslint/markdown": "8.0.3",
-    "@house-rules/rules": "workspace:0.7.0",
+    "@house-rules/rules": "workspace:0.8.0",
     "@swc/core": "1.16.2",
     "dependency-cruiser": "18.4.0",
     "eslint": "10.11.0",

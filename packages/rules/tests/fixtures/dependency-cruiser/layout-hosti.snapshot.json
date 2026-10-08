@@ -175,7 +175,7 @@
     },
     {
       "name": "adapter-imports-only-in-adapters",
-      "severity": "warn",
+      "severity": "error",
       "from": {
         "path": "^packages/[^/]+/src/",
         "pathNot": [

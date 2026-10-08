@@ -27,7 +27,6 @@ const RULES = [
   "no-ownerless-files",
   "adapter-imports-only-in-adapters",
 ];
-const WARN_RULES = new Set(["adapter-imports-only-in-adapters"]);
 // An unresolvable deep import is also an unresolved import; both rules are meant to fire.
 const ALSO_FIRES = { "no-unresolved-deep-package-imports": ["no-unresolved-imports"] };
 
@@ -41,7 +40,7 @@ test("layout() with drunk-cat-stack's scope matches the snapshot", async () => {
   assert.deepEqual(config, snapshot);
   assert.deepEqual(
     config.forbidden.map(({ name, severity }) => [name, severity]),
-    RULES.map((name) => [name, WARN_RULES.has(name) ? "warn" : "error"]),
+    RULES.map((name) => [name, "error"]),
   );
 });
 

@@ -1,4 +1,4 @@
-import { CallChannel, CallRequestId, defineContract, implement } from "@house-rules/capability";
+import { CallChannel, defineContract, implement, withRequestId } from "@house-rules/capability";
 import { Context, DateTime, Duration, Effect, Option, Schema } from "effect";
 import { McpSchema } from "effect/unstable/ai";
 import { AuditStore } from "../index.ts";
@@ -64,10 +64,7 @@ export const overMcp = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
     }),
   );
 
-export const inRequest =
-  (requestId: string) =>
-  <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-    effect.pipe(Effect.provideService(CallRequestId, requestId));
+export const inRequest = (requestId: string) => withRequestId(requestId);
 
 export const daysAgo = (days: number) =>
   DateTime.now.pipe(
