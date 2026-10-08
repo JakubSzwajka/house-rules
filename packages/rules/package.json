@@ -2,7 +2,7 @@
   "name": "@house-rules/rules",
   "version": "0.7.0",
   "private": true,
-  "description": "House rules and house configs for AI-assisted codebases: ESLint rules (comment discipline, broken Markdown links, design tokens), a Dependency Cruiser layout preset, TypeScript and Biome presets, and an exact-pins checker.",
+  "description": "House rules and house configs for AI-assisted codebases: ESLint rules (comment discipline, broken Markdown links, design tokens), a @shadcn/lint preset, a Dependency Cruiser layout preset, TypeScript and Biome presets, and an exact-pins checker.",
   "license": "MIT",
   "type": "module",
   "files": [
@@ -32,6 +32,10 @@
       "import": "./src/design.mjs",
       "default": "./src/design.mjs"
     },
+    "./shadcn": {
+      "import": "./src/shadcn.mjs",
+      "default": "./src/shadcn.mjs"
+    },
     "./dependency-cruiser": {
       "require": "./src/dependency-cruiser.cjs",
       "import": "./src/dependency-cruiser.cjs",
@@ -43,7 +47,7 @@
   },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "typecheck": "node --check src/index.mjs && node --check src/markdown.mjs && node --check src/design.mjs && node --check src/dependency-cruiser.cjs && node --check bin/pins.mjs && node --check bin/migrations.mjs && node --check src/module-list.mjs && node --check src/sql-text.mjs && node --check src/import-bindings.mjs && node --check src/use-case-is-capability.mjs && node --check src/no-hand-rolled-surface.mjs && node --check src/comment-discipline.mjs && node --check src/comment-directives.mjs && node --check src/comment-ranges.mjs && node --check src/no-broken-relative-links.mjs && node --check src/relative-links.mjs && node --check src/repository-paths.mjs && node --check src/colors.mjs && node --check src/css-values.mjs && node --check src/design-tokens.mjs && node --check src/file-globs.mjs && node --check src/design-no-raw-color.mjs && node --check src/design-no-raw-color-literal.mjs && node --check src/design-no-unknown-token.mjs && node --check src/design-scale-value.mjs",
+    "typecheck": "node --check src/index.mjs && node --check src/markdown.mjs && node --check src/design.mjs && node --check src/shadcn.mjs && node --check src/dependency-cruiser.cjs && node --check bin/pins.mjs && node --check bin/migrations.mjs && node --check src/module-list.mjs && node --check src/sql-text.mjs && node --check src/import-bindings.mjs && node --check src/use-case-is-capability.mjs && node --check src/no-hand-rolled-surface.mjs && node --check src/comment-discipline.mjs && node --check src/comment-directives.mjs && node --check src/comment-ranges.mjs && node --check src/no-broken-relative-links.mjs && node --check src/relative-links.mjs && node --check src/repository-paths.mjs && node --check src/colors.mjs && node --check src/css-values.mjs && node --check src/design-tokens.mjs && node --check src/file-globs.mjs && node --check src/design-no-raw-color.mjs && node --check src/design-no-raw-color-literal.mjs && node --check src/design-no-unknown-token.mjs && node --check src/design-scale-value.mjs",
     "check": "pnpm run test && pnpm run typecheck",
     "pack:check": "npm pack --dry-run"
   },
@@ -53,6 +57,7 @@
   "peerDependencies": {
     "@eslint/css": "^2.0.0",
     "@eslint/markdown": "^8.0.3",
+    "@shadcn/lint": "^0.2.0",
     "dependency-cruiser": "^18.4.0",
     "eslint": ">=9"
   },
@@ -61,6 +66,9 @@
       "optional": true
     },
     "@eslint/markdown": {
+      "optional": true
+    },
+    "@shadcn/lint": {
       "optional": true
     },
     "dependency-cruiser": {
@@ -74,6 +82,7 @@
     "@biomejs/biome": "2.5.14",
     "@eslint/css": "2.0.0",
     "@eslint/markdown": "8.0.3",
+    "@shadcn/lint": "0.2.0",
     "dependency-cruiser": "18.4.0",
     "eslint": "10.11.0",
     "typescript": "6.0.3",
