@@ -1,11 +1,30 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { layout } from "../src/dependency-cruiser.cjs";
 import { findSubjectFolderCycles } from "../src/subject-folder-cycles.mjs";
 import { cruiseFixture, fromPaths, violatedRules } from "./dependency-cruiser-helpers.mjs";
 
+const layoutBin = fileURLToPath(new URL("../bin/layout.mjs", import.meta.url));
+
+async function runLayoutFixture(fixture, config) {
+  return cruiseFixture(fixture, config, ({ workspace, summary }) => {
+    writeFileSync(
+      path.join(workspace, ".dependency-cruiser.cjs"),
+      `module.exports = ${JSON.stringify(config)};\n`,
+    );
+    const result = spawnSync(process.execPath, [layoutBin, "--cwd", workspace], {
+      encoding: "utf8",
+    });
+    return { ...result, summary };
+  });
+}
+
 // The package checks: mechanism names (part of no-ownerless-files), package-root-files,
-// domain-does-not-import-adapters, subjects-do-not-import-package-root and no-subject-folder-cycles.
+// domain-does-not-import-adapters, subjects-do-not-import-package-root and both cycle checks.
 test("the package layout rules build their patterns from the options", () => {
   const byName = Object.fromEntries(
     layout({
@@ -167,6 +186,48 @@ test("domain-does-not-import-adapters allows test support only from tests", asyn
     "domain-does-not-import-adapters: packages/a/src/tests/bookings.test.ts -> packages/a/src/adapters/postgres/booking.ts",
     "production-does-not-import-tests: packages/a/src/booking/describe.ts -> packages/a/src/adapters/tests/support.ts",
   ]);
+});
+
+test("no-package-cycles fails a package cycle hidden by package entry points", async () => {
+  const config = layout({ scope: "@acme/" });
+  const { status, stderr, summary } = await runLayoutFixture("package-graph-cycle", config);
+
+  assert.equal(status, 1, stderr);
+  assert.ok(!summary.violations.some(({ rule }) => rule.name === "no-cycles"));
+  assert.match(stderr, /no-package-cycles: 1 cycle\(s\) between workspace packages/u);
+  assert.match(stderr, /@acme\/a -> @acme\/b -> @acme\/a/u);
+  assert.match(
+    stderr,
+    /@acme\/a -> @acme\/b: packages\/a\/src\/feature\/x\.ts -> packages\/b\/src\/index\.ts/u,
+  );
+  assert.match(
+    stderr,
+    /@acme\/b -> @acme\/a: packages\/b\/src\/feature\/y\.ts -> packages\/a\/src\/index\.ts/u,
+  );
+});
+
+test("no-package-cycles passes a one-way package dependency", async () => {
+  const config = layout({ scope: "@acme/" });
+  const { status, stdout, stderr } = await runLayoutFixture("package-graph-one-way", config);
+  assert.equal(status, 0, stderr);
+  assert.match(stdout, /layout: no package or subject-folder cycles/u);
+});
+
+test("no-package-cycles passes a test-only package cycle", async () => {
+  const config = layout({ scope: "@acme/" });
+  const { status, stdout, stderr } = await runLayoutFixture("package-graph-test-only", config);
+  assert.equal(status, 0, stderr);
+  assert.match(stdout, /layout: no package or subject-folder cycles/u);
+});
+
+test("no-package-cycles skips a packages folder without package.json", async () => {
+  const config = layout({ scope: "@acme/" });
+  const { status, stdout, stderr } = await runLayoutFixture(
+    "package-graph-missing-manifest",
+    config,
+  );
+  assert.equal(status, 0, stderr);
+  assert.match(stdout, /layout: no package or subject-folder cycles/u);
 });
 
 test("no-subject-folder-cycles catches a production cycle that crosses files", async () => {

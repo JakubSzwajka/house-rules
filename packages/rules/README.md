@@ -1,6 +1,6 @@
 # @house-rules/rules
 
-House rules and house configs. One exact GitHub commit pin brings all of it: nine ESLint rules, 20 Dependency Cruiser layout rules, a subject-folder cycle check, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Private, not on npm.
+House rules and house configs. One exact GitHub commit pin brings all of it: nine ESLint rules, 20 Dependency Cruiser layout rules, subject-folder and package-cycle checks, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Private, not on npm.
 
 ## Install
 
@@ -64,6 +64,7 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `domain-does-not-import-adapters` | Only `index.ts`, `facade.ts`, and files under `src/adapters/` may import the package's own adapters; test files may also import `src/adapters/tests/`, but no other file may | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
 | `subjects-do-not-import-package-root` | A file in a subject folder importing its own package's `index.ts` or `facade.ts` | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
 | `no-subject-folder-cycles` | Subject folders of one package importing each other in a cycle, even when no file-level cycle exists | Node | `house-rules-layout` bin | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
+| `no-package-cycles` | Workspace packages importing each other in a production cycle, even when no file-level cycle exists | Node | `house-rules-layout` bin | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
 | `adapter-imports-only-in-adapters` | A package file outside `src/adapters/` importing `effect/unstable/sql`, `@effect/sql-*`, `@effect/platform-*`, or a workspace package listed in `adapterImports` (always an error) | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | Strict compiler flags | 15 flags: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and more | TypeScript | `tsconfig/strict.json` | [tsconfig.md](docs/tsconfig.md) |
 | Effect diagnostics | 31 diagnostics set to error | TypeScript | `tsconfig/effect.json` | [tsconfig.md](docs/tsconfig.md) |
@@ -148,7 +149,7 @@ Biome replaces an extended `files.includes` instead of merging, so it stays in t
 ```sh
 pnpm test           # Run tests
 pnpm run check      # Tests, then a syntax check of every source file
-pnpm run layout     # Check production subject-folder cycles
+pnpm run layout     # Check production subject-folder and package cycles
 pnpm run pack:check # Verify tarball
 ```
 

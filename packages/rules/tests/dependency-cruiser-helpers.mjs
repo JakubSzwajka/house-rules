@@ -31,7 +31,7 @@ async function stubPackage(workspace, manifest, files, store) {
 // Copies a fixture tree to a temporary workspace and links each package into node_modules, as pnpm does.
 // A stub `test-runner` package stands in for a third-party import such as `@effect/vitest`, and stub
 // `effect`, `@effect/sql-pg` and `@effect/platform-node` packages for the adapter imports.
-export async function cruiseFixture(fixture, config) {
+export async function cruiseFixture(fixture, config, inspect) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "house-rules-depcruise-"));
   try {
     await cp(path.join(FIXTURES, fixture), workspace, { recursive: true });
@@ -74,11 +74,8 @@ export async function cruiseFixture(fixture, config) {
     for (const name of existsSync(packagesDir) ? await readdir(packagesDir) : []) {
       const manifest = path.join(packagesDir, name, "package.json");
       if (!existsSync(manifest)) continue;
-      const link = path.join(
-        workspace,
-        "node_modules",
-        JSON.parse(await readFile(manifest, "utf8")).name,
-      );
+      const packageName = JSON.parse(await readFile(manifest, "utf8")).name;
+      const link = path.join(workspace, "node_modules", packageName);
       await mkdir(path.dirname(link), { recursive: true });
       await symlink(path.join(packagesDir, name), link, "dir");
     }
@@ -91,7 +88,9 @@ export async function cruiseFixture(fixture, config) {
       validate: true,
       outputType: "json",
     });
-    return JSON.parse(output);
+    const report = JSON.parse(output);
+    if (inspect) return inspect({ ...report, workspace });
+    return report;
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }

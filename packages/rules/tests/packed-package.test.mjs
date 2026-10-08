@@ -131,7 +131,7 @@ assert.equal(migrations.status, 0, migrations.stderr);
 assert.match(migrations.stdout, /migrations: no SQL migrations found/);
 const layoutBin = spawnSync("node_modules/.bin/house-rules-layout", [], { encoding: "utf8" });
 assert.equal(layoutBin.status, 0, layoutBin.stderr);
-assert.match(layoutBin.stdout, /layout: no subject-folder cycles/);
+assert.match(layoutBin.stdout, /layout: no package or subject-folder cycles/);
 assert.equal(houseRules.configs.capability[0].rules["house-rules/no-hand-rolled-surface"], "error");
 assert.equal(houseRules.configs.capability[1].rules["house-rules/use-case-is-capability"], "error");
 assert.equal(houseRules.configs.capability[2].rules["house-rules/no-hand-run-effect"], "error");
