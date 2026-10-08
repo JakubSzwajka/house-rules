@@ -1,16 +1,16 @@
 import { Crypto, Effect, FileSystem, Path } from "effect";
 import * as Migrator from "effect/unstable/sql/Migrator";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
-import { checkApplied, lockHistory, toMigrationRecord } from "./internal/history.ts";
-import { readMigrationFiles } from "./internal/migration-files.ts";
-import { checkIdentities, readModuleList } from "./internal/module-list.ts";
+import { checkApplied, lockHistory, toMigrationRecord } from "./history/history.ts";
+import { readMigrationFiles } from "./migration/migration-files.ts";
+import { checkIdentities, readModuleList } from "./module-list/module-list.ts";
 import {
   type AppliedMigration,
   MigrationFailed,
   type MigrationModule,
   type MigrationReport,
   type ModuleReport,
-} from "./types.ts";
+} from "./migration/migration.ts";
 
 const readModules = Effect.fnUntraced(function* readModules(listFile: string) {
   const fs = yield* FileSystem.FileSystem;

@@ -1,8 +1,8 @@
 import { Effect, Schema } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
 import * as SqlSchema from "effect/unstable/sql/SqlSchema";
-import { clampLimit } from "../../internal/limits.ts";
-import { AuditReadFailed, AuditRow, type ReadRowsOptions } from "../../types.ts";
+import { clampLimit } from "../../audit/limits.ts";
+import { AuditReadFailed, AuditRow, type ReadRowsOptions } from "../../audit/audit.ts";
 
 export const readRows = (options: ReadRowsOptions = {}) =>
   Effect.gen(function* readAuditRows() {

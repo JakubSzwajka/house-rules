@@ -2,16 +2,16 @@ import { CallWatch } from "@house-rules/capability";
 import { Effect, Layer } from "effect";
 import { postgresAuditStore } from "./adapters/postgres/postgres-audit-store.ts";
 import { readRows } from "./adapters/postgres/read-rows.ts";
-import { retentionLoop, runRetention } from "./internal/retention.ts";
-import { logLine, makeWatch, policyRecorder, storeRecorder } from "./internal/watch.ts";
-import { policy, presets } from "./policy.ts";
+import { retentionLoop, runRetention } from "./retention/retention.ts";
+import { logLine, makeWatch, policyRecorder, storeRecorder } from "./watch/watch.ts";
+import { policy, presets } from "./policy/policy.ts";
 import { AuditStore } from "./storage.ts";
 import type {
   AuditEntry,
   CallAuditLayerOptions,
   CallAuditOptions,
   CallAuditTableOptions,
-} from "./types.ts";
+} from "./audit/audit.ts";
 
 export type MemoryAuditLog = Readonly<{
   entries: () => ReadonlyArray<AuditEntry>;

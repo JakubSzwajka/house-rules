@@ -28,15 +28,15 @@ It is a GitHub template. Create a repo from it with `gh repo create <name> --tem
 ```
 
 ```text
-pnpm check ─> pins ─> migrations ─> env:check ─> biome ─> lint ─> turbo run typecheck ─> deps
+pnpm check ─> pins ─> migrations ─> env:check ─> biome ─> lint ─> turbo run typecheck ─> deps ─> layout
 pnpm test  ─> node --test tests/ ─> turbo run test
 ```
 
-Root tools run once over the whole repo. Turborepo runs `typecheck` and `test` in each workspace package, in dependency order. Packages export TypeScript source, so there is no build step. Caching is off, so a gate always runs. CI runs `pnpm install --frozen-lockfile`, `pnpm check`, and `pnpm test`, nothing else.
+Root tools run once over the whole repo. The layout bin checks production subject-folder cycles after Dependency Cruiser; test paths, adapters and package-root files do not add edges. Turborepo runs `typecheck` and `test` in each workspace package, in dependency order. Packages export TypeScript source, so there is no build step. Caching is off, so a gate always runs. CI runs `pnpm install --frozen-lockfile`, `pnpm check`, and `pnpm test`, nothing else.
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.9.0`. Biome skips `packages/rules/tests/fixtures`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.10.0`. Biome skips `packages/rules/tests/fixtures`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
@@ -88,6 +88,9 @@ These are what a reviewer checks. A green `pnpm check` says nothing about them.
 - Domain code decides, the store answers. A module's port never decides a permission, a standing, or a limit.
 - Only the composition root, `src/server/` or `src/main.ts`, provides services and slots. Delivery provides only per-request values: the Viewer, the call channel, the request id, and a Grant or Approval it fills for this request.
 - One service per file, named after its job, with its Layer beside it as a static member. A storage port is the exception: its layers are the adapters under `src/adapters/`.
+- A module is cut by life cycle, not by noun. It holds one consistency and access boundary, and a thing with its own life gets its own module.
+- Modules are composed in use-cases. No package composes other packages while there is one app.
+- Adapters mirror the subjects: `adapters/<kind>/<subject>.ts` holds that subject's SQL or memory code.
 
 ## Fence
 
@@ -123,7 +126,7 @@ Start from the template, or copy these into an existing pnpm workspace:
 4. [ ] The fence: `.nvmrc`, `lefthook.yml`, `scripts/`, `tests/`, `.agents/settings.json`, `.pi/extensions/git-interceptor.ts`, `NOTICE`. Add `skills/` if your agents should use them.
 5. [ ] `AGENTS.md`, rewritten for your project. Write your own `VISION.md`.
 6. [ ] Rename `@hosti/` everywhere: package names, dependencies, imports, `Context.Service` keys, and the `scope` passed to `layout()`.
-7. [ ] If your folders differ, pass `layout()` options such as `appsDir`, `packagesDir`, `layers`, `publicEntry`, `internalDir`, `appEntryFiles`, `ownerlessNames`, or `testsDir`. The house-rules docs explain each one.
+7. [ ] If your folders differ, pass `layout()` options such as `appsDir`, `packagesDir`, `layers`, `publicEntry`, `internalDir`, `appEntryFiles`, `ownerlessNames`, `mechanismNames`, `packageRootFiles`, `facadeFile`, or `testsDir`. The house-rules docs explain each one.
 8. [ ] Run `pnpm install`, then `pnpm check` and `pnpm test`.
 
 ### Using the rules in another app
@@ -189,7 +192,7 @@ Its README lists the install steps, the permission and approval gates, and what 
 
 ### Add a package
 
-Follow [`skills/add-an-effect-module/SKILL.md`](skills/add-an-effect-module/SKILL.md). In short: copy `packages/bookings`, keep `exports` to `"." : "./src/index.ts"`, keep private code in `src/internal/`, and run `pnpm install`.
+Follow [`skills/add-an-effect-module/SKILL.md`](skills/add-an-effect-module/SKILL.md). In short: copy `packages/bookings`, keep `exports` to `"." : "./src/index.ts"`, lay the code out in subject folders such as `src/booking/`, and run `pnpm install`.
 
 ### Let agents call a use-case
 

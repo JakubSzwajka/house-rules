@@ -168,10 +168,73 @@
       "name": "no-ownerless-files",
       "severity": "error",
       "module": {
-        "path": "^(?:apps|packages)/(?:.*/)?(?:utils|helpers|misc)(?:[.][^/]*)?(?:/|$)",
+        "path": [
+          "^(?:apps|packages)/(?:.*/)?(?:utils|helpers|misc)(?:[.][^/]*)?(?:/|$)",
+          "^packages/[^/]+/(?:.*/)?(?:[tT][yY][pP][eE][sS]|[mM][oO][dD][eE][lL][sS]|[sS][cC][hH][eE][mM][aA][sS]|[dD][rR][aA][fF][tT][sS]|[eE][rR][rR][oO][rR][sS]|[vV][aA][lL][iI][dD][aA][tT][eE]|[vV][aA][lL][iI][dD][aA][tT][iI][oO][nN]|[cC][oO][nN][sS][tT][aA][nN][tT][sS]|[iI][nN][tT][eE][rR][fF][aA][cC][eE][sS]|[iI][nN][tT][eE][rR][nN][aA][lL])(?:[.][^/]*)?(?:/|$)"
+        ],
         "numberOfDependentsLessThan": 100
       },
       "from": {}
+    },
+    {
+      "name": "package-root-files",
+      "severity": "error",
+      "module": {
+        "path": "^packages/[^/]+/src/[^/]+$",
+        "pathNot": [
+          "^packages/[^/]+/src/(?:index[.]ts|facade[.]ts|storage[.]ts)$",
+          "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+        ],
+        "numberOfDependentsLessThan": 100
+      },
+      "from": {}
+    },
+    {
+      "name": "domain-does-not-import-adapters",
+      "severity": "error",
+      "from": {
+        "path": "^(packages/[^/]+)/src/",
+        "pathNot": [
+          "^packages/[^/]+/src/adapters(?:/|$)",
+          "^packages/[^/]+/src/index[.]ts$",
+          "^packages/[^/]+/src/facade[.]ts$"
+        ]
+      },
+      "to": {
+        "path": "^$1/src/adapters(?:/|$)",
+        "pathNot": "^$1/src/adapters/tests(?:/|$)"
+      }
+    },
+    {
+      "name": "domain-does-not-import-adapters",
+      "severity": "error",
+      "from": {
+        "path": "^(packages/[^/]+)/src/",
+        "pathNot": [
+          "^packages/[^/]+/src/adapters(?:/|$)",
+          "^packages/[^/]+/src/index[.]ts$",
+          "^packages/[^/]+/src/facade[.]ts$",
+          "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+        ]
+      },
+      "to": {
+        "path": "^$1/src/adapters/tests(?:/|$)"
+      }
+    },
+    {
+      "name": "subjects-do-not-import-package-root",
+      "severity": "error",
+      "from": {
+        "path": "^(packages/[^/]+)/src/[^/]+/",
+        "pathNot": [
+          "^packages/[^/]+/src/adapters(?:/|$)",
+          "^packages/[^/]+/src/(?:tests?|__tests__)(?:/|$)",
+          "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+        ]
+      },
+      "to": {
+        "path": "^$1/(?:src/index[.]ts|src/facade[.]ts)$"
+      }
     },
     {
       "name": "adapter-imports-only-in-adapters",

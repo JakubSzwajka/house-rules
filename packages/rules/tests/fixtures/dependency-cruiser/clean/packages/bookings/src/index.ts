@@ -1,1 +1,1 @@
-export { findBooking } from "./internal/find-booking";
+export { findBooking } from "./booking/find-booking";

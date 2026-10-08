@@ -1,1 +1,1 @@
-export { secret } from "@acme/a/internal/secret";
+export { secret } from "@acme/a/private/secret";

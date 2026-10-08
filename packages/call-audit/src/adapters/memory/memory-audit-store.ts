@@ -1,8 +1,8 @@
 import { Effect, Layer } from "effect";
-import { auditClasses, clampBatchSize, clampLimit, noneDeleted } from "../../internal/limits.ts";
-import { classOf } from "../../policy.ts";
+import { auditClasses, clampBatchSize, clampLimit, noneDeleted } from "../../audit/limits.ts";
+import { classOf } from "../../policy/policy.ts";
 import { AuditStore } from "../../storage.ts";
-import type { AuditClass, AuditRow, RetentionCutoffs } from "../../types.ts";
+import type { AuditClass, AuditRow, RetentionCutoffs } from "../../audit/audit.ts";
 
 const newestFirst = (left: AuditRow, right: AuditRow): number =>
   right.recordedAt.getTime() - left.recordedAt.getTime();

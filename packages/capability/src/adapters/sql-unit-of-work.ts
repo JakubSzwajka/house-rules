@@ -1,6 +1,6 @@
 import { Cause, Context, Effect, Exit, Layer } from "effect";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
-import { holdsClosedUnit, UnitOfWork, UnitOfWorkFailed } from "../unit-of-work.ts";
+import { holdsClosedUnit, UnitOfWork, UnitOfWorkFailed } from "../unit-of-work/unit-of-work.ts";
 
 const describe = (failure: unknown): string =>
   failure instanceof Error ? failure.message : String(failure);

@@ -31,7 +31,7 @@ async function stubPackage(workspace, manifest, files, store) {
 // Copies a fixture tree to a temporary workspace and links each package into node_modules, as pnpm does.
 // A stub `test-runner` package stands in for a third-party import such as `@effect/vitest`, and stub
 // `effect`, `@effect/sql-pg` and `@effect/platform-node` packages for the adapter imports.
-export async function violatedRules(fixture, config) {
+export async function cruiseFixture(fixture, config) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "house-rules-depcruise-"));
   try {
     await cp(path.join(FIXTURES, fixture), workspace, { recursive: true });
@@ -91,11 +91,15 @@ export async function violatedRules(fixture, config) {
       validate: true,
       outputType: "json",
     });
-    const { summary } = JSON.parse(output);
-    return summary.violations.map(({ rule, from, to }) => ({ rule: rule.name, from, to }));
+    return JSON.parse(output);
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
+}
+
+export async function violatedRules(fixture, config) {
+  const { summary } = await cruiseFixture(fixture, config);
+  return summary.violations.map(({ rule, from, to }) => ({ rule: rule.name, from, to }));
 }
 
 export const ruleNames = (violations) => [...new Set(violations.map(({ rule }) => rule))].sort();
