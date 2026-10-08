@@ -11,7 +11,7 @@ It is a GitHub template. Create a repo from it with `gh repo create <name> --tem
 ```text
 .
 ├── apps/api/               @hosti/api: delivery, server, use-cases
-├── packages/bookings/      @hosti/bookings: one Effect module, src/index.ts is its only export
+├── packages/bookings/      @hosti/bookings: one Effect module with a storage port and two adapters, src/index.ts is its only export
 ├── packages/call-audit/    @house-rules/call-audit: an audit trail of capability calls, as log lines or table rows
 ├── packages/capability/    @house-rules/capability: contracts, handlers, and toTool
 ├── packages/migrations/    @house-rules/migrations: runs the migrations of every listed module
@@ -36,7 +36,7 @@ Root tools run once over the whole repo. Turborepo runs `typecheck` and `test` i
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.6.0`. Biome skips `packages/rules/tests/fixtures`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.7.0`. Biome skips `packages/rules/tests/fixtures`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
@@ -85,7 +85,8 @@ These are what a reviewer checks. A green `pnpm check` says nothing about them.
 - Nobody loosens a compiler option in a `tsconfig.json`. TypeScript accepts `strict: true` next to `strictNullChecks: false`.
 - Nobody switches off or weakens a preset rule in a thin config. The wiring test only checks that each preset is still extended.
 - A cartridge passes the pull-out test. Delete its package and its one `Layer.provide` line, and the rest still builds and passes. A reviewer runs the test in their head for each new cartridge.
-- One module write method is one transaction; a read method may run without one. A use-case never opens one. The migrations bin catches only `withTransaction` and a `begin` string in a use-case.
+- A module opens no transaction. The use-case opens the unit of work (`transactional: true`, or `UnitOfWork.atomic` in its handler), and a module's write runs inside it. The migrations bin catches a raw `withTransaction` or `begin` outside an adapter package and a module that calls `UnitOfWork.atomic`; it cannot see a unit opened through an alias.
+- Domain code decides, the store answers. A module's port never decides a permission, a standing, or a limit.
 
 ## Fence
 
@@ -204,7 +205,7 @@ apps/api
       └──────────────────────> @hosti/bookings  (Bookings type, BookingPermissions value)
 ```
 
-The package exposes a `Bookings` service, a `Booking` schema, and a typed `BookingNotFound` error. The package also names its permission, `bookings:read`. The `showBooking` use-case is a capability: a contract that names `Booking` as its output, `BookingNotFound` as its failure, and `bookings:read` as its permission, plus a handler that yields the service. The HTTP handler calls `showBooking.handler({ id })`, maps `BookingNotFound` to a 404 and `Forbidden` to a 403 once, so its error channel is `never`. It provides a `Grant` for each request: the example has no sign-in, so every visitor holds `bookings:read`. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
+The package exposes a `Bookings` service, a `Booking` schema, and typed `BookingNotFound`, `BookingAlreadyExists`, and `BookingStoreUnavailable` errors. The package also names its permission, `bookings:read`. `Bookings` talks only to its storage port, `BookingStore`. The package ships two adapters for it: a memory adapter (`memoryBookingStore`, behind `Bookings.fromRecords`) and a Postgres adapter in plain SQL (`postgresBookingStore`, with its migration in `packages/bookings/migrations/`). One shared suite in `src/adapters/tests/` runs every store case on both. `Bookings.create` is the write path: it runs inside an open unit of work and fails with `NoOpenUnit` without one, and the memory adapter registers an undo with `UnitOfWork.onRollback` so a rollback leaves no row. The `showBooking` use-case is a capability: a contract that names `Booking` as its output, `BookingNotFound` as its failure, and `bookings:read` as its permission, plus a handler that yields the service. The HTTP handler calls `showBooking.handler({ id })`, maps `BookingNotFound` to a 404, `BookingStoreUnavailable` to a 503, and `Forbidden` to a 403 once, so its error channel is `never`. It provides a `Grant` for each request: the example has no sign-in, so every visitor holds `bookings:read`. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
 
 ## Commands
 

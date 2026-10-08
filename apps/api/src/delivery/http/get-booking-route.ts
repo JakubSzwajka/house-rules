@@ -4,7 +4,7 @@ import { Effect, type Layer } from "effect";
 import { showBooking } from "../../use-cases/show-booking.js";
 
 export type BookingResponse = Readonly<{
-  status: 200 | 403 | 404;
+  status: 200 | 403 | 404 | 503;
   body: string;
 }>;
 
@@ -24,6 +24,11 @@ export const bookingResponse = (
         Effect.succeed<BookingResponse>({
           status: 404,
           body: `Booking ${error.id} was not found.`,
+        }),
+      BookingStoreUnavailable: () =>
+        Effect.succeed<BookingResponse>({
+          status: 503,
+          body: "Bookings are unavailable right now.",
         }),
       Forbidden: () =>
         Effect.succeed<BookingResponse>({ status: 403, body: "You may not read bookings." }),

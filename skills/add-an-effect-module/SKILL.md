@@ -13,8 +13,8 @@ Before you start, read `effect/AGENTS.md` in any workspace package's `node_modul
 
 Create `packages/<name>/` with these files, copied from `packages/bookings`:
 
-1. `package.json`. Set `name` to `@hosti/<name>`, or your own scope. `exports` names one entry, `"." : "./src/index.ts"`. Add no other `exports` path. Keep the `typecheck` and `test` scripts. Pin `effect`, `@effect/vitest`, `typescript`, and `vitest` to the same exact versions the other workspace packages use.
-2. `tsconfig.json`, which extends `../../tsconfig.base.json`.
+1. `package.json`. Set `name` to `@hosti/<name>`, or your own scope. `exports` names one entry, `"." : "./src/index.ts"`. Add no other `exports` path. Keep the `typecheck` and `test` scripts. Pin `effect`, `@effect/vitest`, `typescript`, and `vitest` to the same exact versions the other workspace packages use. A module that stores data also depends on `@house-rules/capability`, for `UnitOfWork`.
+2. `tsconfig.json`, which extends `../../tsconfig.base.json`. A package that imports `@house-rules/capability` or `@house-rules/migrations` sets `allowImportingTsExtensions`, as `packages/bookings/tsconfig.json` does.
 3. `vitest.config.ts`.
 
 Then run `pnpm install` so pnpm links the new package and updates `pnpm-lock.yaml`.
@@ -25,39 +25,38 @@ Inside `packages/<name>/src/`:
 
 1. Put the data types and the expected errors in `types.ts`. Each expected error is a `Schema.TaggedError` class, such as `BookingNotFound`. Never fail with a global `Error`.
 2. Put private code under `internal/`, in files named after what they own. Nothing outside the package imports them. A file or folder named `utils`, `helpers`, or `misc` fails `no-ownerless-files`.
-3. Put the service in `facade.ts`. Use a `Context.Service` class. Its methods return `Effect.Effect<Success, TypedError>` with no requirements. Give it a static layer, such as `Bookings.fromRecords`.
+3. Put the service in `facade.ts`. Use a `Context.Service` class. Its methods return `Effect.Effect<Success, TypedError>` with no requirements. A module with no storage gives it a static layer. A module with storage builds the service over its storage port instead, as step 3 of the storage list says.
 4. Write `index.ts` as the one public entry. Name each export. No `export *`.
 5. Give each data type a `Schema`, such as `Booking = Schema.Struct({ ... })`, and export it with its type. A capability's contract names it as its output.
 
 ```ts
 export class Bookings extends Context.Service<
   Bookings,
-  { readonly get: (id: string) => Effect.Effect<Booking, BookingNotFound> }
+  {
+    readonly get: (id: string) => Effect.Effect<Booking, BookingNotFound | BookingStoreUnavailable>;
+    readonly create: (
+      booking: Booking,
+    ) => Effect.Effect<Booking, BookingAlreadyExists | BookingStoreUnavailable | NoOpenUnit>;
+  }
 >()("@hosti/bookings/Bookings") {
-  static readonly fromRecords = (records: readonly Booking[]): Layer.Layer<Bookings> =>
-    Layer.succeed(this, {
-      get: Effect.fn("Bookings.get")(function* get(id: string) {
-        const booking = findBooking(records, id);
-        if (booking === undefined) {
-          return yield* new BookingNotFound({ id });
-        }
-        return booking;
-      }),
-    });
+  // The facade over any BookingStore. It never imports SQL.
+  static readonly layer: Layer.Layer<Bookings, never, BookingStore> = Layer.effect(this, /* ... */);
 }
 ```
 
-If the module stores data, it owns its tables:
+If the module stores data, it owns its tables and puts them behind a storage port:
 
-1. Put its migrations in `packages/<name>/migrations/*.sql`. A table belongs to the package whose migration creates it.
-2. No foreign key to another package's table. Keep the other module's id as a plain column, and ask that module's service for the record.
-3. The module's SQL names only its own tables. To read another module's data, call its service.
-4. A service method that writes is one transaction, and the method opens it. A read method may run without one. A use-case never opens one.
-5. Register the module in `migrations.json` at the repository root: add `{ "workspace": "packages/<name>" }` to `"modules"`. `@house-rules/migrations` then runs its files into its own history table, `<name>_migrations`. Name each file `<id>_<name>.sql`, such as `0001_booking.sql`, and never edit one after it ran: the runner checks each file's SHA-256.
-6. No ORM and no query builder. Write plain SQL through `SqlClient` from `effect/unstable/sql`, inside the service, and decode each row with a `Schema` before it leaves the module.
-7. Test the SQL against a real Postgres, not a fake client. Run `docker compose up -d` once. In the test, build the database with `MigrationsTesting.database` from `@house-rules/migrations`, run the module's migrations with `Migrations.run`, and provide the service on top, as `packages/call-audit/src/tests/call-audit-table.test.ts` does. The package's `test` script runs `varlock run --path ../../ -- vitest run`, so the test reads `TEST_DATABASE_ADMIN_URL` from the root `.env.schema`. The Postgres driver (`@effect/sql-pg`) and `@effect/platform-node` are devDependencies there; adding them to a new package is a dependency change, so ask the owner first.
+1. Put its migrations in `packages/<name>/migrations/*.sql`. A table belongs to the package whose migration creates it. Name each file `<id>_<name>.sql`, such as `0001_bookings.sql`, and never edit one after it ran: the runner checks each file's SHA-256.
+2. No foreign key to another package's table. Keep the other module's id as a plain column, and ask that module's service for the record. The module's SQL names only its own tables.
+3. **The port.** Define the storage port in `src/storage.ts` as a `Context.Service`, in the module's own words, such as `BookingStore`, and give it a module-owned error, such as `BookingStoreUnavailable`. The port answers facts and never decides a permission, a standing, or a limit. The facade, `Bookings`, talks only to the port. Domain code imports no SQL, no driver, and no platform package.
+4. **The memory adapter.** Put it in `src/adapters/memory/`, such as `memoryBookingStore(records)`. It keeps plain data. Its write calls `UnitOfWork.required`, then registers an undo with `UnitOfWork.onRollback`, so a failed unit leaves no row. Build `<Service>.fromRecords` or an equivalent from it for the tests of apps.
+5. **The Postgres adapter.** Put it in `src/adapters/postgres/`, such as `postgresBookingStore`, a `Layer` that needs `SqlClient` from `effect/unstable/sql`. Write plain SQL, no ORM and no query builder, and decode each row with a `Schema` (`SqlSchema`) before it leaves the adapter. A write calls `UnitOfWork.required` first and then runs its statement on the injected client, which joins the open transaction. Only files under `src/adapters/**` may import `effect/unstable/sql`, `@effect/sql-*`, or `@effect/platform-*`.
+6. **No transaction in the module.** A write method never opens a unit of work and never calls `withTransaction`. It runs inside the unit the use-case opened and fails with `NoOpenUnit` when none is open. One unit may span several modules. Section 3, "Compose it in a use-case", says how the use-case opens it.
+7. **Export both adapters** from `src/index.ts`, next to the port, so an app picks one and the suite imports them from the public entry.
+8. **The shared suite.** Write one test file in `src/adapters/tests/` that loops over both adapters and runs every case on each, as `packages/bookings/src/adapters/tests/booking-store.test.ts` does: a write with no open unit fails with `NoOpenUnit`, a failure inside the unit leaves no row, and each read and write works. Postgres comes from `MigrationsTesting.database` from `@house-rules/migrations` plus `Migrations.run` over the module's own folder, with `sqlUnitOfWork`; memory comes with `memoryUnitOfWork`. Run `docker compose up -d` once. The package's `test` script runs `varlock run --path ../../ -- vitest run`, so the suite reads `TEST_DATABASE_ADMIN_URL` from the root `.env.schema`. Test SQL against a real Postgres, never a fake client. Domain tests (policy, limits, validation) may run on memory only. The Postgres driver (`@effect/sql-pg`), `@effect/platform-node`, and `@house-rules/migrations` are devDependencies there; adding them to a new package is a dependency change, so ask the owner first.
+9. Register the module in `migrations.json` at the repository root: add `{ "workspace": "packages/<name>" }` to `"modules"`. `@house-rules/migrations` then runs its files into its own history table, `<name>_migrations`.
 
-`pnpm run migrations` checks the first three with a text scan, fails when a package with a `migrations/` folder is missing from `migrations.json`, and catches a use-case that calls `withTransaction` or sends `begin`. The rest of rule 4 is a review rule. `packages/rules/docs/migrations.md` lists what the scan misses.
+`pnpm run migrations` checks the module's own tables and foreign keys with a text scan, fails when a package with a `migrations/` folder is missing from `migrations.json`, and catches a raw `withTransaction` or `begin` outside an adapter package and a module that calls `UnitOfWork.atomic`. `adapter-imports-only-in-adapters` warns about SQL, driver, or platform imports outside `src/adapters/`. `packages/rules/docs/migrations.md` lists what the scan misses.
 
 The dependency-cruiser rules already cover a new package. `packages-public-entry-only` and `packages-imported-by-name` apply to every folder under `packages/`. If you use a new scope, change the `scope` option passed to `layout()` in `.dependency-cruiser.cjs`.
 
@@ -99,7 +98,7 @@ export const showBooking = implement(showBookingContract, ({ id }) =>
 );
 ```
 
-The handler yields the service and calls its methods. Let typed errors flow through the error channel. Do not catch them here, and do not open a transaction. Set `readOnly` when the action only reads, and `destructive` when it deletes or overwrites. Every contract names a `permission`, a `resource:action` string the module exports, such as `BookingPermissions.read`. Write `permission: "public"` only for an action any caller may run. Set `needsApproval: true` when a human must confirm each call. The package names its permissions next to its data, as `packages/bookings/src/permissions.ts` does. An action with no input uses `NoInput` from `@house-rules/capability`. `use-case-is-capability` fails a use-case file that exports anything else.
+The handler yields the service and calls its methods. Let typed errors flow through the error channel. Do not catch them here. To make the writes atomic, set `transactional: true` on the contract: `implement` then wraps the handler in a unit of work after the gates. When only a part must be atomic, call `UnitOfWork.atomic(...)` around that part instead. Either way the use-case opens the transaction, and the module never does. One unit may cover writes in several modules. Set `readOnly` when the action only reads, and `destructive` when it deletes or overwrites. Every contract names a `permission`, a `resource:action` string the module exports, such as `BookingPermissions.read`. Write `permission: "public"` only for an action any caller may run. Set `needsApproval: true` when a human must confirm each call. The package names its permissions next to its data, as `packages/bookings/src/permissions.ts` does. An action with no input uses `NoInput` from `@house-rules/capability`. `use-case-is-capability` fails a use-case file that exports anything else.
 
 ## 4. Map errors once in delivery
 
@@ -128,7 +127,7 @@ pnpm test
 | --- | --- |
 | `pnpm run pins` | Every `package.json` in the workspace pins exact versions, including `workspace:0.0.0`. The plugin's `house-rules-pins` bin runs the check. |
 | `pnpm run typecheck` | Effect diagnostics in every workspace package: no floating Effects, no global `Error` in the failure channel, no `Effect.run*` inside Effect code, no leaked requirements. |
-| `pnpm run migrations` | Each module's migrations sit in `packages/<name>/migrations/`, `migrations.json` lists every module that has them, and no foreign key or SQL string the scan can read names another package's table. No use-case calls `withTransaction` or sends `begin`. It is a text scan, so a review still checks that each write method opens its own transaction. |
+| `pnpm run migrations` | Each module's migrations sit in `packages/<name>/migrations/`, `migrations.json` lists every module that has them, and no foreign key or SQL string the scan can read names another package's table. No code outside an adapter package calls `withTransaction` or sends `begin`, and no module calls `UnitOfWork.atomic`. It is a text scan, so a review still checks that every write runs inside a unit the use-case opened. |
 | `pnpm run deps` | Packages do not import apps, apps import packages only by name and only through `src/index.ts`, use-cases do not import delivery, server, or each other, app code sits in a layer, and no file is named `utils`, `helpers`, or `misc`. |
 | `pnpm run lint` | No comments that restate the code. Each use-case file exports one capability. No MCP tool, RPC, or HTTP endpoint is built by hand. |
 | `pnpm run biome` | Named barrel exports and file names. |

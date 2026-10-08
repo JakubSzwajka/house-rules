@@ -8,13 +8,17 @@
   },
   "scripts": {
     "typecheck": "tsc --project tsconfig.json",
-    "test": "vitest run"
+    "test": "varlock run --path ../../ -- vitest run"
   },
   "dependencies": {
+    "@house-rules/capability": "workspace:0.8.0",
     "effect": "4.0.0-rc.117"
   },
   "devDependencies": {
+    "@effect/platform-node": "4.0.0-rc.117",
+    "@effect/sql-pg": "4.0.0-rc.117",
     "@effect/vitest": "4.0.0-rc.117",
+    "@house-rules/migrations": "workspace:0.1.0",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
   }

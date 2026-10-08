@@ -15,7 +15,7 @@ export class UnitOfWorkFailed extends Schema.TaggedError<UnitOfWorkFailed>()("Un
 }
 
 export type OpenUnit = Readonly<{
-  onRollback: (undo: Effect.Effect<void>) => Effect.Effect<void>;
+  onRollback: (undo: Effect.Effect<void>) => Effect.Effect<void, NoOpenUnit>;
 }>;
 
 export const CurrentUnit = Context.Reference<OpenUnit | undefined>(
@@ -70,7 +70,7 @@ export const makeUnitOfWork = (
               Effect.suspend(() =>
                 liveUnits.has(unit)
                   ? Effect.sync(() => void hooks.unshift(undo))
-                  : Effect.die(new NoOpenUnit()),
+                  : Effect.fail(new NoOpenUnit()),
               ),
           };
           const close = Effect.sync(() => void liveUnits.delete(unit));
