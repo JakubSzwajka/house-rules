@@ -2,7 +2,7 @@
 
 This file is the law for agents and people working in this repo, and in any project made from its template, the stack. Read `VISION.md` for why. It does not override this file. Read `CONTEXT.md` for the words this repo uses.
 
-The house rules and the tool configs come from the plugin `@house-rules/rules`, which lives in `packages/rules`. The root uses it as `workspace:0.8.0`. This repo keeps thin configs that extend its presets, the project values such as the `@hosti/` scope, and the files no tool can inherit. Change a house rule in `packages/rules`, not by copying a preset into a thin config.
+The house rules and the tool configs come from the plugin `@house-rules/rules`, which lives in `packages/rules`. The root uses it as `workspace:0.9.0`. This repo keeps thin configs that extend its presets, the project values such as the `@hosti/` scope, and the files no tool can inherit. Change a house rule in `packages/rules`, not by copying a preset into a thin config.
 
 ## Commands
 
@@ -41,8 +41,12 @@ The rules table in the house-rules README lists every checked rule, its tool, an
 
 ## Layers inside an app
 
+- An app is cut by layer first, on purpose: delivery, server, use-cases, because the layer rules check the imports between them. A package is cut by module.
 - Delivery and server never import each other.
-- Use-cases import packages. They never import delivery, server, or another use-case. Each top-level file or folder under `use-cases/` is one use-case for that import rule.
+- Each entry point has one **composition root**: `src/server/`, or `src/main.ts` when the app has no server folder. Only the root provides services and slots: module layers, storage adapters, cartridges, and a `Grant` or `Approval` that is the same for every request. Delivery provides only per-request values: the `Viewer`, the `CallChannel`, the request id through `withRequestId`, and the `Grant` and `Approval` an adapter fills for this one request. `apps/api/src/server/app-layer.ts` is the example root. It provides `Bookings` and the visitor `Grant`, and the route provides nothing.
+- The entry point joins delivery and the root. It runs a delivery handler over the root's layer. When the root needs a delivery value, such as an MCP toolkit, it takes the value as an argument and never imports it.
+- Use-cases import packages. They never import delivery, server, or another use-case. Each top-level file or folder under `use-cases/` is one use-case for that import rule, so the files inside one folder may import each other. Each of those files is still one capability, so shared logic that is not a capability goes into a package.
+- Group by default: use-cases by the module they mostly call, such as `use-cases/bookings/`, and delivery by mechanism, such as `delivery/http/` and `delivery/mcp/`.
 - Every use-case is a capability. Each non-test file under `use-cases/`, nested folders included, exports exactly one `implement(...)` capability from `@house-rules/capability`, at most one `defineContract(...)` contract, and no other value. Types are fine. Delivery calls the capability through its `handler`. `use-case-is-capability` checks this.
 - Surfaces come from contracts. An MCP tool is built with `toTool(capability.contract, ...)`. No app or package calls `Tool.make`, `Rpc.make`, or `HttpApiEndpoint.<method>` by hand; only `packages/capability` may. `no-hand-rolled-surface` checks this. An RPC or HTTP projection gets added to `packages/capability` first.
 - App code sits in `src/delivery/`, `src/server/`, or `src/use-cases/`. Only `src/main.ts` and `src/index.ts` sit directly in `src/`.
@@ -70,8 +74,9 @@ Before you edit Effect code, read `effect/AGENTS.md` and the docs under `effect/
 
 - Expected errors are typed. Define each one as a `Schema.TaggedError` class and put it in the error channel. Never fail with a global `Error`, and never `throw` inside Effect code.
 - A package's service methods return Effects with no requirements. The service captures its own dependencies.
+- One service per file. Each `Context.Service` class gets its own file, named after its job, such as `storage.ts` for `BookingStore` or `owner-standing.ts` for `OwnerStanding`. Its Layer sits beside it, as a static member built with `Layer.effect`, the way `Bookings.layer` does in `packages/bookings/src/facade.ts`. A storage port is the exception: its layers are the adapters under `src/adapters/`.
 - Delivery maps typed errors to responses once, in the handler. Use-cases let them flow.
-- Never run an Effect by hand inside Effect code or tests. No `Effect.run*` and no hand-built runtime. Tests use `it.effect` or `it.layer` from `@effect/vitest`. Only an application entry point runs Effects.
+- Never run an Effect by hand inside Effect code or tests. No `Effect.run*` and no hand-built runtime. Tests use `it.effect` or `it.layer` from `@effect/vitest`. Only an application entry point runs Effects. `no-hand-run-effect` fails `Effect.run*` and `ManagedRuntime.make` in test files.
 - Pin all Effect packages together. `effect`, `@effect/vitest`, and any other `@effect/*` runtime package share one exact version, and a bump moves all of them in the same change. `@effect/tsgo` versions separately and must support the pinned TypeScript.
 - Never set an Effect diagnostic below `error` to make a change pass, and never override the plugin's Effect preset in `tsconfig.base.json` or a package's `tsconfig.json`. A `plugins` entry there replaces the whole Effect block. Fix the code.
 

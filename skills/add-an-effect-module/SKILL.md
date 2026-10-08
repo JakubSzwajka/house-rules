@@ -27,8 +27,9 @@ Inside `packages/<name>/src/`:
 1. Put the data types and the expected errors in `types.ts`. Each expected error is a `Schema.TaggedError` class, such as `BookingNotFound`. Never fail with a global `Error`.
 2. Put private code under `internal/`, in files named after what they own. Nothing outside the package imports them. A file or folder named `utils`, `helpers`, or `misc` fails `no-ownerless-files`.
 3. Put the service in `facade.ts`. Use a `Context.Service` class. Its methods return `Effect.Effect<Success, TypedError>` with no requirements. A module with no storage gives it a static layer. A module with storage builds the service over its storage port instead, as step 3 of the storage list says.
-4. Write `index.ts` as the one public entry. Name each export. No `export *`.
-5. Give each data type a `Schema`, such as `Booking = Schema.Struct({ ... })`, and export it with its type. A capability's contract names it as its output.
+4. One service per file. A second service, such as a storage port or an owner-standing check, gets its own file named after its job, such as `storage.ts` or `owner-standing.ts`, never a shared `services.ts`. Its Layer sits beside it as a static member built with `Layer.effect`, as `Bookings.layer` does below. A storage port is the exception: its layers are the adapters under `src/adapters/`.
+5. Write `index.ts` as the one public entry. Name each export. No `export *`.
+6. Give each data type a `Schema`, such as `Booking = Schema.Struct({ ... })`, and export it with its type. A capability's contract names it as its output.
 
 ```ts
 export class Bookings extends Context.Service<
@@ -69,11 +70,11 @@ Add the package to the app that uses it:
 pnpm --filter @hosti/api add @hosti/<name>
 ```
 
-The app also needs `@house-rules/capability`. `apps/api` already has it as `"workspace:0.8.0"`. An app outside this repo installs it from GitHub, as `packages/capability/README.md` shows.
+The app also needs `@house-rules/capability`. `apps/api` already has it as `"workspace:0.10.0"`. An app outside this repo installs it from GitHub, as `packages/capability/README.md` shows.
 
 `saveWorkspaceProtocol: true` and `saveExact: true` in `pnpm-workspace.yaml` make pnpm write `"@hosti/<name>": "workspace:0.0.0"` into the app's `package.json`. Do not name a spec such as `@workspace:0.0.0` on the command line: pnpm then writes `workspace:*`, which the pin check rejects.
 
-Create `apps/<app>/src/use-cases/<action>.ts`. Import the module by its package name, never by a relative path into `packages/`. Do not import another use-case: `use-cases-do-not-import-use-cases` fails it. Move shared logic into the package.
+Create `apps/<app>/src/use-cases/<action>.ts`. Import the module by its package name, never by a relative path into `packages/`. Do not import another use-case: `use-cases-do-not-import-use-cases` fails it. A folder under `use-cases/` counts as one use-case, so the files in `use-cases/<module>/` may import each other. Group use-cases by the module they mostly call. Each file is still one capability, so move shared logic that is not a capability into the package.
 
 Every use-case is a capability. The file exports one contract and one capability, and nothing else but types:
 
@@ -109,19 +110,21 @@ The handler yields the service and calls its methods. Let typed errors flow thro
 
 ## 4. Map errors once in delivery
 
-Create the handler under `apps/<app>/src/delivery/`. It calls the use-case through its handler, such as `showBooking.handler({ id })`, and maps every typed error to a response in one place, with `Effect.catchTag` or `Effect.catchTags`. That includes the gate errors: `Forbidden` when the contract names a permission, and `ApprovalDenied` when it needs approval. Delivery also provides the `Grant` and, when needed, the `Approval` slot for each request, as `apps/api/src/delivery/http/get-booking-route.ts` does with its visitor grant. The handler's error channel ends as `never`.
+Create the handler under `apps/<app>/src/delivery/`. It calls the use-case through its handler, such as `showBooking.handler({ id })`, and maps every typed error to a response in one place, with `Effect.catchTag` or `Effect.catchTags`. That includes the gate errors: `Forbidden` when the contract names a permission, and `ApprovalDenied` when it needs approval. The handler's error channel ends as `never`. Group delivery by mechanism, such as `delivery/http/` and `delivery/mcp/`.
 
-Delivery returns an Effect. The entry point that owns the runtime runs it. Do not call `Effect.run*` inside Effect code.
+Delivery provides only per-request values: the `Viewer`, the `CallChannel`, the request id through `withRequestId`, and the `Grant` and `Approval` an adapter fills for this request, such as a Grant built from the signed-in user. Everything else comes from the app's one composition root, `src/server/` or `src/main.ts`. Provide the module's layer there, its storage adapter, and any Grant that is the same for every request. `apps/api/src/server/app-layer.ts` provides `Bookings` and the visitor Grant, and `apps/api/src/delivery/http/get-booking-route.ts` provides nothing.
+
+Delivery returns an Effect. The entry point that owns the runtime runs it over the root's layer. Do not call `Effect.run*` inside Effect code.
 
 ## 5. Test it
 
-Put each test in a `tests/` folder inside the folder it tests, as `<file>.test.ts`: `packages/<name>/src/tests/`, `apps/<app>/src/use-cases/tests/`, `apps/<app>/src/delivery/<kind>/tests/`. A package's own tests import `../index.js`, never `../internal/`. `pnpm check` fails on a test anywhere else, and on a test that imports `src/internal/`. Use `@effect/vitest`:
+Put each test in a `tests/` folder inside the folder it tests, as `<file>.test.ts`: `packages/<name>/src/tests/`, `apps/<app>/src/use-cases/tests/`, `apps/<app>/src/delivery/<kind>/tests/`, `apps/<app>/src/server/tests/`. A package's own tests import `../index.js`, never `../internal/`. `pnpm check` fails on a test anywhere else, and on a test that imports `src/internal/`. Use `@effect/vitest`:
 
 - `it.layer(<Service>.<layer>)` to provide the service;
 - `it.effect` for each case;
 - `Effect.flip` to inspect an expected error.
 
-Do not call `Effect.run*` or build a runtime by hand in tests.
+Do not call `Effect.run*` or build a runtime by hand in tests. `no-hand-run-effect` fails `Effect.run*` and `ManagedRuntime.make` in any test file.
 
 ## 6. Prove it
 
@@ -136,7 +139,7 @@ pnpm test
 | `pnpm run typecheck` | Effect diagnostics in every workspace package: no floating Effects, no global `Error` in the failure channel, no `Effect.run*` inside Effect code, no leaked requirements. |
 | `pnpm run migrations` | Each module's migrations sit in `packages/<name>/migrations/`, `migrations.json` lists every module that has them, and no foreign key or SQL string the scan can read names another package's table. No code outside an adapter package calls `withTransaction` or sends `begin`, and no module calls `UnitOfWork.atomic`. It is a text scan, so a review still checks that every write runs inside a unit the use-case opened. |
 | `pnpm run deps` | Packages do not import apps, apps import packages only by name and only through `src/index.ts`, use-cases do not import delivery, server, or each other, app code sits in a layer, and no file is named `utils`, `helpers`, or `misc`. |
-| `pnpm run lint` | No comments that restate the code. Each use-case file exports one capability. No MCP tool, RPC, or HTTP endpoint is built by hand. |
+| `pnpm run lint` | No comments that restate the code. Each use-case file exports one capability. No MCP tool, RPC, or HTTP endpoint is built by hand. No test runs an Effect by hand. |
 | `pnpm run biome` | Named barrel exports and file names. |
 | `pnpm test` | The package, use-case, and delivery tests pass under Vitest in each workspace package. |
 

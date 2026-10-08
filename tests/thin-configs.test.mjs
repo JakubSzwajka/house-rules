@@ -70,7 +70,7 @@ describe("thin configs over the house plugin", () => {
     assert.match(scripts.check, /pnpm run migrations &&/);
   });
 
-  it("eslint.config.mjs turns on the capability rules for use-cases and delivery", async () => {
+  it("eslint.config.mjs turns on the capability rules for use-cases, delivery, and tests", async () => {
     const eslint = new ESLint({ cwd: repositoryRoot });
     const rulesFor = async (code, filePath) => {
       const [result] = await eslint.lintText(code, { filePath });
@@ -87,6 +87,13 @@ describe("thin configs over the house plugin", () => {
         "apps/api/src/delivery/mcp/wiring-probe.ts",
       ),
       ["house-rules/no-hand-rolled-surface"],
+    );
+    assert.deepEqual(
+      await rulesFor(
+        'import { Effect } from "effect";\nexport const run = () => Effect.runPromise(Effect.void);\n',
+        "apps/api/src/use-cases/tests/wiring-probe.test.ts",
+      ),
+      ["house-rules/no-hand-run-effect"],
     );
   });
 });

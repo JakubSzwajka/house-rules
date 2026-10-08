@@ -1,6 +1,6 @@
 # @house-rules/rules
 
-House rules and house configs. One exact GitHub commit pin brings all of it: eight ESLint rules, 17 Dependency Cruiser layout rules, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Private, not on npm.
+House rules and house configs. One exact GitHub commit pin brings all of it: nine ESLint rules, 17 Dependency Cruiser layout rules, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Private, not on npm.
 
 ## Install
 
@@ -43,6 +43,7 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `shadcn/*` (six rules from `@shadcn/lint`) | Restyled design-system components, raw palette colours, arbitrary values, inline styles, dynamic class names, and unknown Tailwind classes in JSX and TSX | ESLint | `shadcn()` factory | `docs/shadcn.md` |
 | `use-case-is-capability` | A use-case file that does not export exactly one `implement(...)` capability, exports a second contract, or exports another value | ESLint | `configs.capability` | [use-case-is-capability.md](docs/use-case-is-capability.md) |
 | `no-hand-rolled-surface` | `Tool.make`, `Rpc.make`, or `HttpApiEndpoint.<method>` outside `packages/capability/**` | ESLint | `configs.capability` | [no-hand-rolled-surface.md](docs/no-hand-rolled-surface.md) |
+| `no-hand-run-effect` | `Effect.run*` or `ManagedRuntime.make` in a test file; tests use `it.effect` or `it.layer` | ESLint | `configs.capability` | [no-hand-run-effect.md](docs/no-hand-run-effect.md) |
 | `no-cycles` | Circular imports | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `packages-do-not-import-apps` | Packages importing apps | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `apps-do-not-import-other-apps` | Apps importing other apps | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
@@ -131,7 +132,7 @@ module.exports = require("@house-rules/rules/dependency-cruiser").layout({
 }
 ```
 
-`configs.capability` runs `no-hand-rolled-surface` on JS, JSX, MJS, CJS, TS, TSX, MTS, and CTS files, and `use-case-is-capability` on TS, TSX, MTS, and CTS files. Its defaults match the stack layout: use-cases in `apps/*/src/use-cases/`, surfaces built only in `packages/capability/`. Set the `include`, `exclude`, or `allow` option only when the layout differs.
+`configs.capability` runs `no-hand-rolled-surface` on JS, JSX, MJS, CJS, TS, TSX, MTS, and CTS files, `use-case-is-capability` on TS, TSX, MTS, and CTS files, and `no-hand-run-effect` on test files: anything under a `tests/` folder or named `*.test.*` or `*.spec.*`. Its defaults match the stack layout: use-cases in `apps/*/src/use-cases/`, surfaces built only in `packages/capability/`. Set the `include`, `exclude`, or `allow` option only when the layout differs.
 
 `shadcn()` runs `@shadcn/lint` on JSX and TSX with the setup its adoption guide gives: five rules at `error` and `no-unknown-classes` at `warn`, with three rules off in the component folder. An app that already has findings starts with `severity: "warn"`, as above. `docs/shadcn.md` covers the options, the TypeScript 7 caveat, and how it overlaps the design rules.
 
