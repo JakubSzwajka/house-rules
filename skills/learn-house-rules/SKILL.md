@@ -23,24 +23,16 @@ A repo made from the template has the same shape, with its own scope instead of 
 1. `AGENTS.md`. The law. It wins over everything else, this skill included.
 2. `CONTEXT.md`. The words. Use them as written: a *module* is a package, a *capability* is one action, the *fence* is what blocks skipped checks.
 3. `README.md`. The layout, the commands, and the prose rules no tool checks.
-4. The docs site, `https://stack.kubaszwajka.com`, for one topic at a time.
+4. The rules page, `https://stack.kubaszwajka.com/rules/`, or the rules table in `packages/rules/README.md`, when you need one rule.
 
-For the site, fetch Markdown, not HTML:
-
-| URL | Use it to |
-| --- | --- |
-| `/llms.txt` | See every page with a one-line description. |
-| `/llms-full.txt` | Load every page at once. |
-| `/<path>.md` | Read one page, such as `/guides/the-fence.md` or `/rules.md`. |
-
-Offline, read the same pages in `site/src/content/docs/`.
+The docs site is for people deciding on the template. It has two pages, `/start/` and `/rules/`, and `/llms.txt` points back to `AGENTS.md`. Offline, read `site/src/content/docs/`.
 
 ## 3. Find the rule behind an error
 
 A failing check names its rule: `house-rules/comment-discipline`, `no-cycles`, `useFilenamingConvention`, `TS377001 ... effect(floatingEffect)`.
 
-1. Open `/rules.md` on the site, or `packages/rules/README.md` in the repo. Find the rule's row.
-2. Open the rule's page, `/rules/<tool>/<rule>.md`. It shows what the rule catches, its metadata, and its docs.
+1. Open `/rules/#<rule id>` on the site, such as `/rules/#comment-discipline`, or find the rule's row in `packages/rules/README.md`.
+2. Follow the row's source link to the rule's doc in `packages/rules/docs/`.
 3. Fix the code. Never switch the rule off, skip the hook, or widen a pin.
 
 `pnpm check` and `pnpm test` must both exit 0 before a change is ready.
@@ -52,7 +44,7 @@ A failing check names its rule: `house-rules/comment-discipline`, `no-cycles`, `
 | Add a module as a workspace package | `skills/add-an-effect-module/SKILL.md` |
 | Add one action to an app | `skills/add-a-capability/SKILL.md` |
 | Let agents call a use-case over MCP | `skills/add-an-mcp-tool/SKILL.md` |
-| Add or change a docs page | `skills/write-a-docs-page/SKILL.md` |
+| Change the docs site | `skills/write-a-docs-page/SKILL.md` |
 
 ## 5. Know what needs a yes
 

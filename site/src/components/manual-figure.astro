@@ -1,7 +1,9 @@
 ---
 // The figure from the assembly manual. He holds a part with a loose bolt that wobbles, and a wrench
 // hovers over it with a "tighten it" cue. It is a toggle button: pressing it (click, Enter or Space)
-// swings the wrench, the bolt seats, the wobble stops and he smiles. Home and 404 only.
+// swings the wrench, the bolt seats, the wobble stops and he smiles. The idle motion runs three times,
+// then again only on hover. The caption is drawn as a button, so the press is not a secret. Home and 404.
+// On the home page the refusal demo drives it too: an "hr-figure" event loosens or tightens the bolt.
 interface Props {
   readonly before?: string;
   readonly after?: string;
@@ -10,8 +12,8 @@ interface Props {
 }
 
 const {
-  before = "Loose bolt. Tighten it.",
-  after = "Loose parts wobble. Pin them.",
+  before = "Press to tighten the bolt",
+  after = "Tight. Press again to loosen it.",
   grid = false,
 } = Astro.props;
 ---
@@ -85,6 +87,12 @@ const {
       if (status) {
         status.textContent = pressed ? (button.dataset["after"] ?? "") : "";
       }
+    });
+    // The demo's own text tells the story, so a driven change stays silent here.
+    document.addEventListener("hr-figure", (event) => {
+      const tight = (event as CustomEvent<{ readonly tight: boolean }>).detail.tight;
+      button.setAttribute("aria-pressed", String(tight));
+      if (status) status.textContent = "";
     });
   }
 </script>
@@ -183,11 +191,21 @@ const {
 
   .caption {
     display: grid;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0.4rem 0.9rem;
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: var(--hr-radius);
+    background: var(--hr-paper);
+    color: var(--hr-ink-strong);
     font-weight: 600;
-    font-size: 0.95rem;
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 0.22em;
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  [aria-pressed="true"] .caption {
+    border-color: var(--hr-hairline);
+    color: var(--hr-ink);
   }
 
   /* before and after share one spot and swap */
@@ -206,9 +224,12 @@ const {
     visibility: visible;
   }
 
-  .figure:hover .caption {
-    background: var(--hr-accent);
-    color: var(--hr-on-accent);
+  /* Hover only while loose; after a press the pointer still sits on it, and a yellow chip would read as stuck. */
+  @media (hover: hover) {
+    .figure:not([aria-pressed="true"]):hover .caption {
+      background: var(--hr-accent);
+      color: var(--hr-on-accent);
+    }
   }
 
   /* Positions. The bolt pivots where it enters the part; the wrench pivots on the seated bolt head. */
@@ -241,17 +262,25 @@ const {
     stroke-width: 4;
   }
 
-  /* Motion: the bolt wobbles and the wrench bobs until pressed; pressing swings the wrench and seats the bolt. */
+  /* Motion: the bolt wobbles and the wrench bobs three times, then on hover; pressing swings the wrench and seats the bolt. */
   @media (prefers-reduced-motion: no-preference) {
     .bolt {
-      animation: hr-wobble 0.45s ease-in-out infinite alternate;
+      animation: hr-rock 0.9s ease-in-out 3;
     }
 
     .wobble {
-      animation: hr-blink 0.9s steps(2, jump-none) infinite;
+      animation: hr-blink 0.9s steps(2, jump-none) 3;
     }
 
     .wrench {
+      animation: hr-bob 1.6s ease-in-out 3;
+    }
+
+    .figure:not([aria-pressed="true"]):hover .bolt {
+      animation: hr-rock 0.9s ease-in-out infinite;
+    }
+
+    .figure:not([aria-pressed="true"]):hover .wrench {
       animation: hr-bob 1.6s ease-in-out infinite;
     }
 
@@ -261,6 +290,12 @@ const {
 
     [aria-pressed="true"] .wrench {
       animation: hr-swing 0.8s var(--hr-ease-out) both;
+    }
+
+    .caption {
+      transition:
+        background-color var(--hr-duration) var(--hr-ease-out),
+        border-color var(--hr-duration) var(--hr-ease-out);
     }
 
     .before,
@@ -276,11 +311,16 @@ const {
     }
   }
 
-  @keyframes hr-wobble {
-    from {
+  /* starts and ends at the resting tilt, so stopping after the last cycle does not jump */
+  @keyframes hr-rock {
+    0%,
+    100% {
+      transform: translate(0, -6px) rotate(16deg);
+    }
+    25% {
       transform: translate(0, -6px) rotate(9deg);
     }
-    to {
+    75% {
       transform: translate(0, -6px) rotate(23deg);
     }
   }

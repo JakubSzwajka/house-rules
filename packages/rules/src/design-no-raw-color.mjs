@@ -2,6 +2,7 @@ import { COLOR_KEYWORDS, nearestToken, parseColor } from "./colors.mjs";
 import { declarationValue, locOf, scanCssValue } from "./css-values.mjs";
 import { readTokens } from "./design-tokens.mjs";
 import { matchesAnyGlob } from "./file-globs.mjs";
+import { ruleDocsUrl } from "./rule-docs.mjs";
 
 export const DEFAULT_ALLOWED_COLOR_VALUES = [
   "transparent",
@@ -31,6 +32,7 @@ export const designNoRawColorRule = {
   meta: {
     type: "suggestion",
     docs: {
+      url: ruleDocsUrl("design-no-raw-color"),
       description: "Disallow raw colours in CSS declaration values outside the design-token files.",
     },
     messages: {

@@ -1,4 +1,5 @@
 import { matchesAnyGlob } from "./file-globs.mjs";
+import { ruleDocsUrl } from "./rule-docs.mjs";
 
 // A colour must follow a delimiter. Letters, digits, `&`, `/`, `.` or `?` before `#` mean an HTML entity
 // (`&#8599;`) or a URL fragment (`page#cafe`), not a colour.
@@ -81,6 +82,7 @@ export const designNoRawColorLiteralRule = {
   meta: {
     type: "suggestion",
     docs: {
+      url: ruleDocsUrl("design-no-raw-color-literal"),
       description:
         "Disallow raw hex colours and colour functions inside JavaScript and TypeScript strings.",
     },

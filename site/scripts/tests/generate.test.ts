@@ -1,93 +1,137 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { GENERATE_COMMAND } from "../generated-page.ts";
 import { generatedPages, staleGeneratedPages } from "../generation.ts";
-import { rawPath } from "../links.ts";
-import { llmsFiles, readContentPages, writeLlmsFiles } from "../llms-files.ts";
-import { readRuleRows } from "../rule-rows.ts";
+import { llmsFileAt, llmsText, writeLlmsFile } from "../llms-files.ts";
+import type { RuleRow } from "../rule-rows.ts";
+import { readRuleRows, TOOLS } from "../rule-rows.ts";
+import { refusalFor, ruleAnchor, SHADCN_ROW } from "../rules-table.ts";
 import { retargetHtml } from "../source-links.ts";
 import { atSourceRef, GITHUB_REPO, SITE_URL } from "../site-map.ts";
-import { readSkills } from "../skill-pages.ts";
 
 const pages = generatedPages();
-const paths = new Set(pages.map((page) => page.path));
+const rows = readRuleRows();
+const eslint = TOOLS.find((tool) => tool.slug === "eslint");
+assert.ok(eslint);
+
+const fakeRow = (id: string, catches = "Something"): RuleRow => ({
+  id,
+  catches,
+  tool: eslint,
+  enableVia: "x",
+  docPath: "packages/rules/docs/x.md",
+  docHash: "",
+});
 
 describe("generated pages", () => {
   it("match the committed files, so nobody hand-edits them", () => {
     assert.deepEqual(staleGeneratedPages(pages), [], `Run: ${GENERATE_COMMAND}`);
   });
 
-  it("give every row of the rules table its own page", () => {
-    const rows = readRuleRows();
-    assert.ok(rows.length >= 30, `only ${rows.length} rules parsed from the rules table`);
-    for (const row of rows) {
-      assert.ok(paths.has(`rules/${row.tool.slug}/${row.slug}.md`), `no page for rule ${row.id}`);
-    }
-    const rulePages = [...paths].filter(
-      (path) => path.startsWith("rules/") && !path.endsWith("index.md"),
+  it("are the one rules page", () => {
+    assert.deepEqual(
+      pages.map((page) => page.path),
+      ["rules/index.md"],
     );
-    assert.equal(rulePages.length, rows.length);
+  });
+});
+
+describe("rules page", () => {
+  const text = pages[0]?.text ?? "";
+  const anchors = [...text.matchAll(/<span id="([^"]+)"><\/span>/g)].map((match) => match[1]);
+
+  it("has one row with one anchor per row of the rules table", () => {
+    assert.ok(rows.length >= 30, `only ${rows.length} rules parsed from the rules table`);
+    assert.deepEqual(
+      anchors,
+      rows.map((row) => ruleAnchor(row.id)),
+    );
+    assert.equal(new Set(anchors).size, anchors.length, "two rules share an anchor");
   });
 
-  it("give every skill its own page", () => {
-    const skills = readSkills();
-    assert.ok(skills.length > 0);
-    for (const skill of skills) {
-      assert.ok(paths.has(`skills/${skill.name}.md`), `no page for skill ${skill.name}`);
+  it("keeps the anchors error messages link to", () => {
+    for (const anchor of [
+      "comment-discipline",
+      "no-hand-rolled-surface",
+      "shadcn",
+      "house-rules-migrations",
+      "strict-compiler-flags",
+      "noReExportAll",
+    ]) {
+      assert.ok(anchors.includes(anchor), `no #${anchor}`);
+    }
+  });
+
+  it("slugifies only ids that are not already an anchor", () => {
+    assert.equal(ruleAnchor("no-cycles"), "no-cycles");
+    assert.equal(ruleAnchor("useFilenamingConvention"), "useFilenamingConvention");
+    assert.equal(ruleAnchor("shadcn/*"), "shadcn");
+    assert.equal(ruleAnchor("Exact pins"), "exact-pins");
+  });
+
+  it("links every row to its docs on GitHub", () => {
+    for (const row of rows) {
+      assert.ok(
+        text.includes(`(${GITHUB_REPO}/blob/main/${row.docPath}${row.docHash})`),
+        `no source link for ${row.id}`,
+      );
     }
   });
 });
 
-describe("agent-readable output", () => {
-  const content = readContentPages();
-  const files = llmsFiles(content);
+describe("what a rule refuses", () => {
+  it("uses the first sentence of an ESLint rule's own description", () => {
+    const rules = { x: { meta: { docs: { description: "Forbid run* and a_b. Tests do it." } } } };
+    assert.equal(refusalFor(fakeRow("x"), rules), "Forbid `run*` and a\\_b.");
+    const css = { x: { meta: { docs: { description: "Require var(--name), always." } } } };
+    assert.equal(refusalFor(fakeRow("x"), css), "Require `var(--name)`, always.");
+  });
 
-  it("writes llms.txt, llms-full.txt and one Markdown copy per page", () => {
+  it("gives the shadcn row its README sentence", () => {
+    const shadcn = rows.find((row) => row.id === SHADCN_ROW);
+    assert.ok(shadcn, "the rules table has no shadcn row");
+    assert.equal(refusalFor(shadcn), `${shadcn.catches}.`);
+  });
+
+  it("does not treat any other namespaced ESLint row as shadcn", () => {
+    assert.throws(() => refusalFor(fakeRow("other/*")), /no such rule/);
+    assert.throws(() => refusalFor(fakeRow("shadcn/no-restyle")), /no such rule/);
+  });
+});
+
+describe("llms.txt", () => {
+  const text = llmsText();
+
+  it("names both pages, AGENTS.md and the repository", () => {
+    for (const part of [`${SITE_URL}/start/`, `${SITE_URL}/rules/`, "`AGENTS.md`", GITHUB_REPO]) {
+      assert.ok(text.includes(part), `llms.txt misses ${part}`);
+    }
+    assert.ok(text.includes("node_modules/@house-rules/capability/AGENTS.md"));
+  });
+
+  it("is the only file the build adds", () => {
     const outDir = mkdtempSync(join(tmpdir(), "house-rules-site-"));
     try {
-      writeLlmsFiles(outDir);
-      for (const path of [
-        "llms.txt",
-        "llms-full.txt",
-        ...content.map((page) => rawPath(page.contentPath)),
-      ]) {
-        assert.ok(existsSync(join(outDir, path)), `missing ${path}`);
-      }
-      const index = readFileSync(join(outDir, "llms.txt"), "utf8");
-      const full = readFileSync(join(outDir, "llms-full.txt"), "utf8");
-      for (const page of content) {
-        if (page.contentPath !== "index.md") {
-          assert.ok(
-            index.includes(`(${SITE_URL}/${rawPath(page.contentPath)})`),
-            `llms.txt misses ${page.contentPath}`,
-          );
-        }
-        assert.ok(full.includes(`# ${page.title}\n`), `llms-full.txt misses ${page.contentPath}`);
-      }
+      writeLlmsFile(outDir);
+      assert.deepEqual(readdirSync(outDir), ["llms.txt"]);
+      assert.equal(readFileSync(join(outDir, "llms.txt"), "utf8"), text);
     } finally {
       rmSync(outDir, { recursive: true, force: true });
     }
   });
 
-  it("names the source ref and points every source link at it", () => {
-    const ref = "docs/site";
-    const branch = llmsFiles(content, ref);
-    const index = branch.get("llms.txt") ?? "";
-    assert.ok(index.includes("`docs/site` ref"), "llms.txt does not name the ref");
-    assert.ok(!index.includes("code on main"), "llms.txt still claims main");
-    for (const [path, text] of branch) {
-      assert.ok(
-        !new RegExp(`${GITHUB_REPO}/(?:blob|tree)/main/`).test(text),
-        `${path} links to main`,
-      );
-    }
-    const full = branch.get("llms-full.txt") ?? "";
-    assert.ok(full.includes(`${GITHUB_REPO}/blob/docs/site/skills/`), "no skill link at the ref");
+  it("serves the same file in dev, and nothing else", () => {
+    assert.equal(llmsFileAt("/llms.txt?x=1")?.text, text);
+    assert.equal(llmsFileAt("/llms.txt")?.contentType, "text/plain; charset=utf-8");
+    assert.equal(llmsFileAt("/llms-full.txt"), undefined);
+    assert.equal(llmsFileAt("/rules.md"), undefined);
   });
+});
 
+describe("source links", () => {
   it("retargets only this repository's source links", () => {
     const own = `${GITHUB_REPO}/blob/main/skills/x/SKILL.md`;
     const other = "https://github.com/someone/else/blob/main/a.md";
@@ -117,21 +161,6 @@ describe("agent-readable output", () => {
       );
     } finally {
       rmSync(outDir, { recursive: true, force: true });
-    }
-  });
-
-  it("links only to pages that exist", () => {
-    const linked = [...files.values()].flatMap((text) =>
-      [...text.matchAll(new RegExp(`${SITE_URL}/([a-z0-9][a-z0-9/-]*\\.md)`, "g"))].map(
-        (match) => match[1],
-      ),
-    );
-    assert.ok(linked.length > 0);
-    for (const path of linked) {
-      assert.ok(
-        path !== undefined && files.has(path),
-        `link to a page that does not exist: ${path}`,
-      );
     }
   });
 });

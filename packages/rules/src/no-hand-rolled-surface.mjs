@@ -1,5 +1,6 @@
 import { matchesAnyGlob } from "./file-globs.mjs";
 import { importOf, staticPropertyName, unwrapExpression } from "./import-bindings.mjs";
+import { ruleDocsUrl } from "./rule-docs.mjs";
 
 const SURFACES = [
   { name: "Tool", barrel: /^effect\/unstable\/ai$/u, methods: new Set(["make"]) },
@@ -55,6 +56,7 @@ export const noHandRolledSurfaceRule = {
   meta: {
     type: "problem",
     docs: {
+      url: ruleDocsUrl("no-hand-rolled-surface"),
       description:
         "Forbid building MCP tools, RPCs, and HTTP API endpoints by hand outside the capability package; build them from a contract.",
     },

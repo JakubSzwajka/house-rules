@@ -33,6 +33,8 @@ The message is:
 
 > Rework this comment: remove it if it restates the code; prefer a clearer name, type, constant, assertion, or test. Keep only a necessary, non-obvious why in one line beside the constrained code.
 
+The rule sets `meta.docs.url` to its row on the rules page, `https://stack.kubaszwajka.com/rules/#comment-discipline`. Every rule in this plugin does the same.
+
 ## Closed exceptions
 
 Exceptions are syntax-owned forms. The rule accepts only their precise forms, and a nearby exception does not exempt prose in the same comment group.

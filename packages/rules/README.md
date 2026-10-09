@@ -76,6 +76,8 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | Exact pins | Every dependency must be an exact version, `workspace:<exact>`, or a Git spec with full commit SHA | Node | `house-rules-pins` bin | [pins.md](docs/pins.md) |
 | `house-rules-migrations` | Cross-module foreign keys, migrations or SQL strings that touch another package's tables, `.sql` files outside `<package>/migrations/` (a package's `fixtures/` and `tests/` excepted), a raw `withTransaction` or `begin` outside an adapter package, a module that opens a unit of work, a module with migrations that `migrations.json` does not list | Node | `house-rules-migrations` bin | [migrations.md](docs/migrations.md) |
 
+Each rule's row on [the rules page](https://stack.kubaszwajka.com/rules/) has an anchor, such as `/rules/#comment-discipline`. A failing ESLint rule sets that link as `meta.docs.url`, a Dependency Cruiser rule carries it in its `comment`, which only the `err-long` reporter prints (the root `deps` script passes `--output-type err-long`), and each bin ends its failure report with a `See <link>` line. The ESLint formatter `@house-rules/rules/eslint-formatter` prints ESLint's stylish output unchanged, then one `See <link>  (<rule id>)` line per failing house rule, and skips third-party rules; run it with `eslint --format ./node_modules/@house-rules/rules/src/eslint-formatter.mjs .`. ESLint 10.11.0 rejects `--format @house-rules/rules/eslint-formatter`, an arbitrary package subpath export, which is why the lint script uses a `node_modules` path. `src/rule-docs.mjs` builds the links, and `tests/rule-docs.test.mjs` checks that each one names a row in this table.
+
 ## Wire it up
 
 ```js

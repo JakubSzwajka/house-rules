@@ -1,190 +1,215 @@
 ---
-// Hero override for the splash home: the cover sheet (title, counts, tagline, actions, the figure), then the
-// three numbered assembly steps. The counts come from the rules table through the parts module.
+// Hero override for the splash home: the cover (headline, tagline, what it is, the figure), the refusal demo,
+// the template command with a copy button and the step after it, the two actions, a hazard-tape break with
+// the counts, and the section links. The footer carries the line for agents.
 import { LinkButton } from "@astrojs/starlight/components";
 import { parts, toolCount } from "virtual:house-rules/parts";
 import ManualFigure from "./manual-figure.astro";
+import RefusalDemo from "./refusal-demo.astro";
 
 const { data } = Astro.locals.starlightRoute.entry;
 const { title = data.title, tagline, actions = [] } = data.hero ?? {};
 
-const steps = [
-  {
-    drawing: "repo",
-    caption: "Make a repo from the template.",
-    commands: ["gh repo create <name> --template JakubSzwajka/house-rules"],
-  },
-  {
-    drawing: "install",
-    caption: "Install from the lockfile.",
-    commands: ["corepack enable", "pnpm install --frozen-lockfile"],
-  },
-  {
-    drawing: "check",
-    caption: "Check, then test. Both must exit 0.",
-    commands: ["pnpm check", "pnpm test"],
-  },
+const about = "A TypeScript template for projects agents help write.";
+
+// gh needs a visibility flag when it gets a name, and --clone so the next step has a folder to enter.
+const command = "gh repo create my-app --private --clone --template JakubSzwajka/house-rules";
+const checkCommand = "pnpm check";
+const nextStep = `cd my-app && pnpm install && ${checkCommand}`;
+// Split on spaces so a narrow screen wraps between words, never inside a flag or a repo name.
+// Browsers break after "-", so "--no-verify" would split at its dashes.
+const words = (text: string): readonly string[] => text.split(" ");
+
+// The counts come from the rules table the site already reads; the third is the pre-commit hook in lefthook.yml.
+const stats = [
+  { value: parts.length, label: parts.length === 1 ? "rule" : "rules" },
+  { value: toolCount, label: toolCount === 1 ? "tool" : "tools" },
+  { value: 1, label: "hook", runs: [checkCommand, "pnpm test"] },
+] as const;
+
+const sections = [
+  { text: "Start", href: "/start/" },
+  { text: "Rules", href: "/rules/" },
+  { text: "GitHub", href: "https://github.com/JakubSzwajka/house-rules" },
 ] as const;
 ---
 
 <div class="cover">
-  <div class="copy">
+  <div class="intro">
     <h1 id="_top" data-page-title set:html={title} />
-    <ul class="spec" aria-label="In the box">
-      <li><b>{parts.length}</b> rules</li>
-      <li><b>{toolCount}</b> tools</li>
-      <li>
-        <svg class="ticks" viewBox="0 0 52 24" aria-hidden="true" focusable="false">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M7.5 12 l3 3 l5.5 -6" />
-          <circle cx="40" cy="12" r="10" />
-          <path d="M35.5 12 l3 3 l5.5 -6" />
-        </svg>
-        <b>2</b> checks before every commit
-      </li>
-    </ul>
     {tagline && <p class="tagline" set:html={tagline} />}
-    {
-      actions.length > 0 && (
-        <div class="actions">
-          {actions.map(({ attrs: { class: className, ...attrs } = {}, icon, link: href, text, variant }) => (
-            <LinkButton {href} {variant} icon={icon?.name} class:list={[className]} {...attrs}>
-              {text}
-              {icon?.html && <Fragment set:html={icon.html} />}
-            </LinkButton>
-          ))}
-        </div>
-      )
-    }
+    <p class="about">{about}</p>
   </div>
   <div class="art">
     <ManualFigure grid />
   </div>
 </div>
 
-<section class="assembly" aria-labelledby="hr-assemble">
-  <h2 id="hr-assemble">Assemble a repo</h2>
-  <ol class="steps">
+<RefusalDemo />
+
+<section class="start" aria-label="Start a project">
+  <p class="step" id="hr-command-step">Make a private repo from the template:</p>
+  <div class="command" role="group" aria-labelledby="hr-command-step">
+    <span class="prompt" aria-hidden="true">$</span>
+    <code id="hr-command">
+      {words(command).map((word, at) => (
+        <>
+          {at > 0 && " "}
+          <span class="word">{word}</span>
+        </>
+      ))}
+    </code>
+    <button type="button" class="copy-button" data-hr-copy="#hr-command" aria-label="Copy the command">
+      <span data-hr-copy-label aria-hidden="true">Copy</span>
+      <span class="sr-only" role="status" data-hr-copy-status></span>
+    </button>
+  </div>
+  <p class="step then">Then install and run the checks:</p>
+  <code class="next">
+    {words(nextStep).map((word, at) => (
+      <>
+        {at > 0 && " "}
+        <span class="word">{word}</span>
+      </>
+    ))}
+  </code>
+  {
+    actions.length > 0 && (
+      <div class="actions">
+        {actions.map(({ attrs: { class: className, ...attrs } = {}, icon, link: href, text, variant }) => (
+          <LinkButton {href} {variant} icon={icon?.name} class:list={[className]} {...attrs}>
+            {text}
+            {icon?.html && <Fragment set:html={icon.html} />}
+          </LinkButton>
+        ))}
+      </div>
+    )
+  }
+</section>
+
+<section class="stats" aria-labelledby="hr-stats-title">
+  <h2 class="sr-only" id="hr-stats-title">The checks in numbers</h2>
+  <ul>
     {
-      steps.map((step, index) => (
-        <li class="panel">
-          <span class="num" aria-hidden="true">
-            {index + 1}
-          </span>
-          <svg class="drawing" viewBox="0 0 230 150" aria-hidden="true" focusable="false">
-            {step.drawing === "repo" ? (
-              <>
-                <path class="paper" d="M30 24 H170 V128 H30 Z" />
-                <path d="M30 44 H170" />
-                <text x="42" y="38">
-                  &lt;name&gt;
-                </text>
-                <path d="M44 64 h70 M44 80 h96 M44 96 h50" />
-                <circle class="accent" cx="184" cy="46" r="26" />
-                <path class="thick" d="M184 34 V58 M172 46 H196" />
-              </>
-            ) : (
-              <>
-                <rect class="paper" x="14" y="12" width="202" height="116" rx="8" />
-                <path d="M14 36 H216" />
-                <circle class="ink" cx="30" cy="24" r="3" />
-                <circle class="ink" cx="42" cy="24" r="3" />
-                <text x="30" y="66">
-                  {step.drawing === "install" ? "$ pnpm install" : "$ pnpm check"}
-                </text>
-                <path d="M30 84 h70 M30 98 h46" />
-                <circle class="accent" cx="182" cy="96" r="24" />
-                <path class="thick" d="M170 96 L179 106 L196 84" />
-              </>
+      stats.map((stat) => (
+        <li>
+          <span class="value">{stat.value}</span>{" "}
+          <span class="label">
+            {stat.label}
+            {"runs" in stat && " "}
+            {"runs" in stat && (
+              <span class="runs">
+                pre-commit: <code>{stat.runs[0]}</code> + <code>{stat.runs[1]}</code>
+              </span>
             )}
-          </svg>
-          <p class="step-caption">
-            <span class="sr-only">Step {index + 1}. </span>
-            {step.caption}
-          </p>
-          {step.commands.map((command) => (
-            <code>
-              {command.split(" ").map((word, at) => (
-                <>
-                  {at > 0 && " "}
-                  <span class="word">{word}</span>
-                </>
-              ))}
-            </code>
-          ))}
-          {index < steps.length - 1 && (
-            <svg class="arrow" viewBox="0 0 60 30" aria-hidden="true" focusable="false">
-              <path d="M4 15 H50 M38 5 L50 15 L38 25" />
-            </svg>
-          )}
+          </span>
         </li>
       ))
     }
-  </ol>
+  </ul>
+  <a class="every" href="/rules/">See every rule <span aria-hidden="true">→</span></a>
 </section>
 
+<nav class="sections" aria-label="Docs sections">
+  <ul>
+    {
+      sections.map((section) => (
+        <li>
+          <a href={section.href}>{section.text}</a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>
+
+<script>
+  const label = (button: HTMLElement, text: string): void => {
+    const visible = button.querySelector<HTMLElement>("[data-hr-copy-label]");
+    const status = button.querySelector<HTMLElement>("[data-hr-copy-status]");
+    if (visible) visible.textContent = text;
+    if (status) status.textContent = text === "Copy" ? "" : text;
+  };
+
+  const copyText = async (text: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Plain http or a blocked clipboard: fall back to a hidden textarea.
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.append(area);
+      area.select();
+      const done = document.execCommand("copy");
+      area.remove();
+      return done;
+    }
+  };
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-hr-copy]")) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    button.addEventListener("click", async () => {
+      const source = document.querySelector<HTMLElement>(button.dataset["hrCopy"] ?? "");
+      const ok = await copyText(source?.textContent?.replace(/\s+/g, " ").trim() ?? "");
+      label(button, ok ? "Copied" : "Press Ctrl+C");
+      clearTimeout(timer);
+      timer = setTimeout(() => label(button, "Copy"), 2000);
+    });
+  }
+</script>
+
 <style>
+  /* Rhythm: about 12px inside a group, about 36px between groups, more between sections. Code is one step,
+     15px; prose is 16px or more. */
+  .cover,
+  .start,
+  .stats {
+    --gap-in: 0.75rem;
+    --gap-between: 2.25rem;
+  }
+
   .cover {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-    gap: 2rem 3rem;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 1.5rem 3rem;
     align-items: center;
-    padding-block: clamp(1.5rem, 1rem + 4vmin, 3.5rem) 2rem;
+    padding-block: clamp(1rem, 0.5rem + 2vmin, 2rem) 0;
+  }
+
+  .intro {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
   }
 
   h1 {
     margin: 0;
-    font: 700 clamp(3rem, 1.6rem + 5vw, 5.75rem) / 0.95 var(--hr-font-heading);
+    font: 700 clamp(3rem, 1.4rem + 4.2vw, 5rem) / 0.95 var(--hr-font-heading);
     letter-spacing: -0.015em;
+    text-wrap: balance;
     color: var(--hr-ink-strong);
-  }
-
-  .spec {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem 1.6rem;
-    margin: 1.25rem 0 0;
-    padding: 0.6rem 0;
-    list-style: none;
-    border-block: var(--hr-line-width) solid var(--hr-line);
-    font-size: 0.95rem;
-    color: var(--hr-ink);
-  }
-
-  .spec li {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    margin: 0;
-  }
-
-  .spec b {
-    color: var(--hr-ink-strong);
-  }
-
-  .ticks {
-    width: 2.6rem;
-    height: auto;
-    fill: var(--hr-accent);
-    stroke: var(--hr-on-accent);
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
   }
 
   .tagline {
-    max-width: 36rem;
-    margin: 1.25rem 0 1.5rem;
-    font-size: clamp(1.05rem, 1rem + 0.35vw, 1.2rem);
-    line-height: 1.55;
-    color: var(--hr-ink);
+    max-width: 30rem;
+    margin: 0.25rem 0 0;
+    font-size: clamp(1.2rem, 1rem + 0.6vw, 1.45rem);
+    font-weight: 600;
+    line-height: 1.4;
+    text-wrap: pretty;
+    color: var(--hr-ink-strong);
   }
 
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+  .about {
+    max-width: 34rem;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.55;
+    color: var(--hr-ink-soft);
   }
 
   .art {
@@ -192,124 +217,240 @@ const steps = [
     place-items: center;
   }
 
-  .assembly {
-    position: relative;
-    margin-top: 1.5rem;
-    padding-top: 1.75rem;
+  .art :global(.sheet) {
+    width: min(100%, 16rem);
   }
 
-  .assembly::before {
-    content: "";
-    position: absolute;
-    inset-inline: 0;
-    top: 0;
-    height: 8px;
-    background: var(--hr-tape);
+  /* Start: the command, the next step and the actions, one tight column under the demo. */
+  .start {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--gap-in);
+    margin-top: clamp(2.5rem, 2rem + 2vw, 3.5rem);
   }
 
-  h2 {
-    margin: 0 0 1.25rem;
-    font: 700 var(--sl-text-h2) / 1.15 var(--hr-font-heading);
+  .step {
+    margin: 0;
+    font-weight: 600;
     color: var(--hr-ink-strong);
   }
 
-  .steps {
+  .command {
+    display: flex;
+    align-items: stretch;
+    max-width: 100%;
+    width: fit-content;
+    margin: 0;
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: var(--hr-radius);
+    background: var(--hr-code-bg);
+  }
+
+  .prompt {
+    flex: none;
+    padding: 0.7rem 0 0.7rem 0.9rem;
+    font: 400 var(--hr-text-code) / 1.5 var(--hr-font-mono);
+    color: var(--hr-ink-faint);
+    user-select: none;
+  }
+
+  .command code {
+    min-width: 0;
+    padding: 0.7rem 0.9rem 0.7rem 0.6rem;
+    font: 400 var(--hr-text-code) / 1.5 var(--hr-font-mono);
+    color: var(--hr-ink);
+  }
+
+  .word {
+    white-space: nowrap;
+  }
+
+  /* The cell stretches to the slab's full height, so the command and its button read as one object. */
+  .copy-button {
+    flex: none;
+    align-self: stretch;
+    min-width: 5.5rem;
+    min-height: 2.75rem;
+    padding: 0 0.9rem;
+    border: 0;
+    border-inline-start: var(--hr-line-width) solid var(--hr-line);
+    background: var(--hr-paper);
+    color: var(--hr-ink-strong);
+    font: 600 var(--hr-text-code) / 1.2 var(--hr-font-body);
+    cursor: pointer;
+    transition:
+      background-color var(--hr-duration) var(--hr-ease-out),
+      color var(--hr-duration) var(--hr-ease-out);
+  }
+
+  /* Yellow belongs to the primary action alone; the other controls invert on hover. */
+  .copy-button:hover {
+    background: var(--hr-invert);
+    color: var(--hr-on-invert);
+  }
+
+  .copy-button:focus-visible {
+    outline: 3px solid var(--hr-focus);
+    outline-offset: 2px;
+  }
+
+  .then {
+    margin-top: 0.5rem;
+  }
+
+  .next {
+    max-width: 100%;
+    padding: 0.35rem 0.6rem;
+    border-radius: var(--hr-radius);
+    background: var(--hr-code-bg);
+    font: 400 var(--hr-text-code) / 1.5 var(--hr-font-mono);
+    color: var(--hr-ink);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-in);
+    margin-top: 1.25rem;
+  }
+
+  .actions :global(.sl-link-button) {
+    min-height: 2.75rem;
+  }
+
+  .actions :global(.sl-link-button.minimal:hover) {
+    background: var(--hr-invert);
+    color: var(--hr-on-invert);
+  }
+
+  /* Stats: a thick band of tape, then three numerals that sit on one baseline. */
+  .stats {
+    margin-top: clamp(3rem, 2.4rem + 2.4vw, 4.5rem);
+  }
+
+  .stats::before {
+    content: "";
+    display: block;
+    height: 1rem;
+    margin-bottom: clamp(1.5rem, 1.2rem + 1vw, 2.25rem);
+    background: var(--hr-tape);
+  }
+
+  .stats ul {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 2.75rem;
+    gap: 1.5rem;
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  .panel {
-    position: relative;
+  .stats li {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
+    gap: 0.25rem;
     margin: 0;
-    padding: 1rem 1.25rem 1.25rem;
-    background: var(--hr-paper);
-    border: var(--hr-line-width) solid var(--hr-line);
-    border-radius: 6px;
   }
 
-  .num {
-    font: 700 3.25rem / 1 var(--hr-font-heading);
-    color: var(--hr-ink-strong);
+  .value {
+    font: 700 clamp(3rem, 1.8rem + 3.6vw, 4.5rem) / 0.9 var(--hr-font-heading);
     font-variant-numeric: tabular-nums;
-  }
-
-  .drawing {
-    align-self: center;
-    width: min(100%, 13rem);
-    height: auto;
-    margin-block: 0.25rem 0.5rem;
-    fill: none;
-    stroke: var(--hr-line);
-    stroke-width: 3;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  .drawing .paper {
-    fill: var(--hr-paper);
-  }
-
-  .drawing .accent {
-    fill: var(--hr-accent);
-    stroke: var(--hr-on-accent);
-  }
-
-  .drawing .ink {
-    fill: var(--hr-line);
-    stroke: none;
-  }
-
-  .drawing .thick {
-    stroke: var(--hr-on-accent);
-    stroke-width: 6;
-  }
-
-  .drawing text {
-    fill: var(--hr-line);
-    stroke: none;
-    font: 600 13px var(--hr-font-mono);
-  }
-
-  .step-caption {
-    margin: 0;
-    font-weight: 700;
+    letter-spacing: -0.02em;
     color: var(--hr-ink-strong);
   }
 
-  .panel code {
-    max-width: 100%;
-    padding: 0.3rem 0.55rem;
-    border: 1.5px solid var(--hr-line);
-    border-radius: var(--hr-radius);
-    background: var(--hr-paper);
+  .label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.6rem;
+    font: 700 1rem / 1.5 var(--hr-font-heading);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     color: var(--hr-ink);
-    font: 400 0.82rem / 1.45 var(--hr-font-mono);
   }
 
-  /* a command wraps between words only, never inside a token such as a repo slug */
-  .panel .word {
+  .runs {
+    flex-basis: 100%;
+    font: 400 1rem / 1.5 var(--hr-font-body);
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--hr-ink-soft);
+  }
+
+  .label code {
+    padding: 0.1em 0.4em;
+    border-radius: var(--hr-radius);
+    background: var(--hr-code-bg);
+    font: 400 var(--hr-text-code) / 1.4 var(--hr-font-mono);
+    letter-spacing: 0;
+    text-transform: none;
     white-space: nowrap;
+    color: var(--hr-ink);
   }
 
-  .arrow {
-    position: absolute;
-    top: 50%;
-    inset-inline-end: -2.55rem;
-    width: 2.3rem;
-    height: auto;
-    fill: none;
-    stroke: var(--hr-line);
-    stroke-width: 3;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+  .every,
+  .sections a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    color: var(--hr-ink-strong);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    text-decoration-color: var(--hr-link-line);
+  }
+
+  .every {
+    margin-top: 1rem;
+    font-weight: 600;
+    text-decoration-line: underline;
+  }
+
+  .every span {
+    margin-inline-start: 0.35em;
+  }
+
+  .every:hover {
+    text-decoration-thickness: 3px;
+  }
+
+  /* One quiet line of section links; the dots are drawn, so they are not read out. */
+  .sections {
+    margin-top: clamp(2rem, 1.6rem + 1.6vw, 3rem);
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--hr-hairline);
+  }
+
+  .sections ul {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .sections li {
+    display: flex;
+    align-items: center;
+    margin: 0;
+  }
+
+  .sections li + li::before {
+    content: "·";
+    padding-inline: 0.75rem;
+    color: var(--hr-ink-faint);
+  }
+
+  .sections a {
+    min-inline-size: 2.75rem;
+    font-weight: 400;
+    text-decoration-line: none;
+  }
+
+  .sections a:hover,
+  .sections a:focus-visible {
+    text-decoration-line: underline;
   }
 
   @media (max-width: 60rem) {
@@ -317,20 +458,55 @@ const steps = [
       grid-template-columns: minmax(0, 1fr);
     }
     .art :global(.sheet) {
-      width: min(100%, 14rem);
+      width: min(100%, 13rem);
     }
-    .steps {
+    /* The narrow sheet scales the drawing down; this keeps the cue's words at about 16px on screen. */
+    .art :global(.cue .label) {
+      font-size: 20px;
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .stats ul {
+      gap: 1rem;
+    }
+  }
+
+  /* Narrow: the Copy cell drops under the command as a full-width strip, so the repo name, which never
+     breaks, keeps the slab's whole width. */
+  @media (max-width: 26rem) {
+    .command {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      width: 100%;
+    }
+    .prompt {
+      padding-inline-start: 0.6rem;
+    }
+    .command code {
+      padding-inline-end: 0.6rem;
+    }
+    .copy-button {
+      grid-column: 1 / -1;
+      border-inline-start: 0;
+      border-top: var(--hr-line-width) solid var(--hr-line);
+    }
+    .stats ul {
       grid-template-columns: minmax(0, 1fr);
-      gap: 2.25rem;
     }
-    .arrow {
-      top: auto;
-      bottom: -2.1rem;
-      inset-inline-start: 50%;
-      inset-inline-end: auto;
-      width: 1.9rem;
-      translate: -50% 0;
-      rotate: 90deg;
+    .sections li + li::before {
+      padding-inline: 0.5rem;
+    }
+    .stats li {
+      flex-direction: row;
+      align-items: baseline;
+      gap: 1rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .copy-button {
+      transition: none;
     }
   }
 </style>

@@ -1,92 +1,13 @@
 ---
-// PageTitle override: a rule page gets its parts list from the rules table, the fence page gets the safety guard notice,
-// and a procedure page carries the marker that turns on step badges.
-import { parts, procedures } from "virtual:house-rules/parts";
-import PartsList from "./parts-list.astro";
-import WarningTriangle from "./warning-triangle.astro";
-
-const { id, entry } = Astro.locals.starlightRoute;
-const part = parts.find((candidate) => candidate.route === id);
-const isFence = id === "guides/the-fence";
-const isProcedure =
-  procedures.routes.includes(id) || procedures.prefixes.some((prefix) => id.startsWith(prefix));
+// PageTitle override: the bare title, with the docs heading size.
+const { entry } = Astro.locals.starlightRoute;
 ---
 
 <h1 id="_top">{entry.data.title}</h1>
-{isProcedure && <span data-hr-procedure hidden></span>}
-{part && <PartsList part={part} />}
-{
-  isFence && (
-    <aside class="guard" aria-labelledby="hr-guard-title">
-      <p class="head" id="hr-guard-title">
-        <WarningTriangle />
-        Do not remove the safety guard
-      </p>
-      <div class="body">
-        <p>
-          The command policy refuses <code>git commit --no-verify</code> before it runs.
-        </p>
-        <p class="note">
-          Same answer for <code>git commit -n</code>, a <code>git</code> command with <code>core.hooksPath</code>, and
-          anything that sets <code>LEFTHOOK=0</code>.
-        </p>
-      </div>
-    </aside>
-  )
-}
 
 <style>
   h1 {
     margin-top: 1rem;
     font-size: var(--sl-text-h1);
-  }
-
-  .guard {
-    margin-top: 1.25rem;
-    max-width: 46rem;
-    border: var(--hr-line-width) solid var(--hr-line);
-    border-radius: var(--hr-radius);
-    background: var(--hr-paper);
-    overflow: hidden;
-  }
-
-  .head {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin: 0;
-    padding: 0.5rem 1rem;
-    background: var(--hr-caution);
-    border-bottom: var(--hr-line-width) solid var(--hr-on-caution);
-    color: var(--hr-on-caution);
-    font: 700 0.85rem / 1.2 var(--hr-font-body);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .body {
-    padding: 0.8rem 1rem 0.9rem;
-  }
-
-  .body p {
-    margin: 0;
-    color: var(--hr-ink-strong);
-    font-weight: 600;
-  }
-
-  .body .note {
-    margin-top: 0.4rem;
-    color: var(--hr-ink-soft);
-    font-weight: 400;
-    font-size: 0.95rem;
-  }
-
-  code {
-    font-family: var(--hr-font-mono);
-    font-size: 0.92em;
-    background: var(--hr-code-bg);
-    padding: 0.05em 0.3em;
-    border-radius: 3px;
-    overflow-wrap: anywhere;
   }
 </style>

@@ -1,4 +1,4 @@
-/* The sheet: page titles, prose, tables, step lists, asides, code, and the small graphics kit. */
+/* The sheet: page titles, prose, and tables. Asides, code frames and the home page tape are in blocks.css. */
 
 h1#_top {
   font-family: var(--hr-font-heading);
@@ -168,142 +168,66 @@ h1#_top {
   }
 }
 
-/* step badges: on a procedure page (marked by the page title), a numbered list of checkboxes gets numbered yellow badges.
-   Elsewhere the same list is a checklist of rules and stays plain. */
-main:has([data-hr-procedure])
-  .sl-markdown-content
-  ol.contains-task-list:not(:where(.not-content *)) {
-  list-style: none;
-  counter-reset: hr-step;
-  padding-inline-start: 0;
+/* A link to /rules/#<id> lands on that rule's row and marks it. */
+.sl-markdown-content tr:has(> td > span:target):not(:where(.not-content *)),
+.sl-markdown-content tr:has(> td > span:target):not(:where(.not-content *)) > td {
+  background: var(--hr-selection);
+  color: var(--hr-on-selection);
 }
 
-main:has([data-hr-procedure])
-  .sl-markdown-content
-  ol.contains-task-list
-  > li:not(:where(.not-content *)) {
-  position: relative;
-  counter-increment: hr-step;
-  padding-inline-start: 2.6rem;
-  min-height: 1.9rem;
+.sl-markdown-content tr:has(> td > span:target):not(:where(.not-content *)) :is(a, code) {
+  background: transparent;
+  color: inherit;
+  text-decoration-color: currentColor;
 }
 
-main:has([data-hr-procedure])
-  .sl-markdown-content
-  ol.contains-task-list
-  > li
-  + li:not(:where(.not-content *)) {
-  margin-top: 0.6rem;
-}
-
-main:has([data-hr-procedure])
-  .sl-markdown-content
-  ol.contains-task-list
-  > li:not(:where(.not-content *))::before {
-  content: counter(hr-step);
-  position: absolute;
-  inset-inline-start: 0;
-  top: 0;
-  display: grid;
-  place-items: center;
-  width: 1.8rem;
-  height: 1.8rem;
-  border-radius: 50%;
-  border: var(--hr-line-width) solid var(--hr-on-accent);
-  background: var(--hr-accent);
-  color: var(--hr-on-accent);
-  font: 700 0.9rem / 1 var(--hr-font-body);
-  font-variant-numeric: tabular-nums;
+/* On a phone the rules table, the one whose rows carry anchors, stacks each row: the name, the sentence, then
+   the tool and the docs link on one line, so nothing hides off to the side. */
+@media (max-width: 50rem) {
+  .sl-markdown-content table:has(td > span[id]):not(:where(.not-content *)) {
+    display: block;
+    width: 100%;
+  }
+  .sl-markdown-content table:has(td > span[id]) thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .sl-markdown-content table:has(td > span[id]) tbody {
+    display: block;
+  }
+  .sl-markdown-content table:has(td > span[id]) tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.25rem 1rem;
+    padding-block: 0.6rem;
+    border-bottom: 1px solid var(--hr-hairline);
+  }
+  .sl-markdown-content table:has(td > span[id]) :is(th, td):not(:where(.not-content *)) {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .sl-markdown-content table:has(td > span[id]) tr:has(> td > span:target) {
+    margin-inline: -0.5rem;
+    padding-inline: 0.5rem;
+  }
+  .sl-markdown-content table:has(td > span[id]) tr:has(> td > span:target) > td {
+    color: inherit;
+  }
+  .sl-markdown-content table:has(td > span[id]) td:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .sl-markdown-content table:has(td > span[id]) td:nth-child(2) {
+    grid-row: 3;
+    color: var(--hr-ink-soft);
+  }
 }
 
 .sl-markdown-content input[type="checkbox"] {
   accent-color: var(--hr-accent);
   margin-inline-end: 0.4rem;
-}
-
-/* A rule page's Field | Value table is generated; the parts list under the title shows the same rows, so hide the copy. */
-main:has(.parts) .sl-markdown-content > table:first-child {
-  display: none;
-}
-
-/* asides: a ruled box; caution and danger carry a coloured title band with Starlight's triangle */
-.starlight-aside {
-  background: var(--hr-paper);
-  border: var(--hr-line-width) solid var(--hr-line);
-  border-radius: var(--hr-radius);
-  color: var(--hr-ink);
-  padding: 0;
-  overflow: hidden;
-  --sl-color-asides-text-accent: var(--hr-ink-strong);
-  --sl-color-asides-border: var(--hr-line);
-}
-
-.starlight-aside__title {
-  margin: 0;
-  padding: 0.5rem 1rem;
-  font: 700 0.85rem / 1.2 var(--hr-font-body);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-bottom: 1px solid var(--hr-hairline);
-}
-
-.starlight-aside__content {
-  padding: 0.75rem 1rem 0.9rem;
-}
-
-.starlight-aside--caution .starlight-aside__title {
-  background: var(--hr-caution);
-  color: var(--hr-on-caution);
-  border-bottom: var(--hr-line-width) solid var(--hr-on-caution);
-}
-
-.starlight-aside--danger {
-  border-color: var(--hr-refuse);
-}
-
-.starlight-aside--danger .starlight-aside__title {
-  color: var(--hr-refuse);
-}
-
-.starlight-aside__content a {
-  color: var(--hr-link);
-}
-
-/* Code shows every character as typed: no ligatures. */
-code,
-pre,
-kbd,
-.expressive-code {
-  font-variant-ligatures: none;
-}
-
-.sl-markdown-content :is(pre, .expressive-code) {
-  font-size: 0.9em;
-}
-
-/* code blocks: a ruled frame in the line colour, no drop shadow */
-.expressive-code .frame {
-  --ec-brdCol: var(--hr-code-frame);
-  --ec-brdWd: var(--hr-line-width);
-  --ec-brdRad: var(--hr-radius);
-  box-shadow: none;
-}
-
-/* Home only: hazard tape replaces the black rule above h2. No grid sits behind any text. */
-:root[data-has-hero] .sl-markdown-content .sl-heading-wrapper.level-h2:not(:where(.not-content *)) {
-  position: relative;
-  margin-top: 3.5rem;
-  padding-top: 1.75rem;
-  border-top: 0;
-}
-
-:root[data-has-hero]
-  .sl-markdown-content
-  .sl-heading-wrapper.level-h2:not(:where(.not-content *))::before {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-  height: 8px;
-  background: var(--hr-tape);
 }

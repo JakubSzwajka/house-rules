@@ -4,9 +4,9 @@ house-rules is the home of the house plugin and of a TypeScript monorepo templat
 
 Every lint rule, preset, and check in `pnpm check` comes from the house plugin for deterministic feedback, and [its README lists them](packages/rules/README.md#rules-and-checks).
 
-The docs site, [stack.kubaszwajka.com](https://stack.kubaszwajka.com), explains all of it one topic per page, with a page per rule and per skill. Agents can read it as Markdown: `/llms.txt`, `/llms-full.txt`, or any page path plus `.md`. Its source is [`site/`](site/README.md).
+The docs site, [stack.kubaszwajka.com](https://stack.kubaszwajka.com), is for people deciding on the template: a start page and a table of every rule, where `/rules/#<rule id>` links to one rule. Agents read `AGENTS.md` instead, and `/llms.txt` tells them so. Its source is [`site/`](site/README.md).
 
-It is a GitHub template. Create a repo from it with `gh repo create <name> --template JakubSzwajka/house-rules`. It also carries the reference copy of the release workflow. See [`docs/release.md`](docs/release.md) to adopt it.
+It is a GitHub template. Create a repo from it with `gh repo create my-app --private --clone --template JakubSzwajka/house-rules`. It also carries the reference copy of the release workflow. See [`docs/release.md`](docs/release.md) to adopt it.
 
 ## Layout
 
@@ -201,7 +201,7 @@ Follow [`skills/add-an-effect-module/SKILL.md`](skills/add-an-effect-module/SKIL
 
 ### Add a docs page
 
-Follow [`skills/write-a-docs-page/SKILL.md`](skills/write-a-docs-page/SKILL.md). In short: a guide is a hand-written `.md` file under `site/src/content/docs/`, linked to other pages by relative path. Rule and skill pages are generated: change `packages/rules` or the `SKILL.md`, then run `pnpm --filter @house-rules/site generate` and commit the result.
+Follow [`skills/write-a-docs-page/SKILL.md`](skills/write-a-docs-page/SKILL.md). In short: the site has one hand-written page, `site/src/content/docs/start/index.md`, and one generated page, the rules table. To change the table, change `packages/rules`, then run `pnpm --filter @house-rules/site generate` and commit the result.
 
 ### Let agents call a use-case
 

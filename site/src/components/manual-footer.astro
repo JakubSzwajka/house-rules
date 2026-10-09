@@ -1,0 +1,69 @@
+---
+// Footer override. The home page ends on one line for agents and one that leads to the author's blog;
+// every other page keeps Starlight's footer (edit link, last updated, pager).
+import DefaultFooter from "@astrojs/starlight/components/Footer.astro";
+
+const isHome = Astro.locals.starlightRoute.id === "";
+---
+
+{
+  isHome ? (
+    <footer class="home-footer">
+      <p class="agents">
+        Briefing an agent? Give it <a href="/llms.txt"><code>/llms.txt</code></a>.
+      </p>
+      <p class="credit">
+        <a href="https://kubaszwajka.com">Built by Kuba Szwajka · kubaszwajka.com</a>
+      </p>
+    </footer>
+  ) : (
+    <DefaultFooter><slot /></DefaultFooter>
+  )
+}
+
+<style>
+  .home-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0 2rem;
+    margin-top: 0.75rem;
+    padding-block: 0.75rem 1.5rem;
+    font-size: 1rem;
+    color: var(--hr-ink-soft);
+  }
+
+  .home-footer p {
+    margin: 0;
+  }
+
+  .home-footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+  }
+
+  .agents a {
+    color: var(--hr-ink-strong);
+    text-decoration-color: var(--hr-link-line);
+  }
+
+  .agents code {
+    font-size: 0.9375em;
+  }
+
+  .credit a {
+    color: var(--hr-ink-soft);
+  }
+
+  .agents a:hover,
+  .credit a:hover {
+    color: var(--hr-ink-strong);
+    text-decoration-thickness: 3px;
+    text-decoration-color: var(--hr-link-line);
+  }
+</style>

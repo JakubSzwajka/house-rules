@@ -126,8 +126,9 @@ An app can let agents call its use-cases over MCP, and later over a CLI. Write e
 
 - The docs site lives in `site/`, the private workspace package `@house-rules/site`, built with Astro and Starlight. `site/README.md` says how it is built and served.
 - It is neither an app nor a package, so the layout rules do not apply to it. Its `tsconfig.json` extends the plugin's `strict.json`, not the Effect preset, because its code is plain Node. Every other check runs on it.
-- Pages under `site/src/content/docs/rules/` and `site/src/content/docs/skills/` are generated from `packages/rules` and `skills/*/SKILL.md`. Never edit them by hand. When you change a row of the rules table, a rule's `meta`, a rule doc, or a skill, run `pnpm --filter @house-rules/site generate` and commit the regenerated pages in the same change. `pnpm test` fails while a generated page is stale.
-- A page links to another page, or to a repo file, by its relative file path, such as `../guides/the-fence.md`. ESLint checks the path, and the build turns it into a route or a GitHub URL. Never link by a hand-written site URL.
+- The site has two pages besides the home page: `site/src/content/docs/start/index.md`, written by hand, and `site/src/content/docs/rules/index.md`, generated from the rules table in `packages/rules/README.md` and the ESLint rules' `meta`. Never edit the rules page by hand. When you change a row of the rules table or a rule's `meta.docs.description`, run `pnpm --filter @house-rules/site generate` and commit the regenerated page in the same change. `pnpm test` fails while it is stale.
+- Each rule's row has the anchor `/rules/#<rule id>`, such as `/rules/#comment-discipline`. Error messages link there, so a rule's anchor never changes.
+- A page links to another page, or to a repo file, by its relative file path, such as `../rules/index.md`. ESLint checks the path, and the build turns it into a route or a GitHub URL. Never link by a hand-written site URL.
 - The site explains; this file is the law. A page that disagrees with this file is wrong.
 - To add a page, follow `skills/write-a-docs-page/SKILL.md`.
 

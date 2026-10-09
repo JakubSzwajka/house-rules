@@ -37,6 +37,10 @@
       "import": "./src/shadcn.mjs",
       "default": "./src/shadcn.mjs"
     },
+    "./eslint-formatter": {
+      "import": "./src/eslint-formatter.mjs",
+      "default": "./src/eslint-formatter.mjs"
+    },
     "./dependency-cruiser": {
       "require": "./src/dependency-cruiser.cjs",
       "import": "./src/dependency-cruiser.cjs",
@@ -48,7 +52,7 @@
   },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "typecheck": "node --check src/index.mjs && node --check src/markdown.mjs && node --check src/design.mjs && node --check src/shadcn.mjs && node --check src/dependency-cruiser.cjs && node --check src/subject-folder-cycles.mjs && node --check src/package-cycles.mjs && node --check bin/pins.mjs && node --check bin/migrations.mjs && node --check bin/layout.mjs && node --check src/module-list.mjs && node --check src/sql-text.mjs && node --check src/import-bindings.mjs && node --check src/use-case-is-capability.mjs && node --check src/no-hand-rolled-surface.mjs && node --check src/no-hand-run-effect.mjs && node --check src/comment-discipline.mjs && node --check src/comment-directives.mjs && node --check src/comment-ranges.mjs && node --check src/no-broken-relative-links.mjs && node --check src/relative-links.mjs && node --check src/repository-paths.mjs && node --check src/colors.mjs && node --check src/css-values.mjs && node --check src/design-tokens.mjs && node --check src/file-globs.mjs && node --check src/design-no-raw-color.mjs && node --check src/design-no-raw-color-literal.mjs && node --check src/design-no-unknown-token.mjs && node --check src/design-scale-value.mjs",
+    "typecheck": "node --check src/index.mjs && node --check src/markdown.mjs && node --check src/design.mjs && node --check src/shadcn.mjs && node --check src/dependency-cruiser.cjs && node --check src/subject-folder-cycles.mjs && node --check src/package-cycles.mjs && node --check bin/pins.mjs && node --check bin/migrations.mjs && node --check bin/layout.mjs && node --check src/module-list.mjs && node --check src/sql-text.mjs && node --check src/import-bindings.mjs && node --check src/use-case-is-capability.mjs && node --check src/no-hand-rolled-surface.mjs && node --check src/no-hand-run-effect.mjs && node --check src/comment-discipline.mjs && node --check src/comment-directives.mjs && node --check src/comment-ranges.mjs && node --check src/no-broken-relative-links.mjs && node --check src/relative-links.mjs && node --check src/repository-paths.mjs && node --check src/colors.mjs && node --check src/css-values.mjs && node --check src/design-tokens.mjs && node --check src/file-globs.mjs && node --check src/design-no-raw-color.mjs && node --check src/design-no-raw-color-literal.mjs && node --check src/design-no-unknown-token.mjs && node --check src/design-scale-value.mjs && node --check src/rule-docs.mjs && node --check src/eslint-formatter.mjs",
     "check": "pnpm run test && pnpm run typecheck",
     "pack:check": "npm pack --dry-run"
   },

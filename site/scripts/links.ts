@@ -1,7 +1,7 @@
 import { statSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { isRelativeTarget, splitTarget } from "./markdown-text.ts";
-import { contentRoot, githubUrl, repoRoot, SITE_URL } from "./site-map.ts";
+import { contentRoot, githubUrl, repoRoot } from "./site-map.ts";
 
 const toPosix = (path: string): string => path.split(sep).join("/");
 
@@ -18,10 +18,6 @@ export const pageUrl = (contentPath: string): string => {
   return route === "" ? "/" : `/${route}/`;
 };
 
-export const rawPath = (contentPath: string): string => `${routeOf(contentPath) || "index"}.md`;
-
-export const rawUrl = (contentPath: string): string => `${SITE_URL}/${rawPath(contentPath)}`;
-
 const repoUrl = (repoPath: string): string => {
   const isDirectory = statSync(resolve(repoRoot, repoPath), {
     throwIfNoEntry: false,
@@ -29,13 +25,7 @@ const repoUrl = (repoPath: string): string => {
   return githubUrl(repoPath, isDirectory === true ? "tree" : "blob");
 };
 
-export type LinkStyle = "page" | "raw";
-
-export const resolveLink = (
-  fromFile: string,
-  target: string,
-  style: LinkStyle,
-): string | undefined => {
+export const resolveLink = (fromFile: string, target: string): string | undefined => {
   if (!isRelativeTarget(target)) {
     return undefined;
   }
@@ -46,7 +36,7 @@ export const resolveLink = (
   const absolute = resolve(dirname(fromFile), decodeURIComponent(path));
   const contentPath = inside(contentRoot, absolute);
   if (contentPath?.endsWith(".md") === true) {
-    return `${style === "page" ? pageUrl(contentPath) : rawUrl(contentPath)}${hash}`;
+    return `${pageUrl(contentPath)}${hash}`;
   }
   const repoPath = inside(repoRoot, absolute);
   return repoPath === undefined ? undefined : `${repoUrl(repoPath)}${hash}`;

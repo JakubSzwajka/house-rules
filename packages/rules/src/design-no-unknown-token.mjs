@@ -1,5 +1,6 @@
 import { declarationValue, locOf, scanCssValue } from "./css-values.mjs";
 import { readTokens } from "./design-tokens.mjs";
+import { ruleDocsUrl } from "./rule-docs.mjs";
 
 function allowMatcher(entries) {
   const names = new Set();
@@ -16,6 +17,7 @@ export const designNoUnknownTokenRule = {
   meta: {
     type: "problem",
     docs: {
+      url: ruleDocsUrl("design-no-unknown-token"),
       description:
         "Require every var(--name) to resolve to a custom property defined in a token file or in the same file.",
     },
