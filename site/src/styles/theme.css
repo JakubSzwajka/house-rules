@@ -12,6 +12,8 @@
   --hr-measure: 70ch;
   --hr-radius: 4px;
   --hr-line-width: 2px;
+  /* One step for code, commands and small labels; nothing on the home page is set smaller. */
+  --hr-text-code: 0.9375rem;
   --hr-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --hr-duration: 180ms;
 

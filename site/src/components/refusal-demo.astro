@@ -1,0 +1,744 @@
+---
+// The home page's centrepiece: three cases an agent tries, each played in a terminal-like panel. Choosing a
+// tab types the agent's line, slams hazard tape across with STOPPED, prints the real refusal, and tells the
+// figure to tighten its bolt (the "hr-figure" event). No JS: all three cases show, stacked, at their end
+// state. Reduced motion: the end state shows at once. Every refusal is copied from source; the file and line
+// sit in the comment above each one.
+
+// Text plus { code } chips (paths, flags, names) and { keep } words; neither may break mid-token.
+type Piece = string | { readonly code: string } | { readonly keep: string };
+
+const cases: readonly {
+  id: string;
+  tab: string;
+  gutter: string;
+  code: string;
+  outputLabel?: string;
+  refusal: readonly Piece[];
+  plain: readonly Piece[];
+  link: string;
+}[] = [
+  {
+    id: "hooks",
+    tab: "Skip the hooks",
+    gutter: "$",
+    code: "git commit --no-verify -m wip",
+    // scripts/vcs-command-policy.mjs:39-40, HOOK_BYPASS_REASON, first two sentences
+    refusal: [
+      "Blocked hook bypass. Do not use ",
+      { code: "--no-verify" },
+      ", ",
+      { code: "git commit -n" },
+      ", ",
+      { code: "core.hooksPath" },
+      ", or ",
+      { code: "LEFTHOOK=0" },
+      ".",
+    ],
+    plain: ["The agent may not skip the ", { keep: "pre-commit" }, " checks."],
+    link: "/guides/the-fence/",
+  },
+  {
+    id: "table",
+    tab: "Read another package's table",
+    gutter: "1",
+    code: "sql`select * from bookings`",
+    // The path is made up for the example, so the label says so.
+    outputLabel: "Example output",
+    // packages/rules/bin/migrations.mjs:92 (path:line prefix, `report`) and :237 (message), first sentence
+    refusal: [
+      { code: "packages/trips/src/list.ts:1" },
+      ": SQL names ",
+      { code: '"bookings"' },
+      ", a table ",
+      { code: "packages/bookings" },
+      " owns.",
+    ],
+    plain: [
+      "The trips package may not read the bookings table. The bookings package owns it, so call its service.",
+    ],
+    link: "/guides/modules-and-data/",
+  },
+  {
+    id: "tool",
+    tab: "Hand-roll an MCP tool",
+    gutter: "1",
+    code: 'Tool.make("remove_trip", …)',
+    // packages/rules/src/no-hand-rolled-surface.mjs:62, message "handRolled", first sentence
+    refusal: [{ code: "Tool.make" }, " builds a surface by hand."],
+    plain: ["An MCP tool must be built from a contract, not written by hand."],
+    link: "/guides/capabilities/",
+  },
+];
+
+// Split on spaces so a narrow screen wraps between words, never inside a flag. Browsers break after "-".
+const words = (text: string): readonly string[] => text.split(" ");
+
+// Punctuation right after a chip travels with it, so a wrapped line never starts with a stray "," or ":".
+type Bound = string | { readonly code: string; readonly tail: string } | { readonly keep: string };
+const bind = (pieces: readonly Piece[]): readonly Bound[] =>
+  pieces.reduce<Bound[]>((out, piece, at) => {
+    const before = pieces[at - 1];
+    if (
+      typeof piece === "string" &&
+      before !== undefined &&
+      typeof before !== "string" &&
+      "code" in before
+    ) {
+      const tail = /^[,.:;]+/.exec(piece)?.[0] ?? "";
+      if (tail !== "") {
+        const last = out[out.length - 1] as { readonly code: string; readonly tail: string };
+        out[out.length - 1] = { code: last.code, tail };
+        if (piece.length > tail.length) out.push(piece.slice(tail.length));
+        return out;
+      }
+    }
+    out.push(typeof piece !== "string" && "code" in piece ? { code: piece.code, tail: "" } : piece);
+    return out;
+  }, []);
+---
+
+<section class="demo" data-hr-demo aria-labelledby="hr-demo-title">
+  <h2 class="sr-only" id="hr-demo-title">Stopped before the commit.</h2>
+  <div class="tabs" role="tablist" aria-labelledby="hr-demo-title" hidden>
+    {
+      cases.map((item, at) => (
+        <button
+          type="button"
+          role="tab"
+          class="tab"
+          id={`hr-tab-${item.id}`}
+          aria-controls={`hr-panel-${item.id}`}
+          aria-selected={at === 0 ? "true" : "false"}
+          tabindex={at === 0 ? 0 : -1}
+        >
+          {item.tab}
+        </button>
+      ))
+    }
+  </div>
+  <div class="panels">
+    {
+      cases.map((item, at) => (
+        <div
+          class="panel"
+          id={`hr-panel-${item.id}`}
+          aria-labelledby={`hr-case-${item.id}`}
+          data-active={at === 0 ? "" : undefined}
+        >
+          <h3 class="case-title" id={`hr-case-${item.id}`}>
+            {item.tab}
+          </h3>
+          <div class="screen">
+            <p class="line">
+              <span class="gutter" aria-hidden="true">
+                {item.gutter}
+              </span>
+              <code class="cmd" data-hr-cmd>
+                {words(item.code).map((word, index) => (
+                  <>
+                    {index > 0 && " "}
+                    <span class="word">{word}</span>
+                  </>
+                ))}
+              </code>
+            </p>
+            <div class="stop">
+              <span class="stamp">Stopped</span>
+            </div>
+            <div class="result">
+              {item.outputLabel && <p class="output-label">{item.outputLabel}</p>}
+              <p class="refusal">
+                <span aria-hidden="true">✗ </span>
+                <span class="sr-only">Refused: </span>
+                {bind(item.refusal).map((piece) =>
+                  typeof piece === "string" ? (
+                    piece
+                  ) : "code" in piece ? (
+                    <span class="word">
+                      <code>{piece.code}</code>
+                      {piece.tail}
+                    </span>
+                  ) : (
+                    <span class="word">{piece.keep}</span>
+                  ),
+                )}
+              </p>
+              <p class="plain">
+                {bind(item.plain).map((piece) =>
+                  typeof piece === "string" ? (
+                    piece
+                  ) : "code" in piece ? (
+                    <span class="word">
+                      <code>{piece.code}</code>
+                      {piece.tail}
+                    </span>
+                  ) : (
+                    <span class="word">{piece.keep}</span>
+                  ),
+                )}
+              </p>
+            </div>
+          </div>
+          <a class="more" href={item.link}>
+            How it works <span aria-hidden="true">→</span>
+          </a>
+        </div>
+      ))
+    }
+  </div>
+</section>
+<!-- Runs before paint: shows the tabs, stacks the panels, and blanks the first one until it plays. -->
+<script is:inline>
+  (() => {
+    const demo = document.currentScript?.previousElementSibling;
+    if (!demo) return;
+    demo.dataset.js = "";
+    demo.querySelector("[role=tablist]")?.removeAttribute("hidden");
+    const first = demo.querySelector(".panel");
+    if (first && matchMedia("(prefers-reduced-motion: no-preference)").matches) {
+      first.dataset.stage = "idle";
+    }
+  })();
+</script>
+
+<script>
+  type Stage = "armed" | "typing" | "stopped" | "done";
+
+  const still = (): boolean => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const tighten = (tight: boolean): void => {
+    document.dispatchEvent(new CustomEvent("hr-figure", { detail: { tight } }));
+  };
+
+  // The typed command stays real DOM text; the untyped rest is painted transparent with the CSS Highlight API.
+  const textNodes = (root: Node): Text[] => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes: Text[] = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode as Text);
+    return nodes;
+  };
+
+  const rangeFrom = (nodes: readonly Text[], start: number, end: number): Range => {
+    const range = new Range();
+    let seen = 0;
+    let started = false;
+    for (const node of nodes) {
+      const length = node.data.length;
+      if (!started && start <= seen + length) {
+        range.setStart(node, start - seen);
+        started = true;
+      }
+      if (started && end <= seen + length) {
+        range.setEnd(node, end - seen);
+        return range;
+      }
+      seen += length;
+    }
+    return range;
+  };
+
+  const canHighlight = typeof CSS !== "undefined" && "highlights" in CSS;
+  const clearHighlights = (): void => {
+    if (canHighlight) CSS.highlights.clear();
+  };
+
+  const paintTyped = (nodes: readonly Text[], typed: number): void => {
+    if (!canHighlight) return;
+    const total = nodes.reduce((sum, node) => sum + node.data.length, 0);
+    CSS.highlights.clear();
+    if (typed >= total) return;
+    CSS.highlights.set("hr-pending", new Highlight(rangeFrom(nodes, typed, total)));
+    const caret = new Highlight(rangeFrom(nodes, typed, typed + 1));
+    caret.priority = 1;
+    CSS.highlights.set("hr-caret", caret);
+  };
+
+  for (const demo of document.querySelectorAll<HTMLElement>("[data-hr-demo]")) {
+    const tabs = [...demo.querySelectorAll<HTMLButtonElement>("[role=tab]")];
+    const panels = [...demo.querySelectorAll<HTMLElement>(".panel")];
+    let timers: ReturnType<typeof setTimeout>[] = [];
+    let played = false;
+
+    panels.forEach((panel, at) => {
+      panel.setAttribute("role", "tabpanel");
+      panel.setAttribute("aria-labelledby", tabs[at]?.id ?? "");
+    });
+
+    const stop = (): void => {
+      for (const timer of timers) clearTimeout(timer);
+      timers = [];
+    };
+    // The end state: no timers, no stage, no hidden text. Every reduced-motion path goes through here.
+    const settle = (): void => {
+      stop();
+      clearHighlights();
+      for (const panel of panels) delete panel.dataset.stage;
+    };
+    const later = (ms: number, run: () => void): void => {
+      timers.push(setTimeout(run, ms));
+    };
+    const stage = (panel: HTMLElement, value: Stage): void => {
+      panel.dataset.stage = value;
+    };
+
+    const play = (at: number): void => {
+      const panel = panels[at];
+      const cmd = panel?.querySelector<HTMLElement>("[data-hr-cmd]");
+      if (!panel || !cmd) return;
+      played = true;
+      stop();
+      if (still()) {
+        settle();
+        tighten(true);
+        return;
+      }
+      tighten(false);
+      const nodes = textNodes(cmd);
+      const total = nodes.reduce((sum, node) => sum + node.data.length, 0);
+      // About 0.6s of typing, whatever the length, then STOPPED holds for a beat before the refusal prints.
+      // The whole run ends inside 2.2s, the figure's 0.8s swing included.
+      const perChar = canHighlight ? Math.min(28, Math.max(16, 600 / total)) : 0;
+      const typedAt = perChar * total;
+      paintTyped(nodes, 0);
+      stage(panel, "typing");
+      for (let typed = 1; typed <= total; typed += 1) {
+        later(perChar * typed, () => paintTyped(nodes, typed));
+      }
+      later(typedAt + 140, () => stage(panel, "stopped"));
+      later(typedAt + 720, () => {
+        stage(panel, "done");
+        tighten(true);
+      });
+    };
+
+    const select = (at: number, focus: boolean): void => {
+      tabs.forEach((tab, index) => {
+        const chosen = index === at;
+        tab.setAttribute("aria-selected", String(chosen));
+        tab.tabIndex = chosen ? 0 : -1;
+        panels[index]?.toggleAttribute("data-active", chosen);
+        if (!chosen) delete panels[index]?.dataset.stage;
+      });
+      if (focus) tabs[at]?.focus();
+      play(at);
+    };
+
+    tabs.forEach((tab, at) => {
+      tab.addEventListener("click", () => select(at, false));
+    });
+
+    // Reduced motion can switch on at any time, even while the armed first case waits to enter view.
+    matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", (event) => {
+      if (!event.matches) return;
+      settle();
+      if (played) tighten(true);
+    });
+
+    // The tabs stack on a narrow screen; the tablist says so. Arrow keys below accept both axes.
+    const stacked = matchMedia("(max-width: 40rem)");
+    const orient = (): void => {
+      demo
+        .querySelector("[role=tablist]")
+        ?.setAttribute("aria-orientation", stacked.matches ? "vertical" : "horizontal");
+    };
+    orient();
+    stacked.addEventListener("change", orient);
+
+    demo.querySelector("[role=tablist]")?.addEventListener("keydown", (event) => {
+      const key = (event as KeyboardEvent).key;
+      const current = tabs.findIndex((tab) => tab.getAttribute("aria-selected") === "true");
+      const last = tabs.length - 1;
+      const next =
+        key === "ArrowRight" || key === "ArrowDown"
+          ? current === last
+            ? 0
+            : current + 1
+          : key === "ArrowLeft" || key === "ArrowUp"
+            ? current === 0
+              ? last
+              : current - 1
+            : key === "Home"
+              ? 0
+              : key === "End"
+                ? last
+                : -1;
+      if (next === -1) return;
+      event.preventDefault();
+      select(next, true);
+    });
+
+    // Arm the first case (blank line, caret at the start), then play it once when it scrolls into view.
+    const first = panels[0];
+    if (first && !still()) {
+      const cmd = first.querySelector<HTMLElement>("[data-hr-cmd]");
+      if (cmd && canHighlight) paintTyped(textNodes(cmd), 0);
+      stage(first, "armed");
+    }
+    const watch = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        watch.disconnect();
+        if (!played) play(0);
+      },
+      { threshold: 0.5 },
+    );
+    watch.observe(demo.querySelector(".panels") ?? demo);
+  }
+</script>
+
+<style>
+  .demo {
+    --pad: clamp(1rem, 0.6rem + 1.6vw, 2rem);
+    margin-top: clamp(2rem, 1.4rem + 2vw, 3rem);
+  }
+
+  /* Tabs: a segmented strip sitting on the panel's top edge. The chosen case is inverted. */
+  .tabs {
+    display: flex;
+    margin-bottom: calc(-1 * var(--hr-line-width));
+  }
+
+  .tabs[hidden] {
+    display: none;
+  }
+
+  .tab {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 3.25rem;
+    margin: 0;
+    margin-inline-start: calc(-1 * var(--hr-line-width));
+    padding: 0.6rem 1rem;
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: 0;
+    background: var(--hr-paper);
+    color: var(--hr-ink-strong);
+    font: 700 1.0625rem / 1.25 var(--hr-font-heading);
+    text-align: start;
+    text-decoration-line: none;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    text-decoration-color: var(--hr-link-line);
+    cursor: pointer;
+    transition:
+      background-color var(--hr-duration) var(--hr-ease-out),
+      color var(--hr-duration) var(--hr-ease-out);
+  }
+
+  .tab:first-child {
+    margin-inline-start: 0;
+    border-start-start-radius: var(--hr-radius);
+  }
+
+  .tab:last-child {
+    border-start-end-radius: var(--hr-radius);
+  }
+
+  .tab:hover {
+    text-decoration-line: underline;
+  }
+
+  .tab[aria-selected="true"] {
+    background: var(--hr-invert);
+    color: var(--hr-on-invert);
+    text-decoration-line: none;
+    cursor: default;
+  }
+
+  .tab:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 3px solid var(--hr-focus);
+    outline-offset: 2px;
+  }
+
+  /* No JS: the three cases stack, each with its own title. With JS only the chosen case shows, at its own
+     height; the tabs above it never move, only what sits below the demo. */
+  .panels {
+    display: grid;
+    gap: 2rem;
+  }
+
+  [data-js] .panel:not([data-active]) {
+    display: none;
+  }
+
+  [data-js] .case-title {
+    display: none;
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: var(--hr-radius);
+    background: var(--hr-code-bg);
+    overflow: hidden;
+  }
+
+  [data-js] .panel {
+    border-start-start-radius: 0;
+    border-start-end-radius: 0;
+  }
+
+  .case-title {
+    margin: 0;
+    padding: var(--pad) var(--pad) 0;
+    font: 700 1.25rem / 1.2 var(--hr-font-heading);
+    color: var(--hr-ink-strong);
+  }
+
+  .screen {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: var(--pad) var(--pad) 1rem;
+  }
+
+  .line {
+    display: flex;
+    gap: 0.75ch;
+    margin: 0;
+    font: 400 clamp(1rem, 0.9rem + 0.45vw, 1.25rem) / 1.5 var(--hr-font-mono);
+  }
+
+  .gutter {
+    flex: none;
+    color: var(--hr-ink-faint);
+    user-select: none;
+  }
+
+  .cmd {
+    min-width: 0;
+    padding: 0;
+    background: none;
+    font: inherit;
+    color: var(--hr-ink-strong);
+  }
+
+  .word {
+    white-space: nowrap;
+  }
+
+  /* The hazard tape bleeds to both panel edges, like a barrier dropped across the terminal. */
+  .stop {
+    display: flex;
+    align-items: center;
+    min-height: 3.75rem;
+    margin-inline: calc(-1 * var(--pad));
+    padding-inline: var(--pad);
+    background: var(--hr-tape);
+  }
+
+  .stamp {
+    padding: 0.3rem 0.75rem;
+    border: var(--hr-line-width) solid var(--hr-tape-stripe);
+    border-radius: var(--hr-radius);
+    background: var(--hr-accent);
+    color: var(--hr-on-accent);
+    font: 700 clamp(1.5rem, 1.2rem + 1vw, 2rem) / 1 var(--hr-font-heading);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .result {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-width: var(--hr-measure);
+  }
+
+  .output-label {
+    margin: 0 0 -0.25rem;
+    font: 600 1rem / 1.5 var(--hr-font-body);
+    color: var(--hr-ink-soft);
+  }
+
+  .refusal {
+    margin: 0;
+    font: 400 clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem) / 1.6 var(--hr-font-body);
+    color: var(--hr-refuse);
+    text-wrap: pretty;
+  }
+
+  .refusal [aria-hidden] {
+    font-weight: 700;
+  }
+
+  /* A path, flag or name is one chip that never breaks; the sentence wraps around it. */
+  .refusal code {
+    padding: 0.1em 0.3em;
+    border-radius: var(--hr-radius);
+    background: var(--hr-paper);
+    color: inherit;
+    font: 400 0.9em / 1 var(--hr-font-mono);
+    white-space: nowrap;
+  }
+
+  .plain {
+    margin: 0;
+    line-height: 1.6;
+    color: var(--hr-ink-soft);
+    text-wrap: pretty;
+  }
+
+  .more {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    min-block-size: 2.75rem;
+    margin: 0 var(--pad) calc(var(--pad) - 0.5rem);
+    color: var(--hr-ink-strong);
+    font-weight: 600;
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    text-decoration-color: var(--hr-link-line);
+  }
+
+  .more:hover {
+    text-decoration-thickness: 3px;
+  }
+
+  .more span {
+    margin-inline-start: 0.35em;
+  }
+
+  /* The sequence. The default is the end state, so no JS and reduced motion both show everything. */
+  @media (prefers-reduced-motion: no-preference) {
+    [data-stage="idle"] .cmd {
+      color: transparent;
+    }
+
+    :is([data-stage="idle"], [data-stage="armed"], [data-stage="typing"]) :is(.stop, .result),
+    [data-stage="stopped"] .result {
+      opacity: 0;
+    }
+
+    /* The tape arrives fast and stops dead; the panel takes the hit; the stamp lands on top. */
+    [data-stage="stopped"] .stop {
+      animation: hr-slam 200ms cubic-bezier(0.55, 0, 1, 0.45) both;
+    }
+
+    [data-stage="stopped"] .stamp {
+      animation: hr-stamp 180ms 150ms var(--hr-ease-out) both;
+    }
+
+    [data-stage="stopped"] .screen {
+      animation: hr-jolt 200ms 170ms ease-out;
+    }
+
+    /* The refusal prints left to right in coarse steps, like a terminal flushing a line. */
+    [data-stage="done"] .refusal,
+    [data-stage="done"] .output-label {
+      animation: hr-print 300ms steps(10, end) both;
+    }
+
+    [data-stage="done"] .plain {
+      animation: hr-settle 240ms 220ms var(--hr-ease-out) both;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tab {
+      transition: none;
+    }
+  }
+
+  /* Only while motion is allowed: if the preference flips to reduce, the hidden text comes back at once. */
+  @media (prefers-reduced-motion: no-preference) {
+    ::highlight(hr-pending) {
+      color: transparent;
+    }
+
+    ::highlight(hr-caret) {
+      background-color: var(--hr-accent);
+      color: transparent;
+    }
+  }
+
+  @keyframes hr-slam {
+    from {
+      transform: translateX(-101%);
+    }
+    to {
+      transform: none;
+    }
+  }
+
+  @keyframes hr-stamp {
+    from {
+      opacity: 0;
+      transform: scale(1.5) rotate(-4deg);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes hr-jolt {
+    0%,
+    100% {
+      transform: none;
+    }
+    30% {
+      transform: translateX(6px);
+    }
+    65% {
+      transform: translateX(-3px);
+    }
+  }
+
+  @keyframes hr-print {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
+  @keyframes hr-settle {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Narrow: the tabs stack into a list above the panel. Arrow keys move both ways. */
+  @media (max-width: 40rem) {
+    .tabs {
+      flex-direction: column;
+    }
+    .tab {
+      flex: none;
+      margin-inline-start: 0;
+      margin-top: calc(-1 * var(--hr-line-width));
+      min-height: 2.75rem;
+    }
+    .tab:first-child {
+      margin-top: 0;
+      border-start-end-radius: var(--hr-radius);
+    }
+    .tab:last-child {
+      border-start-end-radius: 0;
+    }
+  }
+
+  /* A chip never splits. At 320px the longest path, at 0.8em, is narrower than the box, so it fits whole on
+     its own line; the sentence wraps before it. */
+  @media (max-width: 24rem) {
+    .refusal code {
+      display: inline-block;
+      max-width: 100%;
+      vertical-align: bottom;
+      font-size: 0.8em;
+    }
+  }
+</style>

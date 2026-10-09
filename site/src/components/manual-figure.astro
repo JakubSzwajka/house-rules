@@ -3,6 +3,7 @@
 // hovers over it with a "tighten it" cue. It is a toggle button: pressing it (click, Enter or Space)
 // swings the wrench, the bolt seats, the wobble stops and he smiles. The idle motion runs three times,
 // then again only on hover. The caption is drawn as a button, so the press is not a secret. Home and 404.
+// On the home page the refusal demo drives it too: an "hr-figure" event loosens or tightens the bolt.
 interface Props {
   readonly before?: string;
   readonly after?: string;
@@ -86,6 +87,12 @@ const {
       if (status) {
         status.textContent = pressed ? (button.dataset["after"] ?? "") : "";
       }
+    });
+    // The demo's own text tells the story, so a driven change stays silent here.
+    document.addEventListener("hr-figure", (event) => {
+      const tight = (event as CustomEvent<{ readonly tight: boolean }>).detail.tight;
+      button.setAttribute("aria-pressed", String(tight));
+      if (status) status.textContent = "";
     });
   }
 </script>
@@ -192,7 +199,8 @@ const {
     background: var(--hr-paper);
     color: var(--hr-ink-strong);
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 1rem;
+    line-height: 1.6;
   }
 
   [aria-pressed="true"] .caption {

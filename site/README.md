@@ -40,17 +40,25 @@ Astro telemetry is off: every script sets `ASTRO_TELEMETRY_DISABLED=1`.
 
 ## Look
 
-The theme is an assembly manual. Light mode is a white instruction sheet: black line, and safety yellow as the one accent. Dark mode is the same sheet inverted: true black paper, white line, the same yellow. No paper in either mode has a hue. A thin construction layer sits on top: hazard tape under the header and above each section on the home page, and a grid around the home figure in light mode only. No grid sits behind text.
+The theme is an assembly manual. Light mode is a white instruction sheet: black line, and safety yellow as the one accent. Dark mode is the same sheet inverted: true black paper, white line, the same yellow. No paper in either mode has a hue. A thin construction layer sits on top: hazard tape under the header and above each section on the home page, and a grid around the home figure. No grid sits behind text.
 
 Type is IBM Plex: Plex Sans for body text, Plex Sans Condensed Bold for headings, Plex Mono for code. Prose stops at about 70 characters a line (`--hr-measure`). An inline code chip never breaks in the middle, link underlines are 1px, and the first column of a table, usually a rule name, is set in mono at body weight.
 
 Docs pages stay documentation first: Starlight's sidebar and contents list, dense text. Graphics live in three places only:
 
-1. The home page: the cover with the figure holding a part with a loose bolt, and the three numbered assembly steps.
+1. The home page, top to bottom:
+   - the hero: headline, tagline, one line on what the template is, and the figure;
+   - the refusal demo: three tabs ("Skip the hooks", "Read another package's table", "Hand-roll an MCP tool"), each playing one case the checks refuse. It types the agent's command, drops hazard tape with STOPPED, and prints the real refusal quoted from source (`scripts/tests/home.test.ts` checks each against its file);
+   - the start block: the `gh repo create` command with a copy button, the install-and-check step, and two buttons;
+   - the stat strip under a band of tape: the rule count, the tool count and the one command;
+   - a nav line: Guides, Rules, Skills, For agents;
+   - the footer: a line pointing agents at `/llms.txt`, and the author credit.
 2. The 404 page: the same figure.
 3. A small kit for the docs pages: yellow step badges on the numbered checkbox lists of procedure pages (the start guide, the Effect guide, and the skill pages), the parts list box on each generated rule page, and the yellow title band with a warning triangle on caution asides and on the fence page's safety guard notice.
 
 The figure is a toggle button (`aria-pressed`, so click, Enter and Space all work). Until pressed, the bolt wobbles, a wrench bobs above it and a "tighten it" cue points at the wrench. Pressing swings the wrench, seats the bolt, stops the wobble and makes him smile, and the caption becomes "Loose parts wobble. Pin them." Under `prefers-reduced-motion` nothing moves: the bolt sits crooked and the cue stays, and pressing switches straight to the tightened state.
+
+The refusal demo drives the figure through the `hr-figure` event on `document` (`detail.tight`): it loosens the bolt when a case starts and tightens it when the refusal prints. The home page plays the first case once, when the demo scrolls into view. Without JS all three cases show stacked at their end state. Under `prefers-reduced-motion`, including when the setting changes while the page is open, every case shows its end state at once. The tabs are a roving-tabindex tablist (arrows, Home and End); `aria-orientation` is `vertical` when they stack on a narrow screen.
 
 | File | Owns |
 | --- | --- |
@@ -58,8 +66,10 @@ The figure is a toggle button (`aria-pressed`, so click, Enter and Space all wor
 | `src/styles/theme.css` | colours, fonts, measure, radius, line width and the hazard tape as `--hr-*` tokens named by role, mapped onto Starlight's `--sl-color-*` |
 | `src/styles/chrome.css` | header, sidebar, contents list, pager, buttons |
 | `src/styles/content.css` | page titles, prose, tables, step badges, asides, code frames, and the home page tape |
-| `src/components/manual-hero.astro` | the home page cover and assembly steps (Starlight `Hero`) |
-| `src/components/manual-figure.astro` | the figure with the loose bolt, a toggle button, and the grid around it on the home page; home and 404 only |
+| `src/components/manual-hero.astro` | the home page hero, start block, stat strip and nav line, with the demo and figure placed in it (Starlight `Hero`) |
+| `src/components/refusal-demo.astro` | the three-tab refusal demo; home only |
+| `src/components/manual-footer.astro` | the home page footer line for agents and the credit; other pages keep Starlight's footer |
+| `src/components/manual-figure.astro` | the figure with the loose bolt, a toggle button that the demo also drives, and the grid around it on the home page; home and 404 only |
 | `src/components/page-title.astro` | the page title (Starlight `PageTitle`), plus the parts list on rule pages and the safety guard on the fence page |
 | `src/components/parts-list.astro` | the parts list box |
 | `src/components/warning-triangle.astro` | the warning triangle |

@@ -73,6 +73,7 @@ header.header::after {
 }
 
 site-search button > kbd {
+  font-size: 0.875rem;
   background: var(--hr-paper-sunk);
   color: var(--hr-ink-soft);
 }
