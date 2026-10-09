@@ -1,0 +1,221 @@
+/* The binding: header, sidebar, contents list, pager, buttons, and the browser surfaces around them. */
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--hr-selection);
+  color: var(--hr-on-selection);
+}
+
+:focus-visible {
+  outline: 3px solid var(--hr-focus);
+  outline-offset: 2px;
+}
+
+html {
+  scrollbar-color: var(--hr-ink-faint) var(--hr-paper-sunk);
+  accent-color: var(--hr-accent);
+  caret-color: var(--hr-ink-strong);
+}
+
+/* header: a black rule with hazard tape under it */
+header.header {
+  border-bottom: 0;
+}
+
+header.header::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 5px;
+  background: var(--hr-tape);
+  /* paint only: the theme select's lower edge sits under the tape on narrow screens */
+  pointer-events: none;
+  border-top: var(--hr-line-width) solid var(--hr-line);
+}
+
+.site-title {
+  gap: 0.6rem;
+  color: var(--hr-ink-strong);
+  font: 700 1.3rem / 1 var(--hr-font-heading);
+  letter-spacing: 0;
+}
+
+.site-title img {
+  height: 2rem;
+  width: auto;
+}
+
+/* below the desktop pill the search is a bare icon: give it a full 44px touch target */
+@media (max-width: 49.99rem) {
+  site-search button[data-open-modal] {
+    min-inline-size: 2.75rem;
+    min-block-size: 2.75rem;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 50rem) {
+  site-search button[data-open-modal] {
+    background: var(--hr-paper);
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: 999px;
+    color: var(--hr-ink);
+  }
+
+  site-search button[data-open-modal]:hover {
+    background: var(--hr-accent);
+    color: var(--hr-on-accent);
+  }
+}
+
+site-search button > kbd {
+  font-size: 0.875rem;
+  background: var(--hr-paper-sunk);
+  color: var(--hr-ink-soft);
+}
+
+site-search dialog {
+  background: var(--hr-paper);
+  border: var(--hr-line-width) solid var(--hr-line);
+}
+
+/* sidebar: the table of parts */
+.sidebar-content .large {
+  font: 700 0.78rem / 1.2 var(--hr-font-body);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hr-ink-strong);
+}
+
+.sidebar-content summary .group-label .large {
+  font-size: 0.78rem;
+}
+
+.sidebar-content a {
+  color: var(--hr-ink);
+  border-radius: var(--hr-radius);
+}
+
+.sidebar-content a:hover,
+.sidebar-content a:focus-visible {
+  background: var(--hr-paper-raised);
+  color: var(--hr-ink-strong);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.sidebar-content a[aria-current="page"],
+.sidebar-content a[aria-current="page"]:hover,
+.sidebar-content a[aria-current="page"]:focus-visible {
+  background: var(--hr-accent);
+  color: var(--hr-on-accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sidebar-content ul ul li {
+  border-inline-start-color: var(--hr-hairline);
+}
+
+/* table of contents */
+starlight-toc h2,
+mobile-starlight-toc .toggle {
+  font: 700 0.78rem / 1.2 var(--hr-font-body);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hr-ink-strong);
+}
+
+starlight-toc a,
+mobile-starlight-toc a {
+  color: var(--hr-ink-soft);
+}
+
+starlight-toc a:hover,
+mobile-starlight-toc a:hover {
+  color: var(--hr-ink-strong);
+}
+
+starlight-toc a[aria-current="true"],
+mobile-starlight-toc a[aria-current="true"] {
+  color: var(--hr-ink-strong);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: var(--hr-accent);
+  text-decoration-thickness: 3px;
+  text-underline-offset: 0.25em;
+}
+
+/* pager: next and previous page, boxed like a step panel */
+.pagination-links a {
+  border: var(--hr-line-width) solid var(--hr-line);
+  border-radius: var(--hr-radius);
+  box-shadow: none;
+  color: var(--hr-ink);
+  transition: background-color var(--hr-duration) var(--hr-ease-out);
+}
+
+.pagination-links a:hover {
+  background: var(--hr-accent);
+  color: var(--hr-on-accent);
+}
+
+.pagination-links a:hover .link-title {
+  color: var(--hr-on-accent);
+}
+
+.pagination-links .link-title {
+  font: 700 1.1rem / 1.25 var(--hr-font-heading);
+  color: var(--hr-ink-strong);
+}
+
+/* buttons, home and in-page */
+.sl-link-button {
+  border-radius: var(--hr-radius);
+  border: var(--hr-line-width) solid var(--hr-line);
+  font: 700 1rem / 1 var(--hr-font-body);
+  transition:
+    background-color var(--hr-duration) var(--hr-ease-out),
+    color var(--hr-duration) var(--hr-ease-out);
+}
+
+.sl-link-button.primary {
+  background: var(--hr-accent);
+  border-color: var(--hr-line);
+  color: var(--hr-on-accent);
+}
+
+.sl-link-button.primary:hover {
+  background: var(--hr-invert);
+  color: var(--hr-on-invert);
+}
+
+.sl-link-button.minimal,
+.sl-link-button.secondary {
+  padding-inline: 1.1rem;
+  background: var(--hr-paper);
+  color: var(--hr-ink-strong);
+}
+
+.sl-link-button.minimal:hover,
+.sl-link-button.secondary:hover {
+  background: var(--hr-accent);
+  color: var(--hr-on-accent);
+}
+
+/* footer bits */
+.meta,
+footer .kudos {
+  color: var(--hr-ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pagination-links a,
+  .sl-link-button {
+    transition: none;
+  }
+}

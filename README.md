@@ -4,7 +4,9 @@ house-rules is the home of the house plugin and of a TypeScript monorepo templat
 
 Every lint rule, preset, and check in `pnpm check` comes from the house plugin for deterministic feedback, and [its README lists them](packages/rules/README.md#rules-and-checks).
 
-It is a GitHub template. Create a repo from it with `gh repo create <name> --template JakubSzwajka/house-rules`. It also carries the reference copy of the release workflow. See [`docs/release.md`](docs/release.md) to adopt it.
+The docs site, [stack.kubaszwajka.com](https://stack.kubaszwajka.com), is for people deciding on the template: a start page and a table of every rule, where `/rules/#<rule id>` links to one rule. Agents read `AGENTS.md` instead, and `/llms.txt` tells them so. Its source is [`site/`](site/README.md).
+
+It is a GitHub template. Create a repo from it with `gh repo create my-app --private --clone --template JakubSzwajka/house-rules`. It also carries the reference copy of the release workflow. See [`docs/release.md`](docs/release.md) to adopt it.
 
 ## Layout
 
@@ -16,6 +18,8 @@ It is a GitHub template. Create a repo from it with `gh repo create <name> --tem
 ├── packages/capability/    @house-rules/capability: contracts, handlers, and toTool
 ├── packages/migrations/    @house-rules/migrations: runs the migrations of every listed module
 ├── packages/rules/         @house-rules/rules: the house rules, presets, and bins
+├── site/                   @house-rules/site: the docs site (Astro + Starlight)
+├── skills/                 agent skills, one folder each
 ├── tests/                  fence and thin-config wiring tests
 ├── .dependency-cruiser.cjs layout({ scope: "@hosti/" }) from house-rules
 ├── biome.json              extends the house-rules Biome preset, plus excludes
@@ -36,7 +40,7 @@ Root tools run once over the whole repo. The layout bin checks production subjec
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.11.0`. Biome skips `packages/rules/tests/fixtures`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.11.0`. Biome skips `packages/rules/tests/fixtures`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
@@ -195,6 +199,10 @@ Its README lists the install steps, the permission and approval gates, and what 
 
 Follow [`skills/add-an-effect-module/SKILL.md`](skills/add-an-effect-module/SKILL.md). In short: copy `packages/bookings`, keep `exports` to `"." : "./src/index.ts"`, lay the code out in subject folders such as `src/booking/`, and run `pnpm install`.
 
+### Add a docs page
+
+Follow [`skills/write-a-docs-page/SKILL.md`](skills/write-a-docs-page/SKILL.md). In short: the site has one hand-written page, `site/src/content/docs/start/index.md`, and one generated page, the rules table. To change the table, change `packages/rules`, then run `pnpm --filter @house-rules/site generate` and commit the result.
+
 ### Let agents call a use-case
 
 Follow `skills/add-an-mcp-tool/SKILL.md`. `docs/mcp-adapter.md` records why an MCP tool only runs an existing use-case.
@@ -226,4 +234,5 @@ pnpm fix
 pnpm format
 pnpm acceptance
 pnpm vendor:agent-sources
+pnpm --filter @house-rules/site dev
 ```

@@ -3,6 +3,7 @@
     {
       "name": "no-cycles",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#no-cycles",
       "from": {},
       "to": {
         "circular": true
@@ -11,6 +12,7 @@
     {
       "name": "packages-do-not-import-apps",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#packages-do-not-import-apps",
       "from": {
         "path": "^packages/"
       },
@@ -21,6 +23,7 @@
     {
       "name": "apps-do-not-import-other-apps",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#apps-do-not-import-other-apps",
       "from": {
         "path": "^(apps/[^/]+)/"
       },
@@ -32,6 +35,7 @@
     {
       "name": "packages-imported-by-name",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#packages-imported-by-name",
       "from": {
         "path": "^((?:apps|packages)/[^/]+)/"
       },
@@ -46,6 +50,7 @@
     {
       "name": "packages-public-entry-only",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#packages-public-entry-only",
       "from": {
         "path": "^((?:apps|packages)/[^/]+)/"
       },
@@ -57,6 +62,7 @@
     {
       "name": "delivery-does-not-import-server",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#delivery-does-not-import-server",
       "from": {
         "path": "^apps/[^/]+/src/delivery(?:/|$)"
       },
@@ -67,6 +73,7 @@
     {
       "name": "server-does-not-import-delivery",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#server-does-not-import-delivery",
       "from": {
         "path": "^apps/[^/]+/src/server(?:/|$)"
       },
@@ -77,6 +84,7 @@
     {
       "name": "use-cases-do-not-import-outer-layers",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#use-cases-do-not-import-outer-layers",
       "from": {
         "path": "^apps/[^/]+/src/use-cases(?:/|$)"
       },
@@ -90,6 +98,7 @@
     {
       "name": "no-unresolved-deep-package-imports",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#no-unresolved-deep-package-imports",
       "from": {},
       "to": {
         "path": "^@hosti/[^/]+/.+",
@@ -99,6 +108,7 @@
     {
       "name": "production-does-not-import-tests",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#production-does-not-import-tests",
       "from": {
         "path": "^(?:apps|packages)/[^/]+/src(?:/|$)",
         "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
@@ -110,6 +120,7 @@
     {
       "name": "tests-live-in-tests-dir",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#tests-live-in-tests-dir",
       "module": {
         "path": "^(?:apps|packages)/[^/]+/.*[.](?:test|spec)[.][^/]+$",
         "pathNot": "^(?:apps|packages)/[^/]+/src/(?:tests|.*/tests)/[^/]+[.](?:test|spec)[.][^/]+$",
@@ -120,6 +131,7 @@
     {
       "name": "tests-do-not-import-internals",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#tests-do-not-import-internals",
       "from": {
         "path": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
       },
@@ -130,6 +142,7 @@
     {
       "name": "no-unresolved-imports",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#no-unresolved-imports",
       "from": {},
       "to": {
         "couldNotResolve": true
@@ -138,6 +151,7 @@
     {
       "name": "app-code-in-layers",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#app-code-in-layers",
       "module": {
         "path": "^apps/[^/]+/src/",
         "pathNot": [
@@ -152,6 +166,7 @@
     {
       "name": "use-cases-do-not-import-use-cases",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#use-cases-do-not-import-use-cases",
       "from": {
         "path": "^(apps/[^/]+/src/use-cases/[^/]+)",
         "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
@@ -167,6 +182,7 @@
     {
       "name": "no-ownerless-files",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#no-ownerless-files",
       "module": {
         "path": [
           "^(?:apps|packages)/(?:.*/)?(?:utils|helpers|misc)(?:[.][^/]*)?(?:/|$)",
@@ -179,6 +195,7 @@
     {
       "name": "package-root-files",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#package-root-files",
       "module": {
         "path": "^packages/[^/]+/src/[^/]+$",
         "pathNot": [
@@ -192,6 +209,7 @@
     {
       "name": "domain-does-not-import-adapters",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#domain-does-not-import-adapters",
       "from": {
         "path": "^(packages/[^/]+)/src/",
         "pathNot": [
@@ -208,6 +226,7 @@
     {
       "name": "domain-does-not-import-adapters",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#domain-does-not-import-adapters",
       "from": {
         "path": "^(packages/[^/]+)/src/",
         "pathNot": [
@@ -224,6 +243,7 @@
     {
       "name": "subjects-do-not-import-package-root",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#subjects-do-not-import-package-root",
       "from": {
         "path": "^(packages/[^/]+)/src/[^/]+/",
         "pathNot": [
@@ -239,6 +259,7 @@
     {
       "name": "adapter-imports-only-in-adapters",
       "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#adapter-imports-only-in-adapters",
       "from": {
         "path": "^packages/[^/]+/src/",
         "pathNot": [

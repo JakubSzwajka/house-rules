@@ -5,6 +5,7 @@ import {
   splitCommaList,
   splitComponents,
 } from "./css-values.mjs";
+import { ruleDocsUrl } from "./rule-docs.mjs";
 
 const CSS_WIDE_KEYWORDS = new Set(["inherit", "initial", "unset", "revert", "revert-layer"]);
 
@@ -45,6 +46,7 @@ export const designScaleValueRule = {
   meta: {
     type: "suggestion",
     docs: {
+      url: ruleDocsUrl("design-scale-value"),
       description:
         "Require values of chosen properties to come from a fixed scale or from a token variable.",
     },

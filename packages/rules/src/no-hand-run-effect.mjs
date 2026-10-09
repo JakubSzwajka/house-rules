@@ -1,4 +1,5 @@
 import { importOf, staticPropertyName, unwrapExpression } from "./import-bindings.mjs";
+import { ruleDocsUrl } from "./rule-docs.mjs";
 
 const EFFECT_RUN = /^run[A-Z]/u;
 const MODULES = [
@@ -43,6 +44,7 @@ export const noHandRunEffectRule = {
   meta: {
     type: "problem",
     docs: {
+      url: ruleDocsUrl("no-hand-run-effect"),
       description:
         "Forbid running an Effect by hand in a test: no Effect.run* and no ManagedRuntime.make. Tests run Effects through @effect/vitest.",
     },

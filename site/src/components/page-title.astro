@@ -1,0 +1,13 @@
+---
+// PageTitle override: the bare title, with the docs heading size.
+const { entry } = Astro.locals.starlightRoute;
+---
+
+<h1 id="_top">{entry.data.title}</h1>
+
+<style>
+  h1 {
+    margin-top: 1rem;
+    font-size: var(--sl-text-h1);
+  }
+</style>

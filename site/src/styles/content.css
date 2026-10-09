@@ -1,0 +1,233 @@
+/* The sheet: page titles, prose, and tables. Asides, code frames and the home page tape are in blocks.css. */
+
+h1#_top {
+  font-family: var(--hr-font-heading);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.08;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  color: var(--hr-ink-strong);
+}
+
+/* h2 opens a new section of the manual: a black rule across the column, like a page break in the booklet.
+   Starlight wraps each heading with its anchor link, so the rule sits on that wrapper. */
+.sl-markdown-content .sl-heading-wrapper.level-h2:not(:where(.not-content *)) {
+  margin-top: 2.75rem;
+  padding-top: 0.9rem;
+  border-top: var(--hr-line-width) solid var(--hr-line);
+}
+
+.sl-markdown-content > .sl-heading-wrapper.level-h2:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.sl-markdown-content h2:not(:where(.not-content *)) {
+  margin-bottom: 0.75rem;
+  font-family: var(--hr-font-heading);
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  color: var(--hr-ink-strong);
+}
+
+.sl-markdown-content :is(h3, h4, h5, h6):not(:where(.not-content *)) {
+  font-family: var(--hr-font-heading);
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--hr-ink-strong);
+}
+
+.sl-markdown-content h3:not(:where(.not-content *)) {
+  margin-top: 2rem;
+}
+
+/* One measure for prose, home and docs alike: about 70 characters a line. */
+.sl-markdown-content :is(p, li, blockquote):not(:where(.not-content *)) {
+  max-width: var(--hr-measure);
+}
+
+.sl-markdown-content :is(ol, ul) > li + li:not(:where(.not-content *)) {
+  margin-top: 0.4rem;
+}
+
+.sl-markdown-content a:not(:where(.not-content *)) {
+  color: var(--hr-link);
+  text-decoration-color: var(--hr-link-line);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+  transition: background-color var(--hr-duration) var(--hr-ease-out);
+}
+
+.sl-markdown-content a:not(:where(.not-content *)):hover {
+  background: var(--hr-accent);
+  color: var(--hr-on-accent);
+  text-decoration-color: var(--hr-on-accent);
+}
+
+/* Inline code chips. A long chip with spaces, such as a message, wraps at its spaces. A short chip or one
+   with no space (marked hr-token at build time) never wraps, so a path or rule name is never cut after
+   a hyphen or slash. On a narrow screen a
+   token longer than the line scrolls inside its own chip instead of pushing the page sideways. */
+.sl-markdown-content :not(pre) > code:not(:where(.not-content *)) {
+  border-radius: 3px;
+  padding: 0.08em 0.35em;
+  color: inherit;
+  font-size: 0.9em;
+  overflow-wrap: normal;
+  word-break: normal;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.sl-markdown-content code.hr-token:not(:where(.not-content *)) {
+  white-space: nowrap;
+}
+
+@media (max-width: 50rem) {
+  .sl-markdown-content code.hr-token:not(:where(.not-content *)) {
+    display: inline-block;
+    max-width: 100%;
+    overflow-x: auto;
+    vertical-align: bottom;
+    scrollbar-width: none;
+  }
+
+  /* an inline-block chip does not inherit the link's underline, so a linked chip draws its own */
+  .sl-markdown-content a > code.hr-token:not(:where(.not-content *)) {
+    text-decoration: underline 1px var(--hr-link-line);
+    text-underline-offset: 0.22em;
+  }
+}
+
+.sl-markdown-content strong:not(:where(.not-content *)) {
+  color: var(--hr-ink-strong);
+  font-weight: 700;
+}
+
+.sl-markdown-content hr:not(:where(.not-content *)) {
+  border: 0;
+  border-top: var(--hr-line-width) solid var(--hr-line);
+}
+
+.sl-markdown-content blockquote:not(:where(.not-content *)) {
+  border-inline-start: var(--hr-line-width) solid var(--hr-hairline);
+  color: var(--hr-ink-soft);
+}
+
+/* tables: ruled lines, a black rule under the header, no card */
+.sl-markdown-content table:not(:where(.not-content *)) {
+  font-size: 0.95rem;
+  line-height: 1.45;
+  border-collapse: collapse;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+  border: 0;
+  border-bottom: 1px solid var(--hr-hairline);
+  padding: 0.55rem 1.1rem 0.55rem 0;
+  background: transparent;
+}
+
+.sl-markdown-content :is(th:last-child, td:last-child):not(:where(.not-content *)) {
+  padding-inline-end: 0;
+}
+
+.sl-markdown-content th:not(:where(.not-content *)) {
+  font: 700 0.75rem / 1.2 var(--hr-font-body);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hr-ink-strong);
+  border-bottom: var(--hr-line-width) solid var(--hr-line);
+  vertical-align: bottom;
+}
+
+/* The first column names the thing, often a rule: set in mono so a name reads as a name, at body weight. */
+.sl-markdown-content td:first-child:not(:where(.not-content *)) {
+  color: var(--hr-ink-strong);
+}
+
+.sl-markdown-content td:first-child > a:not(:where(.not-content *)) {
+  font-family: var(--hr-font-mono);
+  font-size: 0.92em;
+  white-space: nowrap;
+}
+
+/* on a phone a cramped table scrolls sideways instead of stacking one word per line */
+@media (max-width: 50rem) {
+  .sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+    min-width: 8rem;
+  }
+  .sl-markdown-content :is(th, td):first-child:not(:where(.not-content *)) {
+    min-width: 7rem;
+  }
+}
+
+/* A link to /rules/#<id> lands on that rule's row and marks it. */
+.sl-markdown-content tr:has(> td > span:target):not(:where(.not-content *)),
+.sl-markdown-content tr:has(> td > span:target):not(:where(.not-content *)) > td {
+  background: var(--hr-selection);
+  color: var(--hr-on-selection);
+}
+
+.sl-markdown-content tr:has(> td > span:target):not(:where(.not-content *)) :is(a, code) {
+  background: transparent;
+  color: inherit;
+  text-decoration-color: currentColor;
+}
+
+/* On a phone the rules table, the one whose rows carry anchors, stacks each row: the name, the sentence, then
+   the tool and the docs link on one line, so nothing hides off to the side. */
+@media (max-width: 50rem) {
+  .sl-markdown-content table:has(td > span[id]):not(:where(.not-content *)) {
+    display: block;
+    width: 100%;
+  }
+  .sl-markdown-content table:has(td > span[id]) thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .sl-markdown-content table:has(td > span[id]) tbody {
+    display: block;
+  }
+  .sl-markdown-content table:has(td > span[id]) tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.25rem 1rem;
+    padding-block: 0.6rem;
+    border-bottom: 1px solid var(--hr-hairline);
+  }
+  .sl-markdown-content table:has(td > span[id]) :is(th, td):not(:where(.not-content *)) {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .sl-markdown-content table:has(td > span[id]) tr:has(> td > span:target) {
+    margin-inline: -0.5rem;
+    padding-inline: 0.5rem;
+  }
+  .sl-markdown-content table:has(td > span[id]) tr:has(> td > span:target) > td {
+    color: inherit;
+  }
+  .sl-markdown-content table:has(td > span[id]) td:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .sl-markdown-content table:has(td > span[id]) td:nth-child(2) {
+    grid-row: 3;
+    color: var(--hr-ink-soft);
+  }
+}
+
+.sl-markdown-content input[type="checkbox"] {
+  accent-color: var(--hr-accent);
+  margin-inline-end: 0.4rem;
+}

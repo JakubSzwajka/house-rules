@@ -1,0 +1,512 @@
+---
+// Hero override for the splash home: the cover (headline, tagline, what it is, the figure), the refusal demo,
+// the template command with a copy button and the step after it, the two actions, a hazard-tape break with
+// the counts, and the section links. The footer carries the line for agents.
+import { LinkButton } from "@astrojs/starlight/components";
+import { parts, toolCount } from "virtual:house-rules/parts";
+import ManualFigure from "./manual-figure.astro";
+import RefusalDemo from "./refusal-demo.astro";
+
+const { data } = Astro.locals.starlightRoute.entry;
+const { title = data.title, tagline, actions = [] } = data.hero ?? {};
+
+const about = "A TypeScript template for projects agents help write.";
+
+// gh needs a visibility flag when it gets a name, and --clone so the next step has a folder to enter.
+const command = "gh repo create my-app --private --clone --template JakubSzwajka/house-rules";
+const checkCommand = "pnpm check";
+const nextStep = `cd my-app && pnpm install && ${checkCommand}`;
+// Split on spaces so a narrow screen wraps between words, never inside a flag or a repo name.
+// Browsers break after "-", so "--no-verify" would split at its dashes.
+const words = (text: string): readonly string[] => text.split(" ");
+
+// The counts come from the rules table the site already reads; the third is the pre-commit hook in lefthook.yml.
+const stats = [
+  { value: parts.length, label: parts.length === 1 ? "rule" : "rules" },
+  { value: toolCount, label: toolCount === 1 ? "tool" : "tools" },
+  { value: 1, label: "hook", runs: [checkCommand, "pnpm test"] },
+] as const;
+
+const sections = [
+  { text: "Start", href: "/start/" },
+  { text: "Rules", href: "/rules/" },
+  { text: "GitHub", href: "https://github.com/JakubSzwajka/house-rules" },
+] as const;
+---
+
+<div class="cover">
+  <div class="intro">
+    <h1 id="_top" data-page-title set:html={title} />
+    {tagline && <p class="tagline" set:html={tagline} />}
+    <p class="about">{about}</p>
+  </div>
+  <div class="art">
+    <ManualFigure grid />
+  </div>
+</div>
+
+<RefusalDemo />
+
+<section class="start" aria-label="Start a project">
+  <p class="step" id="hr-command-step">Make a private repo from the template:</p>
+  <div class="command" role="group" aria-labelledby="hr-command-step">
+    <span class="prompt" aria-hidden="true">$</span>
+    <code id="hr-command">
+      {words(command).map((word, at) => (
+        <>
+          {at > 0 && " "}
+          <span class="word">{word}</span>
+        </>
+      ))}
+    </code>
+    <button type="button" class="copy-button" data-hr-copy="#hr-command" aria-label="Copy the command">
+      <span data-hr-copy-label aria-hidden="true">Copy</span>
+      <span class="sr-only" role="status" data-hr-copy-status></span>
+    </button>
+  </div>
+  <p class="step then">Then install and run the checks:</p>
+  <code class="next">
+    {words(nextStep).map((word, at) => (
+      <>
+        {at > 0 && " "}
+        <span class="word">{word}</span>
+      </>
+    ))}
+  </code>
+  {
+    actions.length > 0 && (
+      <div class="actions">
+        {actions.map(({ attrs: { class: className, ...attrs } = {}, icon, link: href, text, variant }) => (
+          <LinkButton {href} {variant} icon={icon?.name} class:list={[className]} {...attrs}>
+            {text}
+            {icon?.html && <Fragment set:html={icon.html} />}
+          </LinkButton>
+        ))}
+      </div>
+    )
+  }
+</section>
+
+<section class="stats" aria-labelledby="hr-stats-title">
+  <h2 class="sr-only" id="hr-stats-title">The checks in numbers</h2>
+  <ul>
+    {
+      stats.map((stat) => (
+        <li>
+          <span class="value">{stat.value}</span>{" "}
+          <span class="label">
+            {stat.label}
+            {"runs" in stat && " "}
+            {"runs" in stat && (
+              <span class="runs">
+                pre-commit: <code>{stat.runs[0]}</code> + <code>{stat.runs[1]}</code>
+              </span>
+            )}
+          </span>
+        </li>
+      ))
+    }
+  </ul>
+  <a class="every" href="/rules/">See every rule <span aria-hidden="true">→</span></a>
+</section>
+
+<nav class="sections" aria-label="Docs sections">
+  <ul>
+    {
+      sections.map((section) => (
+        <li>
+          <a href={section.href}>{section.text}</a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>
+
+<script>
+  const label = (button: HTMLElement, text: string): void => {
+    const visible = button.querySelector<HTMLElement>("[data-hr-copy-label]");
+    const status = button.querySelector<HTMLElement>("[data-hr-copy-status]");
+    if (visible) visible.textContent = text;
+    if (status) status.textContent = text === "Copy" ? "" : text;
+  };
+
+  const copyText = async (text: string): Promise<boolean> => {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Plain http or a blocked clipboard: fall back to a hidden textarea.
+      const area = document.createElement("textarea");
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.append(area);
+      area.select();
+      const done = document.execCommand("copy");
+      area.remove();
+      return done;
+    }
+  };
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-hr-copy]")) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    button.addEventListener("click", async () => {
+      const source = document.querySelector<HTMLElement>(button.dataset["hrCopy"] ?? "");
+      const ok = await copyText(source?.textContent?.replace(/\s+/g, " ").trim() ?? "");
+      label(button, ok ? "Copied" : "Press Ctrl+C");
+      clearTimeout(timer);
+      timer = setTimeout(() => label(button, "Copy"), 2000);
+    });
+  }
+</script>
+
+<style>
+  /* Rhythm: about 12px inside a group, about 36px between groups, more between sections. Code is one step,
+     15px; prose is 16px or more. */
+  .cover,
+  .start,
+  .stats {
+    --gap-in: 0.75rem;
+    --gap-between: 2.25rem;
+  }
+
+  .cover {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 1.5rem 3rem;
+    align-items: center;
+    padding-block: clamp(1rem, 0.5rem + 2vmin, 2rem) 0;
+  }
+
+  .intro {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  h1 {
+    margin: 0;
+    font: 700 clamp(3rem, 1.4rem + 4.2vw, 5rem) / 0.95 var(--hr-font-heading);
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    color: var(--hr-ink-strong);
+  }
+
+  .tagline {
+    max-width: 30rem;
+    margin: 0.25rem 0 0;
+    font-size: clamp(1.2rem, 1rem + 0.6vw, 1.45rem);
+    font-weight: 600;
+    line-height: 1.4;
+    text-wrap: pretty;
+    color: var(--hr-ink-strong);
+  }
+
+  .about {
+    max-width: 34rem;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.55;
+    color: var(--hr-ink-soft);
+  }
+
+  .art {
+    display: grid;
+    place-items: center;
+  }
+
+  .art :global(.sheet) {
+    width: min(100%, 16rem);
+  }
+
+  /* Start: the command, the next step and the actions, one tight column under the demo. */
+  .start {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--gap-in);
+    margin-top: clamp(2.5rem, 2rem + 2vw, 3.5rem);
+  }
+
+  .step {
+    margin: 0;
+    font-weight: 600;
+    color: var(--hr-ink-strong);
+  }
+
+  .command {
+    display: flex;
+    align-items: stretch;
+    max-width: 100%;
+    width: fit-content;
+    margin: 0;
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: var(--hr-radius);
+    background: var(--hr-code-bg);
+  }
+
+  .prompt {
+    flex: none;
+    padding: 0.7rem 0 0.7rem 0.9rem;
+    font: 400 var(--hr-text-code) / 1.5 var(--hr-font-mono);
+    color: var(--hr-ink-faint);
+    user-select: none;
+  }
+
+  .command code {
+    min-width: 0;
+    padding: 0.7rem 0.9rem 0.7rem 0.6rem;
+    font: 400 var(--hr-text-code) / 1.5 var(--hr-font-mono);
+    color: var(--hr-ink);
+  }
+
+  .word {
+    white-space: nowrap;
+  }
+
+  /* The cell stretches to the slab's full height, so the command and its button read as one object. */
+  .copy-button {
+    flex: none;
+    align-self: stretch;
+    min-width: 5.5rem;
+    min-height: 2.75rem;
+    padding: 0 0.9rem;
+    border: 0;
+    border-inline-start: var(--hr-line-width) solid var(--hr-line);
+    background: var(--hr-paper);
+    color: var(--hr-ink-strong);
+    font: 600 var(--hr-text-code) / 1.2 var(--hr-font-body);
+    cursor: pointer;
+    transition:
+      background-color var(--hr-duration) var(--hr-ease-out),
+      color var(--hr-duration) var(--hr-ease-out);
+  }
+
+  /* Yellow belongs to the primary action alone; the other controls invert on hover. */
+  .copy-button:hover {
+    background: var(--hr-invert);
+    color: var(--hr-on-invert);
+  }
+
+  .copy-button:focus-visible {
+    outline: 3px solid var(--hr-focus);
+    outline-offset: 2px;
+  }
+
+  .then {
+    margin-top: 0.5rem;
+  }
+
+  .next {
+    max-width: 100%;
+    padding: 0.35rem 0.6rem;
+    border-radius: var(--hr-radius);
+    background: var(--hr-code-bg);
+    font: 400 var(--hr-text-code) / 1.5 var(--hr-font-mono);
+    color: var(--hr-ink);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-in);
+    margin-top: 1.25rem;
+  }
+
+  .actions :global(.sl-link-button) {
+    min-height: 2.75rem;
+  }
+
+  .actions :global(.sl-link-button.minimal:hover) {
+    background: var(--hr-invert);
+    color: var(--hr-on-invert);
+  }
+
+  /* Stats: a thick band of tape, then three numerals that sit on one baseline. */
+  .stats {
+    margin-top: clamp(3rem, 2.4rem + 2.4vw, 4.5rem);
+  }
+
+  .stats::before {
+    content: "";
+    display: block;
+    height: 1rem;
+    margin-bottom: clamp(1.5rem, 1.2rem + 1vw, 2.25rem);
+    background: var(--hr-tape);
+  }
+
+  .stats ul {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .stats li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0;
+  }
+
+  .value {
+    font: 700 clamp(3rem, 1.8rem + 3.6vw, 4.5rem) / 0.9 var(--hr-font-heading);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    color: var(--hr-ink-strong);
+  }
+
+  .label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.6rem;
+    font: 700 1rem / 1.5 var(--hr-font-heading);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--hr-ink);
+  }
+
+  .runs {
+    flex-basis: 100%;
+    font: 400 1rem / 1.5 var(--hr-font-body);
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--hr-ink-soft);
+  }
+
+  .label code {
+    padding: 0.1em 0.4em;
+    border-radius: var(--hr-radius);
+    background: var(--hr-code-bg);
+    font: 400 var(--hr-text-code) / 1.4 var(--hr-font-mono);
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+    color: var(--hr-ink);
+  }
+
+  .every,
+  .sections a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 2.75rem;
+    color: var(--hr-ink-strong);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    text-decoration-color: var(--hr-link-line);
+  }
+
+  .every {
+    margin-top: 1rem;
+    font-weight: 600;
+    text-decoration-line: underline;
+  }
+
+  .every span {
+    margin-inline-start: 0.35em;
+  }
+
+  .every:hover {
+    text-decoration-thickness: 3px;
+  }
+
+  /* One quiet line of section links; the dots are drawn, so they are not read out. */
+  .sections {
+    margin-top: clamp(2rem, 1.6rem + 1.6vw, 3rem);
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--hr-hairline);
+  }
+
+  .sections ul {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .sections li {
+    display: flex;
+    align-items: center;
+    margin: 0;
+  }
+
+  .sections li + li::before {
+    content: "·";
+    padding-inline: 0.75rem;
+    color: var(--hr-ink-faint);
+  }
+
+  .sections a {
+    min-inline-size: 2.75rem;
+    font-weight: 400;
+    text-decoration-line: none;
+  }
+
+  .sections a:hover,
+  .sections a:focus-visible {
+    text-decoration-line: underline;
+  }
+
+  @media (max-width: 60rem) {
+    .cover {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .art :global(.sheet) {
+      width: min(100%, 13rem);
+    }
+    /* The narrow sheet scales the drawing down; this keeps the cue's words at about 16px on screen. */
+    .art :global(.cue .label) {
+      font-size: 20px;
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .stats ul {
+      gap: 1rem;
+    }
+  }
+
+  /* Narrow: the Copy cell drops under the command as a full-width strip, so the repo name, which never
+     breaks, keeps the slab's whole width. */
+  @media (max-width: 26rem) {
+    .command {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      width: 100%;
+    }
+    .prompt {
+      padding-inline-start: 0.6rem;
+    }
+    .command code {
+      padding-inline-end: 0.6rem;
+    }
+    .copy-button {
+      grid-column: 1 / -1;
+      border-inline-start: 0;
+      border-top: var(--hr-line-width) solid var(--hr-line);
+    }
+    .stats ul {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .sections li + li::before {
+      padding-inline: 0.5rem;
+    }
+    .stats li {
+      flex-direction: row;
+      align-items: baseline;
+      gap: 1rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .copy-button {
+      transition: none;
+    }
+  }
+</style>

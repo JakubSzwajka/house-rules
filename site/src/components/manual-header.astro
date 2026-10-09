@@ -1,0 +1,86 @@
+---
+// Header override. A splash page has no sidebar, so Starlight draws no menu button there, and it hides
+// the GitHub link and the theme select below 50rem. Narrow splash pages get both back here.
+import DefaultHeader from "@astrojs/starlight/components/Header.astro";
+import SocialIcons from "@astrojs/starlight/components/SocialIcons.astro";
+import ThemeSelect from "@astrojs/starlight/components/ThemeSelect.astro";
+
+const { hasSidebar } = Astro.locals.starlightRoute;
+---
+
+{
+  hasSidebar ? (
+    <DefaultHeader />
+  ) : (
+    <div class="splash-header">
+      <DefaultHeader />
+      <div class="narrow-tools print:hidden">
+        <SocialIcons />
+        <ThemeSelect />
+      </div>
+    </div>
+  )
+}
+
+<style>
+  .splash-header {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 100%;
+  }
+
+  .splash-header > :global(.header) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .narrow-tools {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 0;
+  }
+
+  .narrow-tools :global(a) {
+    display: inline-grid;
+    place-items: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    margin: 0;
+    color: var(--hr-ink-strong);
+  }
+
+  /* Starlight pulls both back with a negative margin and widens the select past its label,
+     so the select would sit on top of the GitHub link. Each gets its own 44px box. */
+  .narrow-tools :global(select) {
+    min-height: 2.75rem;
+    margin-inline: 0;
+    inline-size: 100%;
+  }
+
+  /* Below 24rem the select's word pushes the site title into a clip. Show only its icon and caret;
+     the hidden label still names it and the options still read in full. At 320px that is still
+     short, so close the gaps too: the search icon sits mid-way in its 44px box and keeps air. */
+  @media (max-width: 23.99rem) {
+    .splash-header > :global(.header) {
+      gap: 0.25rem;
+    }
+
+    .splash-header :global(.site-title) {
+      gap: 0.4rem;
+    }
+
+    .narrow-tools :global(select) {
+      inline-size: 2.75rem;
+      padding-inline: 0;
+      color: transparent;
+    }
+  }
+
+  @media (min-width: 50rem) {
+    .narrow-tools {
+      display: none;
+    }
+  }
+</style>

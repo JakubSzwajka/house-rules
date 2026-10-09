@@ -1,0 +1,370 @@
+---
+// The figure from the assembly manual. He holds a part with a loose bolt that wobbles, and a wrench
+// hovers over it with a "tighten it" cue. It is a toggle button: pressing it (click, Enter or Space)
+// swings the wrench, the bolt seats, the wobble stops and he smiles. The idle motion runs three times,
+// then again only on hover. The caption is drawn as a button, so the press is not a secret. Home and 404.
+// On the home page the refusal demo drives it too: an "hr-figure" event loosens or tightens the bolt.
+interface Props {
+  readonly before?: string;
+  readonly after?: string;
+  /** Draw the light construction grid around the drawing (home cover). Never behind the caption. */
+  readonly grid?: boolean;
+}
+
+const {
+  before = "Press to tighten the bolt",
+  after = "Tight. Press again to loosen it.",
+  grid = false,
+} = Astro.props;
+---
+
+<div class="figure-wrap">
+  <button
+    type="button"
+    class:list={["figure", { gridded: grid }]}
+    aria-pressed="false"
+    aria-label={before}
+    data-hr-figure
+    data-after={after}
+  >
+    <span class="sheet">
+      <svg viewBox="0 -28 244 218" aria-hidden="true" focusable="false">
+        <path d="M66 128 L62 176 M94 128 L98 176 M62 176 h-12 M98 176 h12" />
+        <path class="accent" d="M50 72 Q80 64 110 72 L104 132 Q80 138 56 132 Z" />
+        <path d="M52 78 Q34 100 40 124" />
+        <circle class="paper" cx="80" cy="38" r="26" />
+        <circle class="ink" cx="70" cy="37" r="3" />
+        <circle class="ink" cx="90" cy="37" r="3" />
+        <g class="face before">
+          <path d="M63 28 q7 -5 14 0" />
+          <path d="M84 30 l12 -5" />
+          <path d="M71 51 q4 -5 8 0 t8 0" />
+          <text class="label" x="26" y="20">?</text>
+        </g>
+        <g class="face after">
+          <path d="M63 28 q7 -3 14 0" />
+          <path d="M83 28 q7 -3 14 0" />
+          <path d="M70 48 q10 10 20 0" />
+        </g>
+        <path class="part paper" d="M120 92 H212 V106 H120 Z" />
+        <circle class="ink" cx="134" cy="99" r="2.5" />
+        <path d="M108 80 Q120 86 124 96" />
+        <g class="wobble" aria-hidden="true">
+          <path d="M164 54 q-6 7 0 14" />
+          <path d="M208 54 q6 7 0 14" />
+        </g>
+        <g class="wrench">
+          <path class="accent" d="M174 70 A15 15 0 1 1 174 84 L179 84 L179 70 Z" />
+          <path class="accent" d="M200 73 H232 a4 4 0 0 1 0 8 H198" />
+        </g>
+        <g class="bolt">
+          <path class="paper" d="M180 92 V72 H192 V92" />
+          <path class="thin" d="M180 79 h12 M180 85 h12" />
+          <rect class="paper" x="172" y="61" width="28" height="13" rx="2" />
+        </g>
+        <path class="tick after" d="M140 66 L148 74 L162 56" />
+        <g class="cue before">
+          <text class="label" x="62" y="-8">tighten it</text>
+          <path class="thin" d="M148 -14 Q170 -16 175 12" />
+          <path class="thin" d="M169 7 L175 13 L179 6" />
+        </g>
+      </svg>
+    </span>
+    <span class="caption" aria-hidden="true">
+      <span class="before">{before}</span>
+      <span class="after">{after}</span>
+    </span>
+  </button>
+  <p class="sr-only" aria-live="polite" data-hr-figure-status></p>
+</div>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-hr-figure]")) {
+    const status = button.parentElement?.querySelector<HTMLElement>("[data-hr-figure-status]");
+    button.addEventListener("click", () => {
+      const pressed = button.getAttribute("aria-pressed") !== "true";
+      button.setAttribute("aria-pressed", String(pressed));
+      if (status) {
+        status.textContent = pressed ? (button.dataset["after"] ?? "") : "";
+      }
+    });
+    // The demo's own text tells the story, so a driven change stays silent here.
+    document.addEventListener("hr-figure", (event) => {
+      const tight = (event as CustomEvent<{ readonly tight: boolean }>).detail.tight;
+      button.setAttribute("aria-pressed", String(tight));
+      if (status) status.textContent = "";
+    });
+  }
+</script>
+
+<style>
+  .figure-wrap {
+    display: grid;
+    justify-items: center;
+    width: 100%;
+  }
+
+  .figure {
+    display: grid;
+    justify-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    margin: 0;
+    padding: 0.5rem;
+    border: 0;
+    border-radius: var(--hr-radius);
+    background: none;
+    color: var(--hr-ink);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .sheet {
+    display: block;
+    width: min(100%, 18rem);
+    padding: 0.75rem;
+    border-radius: var(--hr-radius);
+  }
+
+  /* The construction grid frames the drawing only; the caption sits outside it on plain paper. */
+  .gridded .sheet {
+    background-color: var(--hr-paper);
+    background-image:
+      linear-gradient(var(--hr-grid-major) 1px, transparent 1px),
+      linear-gradient(90deg, var(--hr-grid-major) 1px, transparent 1px),
+      linear-gradient(var(--hr-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--hr-grid) 1px, transparent 1px);
+    background-size:
+      96px 96px,
+      96px 96px,
+      24px 24px,
+      24px 24px;
+    background-position: -1px -1px;
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    fill: none;
+    stroke: var(--hr-line);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .accent {
+    fill: var(--hr-accent);
+  }
+
+  .paper {
+    fill: var(--hr-paper);
+  }
+
+  .ink {
+    fill: var(--hr-line);
+    stroke: none;
+  }
+
+  .thin {
+    stroke-width: 2;
+  }
+
+  .tick {
+    stroke-width: 5;
+  }
+
+  /* Text in the drawing carries a paper halo, so a grid line never runs through a letter. */
+  .label {
+    fill: var(--hr-ink-strong);
+    stroke: var(--hr-paper);
+    stroke-width: 6px;
+    paint-order: stroke;
+    font: 700 17px var(--hr-font-heading);
+    letter-spacing: 0.02em;
+  }
+
+  .face .label {
+    font-size: 28px;
+  }
+
+  .caption {
+    display: grid;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0.4rem 0.9rem;
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: var(--hr-radius);
+    background: var(--hr-paper);
+    color: var(--hr-ink-strong);
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  [aria-pressed="true"] .caption {
+    border-color: var(--hr-hairline);
+    color: var(--hr-ink);
+  }
+
+  /* before and after share one spot and swap */
+  .caption > span {
+    grid-area: 1 / 1;
+  }
+
+  .after,
+  [aria-pressed="true"] .before {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  [aria-pressed="true"] .after {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* Hover only while loose; after a press the pointer still sits on it, and a yellow chip would read as stuck. */
+  @media (hover: hover) {
+    .figure:not([aria-pressed="true"]):hover .caption {
+      background: var(--hr-accent);
+      color: var(--hr-on-accent);
+    }
+  }
+
+  /* Positions. The bolt pivots where it enters the part; the wrench pivots on the seated bolt head. */
+  .bolt {
+    transform-box: view-box;
+    transform-origin: 186px 92px;
+    transform: translate(0, -6px) rotate(16deg);
+  }
+
+  .wrench {
+    transform-box: view-box;
+    transform-origin: 186px 77px;
+    transform: translate(-6px, -42px) rotate(-30deg);
+  }
+
+  [aria-pressed="true"] .bolt {
+    transform: translate(0, 8px) rotate(0deg);
+  }
+
+  [aria-pressed="true"] .wrench {
+    transform: translate(0, 0) rotate(20deg);
+  }
+
+  [aria-pressed="true"] .wobble {
+    visibility: hidden;
+  }
+
+  .figure:hover .wrench path,
+  .figure:focus-visible .wrench path {
+    stroke-width: 4;
+  }
+
+  /* Motion: the bolt wobbles and the wrench bobs three times, then on hover; pressing swings the wrench and seats the bolt. */
+  @media (prefers-reduced-motion: no-preference) {
+    .bolt {
+      animation: hr-rock 0.9s ease-in-out 3;
+    }
+
+    .wobble {
+      animation: hr-blink 0.9s steps(2, jump-none) 3;
+    }
+
+    .wrench {
+      animation: hr-bob 1.6s ease-in-out 3;
+    }
+
+    .figure:not([aria-pressed="true"]):hover .bolt {
+      animation: hr-rock 0.9s ease-in-out infinite;
+    }
+
+    .figure:not([aria-pressed="true"]):hover .wrench {
+      animation: hr-bob 1.6s ease-in-out infinite;
+    }
+
+    [aria-pressed="true"] .bolt {
+      animation: hr-seat 0.8s var(--hr-ease-out) both;
+    }
+
+    [aria-pressed="true"] .wrench {
+      animation: hr-swing 0.8s var(--hr-ease-out) both;
+    }
+
+    .caption {
+      transition:
+        background-color var(--hr-duration) var(--hr-ease-out),
+        border-color var(--hr-duration) var(--hr-ease-out);
+    }
+
+    .before,
+    .after {
+      transition:
+        opacity var(--hr-duration) var(--hr-ease-out),
+        visibility var(--hr-duration);
+    }
+
+    /* he smiles once the bolt is seated, not before */
+    [aria-pressed="true"] :is(.face, .tick) {
+      transition-delay: 0.55s;
+    }
+  }
+
+  /* starts and ends at the resting tilt, so stopping after the last cycle does not jump */
+  @keyframes hr-rock {
+    0%,
+    100% {
+      transform: translate(0, -6px) rotate(16deg);
+    }
+    25% {
+      transform: translate(0, -6px) rotate(9deg);
+    }
+    75% {
+      transform: translate(0, -6px) rotate(23deg);
+    }
+  }
+
+  @keyframes hr-blink {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.2;
+    }
+  }
+
+  @keyframes hr-bob {
+    0%,
+    100% {
+      transform: translate(-6px, -42px) rotate(-30deg);
+    }
+    50% {
+      transform: translate(-6px, -50px) rotate(-38deg);
+    }
+  }
+
+  @keyframes hr-swing {
+    0% {
+      transform: translate(-6px, -42px) rotate(-30deg);
+    }
+    35% {
+      transform: translate(0, 0) rotate(-30deg);
+    }
+    100% {
+      transform: translate(0, 0) rotate(20deg);
+    }
+  }
+
+  @keyframes hr-seat {
+    0% {
+      transform: translate(0, -6px) rotate(16deg);
+    }
+    35% {
+      transform: translate(0, -6px) rotate(0deg);
+    }
+    100% {
+      transform: translate(0, 8px) rotate(0deg);
+    }
+  }
+</style>

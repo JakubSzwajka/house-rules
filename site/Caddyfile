@@ -1,0 +1,115 @@
+# The house-rules docs site for stack.kubaszwajka.com, served on :80.
+# TLS ends at Dokploy's Traefik, so the container speaks plain HTTP.
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	root * /srv
+	encode zstd gzip
+
+	header {
+		-Server
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	@health path /healthz
+	header @health Content-Type "application/json"
+	respond @health `{ "status": "ok", "commit": "__APP_COMMIT__" }` 200
+
+	# Agents read these, so name the type instead of letting Caddy guess.
+	@markdown path *.md
+	header @markdown Content-Type "text/markdown; charset=utf-8"
+	@text path *.txt
+	header @text Content-Type "text/plain; charset=utf-8"
+
+	# Astro hashes every file name under /_astro, so those never change.
+	@hashed path /_astro/*
+	@unhashed not path /_astro/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+	header @unhashed Cache-Control "public, max-age=300"
+
+	# Routes from before the docs became two pages, so old links still land on the right page.
+	# scripts/tests/redirects.test.ts checks that every rule's old page lands on its row.
+	redir /start/adopt/ /start/ 301
+	redir /start/what-is-house-rules/ /start/ 301
+	redir /start/for-agents/ /start/ 301
+	redir /guides/the-fence/ /start/#what-happens-on-commit 301
+	redir /guides/checks/ /rules/ 301
+	redir /guides/* /start/ 301
+	redir /reference/* /start/ 301
+	redir /skills/* /start/ 301
+	redir /llms-full.txt /llms.txt 301
+	redir /rules/eslint/ /rules/ 301
+	redir /rules/dependency-cruiser/ /rules/ 301
+	redir /rules/typescript/ /rules/ 301
+	redir /rules/biome/ /rules/ 301
+	redir /rules/node/ /rules/ 301
+	redir /rules/eslint/comment-discipline/ /rules/#comment-discipline 301
+	redir /rules/eslint/no-broken-relative-links/ /rules/#no-broken-relative-links 301
+	redir /rules/eslint/design-no-raw-color/ /rules/#design-no-raw-color 301
+	redir /rules/eslint/design-no-raw-color-literal/ /rules/#design-no-raw-color-literal 301
+	redir /rules/eslint/design-no-unknown-token/ /rules/#design-no-unknown-token 301
+	redir /rules/eslint/design-scale-value/ /rules/#design-scale-value 301
+	redir /rules/eslint/shadcn/ /rules/#shadcn 301
+	redir /rules/eslint/use-case-is-capability/ /rules/#use-case-is-capability 301
+	redir /rules/eslint/no-hand-rolled-surface/ /rules/#no-hand-rolled-surface 301
+	redir /rules/eslint/no-hand-run-effect/ /rules/#no-hand-run-effect 301
+	redir /rules/dependency-cruiser/no-cycles/ /rules/#no-cycles 301
+	redir /rules/dependency-cruiser/packages-do-not-import-apps/ /rules/#packages-do-not-import-apps 301
+	redir /rules/dependency-cruiser/apps-do-not-import-other-apps/ /rules/#apps-do-not-import-other-apps 301
+	redir /rules/dependency-cruiser/packages-imported-by-name/ /rules/#packages-imported-by-name 301
+	redir /rules/dependency-cruiser/packages-public-entry-only/ /rules/#packages-public-entry-only 301
+	redir /rules/dependency-cruiser/delivery-does-not-import-server/ /rules/#delivery-does-not-import-server 301
+	redir /rules/dependency-cruiser/server-does-not-import-delivery/ /rules/#server-does-not-import-delivery 301
+	redir /rules/dependency-cruiser/use-cases-do-not-import-outer-layers/ /rules/#use-cases-do-not-import-outer-layers 301
+	redir /rules/dependency-cruiser/no-unresolved-deep-package-imports/ /rules/#no-unresolved-deep-package-imports 301
+	redir /rules/dependency-cruiser/production-does-not-import-tests/ /rules/#production-does-not-import-tests 301
+	redir /rules/dependency-cruiser/tests-live-in-tests-dir/ /rules/#tests-live-in-tests-dir 301
+	redir /rules/dependency-cruiser/tests-do-not-import-internals/ /rules/#tests-do-not-import-internals 301
+	redir /rules/dependency-cruiser/no-unresolved-imports/ /rules/#no-unresolved-imports 301
+	redir /rules/dependency-cruiser/app-code-in-layers/ /rules/#app-code-in-layers 301
+	redir /rules/dependency-cruiser/use-cases-do-not-import-use-cases/ /rules/#use-cases-do-not-import-use-cases 301
+	redir /rules/dependency-cruiser/no-ownerless-files/ /rules/#no-ownerless-files 301
+	redir /rules/dependency-cruiser/package-root-files/ /rules/#package-root-files 301
+	redir /rules/dependency-cruiser/domain-does-not-import-adapters/ /rules/#domain-does-not-import-adapters 301
+	redir /rules/dependency-cruiser/subjects-do-not-import-package-root/ /rules/#subjects-do-not-import-package-root 301
+	redir /rules/node/no-subject-folder-cycles/ /rules/#no-subject-folder-cycles 301
+	redir /rules/node/no-package-cycles/ /rules/#no-package-cycles 301
+	redir /rules/dependency-cruiser/adapter-imports-only-in-adapters/ /rules/#adapter-imports-only-in-adapters 301
+	redir /rules/typescript/strict-compiler-flags/ /rules/#strict-compiler-flags 301
+	redir /rules/typescript/effect-diagnostics/ /rules/#effect-diagnostics 301
+	redir /rules/biome/no-re-export-all/ /rules/#noReExportAll 301
+	redir /rules/biome/no-excessive-lines-per-file/ /rules/#noExcessiveLinesPerFile 301
+	redir /rules/biome/no-non-null-assertion/ /rules/#noNonNullAssertion 301
+	redir /rules/biome/use-filenaming-convention/ /rules/#useFilenamingConvention 301
+	redir /rules/biome/formatter/ /rules/#Formatter 301
+	redir /rules/node/exact-pins/ /rules/#exact-pins 301
+	redir /rules/node/house-rules-migrations/ /rules/#house-rules-migrations 301
+
+	# Raw Markdown pages are retired. This comes last, so the redirects above still win.
+	@retiredMarkdown path *.md
+	redir @retiredMarkdown /llms.txt 301
+
+	file_server
+
+	handle_errors {
+		header -Server
+		header Cache-Control "no-store"
+
+		@missing expression {err.status_code} == 404
+		handle @missing {
+			rewrite * /404.html
+			file_server {
+				status 404
+			}
+		}
+
+		handle {
+			header Content-Type "text/plain; charset=utf-8"
+			respond "{err.status_code} {err.status_text}" {err.status_code}
+		}
+	}
+}

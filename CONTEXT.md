@@ -53,3 +53,5 @@ The words for wiring come from ports and adapters. A **port** is a **slot**: a s
 The **agent sources** are shallow clones of dependency source under `.agent_sources/`, made by `pnpm vendor:agent-sources`. Agents read them. Nothing imports them.
 
 The **fence** is what stops an agent from skipping the checks: exact pins, `pnpm check`, `pnpm test`, the lefthook pre-commit hook, and the harness hooks that block `git ... --no-verify`. Its code lives in `scripts/` and `.pi/extensions/`. **Law** is `AGENTS.md`. **Vision** is `VISION.md`, and each project made from the template writes its own.
+
+The **docs site** is `site/`, the workspace package `@house-rules/site`, served at `stack.kubaszwajka.com`. It is for people deciding on the template and starting a repo from it; agents read `AGENTS.md` in their own repo. It has two pages besides the home page: the **start page**, written by hand, and the **rules page**, a **generated page** the site's generator writes from the plugin's rules table, one row per rule. Each row's **rule anchor**, `/rules/#<rule id>`, is the link error messages use. `llms.txt` names the two pages and sends agents to `AGENTS.md`.

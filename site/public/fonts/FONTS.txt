@@ -1,0 +1,13 @@
+Fonts in this folder are the woff2 files published by Fontsource 5.3.0 (latin subset).
+
+IBM Plex Sans             400, 600, 700   body text      LICENSE-ibm-plex-sans.txt
+IBM Plex Sans Condensed   700             headings       LICENSE-ibm-plex-sans-condensed.txt
+IBM Plex Mono             400, 600        code           LICENSE-ibm-plex-mono.txt
+
+Copyright 2019 IBM Corp. All rights reserved. (IBM Plex Sans, IBM Plex Sans Condensed)
+Copyright 2017 IBM Corp. All rights reserved. (IBM Plex Mono)
+
+Licensed under the SIL Open Font License, Version 1.1. Each family's copyright notice and
+the full license text are in the LICENSE-*.txt file named above, copied verbatim from the
+@fontsource package of that family at 5.3.0. Keep these files next to the fonts.
+IBM reserves the font name "Plex".

@@ -1,0 +1,139 @@
+/*
+ * The one theme layer: the assembly manual. Light is a white instruction sheet with black line and
+ * safety yellow; dark is the same sheet inverted, true black paper with white line. Neither mode has
+ * a hue in its paper. Raw colours live here only. Tokens are named by role, so a palette swap is a
+ * change to this file; the other style files and the components read the --hr-* tokens.
+ */
+
+:root {
+  --hr-font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --hr-font-heading: "IBM Plex Sans Condensed", "IBM Plex Sans", system-ui, sans-serif;
+  --hr-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --hr-measure: 70ch;
+  --hr-radius: 4px;
+  --hr-line-width: 2px;
+  /* One step for code, commands and small labels; nothing on the home page is set smaller. */
+  --hr-text-code: 0.9375rem;
+  --hr-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --hr-duration: 180ms;
+
+  /* Fixed across modes: hazard tape is yellow and black on any paper. */
+  --hr-accent: #ffd21a;
+  --hr-on-accent: #161616;
+  --hr-tape-stripe: #161616;
+
+  /* Dark: true black paper, white line. */
+  --hr-paper: #000000;
+  --hr-paper-sunk: #0b0b0b;
+  --hr-paper-raised: #171717;
+  --hr-ink: #ececec;
+  --hr-ink-strong: #ffffff;
+  --hr-ink-soft: #b4b4b4;
+  --hr-line: #ececec;
+  --hr-hairline: #333333;
+  /* The grid sits only around the home figure. In dark it is close to invisible. Opaque, not alpha:
+     where lines cross the colour stays one line colour. */
+  --hr-grid: #0a0a0a;
+  --hr-grid-major: #121212;
+  --hr-link: #ffffff;
+  --hr-link-line: #ffd21a;
+  --hr-caution: #ffd21a;
+  --hr-on-caution: #161616;
+  --hr-refuse: #ff8f85;
+  --hr-ok: #86e0a4;
+  --hr-code-bg: #1c1c1c;
+  --hr-code-frame: #3d3d3d;
+  --hr-focus: #ffd21a;
+  --hr-selection: #ffd21a;
+  --hr-on-selection: #161616;
+  --hr-invert: #ffffff;
+  --hr-on-invert: #000000;
+  --hr-shadow: 0 10px 24px -16px rgb(0 0 0 / 0.9);
+  --hr-backdrop: rgb(0 0 0 / 0.72);
+
+  /* The roles Starlight's gray scale asks for that no other token covers. */
+  --hr-ink-emphasis: #f4f4f4;
+  --hr-ink-secondary: #d2d2d2;
+  --hr-ink-faint: #8c8c8c;
+}
+
+:root[data-theme="light"] {
+  /* Light: the instruction sheet. */
+  --hr-paper: #ffffff;
+  --hr-paper-sunk: #f5f5f5;
+  --hr-paper-raised: #ffffff;
+  --hr-ink: #161616;
+  --hr-ink-strong: #000000;
+  --hr-ink-soft: #474747;
+  --hr-line: #161616;
+  --hr-hairline: #d6d6d6;
+  --hr-grid: #f0f0f0;
+  --hr-grid-major: #e2e2e2;
+  --hr-link: #161616;
+  --hr-link-line: #161616;
+  --hr-caution: #ffd21a;
+  --hr-on-caution: #161616;
+  --hr-refuse: #b42318;
+  --hr-ok: #1d6b3a;
+  --hr-code-bg: #f0f0f0;
+  --hr-code-frame: #161616;
+  --hr-focus: #161616;
+  --hr-selection: #ffd21a;
+  --hr-on-selection: #161616;
+  --hr-invert: #161616;
+  --hr-on-invert: #ffffff;
+  --hr-shadow: 0 10px 24px -16px rgb(0 0 0 / 0.35);
+  --hr-backdrop: rgb(0 0 0 / 0.5);
+
+  --hr-ink-emphasis: #161616;
+  --hr-ink-secondary: #2b2b2b;
+  --hr-ink-faint: #707070;
+  --hr-paper-tint: #fafafa;
+}
+
+:root,
+:root[data-theme="light"] {
+  --sl-font: var(--hr-font-body);
+  --sl-font-mono: var(--hr-font-mono);
+  --sl-color-accent-low: var(--hr-paper-sunk);
+  --sl-color-accent: var(--hr-accent);
+  --sl-color-accent-high: var(--hr-ink-strong);
+  --sl-color-white: var(--hr-ink-strong);
+  --sl-color-gray-1: var(--hr-ink-emphasis);
+  --sl-color-gray-2: var(--hr-ink-secondary);
+  --sl-color-gray-3: var(--hr-ink-soft);
+  --sl-color-gray-4: var(--hr-ink-faint);
+  --sl-color-gray-5: var(--hr-hairline);
+  --sl-color-gray-6: var(--hr-paper-sunk);
+  --sl-color-black: var(--hr-paper);
+  --sl-color-text: var(--hr-ink);
+  --sl-color-text-accent: var(--hr-link);
+  --sl-color-text-invert: var(--hr-on-accent);
+  --sl-color-bg: var(--hr-paper);
+  --sl-color-bg-nav: var(--hr-paper);
+  --sl-color-bg-sidebar: var(--hr-paper-sunk);
+  --sl-color-bg-inline-code: var(--hr-code-bg);
+  --sl-color-hairline-light: var(--hr-hairline);
+  --sl-color-hairline: var(--hr-hairline);
+  --sl-color-hairline-shade: var(--hr-line);
+  --sl-color-backdrop-overlay: var(--hr-backdrop);
+  --sl-text-h1: clamp(2rem, 1.5rem + 2vw, 2.75rem);
+  --sl-text-h2: 1.5rem;
+  --sl-text-h3: 1.2rem;
+  --sl-text-h4: 1.05rem;
+  --sl-line-height: 1.65;
+  --sl-line-height-headings: 1.15;
+}
+
+:root[data-theme="light"] {
+  --sl-color-gray-7: var(--hr-paper-tint);
+}
+
+/* Hazard tape: the construction layer. Used for the header rule and the home page section breaks. */
+:root {
+  --hr-tape: repeating-linear-gradient(
+    -45deg,
+    var(--hr-accent) 0 9px,
+    var(--hr-tape-stripe) 9px 18px
+  );
+}

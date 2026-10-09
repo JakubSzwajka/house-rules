@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <title>House Rules</title>
+  <!-- Source of public/og-image.png. Fonts are the self-hosted ones in public/fonts; see "Share card" in site/README.md. -->
+  <defs>
+    <style>
+      @font-face { font-family: "IBM Plex Sans Condensed"; font-weight: 700; src: url("../../public/fonts/ibm-plex-sans-condensed-latin-700-normal.woff2") format("woff2"); }
+      @font-face { font-family: "IBM Plex Sans"; font-weight: 400; src: url("../../public/fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
+      @font-face { font-family: "IBM Plex Mono"; font-weight: 600; src: url("../../public/fonts/ibm-plex-mono-latin-600-normal.woff2") format("woff2"); }
+      .title { font: 700 136px "IBM Plex Sans Condensed", sans-serif; fill: #000; letter-spacing: -1px; }
+      .tagline { font: 400 34px "IBM Plex Sans", sans-serif; fill: #474747; }
+      .fig { fill: none; stroke: #161616; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .accent { fill: #ffd21a; }
+      .paper { fill: #fff; }
+      .ink { fill: #161616; stroke: none; }
+      .thin { stroke-width: 2; }
+      .tick { stroke-width: 5; }
+    </style>
+    <pattern id="tape" width="25.456" height="25.456" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+      <rect width="25.456" height="25.456" fill="#161616"/>
+      <rect width="12.728" height="25.456" fill="#ffd21a"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="#fff"/>
+  <rect y="0" width="1200" height="26" fill="url(#tape)"/>
+  <rect y="604" width="1200" height="26" fill="url(#tape)"/>
+  <rect y="26" width="1200" height="3" fill="#161616"/>
+  <rect y="601" width="1200" height="3" fill="#161616"/>
+
+  <g transform="translate(76 96)">
+    <circle cx="44" cy="44" r="36" fill="#ffd21a" stroke="#161616" stroke-width="5.5" stroke-linecap="round"/>
+    <circle cx="32" cy="38.5" r="4.4" fill="#161616"/>
+    <circle cx="56" cy="38.5" r="4.4" fill="#161616"/>
+    <path d="M29.7 55.6 q14.3 11 28.6 0" fill="none" stroke="#161616" stroke-width="5.5" stroke-linecap="round"/>
+  </g>
+  <text class="title" x="68" y="318">House Rules</text>
+  <text class="tagline" x="76" y="398">A TypeScript monorepo template and the</text>
+  <text class="tagline" x="76" y="446">house plugin behind it: checked rules for</text>
+  <text class="tagline" x="76" y="494">code that agents write.</text>
+
+  <!-- the figure from the home page, bolt seated -->
+  <g transform="translate(790 170) scale(1.45)" class="fig">
+    <path d="M66 128 L62 176 M94 128 L98 176 M62 176 h-12 M98 176 h12"/>
+    <path class="accent" d="M50 72 Q80 64 110 72 L104 132 Q80 138 56 132 Z"/>
+    <path d="M52 78 Q34 100 40 124"/>
+    <circle class="paper" cx="80" cy="38" r="26"/>
+    <circle class="ink" cx="70" cy="37" r="3"/>
+    <circle class="ink" cx="90" cy="37" r="3"/>
+    <path d="M63 28 q7 -3 14 0"/>
+    <path d="M83 28 q7 -3 14 0"/>
+    <path d="M70 48 q10 10 20 0"/>
+    <path class="paper" d="M120 92 H212 V106 H120 Z"/>
+    <circle class="ink" cx="134" cy="99" r="2.5"/>
+    <path d="M108 80 Q120 86 124 96"/>
+    <path class="accent" d="M174 70 A15 15 0 1 1 174 84 L179 84 L179 70 Z"/>
+    <path class="accent" d="M200 73 H232 a4 4 0 0 1 0 8 H198"/>
+    <path class="paper" d="M180 92 V72 H192 V92"/>
+    <path class="thin" d="M180 79 h12 M180 85 h12"/>
+    <rect class="paper" x="172" y="61" width="28" height="13" rx="2"/>
+    <path class="tick" d="M140 66 L148 74 L162 56"/>
+  </g>
+</svg>

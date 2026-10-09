@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import * as fs from "node:fs";
 import path from "node:path";
+import { seeRuleLine } from "../src/rule-docs.mjs";
 import { checkModuleList, LIST_FILE } from "../src/module-list.mjs";
 import {
   CREATE_TABLE,
@@ -285,6 +286,7 @@ if (problems.length > 0) {
     `migrations: ${problems.length} problem(s) with module-owned SQL or the module list:`,
   );
   for (const problem of problems) console.error(problem);
+  console.error(seeRuleLine("house-rules-migrations"));
   process.exit(1);
 }
 

@@ -10,6 +10,7 @@ export default [
       "**/generated/",
       ".agent_sources/",
       ".pi/specs/**/prototypes/",
+      "site/.astro/",
     ],
   },
   ...houseRules.configs.recommended,

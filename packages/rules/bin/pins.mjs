@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import * as fs from "node:fs";
+import { seeRuleLine } from "../src/rule-docs.mjs";
 
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies"];
 const EXACT_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/u;
@@ -65,6 +66,7 @@ for (const manifestPath of manifestPaths) {
 }
 
 if (failed) {
+  console.error(seeRuleLine("Exact pins"));
   process.exit(1);
 }
 console.log(`pins: every dependency is exact in ${manifestPaths.join(", ")}`);

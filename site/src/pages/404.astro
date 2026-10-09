@@ -1,0 +1,76 @@
+---
+// The 404 page. Starlight's own 404 route is off (disable404Route), so this page renders through
+// StarlightPage and keeps the header, search and theme.
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import ManualFigure from "../components/manual-figure.astro";
+---
+
+<StarlightPage frontmatter={{ title: "Page not found", template: "splash", pagefind: false }}>
+  <div class="not-found not-content">
+    <ManualFigure before="This part came loose. Tighten it." />
+    <div class="copy">
+      <p class="lead">This part is not in the box. Nothing lives at this address.</p>
+      <p>The page may have moved, or the link may be wrong. Try one of these:</p>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/start/">Start</a></li>
+        <li><a href="/rules/">Rules</a></li>
+      </ul>
+    </div>
+  </div>
+</StarlightPage>
+
+<style>
+  .not-found {
+    display: grid;
+    grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+    gap: 2rem 3rem;
+    align-items: center;
+    padding: 2rem;
+    border: var(--hr-line-width) solid var(--hr-line);
+    border-radius: 6px;
+    background: var(--hr-paper);
+  }
+
+  .lead {
+    margin: 0 0 0.75rem;
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--hr-ink-strong);
+  }
+
+  p {
+    margin: 0 0 0.75rem;
+    color: var(--hr-ink);
+  }
+
+  ul {
+    margin: 0;
+    padding-inline-start: 1.2rem;
+  }
+
+  li + li {
+    margin-top: 0.35rem;
+  }
+
+  a {
+    color: var(--hr-link);
+    font-weight: 600;
+    text-decoration-color: var(--hr-link-line);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+  }
+
+  a:hover {
+    background: var(--hr-accent);
+    color: var(--hr-on-accent);
+  }
+
+  @media (max-width: 40rem) {
+    .not-found {
+      grid-template-columns: minmax(0, 1fr);
+      padding: 1.25rem;
+    }
+  }
+</style>

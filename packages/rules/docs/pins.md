@@ -33,4 +33,4 @@ Every entry in `dependencies`, `devDependencies` and `optionalDependencies` must
 ## Output and exit codes
 
 - `0`: prints `pins: every dependency is exact in <paths>`.
-- `1`: prints `Dependencies in <path> must be exact versions or full commit SHAs:` and one `  <field>.<name>: <spec>` line per loose entry, to stderr.
+- `1`: prints `Dependencies in <path> must be exact versions or full commit SHAs:` and one `  <field>.<name>: <spec>` line per loose entry, then `See https://stack.kubaszwajka.com/rules/#exact-pins`, to stderr.
