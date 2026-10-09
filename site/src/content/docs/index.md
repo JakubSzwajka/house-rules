@@ -10,9 +10,9 @@ hero:
   tagline: Your agents obey them. Break a checked rule and the commit fails.
   actions:
     - text: Start a project
-      link: /start/adopt/
+      link: /start/
       icon: right-arrow
     - text: What it is
-      link: /start/what-is-house-rules/
+      link: /start/#what-it-is
       variant: minimal
 ---

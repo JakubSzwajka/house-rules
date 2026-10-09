@@ -19,20 +19,12 @@ export const TOOLS: readonly Tool[] = [
 
 export interface RuleRow {
   readonly id: string;
-  readonly slug: string;
   readonly catches: string;
   readonly tool: Tool;
   readonly enableVia: string;
   readonly docPath: string;
-  readonly order: number;
+  readonly docHash: string;
 }
-
-const kebab = (value: string): string =>
-  value
-    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-    .replace(/[^A-Za-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
 
 const cells = (line: string): string[] =>
   line
@@ -49,12 +41,15 @@ const toolNamed = (name: string): Tool => {
   return tool;
 };
 
-const docTarget = (cell: string): string => {
+const docTarget = (cell: string): { readonly docPath: string; readonly docHash: string } => {
   const target = /\]\(([^)]+)\)/.exec(cell)?.[1] ?? /^`([^`]+\.md)`$/.exec(cell)?.[1];
   if (target === undefined) {
     throw new Error(`${RULES_README}: no docs link in "${cell}".`);
   }
-  return `packages/rules/${target.replace(/#.*$/, "")}`;
+  const hash = target.indexOf("#");
+  return hash === -1
+    ? { docPath: `packages/rules/${target}`, docHash: "" }
+    : { docPath: `packages/rules/${target.slice(0, hash)}`, docHash: target.slice(hash) };
 };
 
 export const readRuleRows = (): readonly RuleRow[] => {
@@ -64,7 +59,7 @@ export const readRuleRows = (): readonly RuleRow[] => {
     throw new Error(`${RULES_README}: no "## Rules and checks" section.`);
   }
   const lines = section.split("\n").filter((line) => line.trim().startsWith("|"));
-  return lines.slice(2).map((line, order) => {
+  return lines.slice(2).map((line) => {
     const [name, catches, tool, enableVia, docs] = cells(line);
     if (
       name === undefined ||
@@ -75,18 +70,12 @@ export const readRuleRows = (): readonly RuleRow[] => {
     ) {
       throw new Error(`${RULES_README}: a rules table row needs five cells: ${line}`);
     }
-    const id = name.replace(/ \(.*\)$/, "").replaceAll("`", "");
     return {
-      id,
-      slug: kebab(id),
+      id: name.replace(/ \(.*\)$/, "").replaceAll("`", ""),
       catches,
       tool: toolNamed(tool),
       enableVia,
-      docPath: docTarget(docs),
-      order: order + 1,
+      ...docTarget(docs),
     };
   });
 };
-
-export const rowsSharingDoc = (rows: readonly RuleRow[], docPath: string): readonly RuleRow[] =>
-  rows.filter((row) => row.docPath === docPath);

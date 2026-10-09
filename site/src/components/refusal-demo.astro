@@ -36,7 +36,7 @@ const cases: readonly {
       ".",
     ],
     plain: ["The agent may not skip the ", { keep: "pre-commit" }, " checks."],
-    link: "/guides/the-fence/",
+    link: "/start/#what-happens-on-commit",
   },
   {
     id: "table",
@@ -57,7 +57,7 @@ const cases: readonly {
     plain: [
       "The trips package may not read the bookings table. The bookings package owns it, so call its service.",
     ],
-    link: "/guides/modules-and-data/",
+    link: "/rules/#house-rules-migrations",
   },
   {
     id: "tool",
@@ -67,7 +67,7 @@ const cases: readonly {
     // packages/rules/src/no-hand-rolled-surface.mjs:62, message "handRolled", first sentence
     refusal: [{ code: "Tool.make" }, " builds a surface by hand."],
     plain: ["An MCP tool must be built from a contract, not written by hand."],
-    link: "/guides/capabilities/",
+    link: "/rules/#no-hand-rolled-surface",
   },
 ];
 
@@ -731,14 +731,16 @@ const bind = (pieces: readonly Piece[]): readonly Bound[] =>
     }
   }
 
-  /* A chip never splits. At 320px the longest path, at 0.8em, is narrower than the box, so it fits whole on
-     its own line; the sentence wraps before it. */
+  /* A chip never splits. At 320px the longest path, at 15px with its spacing drawn in, still fits whole on
+     its own line with the colon after it; the sentence wraps before it. */
   @media (max-width: 24rem) {
     .refusal code {
       display: inline-block;
       max-width: 100%;
       vertical-align: bottom;
-      font-size: 0.8em;
+      padding-inline: 0.15em;
+      font-size: 0.9375rem;
+      letter-spacing: -0.03em;
     }
   }
 </style>

@@ -1,5 +1,6 @@
 import { matchesAnyGlob } from "./file-globs.mjs";
 import { importOf, staticPropertyName, unwrapExpression } from "./import-bindings.mjs";
+import { ruleDocsUrl } from "./rule-docs.mjs";
 
 const CAPABILITY_MODULE = "@house-rules/capability";
 const DEFAULT_INCLUDE = ["apps/*/src/use-cases/**/*.{ts,tsx,mts,cts}"];
@@ -42,6 +43,7 @@ export const useCaseIsCapabilityRule = {
   meta: {
     type: "problem",
     docs: {
+      url: ruleDocsUrl("use-case-is-capability"),
       description:
         "Require every use-case file to export exactly one capability built with implement from @house-rules/capability, at most one contract, and no other values.",
     },

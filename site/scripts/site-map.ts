@@ -32,11 +32,19 @@ export const repoRoot = dirname(siteRoot);
 export const contentRoot = join(siteRoot, "src", "content", "docs");
 
 export const SECTIONS = [
-  { directory: "start", label: "Start here", generated: false },
-  { directory: "guides", label: "Guides", generated: false },
-  { directory: "rules", label: "Rules", generated: true },
-  { directory: "skills", label: "Skills", generated: true },
-  { directory: "reference", label: "Reference", generated: false },
+  {
+    directory: "start",
+    label: "Start",
+    generated: false,
+    summary:
+      "what House Rules is, how to make a repo from the template, and what happens on commit.",
+  },
+  {
+    directory: "rules",
+    label: "Rules",
+    generated: true,
+    summary: "every checked rule, one row each. `/rules/#<rule-id>` points at one rule.",
+  },
 ] as const;
 
 export const githubUrl = (repoPath: string, kind: "blob" | "tree" = "blob"): string =>

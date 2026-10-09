@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { siteRoot } from "../site-map.ts";
@@ -32,14 +32,7 @@ const skip = built
   ? false
   : "site/dist is absent; run `pnpm --filter @house-rules/site build` first";
 
-const firstDocsPage = (): string => {
-  const guides = join(dist, "guides");
-  const entry = readdirSync(guides, { withFileTypes: true }).find(
-    (item) => item.isDirectory() && existsSync(join(guides, item.name, "index.html")),
-  );
-  assert.ok(entry, "no built docs page under dist/guides");
-  return join("guides", entry.name, "index.html");
-};
+const docsPage = join("start", "index.html");
 
 const metaContent = (html: string, attr: "property" | "name", key: string): string | undefined =>
   [...html.matchAll(/<meta\s[^>]*>/g)]
@@ -50,7 +43,7 @@ const metaContent = (html: string, attr: "property" | "name", key: string): stri
 describe("built share tags", { skip }, () => {
   for (const label of ["home page", "docs page"]) {
     it(`${label} carries absolute og and twitter images`, () => {
-      const file = label === "home page" ? "index.html" : firstDocsPage();
+      const file = label === "home page" ? "index.html" : docsPage;
       const html = readFileSync(join(dist, file), "utf8");
       const image = /^https:\/\/[^/]+\/og-image\.png$/;
       for (const [attr, key] of [
@@ -65,7 +58,7 @@ describe("built share tags", { skip }, () => {
     });
 
     it(`${label} links the apple touch icon and the favicon`, () => {
-      const file = label === "home page" ? "index.html" : firstDocsPage();
+      const file = label === "home page" ? "index.html" : docsPage;
       const html = readFileSync(join(dist, file), "utf8");
       assert.match(html, /<link\s[^>]*rel="apple-touch-icon"[^>]*href="[^"]+"/, file);
       assert.match(html, /<link\s[^>]*rel="(?:shortcut )?icon"[^>]*href="[^"]*favicon[^"]*"/, file);

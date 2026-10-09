@@ -58,7 +58,7 @@ SQL comments (`--` and `/* */`) and string constants (`'...'` with `''` escapes,
 ## Output and exit codes
 
 - `0`: prints `migrations: no SQL migrations found`, or `migrations: <n> table(s) owned by <m> package(s); no cross-module foreign keys or SQL; <k> module(s) listed in migrations.json`.
-- `1`: prints `migrations: <n> problem(s) with module-owned SQL or the module list:` and one `  <path>:<line>: <message>` line per problem, to stderr.
+- `1`: prints `migrations: <n> problem(s) with module-owned SQL or the module list:` one `  <path>:<line>: <message>` line per problem, then `See https://stack.kubaszwajka.com/rules/#house-rules-migrations`, to stderr.
 
 ## Limits
 

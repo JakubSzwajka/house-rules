@@ -1,6 +1,4 @@
-import { readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { fileURLToPath } from "node:url";
 import starlight from "@astrojs/starlight";
 import type { AstroIntegration } from "astro";
 import { defineConfig, passthroughImageService } from "astro/config";
@@ -15,39 +13,12 @@ const SHARE_IMAGE_ALT = "House Rules: checked rules for code that agents write."
 
 const PARTS_MODULE = "virtual:house-rules/parts";
 
-const PROCEDURE_ROUTES = ["start/adopt", "guides/effect"];
-const PROCEDURE_ROUTE_PREFIXES = ["skills/"];
-
-const readFacts = (route: string): readonly (readonly [string, string])[] => {
-  // The parts list shows these rows, which lets content.css hide the generated table.
-  const file = fileURLToPath(new URL(`./src/content/docs/${route}.md`, import.meta.url));
-  const lines = readFileSync(file, "utf8").split("\n");
-  const start = lines.findIndex((line) => line.trim() === "| Field | Value |");
-  if (start === -1) {
-    throw new Error(`${route}: no Field | Value table for the parts list.`);
-  }
-  const facts: (readonly [string, string])[] = [];
-  for (const line of lines.slice(start + 2)) {
-    const match = /^\|\s*([^|]+?)\s*\|\s*(.*?)\s*\|$/.exec(line.trim());
-    if (match?.[1] === undefined || match[2] === undefined) {
-      break;
-    }
-    facts.push([match[1], match[2]]);
-  }
-  return facts;
-};
-
 const partsSource = (): string => {
   // Read here, in Node: a component bundled by Vite cannot find the repo root.
-  const parts = readRuleRows().map((row) => {
-    const route = `rules/${row.tool.slug}/${row.slug}`;
-    return { route, id: row.id, catches: row.catches, facts: readFacts(route) };
-  });
-  const procedures = { routes: PROCEDURE_ROUTES, prefixes: PROCEDURE_ROUTE_PREFIXES };
+  const parts = readRuleRows().map((row) => ({ id: row.id }));
   return [
     `export const parts = ${JSON.stringify(parts)};`,
     `export const toolCount = ${TOOLS.length};`,
-    `export const procedures = ${JSON.stringify(procedures)};`,
     "",
   ].join("\n");
 };
@@ -142,6 +113,7 @@ export default defineConfig({
         "./src/styles/theme.css",
         "./src/styles/chrome.css",
         "./src/styles/content.css",
+        "./src/styles/blocks.css",
       ],
       components: {
         Hero: "./src/components/manual-hero.astro",
@@ -176,17 +148,7 @@ export default defineConfig({
       ],
       sidebar: SECTIONS.map((section) => ({
         label: section.label,
-        items:
-          section.directory === "rules"
-            ? [
-                "rules",
-                ...TOOLS.map((tool) => ({
-                  label: tool.name,
-                  collapsed: true,
-                  items: [{ autogenerate: { directory: `rules/${tool.slug}` } }],
-                })),
-              ]
-            : [{ autogenerate: { directory: section.directory } }],
+        link: `/${section.directory}/`,
       })),
     }),
   ],

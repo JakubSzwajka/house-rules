@@ -3,6 +3,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { cruise } from "dependency-cruiser";
 import { findPackageCycles } from "../src/package-cycles.mjs";
+import { seeRuleLine } from "../src/rule-docs.mjs";
 import { findSubjectFolderCycles } from "../src/subject-folder-cycles.mjs";
 
 const usage = "Usage: house-rules-layout [--cwd <workspace>]";
@@ -65,6 +66,13 @@ async function check(workspace) {
         console.error(`    ${fromPackage} -> ${toPackage}: ${from} -> ${to}`);
       }
     }
+  }
+
+  if (subjectCycles.length > 0) {
+    console.error(seeRuleLine("no-subject-folder-cycles"));
+  }
+  if (packageCycles.length > 0) {
+    console.error(seeRuleLine("no-package-cycles"));
   }
 
   if (subjectCycles.length > 0 || packageCycles.length > 0) {

@@ -3,7 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { readRuleRows, TOOLS } from "../rule-rows.ts";
-import { repoRoot, siteRoot } from "../site-map.ts";
+import { ruleAnchor } from "../rules-table.ts";
+import { contentRoot, repoRoot, siteRoot } from "../site-map.ts";
 
 const quotedRefusals = [
   {
@@ -80,6 +81,39 @@ describe("refusal demo source", () => {
   });
 });
 
+const startHeadings = [
+  ...readFileSync(join(contentRoot, "start", "index.md"), "utf8").matchAll(/^## (.+)$/gm),
+].map((match) => (match[1] ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+const anchors = new Set(readRuleRows().map((row) => ruleAnchor(row.id)));
+
+const liveTarget = (href: string): boolean => {
+  const [path, hash] = href.split("#");
+  if (path === "/start/") return hash === undefined || startHeadings.includes(hash);
+  if (path === "/rules/") return hash === undefined || anchors.has(hash);
+  return false;
+};
+
+describe("home links", () => {
+  it("send the hero actions to the start page", () => {
+    const home = readFileSync(join(contentRoot, "index.md"), "utf8");
+    const links = [...home.matchAll(/^\s+link: (\S+)$/gm)].map((match) => match[1] ?? "");
+    assert.deepEqual(links, ["/start/", "/start/#what-it-is"]);
+    for (const link of links) assert.ok(liveTarget(link), link);
+  });
+
+  it("send each demo case to a live anchor", () => {
+    const links = [...readFileSync(demoSource, "utf8").matchAll(/^\s+link: "([^"]+)",$/gm)].map(
+      (match) => match[1] ?? "",
+    );
+    assert.deepEqual(links, [
+      "/start/#what-happens-on-commit",
+      "/rules/#house-rules-migrations",
+      "/rules/#no-hand-rolled-surface",
+    ]);
+    for (const link of links) assert.ok(liveTarget(link), link);
+  });
+});
+
 describe("built home page", { skip }, () => {
   it("shows every refusal and the counts without JS", () => {
     const html = readFileSync(index, "utf8");
@@ -93,5 +127,12 @@ describe("built home page", { skip }, () => {
     assert.doesNotMatch(html, /<article[^>]*class="[^"]*panel/, "a panel is an article");
     assert.ok(page.includes(`${readRuleRows().length} rules`), "rule count");
     assert.ok(page.includes(`${TOOLS.length} tools`), "tool count");
+    assert.ok(page.includes("1 hook pre-commit: pnpm check + pnpm test"), "hook");
+    for (const href of ["/start/", "/rules/", "https://github.com/JakubSzwajka/house-rules"]) {
+      assert.ok(html.includes(`href="${href}"`), `nav misses ${href}`);
+    }
+    for (const gone of ["/guides/", "/skills/", "/start/for-agents/"]) {
+      assert.ok(!html.includes(`href="${gone}`), `home still links ${gone}`);
+    }
   });
 });

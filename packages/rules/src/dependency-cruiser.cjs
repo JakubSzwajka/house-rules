@@ -1,5 +1,9 @@
 "use strict";
 
+// This preset loads no other module, so it carries its own copy of the link. A rule name is its README
+// id and already a valid anchor; tests/rule-docs.test.mjs checks each comment against src/rule-docs.mjs.
+const seeRuleLine = (name) => `See https://stack.kubaszwajka.com/rules/#${name}`;
+
 const DEFAULTS = {
   appsDir: "apps",
   packagesDir: "packages",
@@ -265,7 +269,7 @@ function patterns(options) {
 }
 
 function rule(name, from, to) {
-  return { name, severity: "error", from, to };
+  return { name, severity: "error", comment: seeRuleLine(name), from, to };
 }
 
 // A module rule reports the file itself. A dependency rule would miss a file that imports nothing,
@@ -274,6 +278,7 @@ function moduleRule(name, module) {
   return {
     name,
     severity: "error",
+    comment: seeRuleLine(name),
     module: { ...module, numberOfDependentsLessThan: 100 },
     from: {},
   };

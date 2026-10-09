@@ -20,18 +20,17 @@ const nextStep = `cd my-app && pnpm install && ${checkCommand}`;
 // Browsers break after "-", so "--no-verify" would split at its dashes.
 const words = (text: string): readonly string[] => text.split(" ");
 
-// The counts come from the rules table the site already reads; the third is the one command above.
+// The counts come from the rules table the site already reads; the third is the pre-commit hook in lefthook.yml.
 const stats = [
   { value: parts.length, label: parts.length === 1 ? "rule" : "rules" },
   { value: toolCount, label: toolCount === 1 ? "tool" : "tools" },
-  { value: 1, label: "command", code: checkCommand },
+  { value: 1, label: "hook", runs: [checkCommand, "pnpm test"] },
 ] as const;
 
 const sections = [
-  { text: "Guides", href: "/guides/the-stack/" },
+  { text: "Start", href: "/start/" },
   { text: "Rules", href: "/rules/" },
-  { text: "Skills", href: "/skills/" },
-  { text: "For agents", href: "/start/for-agents/" },
+  { text: "GitHub", href: "https://github.com/JakubSzwajka/house-rules" },
 ] as const;
 ---
 
@@ -97,7 +96,12 @@ const sections = [
           <span class="value">{stat.value}</span>{" "}
           <span class="label">
             {stat.label}
-            {"code" in stat && <code>{stat.code}</code>}
+            {"runs" in stat && " "}
+            {"runs" in stat && (
+              <span class="runs">
+                pre-commit: <code>{stat.runs[0]}</code> + <code>{stat.runs[1]}</code>
+              </span>
+            )}
           </span>
         </li>
       ))
@@ -365,6 +369,14 @@ const sections = [
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--hr-ink);
+  }
+
+  .runs {
+    flex-basis: 100%;
+    font: 400 1rem / 1.5 var(--hr-font-body);
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--hr-ink-soft);
   }
 
   .label code {

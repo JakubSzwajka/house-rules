@@ -20,7 +20,7 @@ const linkPlugin = ({ fileURL }: FactoryContext) => {
   }
   const file = fileURLToPath(fileURL);
   const rewrite = (node: UrlNode, context: VisitContext): void => {
-    const url = resolveLink(file, node.url, "page");
+    const url = resolveLink(file, node.url);
     if (url !== undefined) {
       context.setProperty(node, "url", url);
     }

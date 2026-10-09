@@ -49,23 +49,38 @@ interface BlockNode {
   readonly children?: readonly BlockNode[];
 }
 
-const focusScrollablePre = (node: BlockNode): void => {
+const focusScrollablePre = (node: BlockNode, label: string): void => {
   if (node.tagName === "pre") {
     const properties = (node.properties ??= {});
     properties["tabindex"] = 0;
     properties["role"] = "region";
-    properties["aria-label"] = `${String(properties["data-language"] ?? "text")} code block`;
+    properties["aria-label"] = label;
   }
   for (const child of node.children ?? []) {
-    focusScrollablePre(child);
+    focusScrollablePre(child, label);
   }
 };
+
+interface BlockContext {
+  readonly renderData: { blockAst: BlockNode };
+  readonly codeBlock: {
+    readonly language: string;
+    readonly parentDocument?:
+      | {
+          readonly positionInDocument?: { readonly groupIndex: number } | undefined;
+        }
+      | undefined;
+  };
+}
 
 export const focusableCodeBlocks = {
   name: "house-rules-focusable-code-blocks",
   hooks: {
-    postprocessRenderedBlock: ({ renderData }: { renderData: { blockAst: BlockNode } }): void => {
-      focusScrollablePre(renderData.blockAst);
+    postprocessRenderedBlock: ({ renderData, codeBlock }: BlockContext): void => {
+      const index = codeBlock.parentDocument?.positionInDocument?.groupIndex;
+      const language = codeBlock.language === "" ? "text" : codeBlock.language;
+      const name = index === undefined ? "Code block" : `Code block ${index + 1}`;
+      focusScrollablePre(renderData.blockAst, `${name}, ${language}`);
     },
   },
 };

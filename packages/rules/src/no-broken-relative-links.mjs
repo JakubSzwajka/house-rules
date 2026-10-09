@@ -1,10 +1,12 @@
 import { relativeLinkPath, resolveLink } from "./relative-links.mjs";
 import { repositoryPathsFor } from "./repository-paths.mjs";
+import { ruleDocsUrl } from "./rule-docs.mjs";
 
 export const noBrokenRelativeLinksRule = {
   meta: {
     type: "problem",
     docs: {
+      url: ruleDocsUrl("no-broken-relative-links"),
       description:
         "Require relative Markdown links, images, and definitions to point at a git-tracked path.",
     },

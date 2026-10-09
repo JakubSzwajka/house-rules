@@ -8,6 +8,7 @@ import { noBrokenRelativeLinksRule } from "./no-broken-relative-links.mjs";
 import { noHandRolledSurfaceRule } from "./no-hand-rolled-surface.mjs";
 import { noHandRunEffectRule } from "./no-hand-run-effect.mjs";
 import { useCaseIsCapabilityRule } from "./use-case-is-capability.mjs";
+import { ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL } from "./rule-docs.mjs";
 
 const plugin = {
   meta: {
@@ -86,5 +87,5 @@ plugin.configs.capability = [
   },
 ];
 
-export { plugin };
+export { plugin, ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL };
 export default plugin;
