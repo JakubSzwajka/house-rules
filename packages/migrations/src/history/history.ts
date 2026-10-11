@@ -9,9 +9,14 @@ export type AppliedCheck = Readonly<{
   backfilled: ReadonlyArray<AppliedMigration>;
 }>;
 
-export const lockHistory = Effect.fnUntraced(function* lockHistory(sql: SqlClient, table: string) {
+export const lockTable = (sql: SqlClient, table: string) =>
   // Keyed on the table name, so a runner that predates the module list queues here too.
-  yield* sql`select pg_advisory_xact_lock(hashtextextended(${table}, 0))`;
+  sql`select pg_advisory_xact_lock(hashtextextended(${table}, 0))`;
+
+export const createHistory = Effect.fnUntraced(function* createHistory(
+  sql: SqlClient,
+  table: string,
+) {
   yield* sql`create table if not exists ${sql(table)} (
     migration_id integer primary key,
     created_at timestamptz not null default now(),

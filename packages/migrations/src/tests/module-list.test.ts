@@ -122,4 +122,56 @@ layer(NodeServices.layer)("Migrations, the module list", (it) => {
       expect(error.message).toContain("is not a lowercase slug");
     }),
   );
+
+  const withAdopt = (alpha: unknown, beta?: unknown) => ({
+    ...alphaAndBeta,
+    "migrations.json": JSON.stringify({
+      modules: [
+        { workspace: "packages/alpha", adopt: alpha },
+        beta === undefined ? { package: "@vendor/beta" } : { package: "@vendor/beta", adopt: beta },
+      ],
+    }),
+  });
+
+  it.effect("keeps an adopt entry on its module", () =>
+    Effect.gen(function* adopts() {
+      const adopt = { from: "db_migrations", ids: [1, 2], rehash: [2] };
+      const app = yield* scratchApp(withAdopt(adopt, { from: "db_migrations", ids: [3] }));
+      const modules = yield* Migrations.readModuleList(app.list);
+      expect(modules.map((module) => module.adopt)).toEqual([
+        adopt,
+        { from: "db_migrations", ids: [3] },
+      ]);
+    }),
+  );
+
+  const ADOPT_PROBLEMS = [
+    [{ from: "BAD TABLE", ids: [1] }, undefined, "is not a lowercase SQL name"],
+    [{ from: "beta_migrations", ids: [1] }, undefined, "history table of a listed module"],
+    [{ from: "alpha_migrations", ids: [1] }, undefined, "history table of a listed module"],
+    [{ from: "db_migrations", ids: [] }, undefined, "claims no ids"],
+    [{ from: "db_migrations", ids: [-1] }, undefined, "is not a migration id"],
+    [{ from: "db_migrations", ids: [1, 1] }, undefined, "lists id 1 twice"],
+    [{ from: "db_migrations", ids: [1], rehash: [2] }, undefined, "rehash id 2 is not one of"],
+    [
+      { from: "db_migrations", ids: [1, 2] },
+      { from: "db_migrations", ids: [2] },
+      "also claimed by module beta",
+    ],
+  ] as const;
+  for (const [alpha, beta, message] of ADOPT_PROBLEMS) {
+    it.effect(`refuses an adopt entry that ${message}`, () =>
+      Effect.gen(function* badAdopt() {
+        const error = yield* listError(withAdopt(alpha, beta));
+        expect(error.message).toContain(message);
+      }),
+    );
+  }
+
+  it.effect("refuses an adopt entry that is not an object of ids", () =>
+    Effect.gen(function* badShape() {
+      const error = yield* listError(withAdopt({ from: "db_migrations", ids: ["1"] }));
+      expect(error.message).toContain("is not {");
+    }),
+  );
 });

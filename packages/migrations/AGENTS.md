@@ -30,6 +30,7 @@ No layer goes into the app runtime. It owns no tables of its own beyond the hist
 | `package` | an installed package that declares `"houseRules": { "migrations": "<folder>" }` and ships that folder in `files` |
 | `name` | optional module name for the report |
 | `table` | optional history table, default `<name>_migrations` |
+| `adopt` | optional `{ "from", "ids", "rehash"? }`: copy this module's rows out of an older shared history table once; see `README.md` |
 
 Files are named `<id>_<name>.sql`. `--> statement-breakpoint` splits statements.
 
@@ -39,3 +40,5 @@ Files are named `<id>_<name>.sql`. `--> statement-breakpoint` splits statements.
 - A module's SQL names only its own tables. No cross-module foreign keys.
 - `house-rules-migrations` in `@house-rules/rules` fails when a module with migrations is missing from `migrations.json`.
 - Any failure rolls back the whole run.
+- `adopt` only reads the old table. Adoption and migrations run in one transaction (Postgres DDL is transactional), so a failure rolls back both.
+- `rehash` lets a file edited on purpose pass only on the run that adopts its row, and only when the old row had a digest to compare. A later edit still fails.
