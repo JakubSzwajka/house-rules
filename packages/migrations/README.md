@@ -23,6 +23,7 @@ The app names every module it runs in one checked-in file, `migrations.json`, at
 | `package` | An installed package. The runner finds it in `node_modules`, walking up from the list's folder, so the root `package.json` must depend on it. Its `package.json` must declare `"houseRules": { "migrations": "<folder>" }` and list that folder in `files`. |
 | `name` | Optional. The module name in the report. Defaults to the folder name, or the package name without its scope, with `-` turned into `_`. |
 | `table` | Optional. The history table. Defaults to `<name>_migrations`. Name an existing table to adopt it. |
+| `adopt` | Optional. `{ "from": "<old table>", "ids": [...], "rehash"?: [...] }`: copy this module's rows out of an older, shared history table once. See [Splitting one history table into modules](#splitting-one-history-table-into-modules). |
 
 Each entry names exactly one of `workspace` or `package`. Two entries may not share a name or a table, and `Migrations.run` refuses such a list built in code before it runs any SQL. `house-rules-migrations` in `@house-rules/rules` reads the same file and fails when a module with migrations is missing from it.
 
@@ -34,10 +35,11 @@ A migration file is named `<id>_<name>.sql`, such as `0001_call_audit.sql`, with
 
 1. Read every module's files and compute each file's SHA-256.
 2. Open one transaction for the whole run.
-3. Take a Postgres advisory lock per history table, in sorted order, so two runners queue instead of racing.
+3. Take a Postgres advisory lock per history table, and per table named in `adopt.from`, in sorted order, so two runners queue instead of racing.
 4. Create each history table if it is missing, and add the `sha256` column to an older table that has none.
-5. Check every applied row against its file. A row with no digest gets one (backfilled). A row whose digest differs fails the run.
-6. Apply the pending files of each module, in list order, through `Migrator` from `effect/unstable/sql`.
+5. Copy the rows a module adopts, when its history is still empty.
+6. Check every applied row against its file. A row with no digest gets one (backfilled). A row whose digest differs fails the run.
+7. Apply the pending files of each module, in list order, through `Migrator` from `effect/unstable/sql`.
 
 Any failure rolls back the whole run: no module applies or backfills anything. The run returns one report per module, and `Migrations.formatReport` turns it into one line per module:
 
@@ -49,6 +51,48 @@ Migrations call_audit (call_audit_migrations): digest verified none; digest back
 ## Adopting a single-module table
 
 Name the old table in the entry, as `{ "workspace": "packages/trips", "table": "db_migrations" }` does. The rows already there count as applied. The first run backfills any missing digests and applies only the files after them. No data moves.
+
+This works for one module. When the files of one table move into several modules, use `adopt` instead.
+
+## Splitting one history table into modules
+
+An app that grew up with one runner has one history table, say `db_migrations`, with rows 1 to 10. When its files move into modules, each module needs its own rows in its own table. Without them, the new run tries to apply file 1 again and fails. The `adopt` key copies the rows across, once:
+
+```json
+{
+  "modules": [
+    { "workspace": "packages/event-log", "adopt": { "from": "db_migrations", "ids": [1] } },
+    { "workspace": "packages/identity", "adopt": { "from": "db_migrations", "ids": [2, 7] } },
+    {
+      "workspace": "packages/work",
+      "adopt": { "from": "db_migrations", "ids": [3, 4, 5, 6, 8, 9, 10], "rehash": [4, 10] }
+    }
+  ]
+}
+```
+
+Each module keeps its files with their old ids and names. The adoption and the migrations of the run happen in one transaction (Postgres DDL is transactional). If any step fails, such as a digest mismatch or a broken new file, the whole run rolls back: no history table, copied row, rehash, or applied file survives. In the run, after its locks:
+
+1. The runner also locks the old table, so the old runner waits, if it takes the same advisory lock on that table. The lock is cooperative: it does not stop other SQL writers.
+2. A module whose history table is empty, or new, adopts. A module with rows adopts nothing, so the second run and every run after it skip this step.
+3. If the old table does not exist, as on a fresh database, nothing is adopted and every module applies its files from the start.
+4. Otherwise the runner checks the old table before it copies any history row. It fails when the old table holds an id no module claims, or when a module claims an id the old table does not hold.
+5. It copies each claimed row, `migration_id`, `name`, `created_at` and `sha256`, into the module's table. It only reads the old table: it never changes or drops it, so the old code still finds its history if you roll back to it.
+6. The usual checks then run on the copied rows: the names must match the files, the digests must match, and new files must come after the latest id.
+
+The module list checks the key before any SQL: `from` is a lowercase table name and no module's history table, `ids` is not empty and has no repeats, two modules never claim one id, and every `rehash` id is one of the module's `ids`.
+
+`rehash` is for a file you had to edit on purpose while moving it, such as removing a foreign key to another module's table. The copy leaves that row's digest empty, and the run fills it from today's file, the same backfill an old table without digests gets. Only the ids you list are treated this way, only on the run that adopts, and it applies to adopted rows only. It is no lasting permission: a later edit of a listed file fails like any other. When the old table has no `sha256` column, every adopted row gets its digest from the current files, as for any old table without digests. An edited file you did not list fails the run, as before.
+
+Why one key per module, and not one split map at the top of the list: each module states where its own history came from, next to its other settings, and a module added later needs no second place to edit. The cost is that the check for unclaimed ids looks across all entries with the same `from`.
+
+The report shows what was adopted. `adoption` appears only on a module whose entry has `adopt`, so a list without the key reports exactly as before:
+
+```text
+Migrations work (work_migrations): adopted from db_migrations 3_work, 4_work_owner; rehashed 4_work_owner; digest verified 3_work; digest backfilled 4_work_owner; applied 11_task_links.
+```
+
+Leave the `adopt` key in the list. On a database that already adopted it does nothing, and on a fresh one it finds no old table.
 
 ## The migrate script
 

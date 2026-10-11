@@ -1,9 +1,10 @@
 import { Crypto, Effect, FileSystem, Path } from "effect";
 import * as Migrator from "effect/unstable/sql/Migrator";
 import { SqlClient } from "effect/unstable/sql/SqlClient";
-import { checkApplied, lockHistory, toMigrationRecord } from "./history/history.ts";
+import { adoptHistories } from "./history/adoption.ts";
+import { checkApplied, createHistory, lockTable, toMigrationRecord } from "./history/history.ts";
 import { readMigrationFiles } from "./migration/migration-files.ts";
-import { checkIdentities, readModuleList } from "./module-list/module-list.ts";
+import { checkAdoptions, checkIdentities, readModuleList } from "./module-list/module-list.ts";
 import {
   type AppliedMigration,
   MigrationFailed,
@@ -26,6 +27,7 @@ const describeDefect = (defect: unknown) =>
 const run = Effect.fnUntraced(function* run(modules: ReadonlyArray<MigrationModule>) {
   // Before any file or SQL: two modules on one name or history table would skip a migration without a sign.
   yield* checkIdentities(modules);
+  yield* checkAdoptions(modules);
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const crypto = yield* Crypto.Crypto;
@@ -39,10 +41,17 @@ const run = Effect.fnUntraced(function* run(modules: ReadonlyArray<MigrationModu
   const reports = yield* sql
     .withTransaction(
       Effect.gen(function* checkThenApply() {
-        // Sorted, so two runs over overlapping module lists take the locks in one order.
-        for (const table of modules.map((module) => module.table).sort()) {
-          yield* lockHistory(sql, table);
+        // Sorted, so two runs over overlapping module lists take the locks in one order; an old table too.
+        const histories = new Set(modules.map((module) => module.table));
+        const locked = new Set([
+          ...histories,
+          ...modules.flatMap((module) => module.adopt?.from ?? []),
+        ]);
+        for (const table of [...locked].sort()) {
+          yield* lockTable(sql, table);
+          if (histories.has(table)) yield* createHistory(sql, table);
         }
+        const adoptions = yield* adoptHistories(sql, modules);
         const checked = yield* Effect.forEach(loaded, ({ module, files }) =>
           checkApplied(sql, module.name, module.table, files),
         );
@@ -61,9 +70,11 @@ const run = Effect.fnUntraced(function* run(modules: ReadonlyArray<MigrationModu
               ),
             ),
           );
+          const adoption = adoptions.get(module.name);
           done.push({
             module: module.name,
             table: module.table,
+            ...(adoption === undefined ? {} : { adoption }),
             verified: checked[index]?.verified ?? [],
             backfilled: checked[index]?.backfilled ?? [],
             applied: applied.map(([id, name]) => ({ id, name })),
@@ -85,10 +96,15 @@ const names = (migrations: ReadonlyArray<AppliedMigration>) =>
     ? "none"
     : migrations.map((migration) => `${migration.id}_${migration.name}`).join(", ");
 
+const adoptionText = (module: ModuleReport) =>
+  module.adoption === undefined
+    ? ""
+    : `adopted from ${module.adoption.from} ${names(module.adoption.adopted)}; rehashed ${names(module.adoption.rehashed)}; `;
+
 const formatReport = (report: MigrationReport): ReadonlyArray<string> =>
   report.map(
     (module) =>
-      `Migrations ${module.module} (${module.table}): digest verified ${names(module.verified)}; digest backfilled ${names(module.backfilled)}; applied ${names(module.applied)}.`,
+      `Migrations ${module.module} (${module.table}): ${adoptionText(module)}digest verified ${names(module.verified)}; digest backfilled ${names(module.backfilled)}; applied ${names(module.applied)}.`,
   );
 
 const runList = (listFile: string) => readModules(listFile).pipe(Effect.flatMap(run));

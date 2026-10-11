@@ -6,6 +6,13 @@ const ModuleEntry = Schema.Struct({
   package: Schema.optionalKey(Schema.String),
   name: Schema.optionalKey(Schema.String),
   table: Schema.optionalKey(Schema.String),
+  adopt: Schema.optionalKey(
+    Schema.Struct({
+      from: Schema.String,
+      ids: Schema.Array(Schema.Int),
+      rehash: Schema.optionalKey(Schema.Array(Schema.Int)),
+    }),
+  ),
 });
 
 const ModuleList = Schema.fromJsonString(Schema.Struct({ modules: Schema.Array(ModuleEntry) }));
@@ -46,6 +53,50 @@ export const checkIdentities = Effect.fnUntraced(function* checkIdentities(
     const problem = identityProblem(module, modules.slice(0, index));
     if (problem !== undefined) {
       return yield* new MigrationFailed({ message: `Module ${index + 1}: ${problem}` });
+    }
+  }
+});
+
+const isMigrationId = (id: number) => Number.isSafeInteger(id) && id >= 0;
+const repeated = (ids: ReadonlyArray<number>) => ids.find((id, index) => ids.indexOf(id) !== index);
+
+export const adoptionProblem = (
+  module: MigrationModule,
+  modules: ReadonlyArray<MigrationModule>,
+) => {
+  const adopt = module.adopt;
+  // Checked before any SQL: a wrong id list must never reach the database.
+  if (adopt === undefined) return undefined;
+  if (!TABLE_NAME.test(adopt.from)) {
+    return `adopts from ${adopt.from}, which is not a lowercase SQL name.`;
+  }
+  if (modules.some((other) => other.table === adopt.from)) {
+    return `adopts from ${adopt.from}, which is the history table of a listed module. Adopt only from a table no module runs on.`;
+  }
+  if (adopt.ids.length === 0) return `adopts from ${adopt.from} but claims no ids.`;
+  const badId = [...adopt.ids, ...(adopt.rehash ?? [])].find((id) => !isMigrationId(id));
+  if (badId !== undefined) return `adopt id ${badId} is not a migration id.`;
+  const twice = repeated(adopt.ids) ?? repeated(adopt.rehash ?? []);
+  if (twice !== undefined) return `adopt lists id ${twice} twice.`;
+  const stray = (adopt.rehash ?? []).find((id) => !adopt.ids.includes(id));
+  if (stray !== undefined) return `rehash id ${stray} is not one of its adopt ids.`;
+  for (const other of modules) {
+    if (other === module || other.adopt?.from !== adopt.from) continue;
+    const shared = adopt.ids.find((id) => other.adopt?.ids.includes(id));
+    if (shared !== undefined) {
+      return `adopt id ${shared} from ${adopt.from} is also claimed by module ${other.name}.`;
+    }
+  }
+  return undefined;
+};
+
+export const checkAdoptions = Effect.fnUntraced(function* checkAdoptions(
+  modules: ReadonlyArray<MigrationModule>,
+) {
+  for (const module of modules) {
+    const problem = adoptionProblem(module, modules);
+    if (problem !== undefined) {
+      return yield* new MigrationFailed({ message: `Module ${module.name}: ${problem}` });
     }
   }
 });
@@ -108,7 +159,7 @@ export const readModuleList = Effect.fnUntraced(function* readModuleList(
   const list = yield* Schema.decodeEffect(ModuleList)(text).pipe(
     Effect.mapError(
       failed(
-        `The module list ${listFile} is not { "modules": [{ "workspace" | "package", "name"?, "table"? }] }.`,
+        `The module list ${listFile} is not { "modules": [{ "workspace" | "package", "name"?, "table"?, "adopt"? }] }.`,
       ),
     ),
   );
@@ -164,7 +215,12 @@ export const readModuleList = Effect.fnUntraced(function* readModuleList(
     if (problem !== undefined) {
       return yield* new MigrationFailed({ message: `${label}: ${problem}` });
     }
-    modules.push({ name, directory, table });
+    modules.push(
+      entry.adopt === undefined
+        ? { name, directory, table }
+        : { name, directory, table, adopt: entry.adopt },
+    );
   }
+  yield* checkAdoptions(modules);
   return modules;
 });

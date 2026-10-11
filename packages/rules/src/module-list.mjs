@@ -66,6 +66,7 @@ export const checkModuleList = (workspaces) => {
   const installedSources = [];
   const listProblems = [];
   const identities = [];
+  const adopters = [];
   for (const { workspace, declared } of customFolders) {
     listProblems.push(
       `workspace ${workspace} declares the migrations folder "${declared}". A workspace package keeps its migrations in ${DEFAULT_FOLDER}/: remove "houseRules.migrations" from its package.json or move the files.`,
@@ -84,6 +85,45 @@ export const checkModuleList = (workspaces) => {
       listProblems.push(`${label}: module ${name} or its history table ${table} is listed twice.`);
     }
     identities.push({ name, table });
+    if (entry.adopt !== undefined) adopters.push({ label, name, adopt: entry.adopt });
+  };
+  // The runner's checks on `adopt`, made before any SQL: the same cases, in the same order.
+  const adoptionProblem = ({ label, name, adopt }) => {
+    if (!TABLE_NAME.test(adopt.from)) {
+      return `${label}: adopts from ${adopt.from}, which is not a lowercase SQL name.`;
+    }
+    if (identities.some((other) => other.table === adopt.from)) {
+      return `${label}: adopts from ${adopt.from}, which is the history table of a listed module. Adopt only from a table no module runs on.`;
+    }
+    const rehash = adopt.rehash ?? [];
+    if (adopt.ids.length === 0) return `${label}: adopts from ${adopt.from} but claims no ids.`;
+    const badId = [...adopt.ids, ...rehash].find((id) => !Number.isSafeInteger(id) || id < 0);
+    if (badId !== undefined) return `${label}: adopt id ${badId} is not a migration id.`;
+    const repeated = (ids) => ids.find((id, index) => ids.indexOf(id) !== index);
+    const twice = repeated(adopt.ids) ?? repeated(rehash);
+    if (twice !== undefined) return `${label}: adopt lists id ${twice} twice.`;
+    const stray = rehash.find((id) => !adopt.ids.includes(id));
+    if (stray !== undefined) return `${label}: rehash id ${stray} is not one of its adopt ids.`;
+    for (const other of adopters) {
+      if (other.name === name || other.adopt.from !== adopt.from) continue;
+      const shared = adopt.ids.find((id) => other.adopt.ids.includes(id));
+      if (shared !== undefined) {
+        return `${label}: adopt id ${shared} from ${adopt.from} is also claimed by module ${other.name}.`;
+      }
+    }
+    return undefined;
+  };
+  // The runner's schema for "adopt": { from: string, ids: integer[], rehash?: integer[] }.
+  const adoptShapeProblem = (label, adopt) => {
+    const integers = (value) => Array.isArray(value) && value.every(Number.isInteger);
+    return typeof adopt === "object" &&
+      adopt !== null &&
+      !Array.isArray(adopt) &&
+      typeof adopt.from === "string" &&
+      integers(adopt.ids) &&
+      (adopt.rehash === undefined || integers(adopt.rehash))
+      ? undefined
+      : `${label}: "adopt" must be { "from": "<table>", "ids": [<integer>], "rehash"?: [<integer>] }.`;
   };
   // The runner's entry schema: each key is a string when present, and exactly one of "workspace" or "package" is a non-empty one.
   const shapeProblem = (label, entry) => {
@@ -104,7 +144,7 @@ export const checkModuleList = (workspaces) => {
     ) {
       return `${label}: "name" and "table" must be strings.`;
     }
-    return undefined;
+    return entry.adopt === undefined ? undefined : adoptShapeProblem(label, entry.adopt);
   };
   // A package.json the runner can read, and a migrations folder that is a folder inside its package.
   const manifestProblem = (directory, manifest) => {
@@ -200,6 +240,11 @@ export const checkModuleList = (workspaces) => {
         }
       }
     }
+  }
+
+  for (const adopter of adopters) {
+    const problem = adoptionProblem(adopter);
+    if (problem !== undefined) listProblems.push(problem);
   }
 
   const unlisted = [

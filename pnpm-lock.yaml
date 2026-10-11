@@ -243,7 +243,7 @@ importers:
         specifier: 4.0.0-rc.117
         version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)))
       '@house-rules/migrations':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.2.0
         version: link:../migrations
       typescript:
         specifier: 7.0.2
@@ -267,7 +267,7 @@ importers:
         specifier: workspace:0.10.0
         version: link:../capability
       '@house-rules/migrations':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.2.0
         version: link:../migrations
       effect:
         specifier: 4.0.0-rc.117
@@ -288,7 +288,7 @@ importers:
         specifier: 4.0.0-rc.117
         version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)))
       '@house-rules/migrations':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.2.0
         version: link:../migrations
       effect:
         specifier: 4.0.0-rc.117
