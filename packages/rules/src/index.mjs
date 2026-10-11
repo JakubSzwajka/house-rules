@@ -1,7 +1,9 @@
 import tsParser from "@typescript-eslint/parser";
 import { commentDisciplineRule } from "./comment-discipline.mjs";
+import { designCssLayersRule } from "./design-css-layers.mjs";
 import { designNoRawColorLiteralRule } from "./design-no-raw-color-literal.mjs";
 import { designNoRawColorRule } from "./design-no-raw-color.mjs";
+import { designNoRawElementRule } from "./design-no-raw-element.mjs";
 import { designNoUnknownTokenRule } from "./design-no-unknown-token.mjs";
 import { designScaleValueRule } from "./design-scale-value.mjs";
 import { noBrokenRelativeLinksRule } from "./no-broken-relative-links.mjs";
@@ -13,15 +15,17 @@ import { ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL } from "./rule-docs.m
 const plugin = {
   meta: {
     name: "@house-rules/rules",
-    version: "0.11.0",
+    version: "0.12.0",
   },
   rules: {
     "comment-discipline": commentDisciplineRule,
     "no-broken-relative-links": noBrokenRelativeLinksRule,
     "design-no-raw-color": designNoRawColorRule,
     "design-no-raw-color-literal": designNoRawColorLiteralRule,
+    "design-no-raw-element": designNoRawElementRule,
     "design-no-unknown-token": designNoUnknownTokenRule,
     "design-scale-value": designScaleValueRule,
+    "design-css-layers": designCssLayersRule,
     "use-case-is-capability": useCaseIsCapabilityRule,
     "no-hand-rolled-surface": noHandRolledSurfaceRule,
     "no-hand-run-effect": noHandRunEffectRule,

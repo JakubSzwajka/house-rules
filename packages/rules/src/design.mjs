@@ -3,9 +3,20 @@ import tsParser from "@typescript-eslint/parser";
 import plugin from "./index.mjs";
 
 const PREFIX = "house-rules";
-const CSS_RULES = ["design-no-raw-color", "design-no-unknown-token", "design-scale-value"];
+const CSS_RULES = [
+  "design-no-raw-color",
+  "design-no-unknown-token",
+  "design-scale-value",
+  "design-css-layers",
+];
 const SOURCE_RULES = ["design-no-raw-color-literal"];
-const TOKEN_RULES = new Set(["design-no-raw-color", "design-no-unknown-token"]);
+const TOKEN_RULES = new Set([
+  "design-no-raw-color",
+  "design-no-unknown-token",
+  "design-css-layers",
+]);
+// Opt-in rules: off until the app passes their options.
+const OPT_IN_RULES = new Set(["design-scale-value", "design-css-layers"]);
 const DEFAULT_CSS_FILES = ["**/*.css"];
 const DEFAULT_SOURCE_FILES = ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"];
 
@@ -18,7 +29,8 @@ function stringArray(value, label) {
 
 function ruleEntry(name, setting, tokenFiles) {
   if (setting === false) return "off";
-  if (name === "design-scale-value") return setting === undefined ? "off" : ["error", setting];
+  if (OPT_IN_RULES.has(name) && setting === undefined) return "off";
+  if (name === "design-scale-value") return ["error", setting];
   const options = { ...(TOKEN_RULES.has(name) ? { tokenFiles } : {}), ...setting };
   return Object.keys(options).length ? ["error", options] : "error";
 }

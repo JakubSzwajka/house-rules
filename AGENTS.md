@@ -2,7 +2,7 @@
 
 This file is the law for agents and people working in this repo, and in any project made from its template, the stack. Read `VISION.md` for why. It does not override this file. Read `CONTEXT.md` for the words this repo uses.
 
-The house rules and the tool configs come from the plugin `@house-rules/rules`, which lives in `packages/rules`. The root uses it as `workspace:0.11.0`. This repo keeps thin configs that extend its presets, the project values such as the `@hosti/` scope, and the files no tool can inherit. Change a house rule in `packages/rules`, not by copying a preset into a thin config.
+The house rules and the tool configs come from the plugin `@house-rules/rules`, which lives in `packages/rules`. The root uses it as `workspace:0.12.0`. This repo keeps thin configs that extend its presets, the project values such as the `@hosti/` scope, and the files no tool can inherit. Change a house rule in `packages/rules`, not by copying a preset into a thin config.
 
 ## Commands
 
@@ -11,7 +11,7 @@ This repo is a pnpm workspace run by Turborepo. Use pnpm, at the version `packag
 | Command | What it does |
 | --- | --- |
 | `pnpm install --frozen-lockfile` | Install from `pnpm-lock.yaml`. The root `prepare` script then patches `tsc` with the Effect language service (`effect-tsgo patch`) and installs the lefthook pre-commit hook. |
-| `pnpm check` | Exact pins in every workspace `package.json` (the plugin's `house-rules-pins` bin), module-owned SQL (its `house-rules-migrations` bin), environment schema, Biome, ESLint, Dependency Cruiser once at the root, production subject-folder and package cycles (the `house-rules-layout` bin), and `typecheck` in each workspace package through Turborepo. |
+| `pnpm check` | Biome and ESLint warnings fail the check, and every Dependency Cruiser rule is severity `error`: `biome` runs `biome check . --error-on-warnings` and `lint` runs `eslint --max-warnings 0`. Exact pins in every workspace `package.json` (the plugin's `house-rules-pins` bin), module-owned SQL (its `house-rules-migrations` bin), environment schema, Biome, ESLint, Dependency Cruiser once at the root, production subject-folder and package cycles (the `house-rules-layout` bin), and `typecheck` in each workspace package through Turborepo. |
 | `pnpm run layout` | Checks production subject-folder and package cycles from Dependency Cruiser imports; test paths, adapters, and package-root files do not add subject-folder edges. |
 | `pnpm env:check` | `varlock load`: resolve and validate every variable in `.env.schema`. |
 | `pnpm exec varlock run -- <cmd>` | Run a command with the environment values injected. |
@@ -45,7 +45,7 @@ The rules table in the house-rules README lists every checked rule, its tool, an
 ## Layers inside an app
 
 - An app is cut by layer first, on purpose: delivery, server, use-cases, because the layer rules check the imports between them. A package is one module, and inside it is cut by subject: see "Inside a package".
-- Delivery and server never import each other.
+- Delivery and server never import each other. One exception: a web app whose framework runs pages and routes in delivery, with no entry point of its own, names its server runtime in the `layout()` option `serverEntryFiles`, and delivery may import only those files. `packages/rules/docs/dependency-cruiser.md` covers it, with the web tsconfig preset and Tailwind parsing.
 - Each entry point has one **composition root**: `src/server/`, or `src/main.ts` when the app has no server folder. Only the root provides services and slots: module layers, storage adapters, cartridges, and a `Grant` or `Approval` that is the same for every request. Delivery provides only per-request values: the `Viewer`, the `CallChannel`, the request id through `withRequestId`, and the `Grant` and `Approval` an adapter fills for this one request. `apps/api/src/server/app-layer.ts` is the example root. It provides `Bookings` and the visitor `Grant`, and the route provides nothing.
 - The entry point joins delivery and the root. It runs a delivery handler over the root's layer. When the root needs a delivery value, such as an MCP toolkit, it takes the value as an argument and never imports it.
 - Use-cases import packages. They never import delivery, server, or another use-case. Each top-level file or folder under `use-cases/` is one use-case for that import rule, so the files inside one folder may import each other. Each of those files is still one capability, so shared logic that is not a capability goes into a package.

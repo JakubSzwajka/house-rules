@@ -2,7 +2,7 @@
 
 Entry point: `@house-rules/rules/shadcn`
 
-[`@shadcn/lint`](https://github.com/shadcn-ui/lint) is an ESLint plugin for Tailwind v4 apps, written by the shadcn/ui team. It has six rules. They read class strings, `style` props and SVG colour attributes in JSX and TSX, and check them against the app's own components, variants and theme. The plugin reads the theme stylesheet and the files it imports, to learn the theme: tokens, scales and class names. It does not lint CSS declarations. The `shadcn()` factory in this package turns the plugin on with the setup its docs advise, so every app gets the same rules and the same component-folder override.
+[`@shadcn/lint`](https://github.com/shadcn-ui/lint) is an ESLint plugin for Tailwind v4 apps, written by the shadcn/ui team. It has six rules. They read class strings, `style` props and SVG colour attributes in JSX and TSX, and check them against the app's own components, variants and theme. The plugin reads the theme stylesheet and the files it imports, to learn the theme: tokens, scales and class names. It does not lint CSS declarations. The `shadcn()` factory in this package turns the plugin on with the setup its docs advise, so every app gets the same rules and the same component-folder override. It also turns on one house rule, `design-no-raw-element` (see `design-no-raw-element.md`), which reports a raw `<button>` or `<input>` where the component folder has a `Button` or an `Input`.
 
 The preset is built for `@shadcn/lint` 0.2.0. Source references below point at its release tag, `@shadcn/lint@0.2.0`, which is commit [`a89d047`](https://github.com/shadcn-ui/lint/tree/a89d04792f340bcea26af2d539a9eec7285fcc77).
 
@@ -43,8 +43,8 @@ export default [
 
 `shadcn(options)` is the default and the named export. It returns two flat-config blocks:
 
-1. The app block. It runs the six rules on `files`, with the same parser setup as `recommended`.
-2. The component-folder block. It turns `no-restyle`, `no-arbitrary-values` and `require-static-classes` off for files in `components` that the app block also lints.
+1. The app block. It runs the six rules and `house-rules/design-no-raw-element` on `files`, with the same parser setup as `recommended`.
+2. The component-folder block. It turns `no-restyle`, `no-arbitrary-values`, `require-static-classes` and `design-no-raw-element` off for files in `components` that the app block also lints.
 
 ## What it turns on
 
@@ -58,8 +58,11 @@ export default [
 | `shadcn/no-inline-styles` | `"error"` | no |
 | `shadcn/require-static-classes` | `"error"` | yes |
 | `shadcn/no-unknown-classes` | `"warn"` | no |
+| `house-rules/design-no-raw-element` | `["error", { components }]` | yes |
 
-The component-folder override is the one in [docs/adoption.md:118-133](https://github.com/shadcn-ui/lint/blob/a89d04792f340bcea26af2d539a9eec7285fcc77/docs/adoption.md#L118-L133). Components own their look, so they may set padding or `ring-[3px]`. `no-raw-colors` and `no-inline-styles` stay on inside the folder.
+The component-folder override is the one in [docs/adoption.md:118-133](https://github.com/shadcn-ui/lint/blob/a89d04792f340bcea26af2d539a9eec7285fcc77/docs/adoption.md#L118-L133). Components own their look, so they may set padding or `ring-[3px]`. `no-raw-colors` and `no-inline-styles` stay on inside the folder. `design-no-raw-element` is off there too, because a `Button` renders a `<button>`.
+
+`design-no-raw-element` is not part of `@shadcn/lint`. The factory passes it the `components` globs, and the rule reads the file names there to learn which components exist. The default map covers `button`, `input`, `textarea`, `select`, `table` and `dialog`; `<a>` is opt-in, because the link component belongs to the framework. See `design-no-raw-element.md`.
 
 ## Options
 
@@ -72,6 +75,12 @@ shadcn({
   severity?: Severity;     // default: each rule's default above
   rules?: Record<RuleName, false | Severity | object | [Severity, object]>;
   settings?: object;       // becomes settings.shadcn on the app block
+  rawElements?: false | Severity | {
+    severity?: Severity;   // default: the factory's severity, else "error"
+    elements?: object;     // merged over the rule's element map
+    allow?: string[];      // files that may use raw elements
+    components?: string[]; // default: the factory's components
+  };
 });
 ```
 
@@ -80,8 +89,9 @@ shadcn({
 - `severity`: one severity for every rule. `"warn"` is the way to start in an app that already has findings.
 - `rules`: one entry per rule, by name without the `shadcn/` prefix. `false` turns the rule off. A severity keeps the default options, so `"no-restyle": "warn"` gives `["warn", { allow: ["layout"] }]`. An object is merged over the default options and sets no severity of its own. It takes the global `severity` when you set one, and the rule's default severity when you do not. So `severity: "warn"` with `"no-restyle": { allow: ["spacing"] }` gives `["warn", { allow: ["spacing"] }]`. A `[severity, options]` pair, exactly two items with a plain options object, replaces the entry as written. A `rules` entry wins over `severity`, except an options-only object, which inherits it.
 - `settings`: the plugin's shared settings, such as `ui`, `componentImports` or `note`. See the plugin's [README, Settings](https://github.com/shadcn-ui/lint/blob/a89d04792f340bcea26af2d539a9eec7285fcc77/README.md#settings).
+- `rawElements`: the `design-no-raw-element` entry. `false` turns it off. A severity sets only the level. An object sets `elements`, `allow` and `components` as the rule's options in `design-no-raw-element.md`, and `severity`. With `components: false`, the rule falls back to its own default folder, `**/components/ui/**`, unless `rawElements.components` names one.
 
-The factory throws a `TypeError` for an unknown rule name, a bad severity, a `rules` value that is not a plain object, a rule entry of any other shape (the message names the rule), or a non-array `files` or `components`.
+The factory throws a `TypeError` for an unknown rule name, a bad severity, a `rules` value that is not a plain object, a rule entry of any other shape (the message names the rule), a non-array `files` or `components`, or a `rawElements` value of any other shape or with an unknown key.
 
 ## Apps with findings already
 
@@ -96,6 +106,33 @@ Start at warn, then promote each rule when its count reaches zero:
 ```
 
 A `warn` never fails ESLint on its own. To stop the count from growing, run ESLint with `--max-warnings <count>`, as [docs/adoption.md:30-44](https://github.com/shadcn-ui/lint/blob/a89d04792f340bcea26af2d539a9eec7285fcc77/docs/adoption.md#L30-L44) shows. For `no-unknown-classes` false positives, import the stylesheet from the theme, or list the classes in `rules: { "no-unknown-classes": { allow: [...] } }`.
+
+## Stricter utility checks
+
+The defaults follow the plugin's adoption guide. Three settings make the preset as strict as a hand-written utility test, such as one that greps every TSX string for palette colours and raw lengths. Each was checked on a fixture against such a test, board-app's `tests/design-utilities.test.mjs`, one probe per check.
+
+| A utility test catches | The default preset | Close it with |
+| --- | --- | --- |
+| Arbitrary layout values: `w-[42rem]`, `max-h-[50vh]`, `top-[3px]`, `-mt-[2px]`, `translate-x-[50%]` | passes them: `allow: ["layout"]` | `rules: { "no-arbitrary-values": { allow: [] } }` |
+| Classes in any string, such as `const tone = "bg-pink-500"` | reads class sites only | `scanAllStrings: true` on `no-raw-colors` and `no-arbitrary-values` |
+| `bg-white`, `text-black/50` | passes them: `no-raw-colors` always allows `white` and `black` | `design({ rules: { "design-no-raw-color-literal": { classColors: ["white", "black"] } } })` |
+
+```js
+...design({
+  tokenFiles: ["apps/web/src/app/globals.css"],
+  rules: { "design-no-raw-color-literal": { classColors: ["white", "black"] } },
+}),
+...shadcn({
+  rules: {
+    "no-arbitrary-values": { allow: [], scanAllStrings: true },
+    "no-raw-colors": { scanAllStrings: true },
+  },
+}),
+```
+
+`scanAllStrings` reads only strings that contain a `-`, which every utility with a value does. The preset is stricter than such a test in two places. `no-arbitrary-values` reports `p-[var(--space-2)]`; write `p-(--space-2)` instead, which passes. It also reports platform colours such as `bg-[Canvas]`; list them in `allow` where an app needs them.
+
+One gap stays open on purpose. The component folder owns its look, and most of it comes straight from the shadcn CLI, so `no-arbitrary-values` is off there and `rounded-[6px]` inside `components/ui` passes. Raw colours stay checked there by `no-raw-colors` and `design-no-raw-color-literal`. Turning `no-arbitrary-values` back on in the folder reports stock shadcn code, such as `focus-visible:ring-[3px]` and `transition-[color,box-shadow]`.
 
 ## TypeScript 7
 

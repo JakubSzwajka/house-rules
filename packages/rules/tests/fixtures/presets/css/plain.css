@@ -1,0 +1,45 @@
+@import url("reset.css") layer(reset);
+@layer base, components;
+
+:root {
+  --gap: 1rem;
+}
+
+@media (min-width: 40rem) {
+  .stack {
+    margin: var(--gap);
+  }
+}
+
+@supports (display: grid) {
+  .grid {
+    display: grid;
+  }
+}
+
+@container card (min-width: 20rem) {
+  .card {
+    padding: 0;
+  }
+}
+
+@font-face {
+  font-family: Body;
+  src: url("body.woff2") format("woff2");
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@layer components {
+  .panel {
+    color: canvastext;
+
+    & .title {
+      font-weight: 600;
+    }
+  }
+}

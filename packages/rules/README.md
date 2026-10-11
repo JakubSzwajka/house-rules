@@ -1,6 +1,6 @@
 # @house-rules/rules
 
-House rules and house configs. One exact GitHub commit pin brings all of it: nine ESLint rules, 20 Dependency Cruiser layout rules, subject-folder and package-cycle checks, TypeScript strict flags, Effect diagnostics, Biome linter and formatter, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Private, not on npm.
+House rules and house configs. One exact GitHub commit pin brings all of it: eleven ESLint rules, 20 Dependency Cruiser layout rules, subject-folder and package-cycle checks, TypeScript strict flags, a web preset for bundled UI code, Effect diagnostics, Biome linter and formatter with Tailwind v4 parsing, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Private, not on npm.
 
 ## Install
 
@@ -40,6 +40,8 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `design-no-raw-color-literal` | Raw hex, rgb(), hsl(), etc. in JS/TS strings | ESLint | `design()` factory | [design-no-raw-color-literal.md](docs/design-no-raw-color-literal.md) |
 | `design-no-unknown-token` | `var(--name)` with no definition | ESLint | `design()` factory | [design-no-unknown-token.md](docs/design-no-unknown-token.md) |
 | `design-scale-value` | CSS values off a fixed scale | ESLint | `design()` factory | [design-scale-value.md](docs/design-scale-value.md) |
+| `design-css-layers` | App CSS rules outside an allowed `@layer`, a restricted layer outside its files, and `!important` (opt-in) | ESLint | `design()` factory | `docs/design-css-layers.md` |
+| `design-no-raw-element` | A raw `<button>`, `<input>`, `<select>` and the like in JSX where the component folder has a component for it | ESLint | `shadcn()` factory | `docs/design-no-raw-element.md` |
 | `shadcn/*` (six rules from `@shadcn/lint`) | Restyled design-system components, raw palette colours, arbitrary values, inline styles, dynamic class names, and unknown Tailwind classes in JSX and TSX | ESLint | `shadcn()` factory | `docs/shadcn.md` |
 | `use-case-is-capability` | A use-case file that does not export exactly one `implement(...)` capability, exports a second contract, or exports another value | ESLint | `configs.capability` | [use-case-is-capability.md](docs/use-case-is-capability.md) |
 | `no-hand-rolled-surface` | `Tool.make`, `Rpc.make`, or `HttpApiEndpoint.<method>` outside `packages/capability/**` | ESLint | `configs.capability` | [no-hand-rolled-surface.md](docs/no-hand-rolled-surface.md) |
@@ -96,9 +98,16 @@ export default [
     tokenFiles: ["src/styles/tokens.css"],
     css: { files: ["**/*.css"] },
     source: { files: ["**/*.{ts,tsx}"] },
-    rules: { "design-scale-value": [{ property: "^border-radius$", allowed: ["0", "4px", "8px"] }] },
+    rules: {
+      "design-scale-value": [{ property: "^border-radius$", allowed: ["0", "4px", "8px"] }],
+      "design-css-layers": { layers: ["components"] },
+    },
   }),
-  ...shadcn({ components: ["src/components/ui/**"], severity: "warn" }),
+  ...shadcn({
+    components: ["src/components/ui/**"],
+    severity: "warn",
+    rawElements: { elements: { a: { use: "Link", from: "next/link" } } },
+  }),
   // Override narrowly with a reason:
   { files: ["scripts/vendor/**"], rules: { "house-rules/comment-discipline": "off" } },
 ];
@@ -142,9 +151,41 @@ module.exports = require("@house-rules/rules/dependency-cruiser").layout({
 
 `configs.capability` runs `no-hand-rolled-surface` on JS, JSX, MJS, CJS, TS, TSX, MTS, and CTS files, `use-case-is-capability` on TS, TSX, MTS, and CTS files, and `no-hand-run-effect` on test files: anything under a `tests/` folder or named `*.test.*` or `*.spec.*`. Its defaults match the stack layout: use-cases in `apps/*/src/use-cases/`, surfaces built only in `packages/capability/`. Set the `include`, `exclude`, or `allow` option only when the layout differs.
 
-`shadcn()` runs `@shadcn/lint` on JSX and TSX with the setup its adoption guide gives: five rules at `error` and `no-unknown-classes` at `warn`, with three rules off in the component folder. An app that already has findings starts with `severity: "warn"`, as above. `docs/shadcn.md` covers the options, the TypeScript 7 caveat, and how it overlaps the design rules.
+`shadcn()` runs `@shadcn/lint` on JSX and TSX with the setup its adoption guide gives: five rules at `error` and `no-unknown-classes` at `warn`, with three rules off in the component folder. It adds `design-no-raw-element` at `error`, off in the component folder too. An app that already has findings starts with `severity: "warn"`, as above. `docs/shadcn.md` covers the options, the TypeScript 7 caveat, how it overlaps the design rules, and three settings that make the utility checks stricter.
+
+`design-css-layers` is opt-in: `design()` turns it on once you pass its `layers`. Token files are exempt unless you set `checkTokenFiles: true`.
 
 Biome replaces an extended `files.includes` instead of merging, so it stays in the consumer. See per-tool docs for options, detailed behavior, and limitations.
+
+### A web app
+
+A web app, Next.js, Vite, Remix, Astro or similar, checks its UI with `tsconfig/web.json` (DOM libs, bundler resolution, no plugin block) and its Effect code with a second tsconfig that lists `effect.json` first and `web.json` second. The Biome preset already parses Tailwind v4 directives. Two `layout()` options cover a framework's pages calling the server runtime and its generated declaration file. Both default to `[]`. [tsconfig.md](docs/tsconfig.md#webjson), [biome.md](docs/biome.md#tailwind-css) and [dependency-cruiser.md](docs/dependency-cruiser.md#web-apps) have the details and a non-Next example.
+
+```json
+// apps/web/tsconfig.json
+{
+  "extends": "@house-rules/rules/tsconfig/web.json",
+  "compilerOptions": { "jsx": "react-jsx" },
+  "include": ["src"]
+}
+```
+
+```json
+// apps/web/tsconfig.effect.json
+{
+  "extends": ["@house-rules/rules/tsconfig/effect.json", "@house-rules/rules/tsconfig/web.json"],
+  "include": ["src/server/**/*.ts", "src/use-cases/**/*.ts"]
+}
+```
+
+```js
+// .dependency-cruiser.cjs
+module.exports = require("@house-rules/rules/dependency-cruiser").layout({
+  scope: "@acme/",
+  serverEntryFiles: ["runtime.ts"],
+  generatedDeclarationFiles: ["next-env.d.ts"],
+});
+```
 
 ## Commands
 

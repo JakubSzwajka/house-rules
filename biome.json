@@ -9,6 +9,7 @@
       "!!coverage",
       "!!generated",
       "!!.agent_sources",
+      "!!.pi/specs",
       "!!packages/rules/tests/fixtures",
       "!!site/dist",
       "!!site/.astro"

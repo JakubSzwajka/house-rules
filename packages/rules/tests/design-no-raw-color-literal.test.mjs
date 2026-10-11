@@ -4,6 +4,12 @@ import { rule, sourceRuleTester } from "./design-helpers.mjs";
 
 const RULE = rule("design-no-raw-color-literal");
 
+function rawClass(className, color) {
+  return {
+    message: `Class "${className}" uses the raw colour ${color}. Use a colour class built on a design token.`,
+  };
+}
+
 function raw(color) {
   return {
     message: `Raw colour "${color}" in a string. Use a design token, such as var(--name) or a theme constant.`,
@@ -61,8 +67,32 @@ test("design-no-raw-color-literal", () => {
         code: 'const id = "#main"; const re = /#fff/; const C = () => <p>color #fff</p>;',
         filename: "misc.tsx",
       },
+      {
+        name: "classColors is off by default, and names only the listed colours",
+        code: 'const a = "bg-white text-black"; const b = <p className="bg-background text-whitesmoke" />;',
+        filename: "classes.tsx",
+      },
+      {
+        name: "classColors ignores look-alike utilities and theme colours",
+        code: 'const a = <p className="bg-background text-white-ish w-white whitespace-nowrap" />;',
+        options: [{ classColors: ["white", "black"] }],
+        filename: "classes.tsx",
+      },
     ],
     invalid: [
+      {
+        name: "classColors: colour utilities with variants, opacity and ! in any string",
+        code: 'const tone = "bg-white";\nconst P = () => <p className="p-2 hover:text-black/50 !border-white md:dark:ring-offset-black" />;\nconst t = `fill-white/[0.4] ${x}`;',
+        options: [{ classColors: ["white", "black"] }],
+        filename: "classes.tsx",
+        errors: [
+          { ...rawClass("bg-white", "white"), line: 1, column: 15, endColumn: 23 },
+          { ...rawClass("hover:text-black/50", "black"), line: 2, column: 35 },
+          { ...rawClass("!border-white", "white"), line: 2 },
+          { ...rawClass("md:dark:ring-offset-black", "black"), line: 2 },
+          { ...rawClass("fill-white/[0.4]", "white"), line: 3 },
+        ],
+      },
       {
         name: "Hosti respond.ts: Tailwind stone colours in the 404 page template",
         code: "const html = `<style>\n  body { color: #1c1917; background: #fafaf9; }\n  code { background: #f5f5f4; }\n</style>`;",

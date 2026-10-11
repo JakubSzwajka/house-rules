@@ -104,7 +104,7 @@ async function writeFixtureFiles(fixtureDirectory) {
     path.join(fixtureDirectory, "verify-install.mjs"),
     `import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { ESLint } from "eslint";
 import houseRules from "@house-rules/rules";
@@ -118,7 +118,7 @@ assert.match(import.meta.resolve("@house-rules/rules/design"), /node_modules/);
 assert.match(import.meta.resolve("@house-rules/rules/shadcn"), /node_modules/);
 assert.match(import.meta.resolve("@house-rules/rules/dependency-cruiser"), /node_modules/);
 assert.equal(houseRules.meta.version, ${JSON.stringify(packageVersion)});
-for (const preset of ["tsconfig/strict.json", "tsconfig/effect.json", "biome"]) {
+for (const preset of ["tsconfig/strict.json", "tsconfig/effect.json", "tsconfig/web.json", "biome"]) {
   const file = new URL(import.meta.resolve(\`@house-rules/rules/\${preset}\`));
   assert.match(file.pathname, /node_modules\\/@house-rules\\/rules\\//);
   assert.equal(typeof JSON.parse(readFileSync(file, "utf8")), "object");
@@ -136,6 +136,10 @@ assert.equal(houseRules.configs.capability[0].rules["house-rules/no-hand-rolled-
 assert.equal(houseRules.configs.capability[1].rules["house-rules/use-case-is-capability"], "error");
 assert.equal(houseRules.configs.capability[2].rules["house-rules/no-hand-run-effect"], "error");
 
+const presetUrl = new URL(import.meta.resolve("@house-rules/rules/dependency-cruiser"));
+for (const sibling of ["layout-option-parsers.cjs", "layout-patterns.cjs"]) {
+  assert.ok(existsSync(new URL(sibling, presetUrl)), \`\${sibling} ships in the tarball\`);
+}
 const dependencyCruiserConfig = createRequire(import.meta.url)("./.dependency-cruiser.cjs");
 assert.deepEqual(dependencyCruiserConfig, layout({ scope: "@acme/" }));
 assert.equal(dependencyCruiserConfig.forbidden.length, 21);

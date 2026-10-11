@@ -160,7 +160,8 @@ test("layout() is exported for require and import, returns a fresh config, and v
   );
 });
 
-test("the preset loads no other module", () => {
+test("the preset loads only its own sibling files in src, never ESLint or node_modules", () => {
+  const sourceDirectory = path.resolve(import.meta.dirname, "../src");
   const loaded = execFileSync(
     process.execPath,
     [
@@ -169,9 +170,12 @@ test("the preset loads no other module", () => {
     ],
     { cwd: path.resolve(import.meta.dirname, ".."), encoding: "utf8" },
   );
-  assert.deepEqual(JSON.parse(loaded), [
-    path.resolve(import.meta.dirname, "../src/dependency-cruiser.cjs"),
-  ]);
+  assert.deepEqual(
+    JSON.parse(loaded)
+      .map((file) => path.relative(sourceDirectory, file))
+      .sort(),
+    ["dependency-cruiser.cjs", "layout-option-parsers.cjs", "layout-patterns.cjs"],
+  );
 });
 
 test("a clean workspace has no violations", async () => {

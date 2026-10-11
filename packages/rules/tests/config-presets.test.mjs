@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
-import os from "node:os";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { withConsumer } from "./preset-consumer.mjs";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const FIXTURES = path.join(import.meta.dirname, "fixtures/presets");
@@ -12,28 +12,6 @@ const bin = (name) => path.join(repositoryRoot, "node_modules/.bin", name);
 const tsc7 = path.join(repositoryRoot, "node_modules/typescript-7/bin/tsc");
 const readJson = async (file) =>
   JSON.parse(await readFile(path.join(repositoryRoot, file), "utf8"));
-
-// A consumer directory that resolves this package by name through node_modules, as an install would.
-async function withConsumer(files, run) {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "house-rules-presets-"));
-  try {
-    await mkdir(path.join(directory, "node_modules/@house-rules"), { recursive: true });
-    await symlink(repositoryRoot, path.join(directory, "node_modules/@house-rules/rules"), "dir");
-    for (const [name, content] of Object.entries(files)) {
-      await mkdir(path.dirname(path.join(directory, name)), { recursive: true });
-      await writeFile(
-        path.join(directory, name),
-        typeof content === "string" ? content : JSON.stringify(content),
-      );
-    }
-    return await run((command, args) => {
-      const result = spawnSync(command, args, { cwd: directory, encoding: "utf8" });
-      return { status: result.status, output: `${result.stdout}${result.stderr}` };
-    });
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
-}
 
 test("strict.json plus effect.json equal drunk-cat-stack's tsconfig.base.json", async () => {
   const strict = await readJson("tsconfig/strict.json");
@@ -48,8 +26,9 @@ test("strict.json plus effect.json equal drunk-cat-stack's tsconfig.base.json", 
   );
 });
 
-test("the Biome preset equals drunk-cat-stack's biome.json without the consumer-owned files block", async () => {
-  const preset = await readJson("biome/preset.json");
+test("the Biome preset equals drunk-cat-stack's biome.json without the consumer-owned files block, plus Tailwind parsing", async () => {
+  const { css, ...preset } = await readJson("biome/preset.json");
+  assert.deepEqual(css, { parser: { tailwindDirectives: true } });
   const { files, ...original } = JSON.parse(
     await readFile(path.join(FIXTURES, "drunk-cat-stack.biome.json"), "utf8"),
   );
@@ -66,8 +45,20 @@ test("the preset tests run the TypeScript and Biome versions drunk-cat-stack pin
   );
 });
 
-test("TypeScript resolves both tsconfig presets through package exports", async () => {
-  for (const preset of ["strict", "effect"]) {
+test("web.json extends strict.json with DOM libs and bundler resolution, and no plugin block", async () => {
+  const web = await readJson("tsconfig/web.json");
+  assert.equal(web.extends, "./strict.json");
+  assert.deepEqual(web.compilerOptions, {
+    lib: ["ES2023", "DOM", "DOM.Iterable"],
+    module: "ESNext",
+    moduleResolution: "Bundler",
+  });
+  const manifest = await readJson("package.json");
+  assert.equal(manifest.exports["./tsconfig/web.json"], "./tsconfig/web.json");
+});
+
+test("TypeScript resolves every tsconfig preset through package exports", async () => {
+  for (const preset of ["strict", "effect", "web"]) {
     const tsconfig = {
       extends: `@house-rules/rules/tsconfig/${preset}.json`,
       include: ["*.ts"],
@@ -110,6 +101,130 @@ test("a consumer on the strict preset fails on an unchecked index access", async
       assert.match(result.output, /unchecked\.ts\(1,\d+\): error TS2322/);
     },
   );
+});
+
+// A bundler-style UI file: DOM globals and an extensionless relative import.
+const WEB_FILES = {
+  "package.json": { type: "module" },
+  "src/label.ts": 'export const label = "Ready";\n',
+  "src/page.ts":
+    'import { label } from "./label";\nexport const heading = (): string => `${document.title} ${label}`;\n',
+};
+
+test("a UI file that needs DOM and bundler resolution passes on web.json and fails on strict.json", async () => {
+  for (const [preset, passes] of [
+    ["web", true],
+    ["strict", false],
+  ]) {
+    await withConsumer(
+      {
+        ...WEB_FILES,
+        "tsconfig.json": {
+          extends: `@house-rules/rules/tsconfig/${preset}.json`,
+          include: ["src"],
+        },
+      },
+      async (run) => {
+        const result = run(tsc7, ["--project", "tsconfig.json"]);
+        if (passes) {
+          assert.equal(result.status, 0, result.output);
+        } else {
+          assert.match(result.output, /page\.ts\(1,\d+\): error TS2835/);
+          assert.match(result.output, /page\.ts\(2,\d+\): error TS2584/);
+        }
+      },
+    );
+  }
+});
+
+test("web.json keeps every strict flag", async () => {
+  await withConsumer(
+    {
+      ...WEB_FILES,
+      "tsconfig.json": { extends: "@house-rules/rules/tsconfig/web.json", include: ["src"] },
+      "src/unchecked.ts":
+        "export const first = (values: readonly number[]): number => values[0];\n",
+    },
+    async (run) => {
+      const result = run(tsc7, ["--project", "tsconfig.json"]);
+      assert.match(result.output, /unchecked\.ts\(1,\d+\): error TS2322/);
+    },
+  );
+});
+
+// The app's Effect tsconfig lists effect.json first, so web.json's options win and the plugin block stays.
+// The other order puts strict.json's NodeNext and ES2023-only lib back.
+test("extends [effect.json, web.json] gives the Effect code DOM libs and bundler resolution", async () => {
+  const extendsOrder = (first, second) => ({
+    extends: [
+      `@house-rules/rules/tsconfig/${first}.json`,
+      `@house-rules/rules/tsconfig/${second}.json`,
+    ],
+    include: ["src"],
+  });
+  await withConsumer(
+    { ...WEB_FILES, "tsconfig.json": extendsOrder("effect", "web") },
+    async (run) => {
+      const shown = run(tsc7, ["--showConfig"]);
+      assert.equal(shown.status, 0, shown.output);
+      const { compilerOptions } = JSON.parse(shown.output);
+      assert.deepEqual(compilerOptions.lib, ["es2023", "dom", "dom.iterable"]);
+      assert.equal(compilerOptions.moduleResolution, "bundler");
+      assert.equal(compilerOptions.exactOptionalPropertyTypes, true);
+      const result = run(tsc7, ["--project", "tsconfig.json"]);
+      assert.equal(result.status, 0, result.output);
+    },
+  );
+  await withConsumer(
+    { ...WEB_FILES, "tsconfig.json": extendsOrder("web", "effect") },
+    async (run) => {
+      const result = run(tsc7, ["--project", "tsconfig.json"]);
+      assert.match(result.output, /page\.ts\(1,\d+\): error TS2835/);
+    },
+  );
+});
+
+const CSS_FIXTURES = ["plain.css", "plain-unformatted.css", "tailwind.css"];
+const cssFixtures = async () =>
+  Object.fromEntries(
+    await Promise.all(
+      CSS_FIXTURES.map(async (name) => [
+        `src/${name}`,
+        await readFile(path.join(FIXTURES, "css", name), "utf8"),
+      ]),
+    ),
+  );
+// Drops the timing line, so two runs over the same file compare equal.
+const withoutTiming = (output) => output.replace(/^Checked \d+ files? in .*$/mu, "");
+
+async function biomeCheckCss(biomeConfig) {
+  const results = {};
+  await withConsumer({ "biome.json": biomeConfig, ...(await cssFixtures()) }, async (run) => {
+    for (const name of CSS_FIXTURES) {
+      const { status, output } = run(bin("biome"), ["check", `src/${name}`]);
+      results[name] = { status, output: withoutTiming(output) };
+    }
+  });
+  return results;
+}
+
+test("the Biome preset parses Tailwind v4 directives and checks plain CSS exactly as without them", async () => {
+  const preset = await biomeCheckCss({ extends: ["@house-rules/rules/biome"] });
+  const plain = await biomeCheckCss({
+    extends: ["@house-rules/rules/biome"],
+    css: { parser: { tailwindDirectives: false } },
+  });
+
+  assert.equal(preset["tailwind.css"].status, 0, preset["tailwind.css"].output);
+  assert.equal(plain["tailwind.css"].status, 1);
+  assert.match(plain["tailwind.css"].output, /Tailwind-specific syntax is disabled/);
+
+  assert.equal(preset["plain.css"].status, 0, preset["plain.css"].output);
+  assert.equal(preset["plain-unformatted.css"].status, 1);
+  assert.match(preset["plain-unformatted.css"].output, /Formatter would have printed/);
+  for (const name of ["plain.css", "plain-unformatted.css"]) {
+    assert.deepEqual(preset[name], plain[name], name);
+  }
 });
 
 test("Biome extends the preset from the package and enforces its rules", async () => {

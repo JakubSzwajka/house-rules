@@ -1,0 +1,4 @@
+@layer base,components;
+.panel{color:canvastext;& .title{font-weight:600}}
+@media (min-width:40rem){.stack{margin:1rem}}
+@vendor-rule something;

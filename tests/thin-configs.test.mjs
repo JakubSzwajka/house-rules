@@ -22,8 +22,23 @@ describe("thin configs over the house plugin", () => {
     assert.equal(tsconfig.compilerOptions?.plugins, undefined);
   });
 
+  it("check fails on Biome and ESLint warnings: biome and lint keep their warning flags", () => {
+    const { scripts } = readJson("package.json");
+    assert.match(scripts.biome, /\bbiome check\b.*--error-on-warnings\b/);
+    assert.match(scripts.lint, /\beslint\b.*--max-warnings 0\b/);
+    assert.match(
+      scripts.lint,
+      /--format \.\/node_modules\/@house-rules\/rules\/src\/eslint-formatter\.mjs/,
+    );
+    assert.match(scripts.check, /\bpnpm run biome\b.*\bpnpm run lint\b/);
+  });
+
   it("biome.json extends the Biome preset", () => {
     assert.deepEqual(readJson("biome.json").extends, [`${PLUGIN}/biome`]);
+  });
+
+  it("biome.json keeps the .pi/specs exclusion", () => {
+    assert.ok(readJson("biome.json").files.includes.includes("!!.pi/specs"));
   });
 
   it(".dependency-cruiser.cjs builds on layout() and keeps every layout rule unchanged", () => {

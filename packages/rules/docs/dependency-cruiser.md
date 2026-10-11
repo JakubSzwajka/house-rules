@@ -2,7 +2,7 @@
 
 Import path: `@house-rules/rules/dependency-cruiser`
 
-This preset is not an ESLint preset. It is a [Dependency Cruiser](https://github.com/sverweij/dependency-cruiser) configuration for a workspace monorepo with apps under `apps/` and packages under `packages/`. The `layout(options)` factory returns a whole config object, `forbidden` rules and `options` together, that a `.dependency-cruiser.cjs` file can export as-is. `tests/fixtures/dependency-cruiser/layout-hosti.snapshot.json` is a snapshot of `layout({ scope: "@hosti/" })`, and a test compares them. The first 13 rules are drunk-cat-stack's hand-written `.dependency-cruiser.cjs` from before 0.4.0. Version 0.4.0 adds three rules, 0.7.0 adds `adapter-imports-only-in-adapters` and keeps `node_modules` in the graph, 0.8.0 runs that rule at error and lets `adapterImports` name workspace packages, and 0.10.0 adds the package layout rules (`package-root-files`, `domain-does-not-import-adapters`, `subjects-do-not-import-package-root`, and mechanism names in `no-ownerless-files`). Version 0.11.0 adds `no-package-cycles` to the separate `house-rules-layout` bin. `no-subject-folder-cycles` also runs there, so the Dependency Cruiser rule set still contains 20 named rules.
+This preset is not an ESLint preset. It is a [Dependency Cruiser](https://github.com/sverweij/dependency-cruiser) configuration for a workspace monorepo with apps under `apps/` and packages under `packages/`. The `layout(options)` factory returns a whole config object, `forbidden` rules and `options` together, that a `.dependency-cruiser.cjs` file can export as-is. `tests/fixtures/dependency-cruiser/layout-hosti.snapshot.json` is a snapshot of `layout({ scope: "@hosti/" })`, and a test compares them. The first 13 rules are drunk-cat-stack's hand-written `.dependency-cruiser.cjs` from before 0.4.0. Version 0.4.0 adds three rules, 0.7.0 adds `adapter-imports-only-in-adapters` and keeps `node_modules` in the graph, 0.8.0 runs that rule at error and lets `adapterImports` name workspace packages, and 0.10.0 adds the package layout rules (`package-root-files`, `domain-does-not-import-adapters`, `subjects-do-not-import-package-root`, and mechanism names in `no-ownerless-files`). Version 0.11.0 adds `no-package-cycles` to the separate `house-rules-layout` bin. `no-subject-folder-cycles` also runs there, so the Dependency Cruiser rule set still contains 20 named rules. Version 0.12.0 adds the `serverEntryFiles` and `generatedDeclarationFiles` options for web apps; both default to `[]`, which leaves the config byte-identical to 0.11.0. See [Web apps](#web-apps).
 
 ```js
 // .dependency-cruiser.cjs
@@ -15,7 +15,7 @@ Run it with the Dependency Cruiser CLI:
 npx depcruise --config .dependency-cruiser.cjs apps packages
 ```
 
-The file is CommonJS and loads no other module. It exports `layout` and `DEFAULT_ADAPTER_IMPORTS`, the default `adapterImports` list. `require()` and `import` both work, and neither loads ESLint, `@eslint/css`, or `@eslint/markdown`. Dependency Cruiser is an optional peer dependency (`^18.4.0`), so install it yourself:
+The file is CommonJS and loads only its two sibling files in the same folder, `layout-option-parsers.cjs` and `layout-patterns.cjs`, which ship with it. It exports `layout` and `DEFAULT_ADAPTER_IMPORTS`, the default `adapterImports` list. `require()` and `import` both work, and neither loads ESLint, `@eslint/css`, `@eslint/markdown`, or anything from `node_modules`. Dependency Cruiser is an optional peer dependency (`^18.4.0`), so install it yourself:
 
 ```sh
 npm install --save-dev --save-exact dependency-cruiser@18.4.0
@@ -58,6 +58,8 @@ Every folder name above is an option. The `src` segment is fixed. Every file but
 | `adaptersDir` | `"src/adapters"` | Package code that may import `adapterImports`. Tests under it may too. |
 | `adapterImports` | `DEFAULT_ADAPTER_IMPORTS`: `["effect/unstable/sql", "@effect/sql-*", "@effect/platform-*"]` | Bare import specifiers that only adapter code may import. A `*` matches within one path segment. An entry in `scope`, such as `"@acme/db"`, names a workspace package too. Replaces the default list, so spread `DEFAULT_ADAPTER_IMPORTS` to add to it. Must not be empty. A scoped glob exempts every matching sibling's own folder; see [Adapter imports](#adapter-imports). |
 | `adapterPackages` | `[]` | Package folder names under `packagesDir` that are adapters by nature, such as plumbing (`"db"`) or the migration runner (`"migrations"`). Every file in them may import `adapterImports`. Names, not paths. |
+| `serverEntryFiles` | `[]` | Files under `<app>/src/<layers.server>/` that delivery may import, such as `"runtime.ts"` or `"runtime/index.ts"`: the server runtime that runs use-cases. Paths relative to the server folder. Every other server file stays closed to delivery. See [Web apps](#web-apps). |
+| `generatedDeclarationFiles` | `[]` | Declaration files a framework generates, such as `"next-env.d.ts"`, whose imports `no-unresolved-imports` skips. Paths relative to each app folder, each ending in `.d.ts`, `.d.mts` or `.d.cts`. See [Web apps](#web-apps). |
 | `testsDir` | `"tests"` | Name of the folder every test file must sit in directly, somewhere under `<workspace>/src/`. It also counts as a test path for `production-does-not-import-tests`, next to `test`, `tests`, and `__tests__`. |
 
 Option values are folder names and paths, not regular expressions. The factory escapes them. Each layer root ends in `(?:/|$)`, so `delivery-legacy` is not `delivery`. An unknown option or layer name throws, and so does a path that is empty or starts or ends with `/`. `adapterImportsSeverity` was removed in 0.8.0. Passing it throws, because `adapter-imports-only-in-adapters` is always an error: a repo that breaks it fixes the imports by hand.
@@ -145,6 +147,25 @@ config.forbidden.push({
 });
 module.exports = config;
 ```
+
+## Web apps
+
+A web framework, such as Next.js, Remix or Astro, runs pages and routes in the delivery layer, with no separate entry point that joins delivery and the composition root. Two options let such an app keep every layout rule:
+
+- `serverEntryFiles` names the server files a page or route may import: the runtime that provides the root's layer and runs a use-case. `delivery-does-not-import-server` then skips those exact paths, and only those. Delivery importing any other server file, such as the database pool, still fails. `server-does-not-import-delivery` does not change.
+- `generatedDeclarationFiles` names declaration files the framework writes, which import build output that does not exist before a build. Next.js writes `next-env.d.ts` with `import "./.next/types/routes.d.ts"`. `no-unresolved-imports` skips imports from those exact files, and only that rule.
+
+```js
+// .dependency-cruiser.cjs, a Next.js app at apps/web
+module.exports = require("@house-rules/rules/dependency-cruiser").layout({
+  scope: "@acme/",
+  layers: { delivery: "app" },
+  serverEntryFiles: ["runtime.ts"],
+  generatedDeclarationFiles: ["next-env.d.ts"],
+});
+```
+
+An app whose framework generates nothing, such as a Vite app with a hand-written `src/vite-env.d.ts`, sets only `serverEntryFiles`, or neither. Both options apply to every app under `appsDir`. Paths are matched exactly, so `runtime.ts` does not cover `runtime/index.ts`, and `next-env.d.ts` does not cover `src/next-env.d.ts`. `tests/fixtures/dependency-cruiser/web-app/` is the fixture for both.
 
 ## Adapter imports
 
