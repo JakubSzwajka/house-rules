@@ -1,0 +1,26 @@
+@import "tailwindcss";
+@source "../components";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand: oklch(0.6 0.2 250);
+  --spacing-gutter: 1.5rem;
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg p-4 shadow;
+  }
+}
+
+@utility tab-4 {
+  tab-size: 4;
+}
+
+.link {
+  @variant hover {
+    color: canvastext;
+  }
+}

@@ -1,7 +1,11 @@
 import { plugin } from "@shadcn/lint";
 import tsParser from "@typescript-eslint/parser";
+import housePlugin from "./index.mjs";
 
 const PREFIX = "shadcn";
+const HOUSE = "house-rules";
+const RAW_ELEMENT = `${HOUSE}/design-no-raw-element`;
+const RAW_ELEMENT_KEYS = ["severity", "elements", "allow", "components"];
 const SEVERITIES = ["off", "warn", "error"];
 // The five core rules as shadcn-ui/lint docs/adoption.md (tag @shadcn/lint@0.2.0) enables them, plus
 // no-unknown-classes at warn, as the same page advises.
@@ -66,16 +70,40 @@ function ruleEntry(name, setting, severity) {
   throw invalidRule(name);
 }
 
-// Builds flat-config blocks for @shadcn/lint: one block for the app's JSX and TSX, and one that turns off
-// the three rules a component folder needs off. Pass `components: false` to skip the second block.
+function rawElementEntry(setting, severity, components) {
+  if (setting === false) return "off";
+  if (typeof setting === "string")
+    return rawElementEntry({ severity: setting }, severity, components);
+  if (!isPlainObject(setting)) {
+    throw new TypeError("shadcn(): rawElements must be false, a severity, or an options object.");
+  }
+  for (const key of Object.keys(setting)) {
+    if (!RAW_ELEMENT_KEYS.includes(key)) {
+      throw new TypeError(
+        `shadcn(): unknown rawElements option "${key}". Known options: ${RAW_ELEMENT_KEYS.join(", ")}.`,
+      );
+    }
+  }
+  const { severity: own, components: folders = components, ...options } = setting;
+  const level =
+    own === undefined ? (severity ?? "error") : checkSeverity(own, "rawElements severity");
+  if (options.allow !== undefined) stringArray(options.allow, "rawElements.allow");
+  if (folders !== undefined) options.components = stringArray(folders, "rawElements.components");
+  return level === "off" || !Object.keys(options).length ? level : [level, options];
+}
+
+// Builds flat-config blocks for @shadcn/lint and design-no-raw-element: one block for the app's JSX and
+// TSX, and one that turns off the rules a component folder needs off. `components: false` skips it.
 export function shadcn({
   files = DEFAULT_FILES,
   components = DEFAULT_COMPONENTS,
   severity,
   rules = {},
   settings,
+  rawElements = {},
 } = {}) {
   stringArray(files, "files");
+  if (components !== false) stringArray(components, "components");
   if (severity !== undefined) checkSeverity(severity, "severity");
   if (!isPlainObject(rules)) {
     throw new TypeError("shadcn(): rules must be an object keyed by rule name.");
@@ -98,23 +126,32 @@ export function shadcn({
         parser: tsParser,
         parserOptions: { ecmaFeatures: { jsx: true } },
       },
-      plugins: { [PREFIX]: plugin },
+      plugins: { [PREFIX]: plugin, [HOUSE]: housePlugin },
       ...(settings ? { settings: { shadcn: settings } } : {}),
-      rules: Object.fromEntries(
-        Object.keys(RECOMMENDED).map((name) => [
-          `${PREFIX}/${name}`,
-          ruleEntry(name, rules[name], severity),
-        ]),
-      ),
+      rules: {
+        ...Object.fromEntries(
+          Object.keys(RECOMMENDED).map((name) => [
+            `${PREFIX}/${name}`,
+            ruleEntry(name, rules[name], severity),
+          ]),
+        ),
+        [RAW_ELEMENT]: rawElementEntry(
+          rawElements,
+          severity,
+          components === false ? undefined : components,
+        ),
+      },
     },
   ];
   if (components !== false) {
-    stringArray(components, "components");
     blocks.push({
       // Each inner array is an AND: a file in the component folder that the first block also lints.
       files: components.flatMap((folder) => files.map((pattern) => [folder, pattern])),
-      plugins: { [PREFIX]: plugin },
-      rules: Object.fromEntries(COMPONENT_RULES_OFF.map((name) => [`${PREFIX}/${name}`, "off"])),
+      plugins: { [PREFIX]: plugin, [HOUSE]: housePlugin },
+      rules: {
+        ...Object.fromEntries(COMPONENT_RULES_OFF.map((name) => [`${PREFIX}/${name}`, "off"])),
+        [RAW_ELEMENT]: "off",
+      },
     });
   }
   return blocks;

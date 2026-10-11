@@ -53,6 +53,8 @@
 	redir /rules/eslint/design-no-raw-color-literal/ /rules/#design-no-raw-color-literal 301
 	redir /rules/eslint/design-no-unknown-token/ /rules/#design-no-unknown-token 301
 	redir /rules/eslint/design-scale-value/ /rules/#design-scale-value 301
+	redir /rules/eslint/design-css-layers/ /rules/#design-css-layers 301
+	redir /rules/eslint/design-no-raw-element/ /rules/#design-no-raw-element 301
 	redir /rules/eslint/shadcn/ /rules/#shadcn 301
 	redir /rules/eslint/use-case-is-capability/ /rules/#use-case-is-capability 301
 	redir /rules/eslint/no-hand-rolled-surface/ /rules/#no-hand-rolled-surface 301

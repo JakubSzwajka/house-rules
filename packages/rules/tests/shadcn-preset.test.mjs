@@ -6,6 +6,7 @@ import { plugin as shadcnPlugin } from "@shadcn/lint";
 import tsParser from "@typescript-eslint/parser";
 import { ESLint } from "eslint";
 import design from "../src/design.mjs";
+import housePlugin from "../src/index.mjs";
 import shadcn, { shadcn as namedShadcn } from "../src/shadcn.mjs";
 
 const APP = path.resolve(import.meta.dirname, "fixtures/shadcn-app");
@@ -19,6 +20,7 @@ const RECOMMENDED_RULES = {
   "shadcn/no-inline-styles": "error",
   "shadcn/require-static-classes": "error",
   "shadcn/no-unknown-classes": "warn",
+  "house-rules/design-no-raw-element": ["error", { components: ["**/components/ui/**"] }],
 };
 
 const HOME = "src/pages/home.tsx";
@@ -72,6 +74,7 @@ test("shadcn() returns an app block with the plugin's recommended rules and a co
   assert.equal(appBlock.languageOptions.parser, tsParser);
   assert.deepEqual(appBlock.languageOptions.parserOptions, { ecmaFeatures: { jsx: true } });
   assert.equal(appBlock.plugins.shadcn, shadcnPlugin);
+  assert.equal(appBlock.plugins["house-rules"], housePlugin);
   assert.equal(appBlock.settings, undefined);
   assert.deepEqual(appBlock.rules, RECOMMENDED_RULES);
   assert.deepEqual(componentBlock.files, [["**/components/ui/**", "**/*.{jsx,tsx}"]]);
@@ -80,6 +83,7 @@ test("shadcn() returns an app block with the plugin's recommended rules and a co
     "shadcn/no-restyle": "off",
     "shadcn/no-arbitrary-values": "off",
     "shadcn/require-static-classes": "off",
+    "house-rules/design-no-raw-element": "off",
   });
 });
 
@@ -109,6 +113,10 @@ test("shadcn() options: files, component folders, a global severity, per-rule ov
     "shadcn/no-inline-styles": "off",
     "shadcn/require-static-classes": "warn",
     "shadcn/no-unknown-classes": ["error", { allow: ["editor-root"] }],
+    "house-rules/design-no-raw-element": [
+      "warn",
+      { components: ["apps/web/src/ui/**", "packages/ui/**"] },
+    ],
   });
   assert.deepEqual(componentBlock.files, [
     ["apps/web/src/ui/**", "apps/web/**/*.tsx"],
@@ -125,6 +133,60 @@ test("shadcn() options: files, component folders, a global severity, per-rule ov
   assert.throws(() => shadcn({ files: "**/*.tsx" }), /files must be an array/);
   assert.throws(() => shadcn({ components: "ui/**" }), /components must be an array/);
   assert.throws(() => shadcn({ settings: "ui" }), /settings must be an object/);
+});
+
+test("shadcn() rawElements: off, a severity, options, and the global severity", () => {
+  const entry = (options) => shadcn(options)[0].rules["house-rules/design-no-raw-element"];
+  assert.equal(entry({ rawElements: false }), "off");
+  assert.deepEqual(entry({ rawElements: "warn" }), [
+    "warn",
+    { components: ["**/components/ui/**"] },
+  ]);
+  assert.deepEqual(entry({ severity: "warn", rawElements: { severity: "error" } })[0], "error");
+  assert.deepEqual(
+    entry({
+      components: ["app/_components/ui/**"],
+      rawElements: { elements: { a: { use: "Link" } }, allow: ["app/global-error.tsx"] },
+    }),
+    [
+      "error",
+      {
+        elements: { a: { use: "Link" } },
+        allow: ["app/global-error.tsx"],
+        components: ["app/_components/ui/**"],
+      },
+    ],
+  );
+  assert.equal(entry({ rawElements: { severity: "off" } }), "off");
+  assert.deepEqual(entry({ components: false }), "error");
+  assert.deepEqual(entry({ components: false, rawElements: { components: ["ui/**"] } }), [
+    "error",
+    { components: ["ui/**"] },
+  ]);
+  assert.throws(() => shadcn({ rawElements: { map: {} } }), /unknown rawElements option "map"/);
+  assert.throws(() => shadcn({ rawElements: "loud" }), /must be one of/);
+  assert.throws(() => shadcn({ rawElements: [] }), /rawElements must be false/);
+  assert.throws(
+    () => shadcn({ rawElements: { allow: "x" } }),
+    /rawElements.allow must be an array/,
+  );
+});
+
+test("fixture app: shadcn() reports a raw element outside the component folder only", async () => {
+  const app = path.resolve(import.meta.dirname, "fixtures/raw-element-app");
+  const eslint = new ESLint({ cwd: app, overrideConfigFile: true, overrideConfig: shadcn() });
+  const results = await eslint.lintFiles(["src"]);
+  const raw = results.flatMap(({ filePath, messages }) =>
+    messages
+      .filter(({ ruleId }) => ruleId === "house-rules/design-no-raw-element")
+      .map(({ line }) => `${path.relative(app, filePath).split(path.sep).join("/")}:${line}`),
+  );
+  assert.deepEqual(raw.sort(), [
+    "src/pages/form.tsx:10",
+    "src/pages/form.tsx:6",
+    "src/pages/form.tsx:7",
+    "src/pages/global-error.tsx:3",
+  ]);
 });
 
 test("shadcn() validates rules and each rule entry", () => {
@@ -205,5 +267,33 @@ test("overlap: a standalone colour constant passes every shadcn rule but fails d
   assert.deepEqual(await lint(designSource, ["src/pages/brand.ts"]), [
     'src/pages/brand.ts:1:23 error house-rules/design-no-raw-color-literal Raw colour "#ffffff" in a string. Use a design token, such as var(--name) or a theme constant.',
     'src/pages/brand.ts:2:24 error house-rules/design-no-raw-color-literal Raw colour "rgb(1, 2, 3)" in a string. Use a design token, such as var(--name) or a theme constant.',
+  ]);
+});
+
+// The gaps between board-app's local utility test and the preset: docs/shadcn.md, "Stricter utility checks".
+test("gaps: the strict settings and classColors report what the default preset lets through", async () => {
+  const GAPS = "gaps/utilities.tsx";
+  const rules = (findings) => findings.map((line) => line.split(" ").slice(0, 3).join(" "));
+  assert.deepEqual(await lint(shadcn(), [GAPS]), []);
+  const strict = shadcn({
+    rules: {
+      "no-arbitrary-values": { allow: [], scanAllStrings: true },
+      "no-raw-colors": { scanAllStrings: true },
+    },
+  });
+  assert.deepEqual(rules(await lint(strict, [GAPS])), [
+    `${GAPS}:1:30 error shadcn/no-raw-colors`,
+    `${GAPS}:1:52 error shadcn/no-arbitrary-values`,
+    `${GAPS}:6:22 error shadcn/no-arbitrary-values`,
+    `${GAPS}:7:22 error shadcn/no-arbitrary-values`,
+  ]);
+  const classColors = design({
+    css: false,
+    source: { files: ["**/*.tsx"] },
+    rules: { "design-no-raw-color-literal": { classColors: ["white", "black"] } },
+  });
+  assert.deepEqual(rules(await lint(classColors, [GAPS])), [
+    `${GAPS}:8:23 error house-rules/design-no-raw-color-literal`,
+    `${GAPS}:8:32 error house-rules/design-no-raw-color-literal`,
   ]);
 });

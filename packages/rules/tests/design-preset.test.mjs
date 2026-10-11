@@ -45,6 +45,7 @@ test("design() returns a CSS block and a source block with the token files passe
     "house-rules/design-no-raw-color": ["error", { tokenFiles: ["tokens.css"] }],
     "house-rules/design-no-unknown-token": ["error", { tokenFiles: ["tokens.css"] }],
     "house-rules/design-scale-value": "off",
+    "house-rules/design-css-layers": "off",
   });
   assert.deepEqual(sourceBlock.files, ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]);
   assert.equal(sourceBlock.languageOptions.parser, tsParser);
@@ -68,6 +69,7 @@ test("design() options: per-rule options, false turns a rule off, and blocks can
     ],
     "house-rules/design-no-unknown-token": "off",
     "house-rules/design-scale-value": ["error", [{ property: "radius", allowed: ["4px"] }]],
+    "house-rules/design-css-layers": "off",
   });
   assert.deepEqual(sourceBlock.rules, {
     "house-rules/design-no-raw-color-literal": ["error", { skipVarFallback: false }],

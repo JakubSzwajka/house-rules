@@ -10,6 +10,25 @@ const QUERY_VALUE = /[?&][\w.%-]*=$/;
 const ATTRIBUTE_VALUE = /\[\s*[\w-]+\s*[~|^$*]?=\s*["']?$/;
 const ABSOLUTE_URL = /\b[a-z][a-z\d+.-]*:\/\/[^\s"'`<>()]*/gi;
 const URL_KEYS = new Set(["href", "to", "src", "action", "xlinkHref", "xlink:href"]);
+const COLOR_UTILITY =
+  "(?:bg|text|border(?:-[xytrblse])?|divide|ring|ring-offset|outline|fill|stroke|decoration|from|via|to|accent|caret|placeholder|shadow|inset-shadow|drop-shadow|text-shadow)";
+const OPACITY = "(?:/(?:\\d{1,3}|\\[[^\\]]+\\]|\\([^)]+\\)))?";
+
+// `bg-white` → `white` for a Tailwind colour utility, after its variants (`hover:`) and `!` modifier.
+function classColorMatcher(colors) {
+  if (!colors.length) return null;
+  const utility = new RegExp(`^${COLOR_UTILITY}-(${colors.join("|")})${OPACITY}$`, "i");
+  return (token) => {
+    let depth = 0;
+    let lastColon = -1;
+    for (let index = 0; index < token.length; index += 1) {
+      if (token[index] === "[" || token[index] === "(") depth += 1;
+      else if (token[index] === "]" || token[index] === ")") depth -= 1;
+      else if (token[index] === ":" && depth === 0) lastColon = index;
+    }
+    return utility.exec(token.slice(lastColon + 1).replace(/^!|!$/g, ""))?.[1] ?? null;
+  };
+}
 
 function closingParen(text, open) {
   let depth = 0;
@@ -89,6 +108,8 @@ export const designNoRawColorLiteralRule = {
     messages: {
       rawColor:
         'Raw colour "{{color}}" in a string. Use a design token, such as var(--name) or a theme constant.',
+      rawColorClass:
+        'Class "{{className}}" uses the raw colour {{color}}. Use a colour class built on a design token.',
     },
     schema: [
       {
@@ -96,32 +117,57 @@ export const designNoRawColorLiteralRule = {
         properties: {
           skipVarFallback: { type: "boolean" },
           allowIn: { type: "array", items: { type: "string", minLength: 1 }, uniqueItems: true },
+          classColors: {
+            type: "array",
+            items: { type: "string", pattern: "^[a-z][a-z0-9-]*$" },
+            uniqueItems: true,
+          },
         },
         additionalProperties: false,
       },
     ],
-    defaultOptions: [{ skipVarFallback: true, allowIn: [] }],
+    defaultOptions: [{ skipVarFallback: true, allowIn: [], classColors: [] }],
   },
 
   create(context) {
-    const [{ skipVarFallback, allowIn }] = context.options;
+    const [{ skipVarFallback, allowIn, classColors }] = context.options;
     const filename = context.physicalFilename ?? context.filename;
     if (matchesAnyGlob(filename, context.cwd, allowIn)) return {};
     const { sourceCode } = context;
+    const classColor = classColorMatcher(classColors);
+
+    function report(offset, start, end, messageId, data) {
+      context.report({
+        loc: {
+          start: sourceCode.getLocFromIndex(offset + start),
+          end: sourceCode.getLocFromIndex(offset + end),
+        },
+        messageId,
+        data,
+      });
+    }
+
+    function checkClasses(text, offset) {
+      for (const match of text.matchAll(/[^\s"'`]+/g)) {
+        const color = classColor(match[0]);
+        if (color) {
+          report(offset, match.index, match.index + match[0].length, "rawColorClass", {
+            className: match[0],
+            color,
+          });
+        }
+      }
+    }
 
     function check(node) {
       const text = sourceCode.getText(node);
       const offset = node.range[0];
       for (const { start, end } of findColorLiterals(text, { skipVarFallback })) {
-        context.report({
-          loc: {
-            start: sourceCode.getLocFromIndex(offset + start),
-            end: sourceCode.getLocFromIndex(offset + end),
-          },
-          messageId: "rawColor",
-          data: { color: text.slice(start, end).replace(/\s+/g, " ") },
+        report(offset, start, end, "rawColor", {
+          color: text.slice(start, end).replace(/\s+/g, " "),
         });
       }
+      if (classColor) checkClasses(text, offset);
     }
 
     return {
