@@ -73,6 +73,14 @@ test("contract-entry-is-browser-safe refuses effect's adapter imports", () => {
   assert.equal(allowed("node_modules/@acme/x/src/contract.ts"), false);
   assert.equal(allowed("node_modules/@house-rules/capability/src/contract.ts"), true);
   assert.equal(allowed("node_modules/@house-rules/capability/src/index.ts"), false);
+  // Installed from the registry, the entry is its build in dist/.
+  const built =
+    "node_modules/.pnpm/@house-rules+capability@0.13.1/node_modules/@house-rules/capability";
+  assert.equal(allowed(`${built}/dist/contract.js`), true);
+  assert.equal(allowed(`${built}/dist/contract.d.ts`), true);
+  assert.equal(allowed(`${built}/dist/index.js`), false);
+  assert.equal(allowed(`${built}/dist/contract/contract.js`), false);
+  assert.equal(allowed("node_modules/@acme/x/dist/contract.js"), false);
   assert.equal(allowed("node_modules/@acme/x/src/index.ts"), false);
   assert.equal(allowed("packages/a/src/booking/tests/booking.test.ts"), false);
   assert.equal(allowed("packages/a/src/booking/booking.ts"), true);
@@ -123,7 +131,7 @@ const runLayoutBin = (config) =>
 test("house-rules-layout fails every export but . and ./contract, and any target but their own file", async () => {
   const { status, stderr } = await runLayoutBin(layout({ scope: "@acme/" }));
   assert.equal(status, 1, stderr);
-  assert.match(stderr, /contract-entry-is-browser-safe: 6 package manifest\(s\)/u);
+  assert.match(stderr, /contract-entry-is-browser-safe: 7 package manifest\(s\)/u);
   assert.match(stderr, /packages\/a\/package\.json: "\.\/alias" is exported/u);
   assert.match(stderr, /packages\/b\/package\.json: "\.\/browser" is exported/u);
   assert.match(stderr, /packages\/c\/package\.json: "\.\/contract" points at src\/index\.ts/u);
@@ -135,13 +143,23 @@ test("house-rules-layout fails every export but . and ./contract, and any target
     /packages\/f\/package\.json: "\." points at src\/facade\.ts, not src\/index\.ts/u,
   );
   assert.match(stderr, /packages\/g\/package\.json: "\.\/extra" is exported/u);
+  // publishConfig.exports replaces exports on publish; its targets may be the build in dist/.
+  assert.doesNotMatch(stderr, /packages\/h\//u);
+  assert.match(
+    stderr,
+    /packages\/i\/package\.json: publishConfig\.exports "\.\/contract" points at dist\/facade\.js, not src\/contract\.ts or its build, dist\/contract\.js or dist\/contract\.d\.ts/u,
+  );
+  assert.match(
+    stderr,
+    /packages\/i\/package\.json: publishConfig\.exports "\.\/dist\/\*" is exported/u,
+  );
   assert.match(stderr, /rules\/#contract-entry-is-browser-safe/u);
 });
 
 test("house-rules-layout reads the public entry from the config and skips excluded packages", async () => {
   const config = layout({ scope: "@acme/", publicEntry: "src/main.ts" });
   const base = layout({ scope: "@acme/" });
-  base.options.exclude.path = `${base.options.exclude.path}|^packages/[a-f]/`;
+  base.options.exclude.path = `${base.options.exclude.path}|^packages/[a-fi]/`;
   const excluded = await runLayoutBin(base);
   assert.equal(excluded.status, 1, excluded.stderr);
   assert.match(excluded.stderr, /1 package manifest\(s\)/u);

@@ -17,7 +17,7 @@ import { ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL } from "./rule-docs.m
 const plugin = {
   meta: {
     name: "@house-rules/rules",
-    version: "0.14.0",
+    version: "0.15.0",
   },
   rules: {
     "comment-discipline": commentDisciplineRule,

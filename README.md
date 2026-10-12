@@ -40,7 +40,7 @@ Root tools run once over the whole repo. Biome and ESLint warnings fail the chec
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.14.0`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.15.0`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
@@ -127,26 +127,60 @@ Start from the template, or copy these into an existing pnpm workspace:
 
 1. [ ] The thin configs: `biome.json`, `eslint.config.mjs`, `tsconfig.base.json`, `.dependency-cruiser.cjs`.
 2. [ ] The stack files: `turbo.json`, `pnpm-workspace.yaml`, `.github/workflows/ci.yml`, `.env.schema`, `.varlock/config.json`, `docker-compose.yml`, `migrations.json`, and the `.env` lines from `.gitignore`.
-3. [ ] The root `package.json` `scripts`, `devDependencies`, `engines`, and `packageManager`. Replace the `workspace:` house-rules dependency with the Git spec in [Using the rules in another app](#using-the-rules-in-another-app).
+3. [ ] The root `package.json` `scripts`, `devDependencies`, `engines`, and `packageManager`. Replace the `workspace:` house-rules dependency with the exact npm version in [Using the rules in another app](#using-the-rules-in-another-app).
 4. [ ] The fence: `.nvmrc`, `lefthook.yml`, `scripts/`, `tests/`, `.agents/settings.json`, `.pi/extensions/git-interceptor.ts`, `NOTICE`. Add `skills/` if your agents should use them.
 5. [ ] `AGENTS.md`, rewritten for your project. Write your own `VISION.md`.
 6. [ ] Rename `@hosti/` everywhere: package names, dependencies, imports, `Context.Service` keys, and the `scope` passed to `layout()`.
 7. [ ] If your folders differ, pass `layout()` options such as `appsDir`, `packagesDir`, `layers`, `publicEntry`, `internalDir`, `appEntryFiles`, `ownerlessNames`, `mechanismNames`, `packageRootFiles`, `facadeFile`, or `testsDir`. The house-rules docs explain each one.
 8. [ ] Run `pnpm install`, then `pnpm check` and `pnpm test`.
 
+### Installing
+
+Four packages from this repo are on the public npm registry, under the `@house-rules` scope:
+
+| Package | What it is | Version |
+| --- | --- | --- |
+| [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript. | `0.15.0` |
+| [`@house-rules/capability`](packages/capability/README.md) | Capabilities, gates, units of work, delivery | `0.13.1` |
+| [`@house-rules/migrations`](packages/migrations/README.md) | Module-owned SQL migrations | `0.2.1` |
+| [`@house-rules/call-audit`](packages/call-audit/README.md) | One audit line or row per capability call | `0.2.1` |
+
+1. [ ] Pin each one to an exact version, like every other dependency: `"@house-rules/capability": "0.13.1"`. `house-rules-pins` fails `^` and `~`.
+2. [ ] Pin `effect` to the version their `peerDependencies` name, now `4.0.0-rc.117`. `call-audit` also peers on the exact `capability` version it was built with.
+3. [ ] If your `pnpm-workspace.yaml` sets `minimumReleaseAge`, a version younger than that fails the install. Wait, or add that exact version to `minimumReleaseAgeExclude`.
+
+`capability`, `migrations`, and `call-audit` ship built JavaScript and declarations in `dist/`. Plain `node` loads them, any bundler takes them as is, and `tsc` reads their `.d.ts` files. An app needs no `transpilePackages`, no type-stripping loader, and no `allowImportingTsExtensions` for them. In this repo they stay source: `exports` points at `src/`, and pnpm swaps in `publishConfig.exports`, which points at `dist/`, only when it packs. `pnpm run packed-consumer` packs all four, installs them with npm into a fresh app, loads every entry with plain `node`, runs `tsc` with the effect and web presets, and runs the layout rules on that app. CI runs it on every pull request.
+
+#### Upgrading from a Git SHA pin
+
+Up to rules 0.14.0 and capability 0.13.0, apps pinned a commit: `github:JakubSzwajka/house-rules#<sha>&path:/packages/<name>`. Those pins keep working, because the commits stay in this repo's history. To move to npm:
+
+1. [ ] Replace each Git spec with the exact version from the table above.
+2. [ ] Delete `@house-rules/*` from Next's `transpilePackages`, and any loader that strips types under `node_modules`.
+3. [ ] Drop `allowImportingTsExtensions` if only these packages needed it. Your own `.ts` imports may still need it.
+4. [ ] Run `pnpm install`, then `pnpm check` and `pnpm test`.
+
+The layout rules accept the built contract entry, `dist/contract.js`, wherever they accepted `src/contract.ts`. Apps on rules 0.14.0 or older fail `contract-entry-is-browser-safe` on capability from npm, so move the rules first or together.
+
+#### Publishing
+
+`.github/workflows/publish.yml` publishes. Every run starts with the `verify` job, which has `contents: read` only: no token and no OIDC. It runs `pnpm check`, `pnpm test`, `pnpm build`, `pnpm run packed-consumer`, and a `pnpm publish --dry-run`. Pull requests that touch a package stop there. Pushing a tag such as `@house-rules/capability@0.13.1`, or running the workflow on `main` with `publish` ticked, then runs the `publish` job, the only one with `id-token: write` and `NPM_TOKEN`. There `pnpm publish -r --access public --provenance` publishes every public package whose version is not on npm yet. To release, bump the version in the package's `package.json`, and every `workspace:` pin on it, in one pull request.
+
+The workflow reads `NPM_TOKEN`, an npm granular access token with publish rights on the `@house-rules` scope. It lives only as a GitHub Actions repository secret on this repo. Never print it, commit it, or put it in `.env.schema` or `.env.local`. Provenance needs no token: the `publish` job's `id-token: write` permission lets npm sign each package with this workflow's identity, and only the `publish` job has it. `tests/published-packages.test.mjs` parses the workflow and fails if a job a pull request can trigger gets that permission or reads the secret.
+
 ### Using the rules in another app
 
-An app outside this repo installs the rules from GitHub, pinned to a full 40-character commit of this repo, with a pnpm subpath:
+An app outside this repo installs the rules from npm at an exact version:
 
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "github:JakubSzwajka/house-rules#<full-40-char-sha>&path:/packages/rules"
+    "@house-rules/rules": "0.15.0"
   }
 }
 ```
 
-1. [ ] Use Node `>=24.21.0` and pnpm. npm and Yarn do not read the `&path:` subpath.
+1. [ ] Use Node `>=24.21.0` and pnpm.
 2. [ ] Keep a `pnpm-workspace.yaml` with a `packages:` list at the app root. The `house-rules-pins` bin reads it to find every manifest.
 3. [ ] Keep the `packageExtensions` entry that gives the plugin TypeScript 6.0.3, as this repo's `pnpm-workspace.yaml` does.
 4. [ ] Install the peer dependencies of each entry point you import. `@eslint/css`, `@eslint/markdown`, `@shadcn/lint`, and `dependency-cruiser` are optional peers, so pnpm does not install them for you. Importing `/design` without `@eslint/css`, or `/shadcn` without `@shadcn/lint`, fails with `ERR_MODULE_NOT_FOUND`. Pin each one exactly, like every other dependency:
@@ -161,7 +195,7 @@ An app outside this repo installs the rules from GitHub, pinned to a full 40-cha
 | `@house-rules/rules/biome` | `@biomejs/biome` `2.5.14` |
 | `@house-rules/rules/tsconfig/*.json` | `typescript`, nothing else |
 
-5. [ ] To upgrade, change the SHA and run `pnpm install`.
+5. [ ] To upgrade, change the version and run `pnpm install`.
 
 #### Migrating from @jakubszwajka/house-rules
 
@@ -176,12 +210,13 @@ An old pin keeps working until you move it. The old commits are in this repo's h
 
 ### Using capabilities in another app
 
-[`@house-rules/capability`](packages/capability/README.md) defines a capability: one named action with a contract and one handler. An app installs it the same way, with its own subpath, and pins `effect` to the version the package names:
+[`@house-rules/capability`](packages/capability/README.md) defines a capability: one named action with a contract and one handler. An app installs it the same way, and pins `effect` to the version the package names:
 
 ```json
 {
   "dependencies": {
-    "@house-rules/capability": "github:JakubSzwajka/house-rules#<full-40-char-sha>&path:/packages/capability"
+    "@house-rules/capability": "0.13.1",
+    "effect": "4.0.0-rc.117"
   }
 }
 ```
@@ -248,6 +283,8 @@ pnpm test
 pnpm fix
 pnpm format
 pnpm acceptance
+pnpm build
+pnpm run packed-consumer
 pnpm vendor:agent-sources
 pnpm --filter @house-rules/site dev
 ```

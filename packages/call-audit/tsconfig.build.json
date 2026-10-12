@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "rewriteRelativeImportExtensions": true,
+    "paths": {
+      "@house-rules/capability": ["../capability/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/tests/**"]
+}

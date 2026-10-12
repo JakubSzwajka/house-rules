@@ -5,7 +5,7 @@
     "includes": [
       "**",
       "!!node_modules",
-      "!!dist",
+      "!!**/dist",
       "!!coverage",
       "!!generated",
       "!!.agent_sources",

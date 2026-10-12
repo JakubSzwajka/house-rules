@@ -1,0 +1,15 @@
+{
+  "name": "@acme/i",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/contract.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+      "./contract": "./dist/facade.js",
+      "./dist/*": "./dist/*.js"
+    }
+  }
+}

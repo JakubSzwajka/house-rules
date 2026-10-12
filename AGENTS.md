@@ -2,7 +2,7 @@
 
 This file is the law for agents and people working in this repo, and in any project made from its template, the stack. Read `VISION.md` for why. It does not override this file. Read `CONTEXT.md` for the words this repo uses.
 
-The house rules and the tool configs come from the plugin `@house-rules/rules`, which lives in `packages/rules`. The root uses it as `workspace:0.14.0`. This repo keeps thin configs that extend its presets, the project values such as the `@hosti/` scope, and the files no tool can inherit. Change a house rule in `packages/rules`, not by copying a preset into a thin config.
+The house rules and the tool configs come from the plugin `@house-rules/rules`, which lives in `packages/rules`. The root uses it as `workspace:0.15.0`. This repo keeps thin configs that extend its presets, the project values such as the `@hosti/` scope, and the files no tool can inherit. Change a house rule in `packages/rules`, not by copying a preset into a thin config.
 
 ## Commands
 
@@ -20,6 +20,8 @@ This repo is a pnpm workspace run by Turborepo. Use pnpm, at the version `packag
 | `pnpm format` | Apply Biome formatting only. |
 | `docker compose up -d` | Start the local Postgres that database tests need. Each test file creates and drops its own database on it, through `TEST_DATABASE_ADMIN_URL` in `.env.schema`. CI runs the same server as a service. |
 | `pnpm acceptance` | Clone the committed HEAD into a temp dir and run `pnpm install --frozen-lockfile`, `check`, and `test` there. |
+| `pnpm build` | Build `dist/` in `packages/capability`, `packages/migrations`, and `packages/call-audit` through Turborepo. Only packing needs it: in this repo every package and app reads `src/`. |
+| `pnpm run packed-consumer` | Pack the four published packages as `pnpm publish` would, install them with npm into a temp app, and check plain `node`, `tsc`, and the layout rules there. Needs the npm registry. CI runs it on every pull request. |
 | `pnpm vendor:agent-sources` | Shallow-clone the Effect source at the pinned version into `.agent_sources/`. Not part of `check`. |
 | `pnpm --filter <package> add <dep>` | Add a dependency to one workspace package. `saveExact` writes an exact pin. |
 | `pnpm --filter @house-rules/site generate` | Rewrite the docs site's generated rule and skill pages. `build` and `dev` run it first. |
@@ -42,6 +44,7 @@ The rules table in the house-rules README lists every checked rule, its tool, an
 - Each workspace package has its own `tsconfig.json` that extends the root `tsconfig.base.json`, plus `typecheck` and `test` scripts.
 - The capability library (`defineContract`, `implement`, `toTool`, the `Grant`, `Approval`, and `CallWatch` slots, `UnitOfWork` with its `sqlUnitOfWork` and `memoryUnitOfWork` adapters, `definePolicy`, the delivery adapters `composition`, `toFetchHandler`, `toMcpHandler` and `call`, and the types) lives in `packages/capability`, `@house-rules/capability`. An app writes its own capabilities in its own code, as its use-cases, and imports the library by name. A capability handler is an Effect: it yields services and lets typed errors flow.
 - Every framework package an app mounts, now `@house-rules/capability`, `@house-rules/call-audit`, and `@house-rules/migrations`, has an `AGENTS.md` in its root and lists it in its `package.json` `files`, so it ships into the app's `node_modules`. It says what the package does, how an app mounts it (the layer line, the `migrations.json` line, the hooks the app must wire), its options and presets, and its fixed rules. Keep it short. `tests/framework-agents.test.mjs` checks it.
+- Four packages are public on npm: `@house-rules/rules`, `capability`, `migrations`, and `call-audit`. They have no `private` field, and `.github/workflows/publish.yml` publishes them; nobody publishes by hand. The three TypeScript ones build to `dist/` with `tsconfig.build.json`. Their `exports` stays on `src/`, so this repo reads source, and `publishConfig.exports` points at `dist/` for the published manifest. `files` lists only `dist/`, docs, and call-audit's `migrations/`. `pnpm run packed-consumer` proves the tarballs work, and CI runs it. A release bumps the version and every `workspace:` pin on it together.
 - `packages/rules` is the exception. It is the plain-JavaScript house plugin, with many entries in `exports`, no `tsconfig.json`, and a `typecheck` script that runs `node --check` over each source file. The layout rules, the `comment-discipline` rule, and Biome on its test fixtures skip it. Its tests run in `pnpm test`.
 
 ## Layers inside an app

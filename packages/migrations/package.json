@@ -1,18 +1,29 @@
 {
   "name": "@house-rules/migrations",
-  "version": "0.2.0",
-  "private": true,
+  "version": "0.2.1",
   "description": "Run SQL migrations for many modules, each with its own folder and its own history table.",
   "license": "MIT",
   "type": "module",
   "files": [
-    "src",
-    "AGENTS.md"
+    "dist",
+    "AGENTS.md",
+    "README.md"
   ],
   "exports": {
     ".": "./src/index.ts"
   },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "prepack": "pnpm run build",
     "typecheck": "tsc --project tsconfig.json",
     "test": "varlock run --path ../../ -- vitest run"
   },
@@ -26,5 +37,14 @@
     "effect": "4.0.0-rc.117",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JakubSzwajka/house-rules.git",
+    "directory": "packages/migrations"
+  },
+  "bugs": {
+    "url": "https://github.com/JakubSzwajka/house-rules/issues"
+  },
+  "homepage": "https://github.com/JakubSzwajka/house-rules"
 }

@@ -1,37 +1,57 @@
 {
   "name": "@house-rules/call-audit",
-  "version": "0.2.0",
-  "private": true,
+  "version": "0.2.1",
   "description": "Audit every capability call: one log line per call, a row per call in a table, or an in-memory log for tests.",
   "license": "MIT",
   "type": "module",
   "files": [
-    "src",
+    "dist",
     "migrations",
-    "AGENTS.md"
+    "AGENTS.md",
+    "README.md"
   ],
   "exports": {
     ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
   },
   "houseRules": {
     "migrations": "migrations"
   },
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "prepack": "pnpm run build",
     "typecheck": "tsc --project tsconfig.json",
     "test": "varlock run --path ../../ -- vitest run"
   },
   "peerDependencies": {
-    "@house-rules/capability": "0.12.0",
+    "@house-rules/capability": "0.13.1",
     "effect": "4.0.0-rc.117"
   },
   "devDependencies": {
     "@effect/platform-node": "4.0.0-rc.117",
     "@effect/sql-pg": "4.0.0-rc.117",
     "@effect/vitest": "4.0.0-rc.117",
-    "@house-rules/capability": "workspace:0.13.0",
-    "@house-rules/migrations": "workspace:0.2.0",
+    "@house-rules/capability": "workspace:0.13.1",
+    "@house-rules/migrations": "workspace:0.2.1",
     "effect": "4.0.0-rc.117",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JakubSzwajka/house-rules.git",
+    "directory": "packages/call-audit"
+  },
+  "bugs": {
+    "url": "https://github.com/JakubSzwajka/house-rules/issues"
+  },
+  "homepage": "https://github.com/JakubSzwajka/house-rules"
 }

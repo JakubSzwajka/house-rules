@@ -58,8 +58,10 @@ const OPTION_NAMES = new Set([
 const BUILT_IN_TEST_DIRS = new Set(["test", "tests", "__tests__"]);
 // Fixed on purpose: the one extra entry a package may declare, as "./contract" in its exports.
 const CONTRACT_ENTRY = "src/contract[.]ts";
-// node_modules is never followed, so an installed contract entry is trusted by name only. The
-// framework's own is checked as a workspace file in its repo, and its browser bundle is tested there.
+// An installed contract entry is the source file, from a git dependency, or its build in dist/, from
+// the registry. node_modules is never followed, so it is trusted by name only. The framework's own is
+// checked as a workspace file in its repo, and its browser bundle is tested there.
+const INSTALLED_CONTRACT_ENTRY = `(?:${CONTRACT_ENTRY}|dist/contract[.](?:js|d[.]ts))`;
 const TRUSTED_CONTRACT_PACKAGES = Object.freeze(["@house-rules/capability"]);
 // The effect modules a contract entry may import: the root barrel, its stable top-level modules, and
 // unstable/http. Their import graphs are unseen here; apps/api's browser-bundle test bundles each one.
@@ -168,7 +170,7 @@ function patterns(options) {
     browserSafe: [
       `^${packages}/[^/]+/(?!${adapters}(?:/|$)|(?:${publicEntry}|${facadeFile}|src/storage[.]ts)$|src/(?:.*/|)(?:${testDirs})/|.*${testFile})src/`,
       `(?:^|/)node_modules/effect/dist/${EFFECT_BROWSER_MODULES}$`,
-      `(?:^|/)node_modules/(?:${trustedContracts.join("|")})/${CONTRACT_ENTRY}$`,
+      `(?:^|/)node_modules/(?:${trustedContracts.join("|")})/${INSTALLED_CONTRACT_ENTRY}$`,
     ],
     internalRoot: `^${packages}/[^/]+/${pathOption(settings.internalDir, "internalDir")}(?:/|$)`,
     deliveryRoot: layerRoot(layers.delivery),
