@@ -1,5 +1,7 @@
 # @house-rules/call-audit
 
+Version 0.4.0 peers on exact `effect` 4.0.3 and `@house-rules/capability` 0.15.0. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
+
 An audit trail for every capability call. It plugs into the `CallWatch` hook of `@house-rules/capability`, so it sees calls from every surface, `Forbidden` and `ApprovalDenied` included. An `AuditPolicy` decides which calls it keeps and how long their rows live. `AGENTS.md` in this package is the short mounting guide.
 
 An entry holds these fields and nothing else:
@@ -115,7 +117,7 @@ The table comes from this package's own migrations, `migrations/0001_call_audit.
 { "package": "@house-rules/call-audit" }
 ```
 
-The SQL lives in the package's Postgres adapter, `src/adapters/postgres/` (the store and `readRows`), with its tests in `src/adapters/tests/`. No other file imports `effect/unstable/sql`, as the `adapter-imports-only-in-adapters` rule asks.
+The SQL lives in the package's Postgres adapter, `src/adapters/postgres/` (the store and `readRows`), with its tests in `src/adapters/tests/`. No other file imports `effect/sql`, as the `adapter-imports-only-in-adapters` rule asks.
 
 `house-rules-migrations` fails when an app depends on this package and its list leaves it out. App code never queries `call_audit` directly: the table belongs to this package. Read it with `CallAudit.readRows`. `layerTable` runs no retention: use the policy layer for that.
 

@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
 import { Effect, Layer, Schema } from "effect";
-import { McpSchema, McpServer, Toolkit } from "effect/unstable/ai";
+import { McpSchema, McpServer, Toolkit } from "effect/ai";
 import {
   type Around,
   CallChannel,

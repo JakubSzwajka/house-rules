@@ -1,6 +1,6 @@
 import { expect, layer } from "@effect/vitest";
 import { Effect, Exit, Fiber, Schedule } from "effect";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
+import { SqlClient } from "effect/sql/SqlClient";
 import { AuditStore, CallAudit, postgresAuditStore } from "../../index.ts";
 import { allRows, asViewer, onWeb, renameTrip, seed, who } from "../../tests/audit-fixtures.ts";
 import { migratedDatabase } from "./stores.ts";

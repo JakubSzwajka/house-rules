@@ -28,7 +28,7 @@ const bundle = (contents: string) =>
   );
 
 const server =
-  /(?:\/adapters\/|\/facade\.ts|\/storage\.ts|@effect\/sql|\/node_modules\/pg\/|unstable\/sql\/|^node:|\/src\/index\.ts$)/u;
+  /(?:\/adapters\/|\/facade\.ts|\/storage\.ts|@effect\/sql|\/node_modules\/pg\/|\/(?:unstable\/)?sql\/|^node:|\/src\/index\.ts$)/u;
 
 it.effect(
   "the contract entries and the SPA client bundle for the browser with no server code",
@@ -52,10 +52,31 @@ type Rule = Readonly<{ name: string; to: Readonly<{ pathNot: ReadonlyArray<strin
 
 const require = createRequire(import.meta.url);
 
+const serverEffectModule = (file: string) =>
+  /^(?:internal|(?!http\/)[^/]+\/)/u.test(file.replace(/^unstable\//u, ""));
+
+it.each(["", "unstable/"])(
+  "the %sEffect browser filter rejects every non-http folder",
+  (prefix) => {
+    for (const file of [
+      "sql/SqlClient.js",
+      "process/ChildProcess.js",
+      "cluster/Entity.js",
+      "socket/Socket.js",
+      "internal/schema.js",
+    ]) {
+      expect(serverEffectModule(`${prefix}${file}`)).toBe(true);
+    }
+    for (const file of ["index.js", "Schema.js", "http/HttpClient.js"]) {
+      expect(serverEffectModule(`${prefix}${file}`)).toBe(false);
+    }
+  },
+);
+
 const effectModules = Effect.gen(function* effectModulesOf() {
   const manifest = require("effect/package.json") as { exports: Record<string, unknown> };
   const entries = Object.keys(manifest.exports).filter(
-    (key) => key === "." || /^\.\/(?:testing|unstable\/[a-z]+)$/u.test(key),
+    (key) => key === "." || (key !== "./index" && /^\.\/[a-z-]+$/u.test(key)),
   );
   const result = yield* Effect.promise(() =>
     build({
@@ -95,17 +116,13 @@ it.effect(
       const inDist = (file: string) =>
         file.slice(file.indexOf("/effect/dist/") + "/effect/dist/".length);
       expect(trusted.map(inDist)).toContain("index.js");
-      expect(trusted.map(inDist)).toContain("unstable/http/HttpClient.js");
-      expect(modules.map(inDist)).toContain("unstable/sql/SqlClient.js");
-      expect(
-        trusted.map(inDist).filter((file) => /^(?:internal|unstable\/(?!http\/))/u.test(file)),
-      ).toEqual([]);
+      expect(trusted.map(inDist)).toContain("http/HttpClient.js");
+      expect(modules.map(inDist)).toContain("sql/SqlClient.js");
+      expect(trusted.map(inDist).filter(serverEffectModule)).toEqual([]);
       const inputs = yield* bundle(
         trusted.map((file, index) => `export * as m${index} from "${root}/${file}";`).join("\n"),
       );
-      expect(inputs.filter((input) => /unstable\/(?:sql|process)\/|^node:/u.test(input))).toEqual(
-        [],
-      );
+      expect(inputs.filter((input) => /(?:^|\/)(?:sql|process)\/|^node:/u.test(input))).toEqual([]);
     }),
 );
 

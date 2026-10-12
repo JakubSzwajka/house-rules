@@ -1,4 +1,5 @@
-import { Crypto, Effect, Encoding, FileSystem, Path } from "effect";
+import { Crypto, Effect, FileSystem, Path } from "effect";
+import { Hex } from "effect/encoding";
 
 export type Tree = Readonly<Record<string, string>>;
 
@@ -42,9 +43,7 @@ export const scratchApp = Effect.fnUntraced(function* scratchApp(tree: Tree) {
     write,
     digest: Effect.fnUntraced(function* digest(file: string) {
       const bytes = yield* fs.readFile(path.join(root, file));
-      return Encoding.encodeHex(
-        yield* Crypto.Crypto.use((crypto) => crypto.digest("SHA-256", bytes)),
-      );
+      return Hex.encode(yield* Crypto.Crypto.use((crypto) => crypto.digest("SHA-256", bytes)));
     }),
   };
 });

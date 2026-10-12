@@ -3,11 +3,11 @@ import { importOf, staticPropertyName, unwrapExpression } from "./import-binding
 import { ruleDocsUrl } from "./rule-docs.mjs";
 
 const SURFACES = [
-  { name: "Tool", barrel: /^effect\/unstable\/ai$/u, methods: new Set(["make"]) },
-  { name: "Rpc", barrel: /^effect\/unstable\/rpc$/u, methods: new Set(["make"]) },
+  { name: "Tool", barrel: /^effect\/(?:unstable\/)?ai$/u, methods: new Set(["make"]) },
+  { name: "Rpc", barrel: /^effect\/(?:unstable\/)?rpc$/u, methods: new Set(["make"]) },
   {
     name: "HttpApiEndpoint",
-    barrel: /^effect\/unstable\/http[^/]*$/u,
+    barrel: /^effect\/(?:unstable\/)?http[^/]*$/u,
     methods: new Set(["make", "get", "post", "put", "patch", "delete", "del", "head", "options"]),
   },
 ];

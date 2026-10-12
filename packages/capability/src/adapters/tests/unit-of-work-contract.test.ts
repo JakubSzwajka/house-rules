@@ -1,5 +1,5 @@
 import { expect } from "@effect/vitest";
-import { Effect, Layer } from "effect";
+import { Cause, Effect, Exit, Layer } from "effect";
 import { Approval, CallWatch, Grant, implement, NoOpenUnit } from "../../index.ts";
 import {
   Opens,
@@ -27,6 +27,21 @@ onBothAdapters("UnitOfWork with contracts", (it) => {
       expect(error).toBeInstanceOf(WorkFailed);
       expect(yield* contents).toEqual({ alpha: [], beta: [] });
       expect((yield* Opens).calls).toEqual(["atomic"]);
+    }),
+  );
+
+  it.effect("a transactional NoOpenUnit is a defect and rolls the writes back", () =>
+    Effect.gen(function* brokenInvariant() {
+      yield* reset;
+      const broken = implement(writeContract(true), () =>
+        writeBoth.pipe(Effect.andThen(new NoOpenUnit())),
+      );
+      const exit = yield* broken
+        .handler({ fail: false })
+        .pipe(Effect.provide(Grant.allowAll), Effect.exit);
+      expect(exit).toEqual(Exit.die(new NoOpenUnit()));
+      if (Exit.isFailure(exit)) expect(Cause.hasFails(exit.cause)).toBe(false);
+      expect(yield* contents).toEqual({ alpha: [], beta: [] });
     }),
   );
 

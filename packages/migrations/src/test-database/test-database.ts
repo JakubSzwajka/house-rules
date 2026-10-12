@@ -1,5 +1,5 @@
 import { Config, Effect, Layer, Random, Redacted } from "effect";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
+import { SqlClient } from "effect/sql/SqlClient";
 import { UnsafeTestDatabase } from "../migration/migration.ts";
 
 const NAMESPACE = /^[a-z][a-z0-9_]{7,62}$/;

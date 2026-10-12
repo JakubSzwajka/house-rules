@@ -8,7 +8,7 @@ import {
   SchemaGetter,
   SchemaTransformation,
 } from "effect";
-import { McpSchema, McpServer, Tool, Toolkit } from "effect/unstable/ai";
+import { McpSchema, McpServer, Tool, Toolkit } from "effect/ai";
 import { defineContract, implement, type InputSchema, toTool } from "../index.ts";
 
 const forms = {

@@ -1,6 +1,6 @@
 import { expect, layer } from "@effect/vitest";
 import { Deferred, Effect, Fiber } from "effect";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
+import { SqlClient } from "effect/sql/SqlClient";
 import { Migrations } from "../index.ts";
 import {
   ADOPT_ALL,

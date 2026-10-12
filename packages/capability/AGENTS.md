@@ -2,7 +2,7 @@
 
 ## What it does
 
-It turns one use-case into a capability: a contract (name, input, output, failure, permission) plus one Effect handler. `implement` wraps the handler in gates: `CallWatch` around everything, then `Grant`, then `Approval` when the contract asks for it, then `UnitOfWork.atomic` when the contract is transactional. `toTool` turns a contract into an MCP tool. The full guide is `README.md` in this package.
+It turns one use-case into a capability: a contract (name, input, output, failure, permission) plus one Effect handler. `implement` wraps the handler in gates: `CallWatch` around everything, then `Grant`, then `Approval` when the contract asks for it, then `UnitOfWork.atomic` when the contract is transactional. `toTool` turns a contract into an MCP tool. Version 0.15.0 peers on exact `effect` 4.0.3. The full guide is `README.md` in this package.
 
 ## How an app mounts it
 
@@ -50,7 +50,7 @@ Hooks the app wires itself when it does not use delivery:
 | `input` | A `Schema.Struct`, a `Schema.Union` of Structs, or `NoInput`. The handler gets the decoded type, one member for a Union. |
 | `permission` | `"resource:action"` or `"public"`. Required. Non-public adds `Grant` and `Forbidden`. |
 | `needsApproval` | `true` adds `Approval` and `ApprovalDenied`. |
-| `transactional` | `true` runs the handler in one unit of work, adds `UnitOfWork` and `UnitOfWorkFailed`. |
+| `transactional` | `true` runs the handler in one unit, adds `UnitOfWork` and `UnitOfWorkFailed`, and removes `NoOpenUnit` from its error type by turning it into a defect. Delete hand-written catches of that error. |
 | `annotations` | `readOnly` (call kind `read`, MCP hint) and `destructive`. Both default to `false`. |
 | `audit` | `{ target: "<input field>" }`: a string field of the input whose value becomes the call's target id. |
 

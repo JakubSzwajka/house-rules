@@ -40,7 +40,7 @@ A remote MCP server is an OAuth resource server under the [MCP authorization spe
 
 Clients register with Client ID Metadata Documents where the provider allows it. Dynamic Client Registration opens a registration endpoint anyone can call without a login, so it is the fallback.
 
-The MCP code uses `McpServer`, `Tool`, and `Toolkit` from `effect/unstable/ai`, which ship in the pinned `effect`. `McpServer.layerHttp` serves it over Streamable HTTP, and `HttpRouter.toWebHandler` turns that into one long-lived handler per process. Trippy's route checks the bearer, builds the `Viewer` for that request, and passes it to the handler.
+The MCP code uses `McpServer`, `Tool`, and `Toolkit` from `effect/ai`, which ship in the pinned `effect`. `McpServer.layerHttp` serves it over Streamable HTTP, and `HttpRouter.toWebHandler` turns that into one long-lived handler per process. Trippy's route checks the bearer, builds the `Viewer` for that request, and passes it to the handler.
 
 ## Consequences
 

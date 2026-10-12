@@ -209,7 +209,7 @@ A use-case owns the transaction, not the module. One unit of work may cover writ
 
 A use-case opens a unit in one of two ways:
 
-1. [ ] The contract sets `transactional: true`. `implement` runs Grant, then Approval, then the handler inside `UnitOfWork.atomic`, all inside `CallWatch`. A refused call opens no unit. The flag adds `UnitOfWork` to the requirements and `UnitOfWorkFailed` to the failures. `false`, the default, adds nothing.
+1. [ ] The contract sets `transactional: true`. `implement` runs Grant, then Approval, then the handler inside `UnitOfWork.atomic`, all inside `CallWatch`. A refused call opens no unit. The flag adds `UnitOfWork` to the requirements and `UnitOfWorkFailed` to the failures. It removes `NoOpenUnit` from the implemented handler's error type and turns that invariant failure into a defect. `false`, the default, adds nothing.
 2. [ ] The handler calls `UnitOfWork.atomic(effect)` around only the part that must be atomic. That adds `UnitOfWork` and `UnitOfWorkFailed` to that effect.
 
 A nested `atomic` joins the open unit: no new transaction, no savepoint. A failure that leaves the outermost unit rolls everything back. `UnitOfWorkFailed({ reason })` means the SQL unit could not begin, commit or roll back. The work's own errors and defects pass through unchanged. When a rollback fails, the cause holds `UnitOfWorkFailed` first, then the work's own failure.
@@ -295,7 +295,7 @@ const ping = implement(pingContract, () => Effect.succeed("pong"));
 const pong = ping.handler({}); // Effect<string>: the handler takes an empty object
 ```
 
-Do not use `Schema.Struct({})` for this. Effect renders it to JSON Schema as `{"not":{"type":"null"}}`, with no `type`. An MCP tool's input schema must have `"type": "object"`, so Effect's `McpServer` fails to list every tool with `SchemaError: Missing key at ["type"]`. `NoInput` is `Schema.Record(Schema.String, Schema.Never)`, the same shape as Effect's `Tool.EmptyParams`. It renders as `{"type":"object","additionalProperties":false}`, so an MCP tool can use `contract.input` as its `parameters` as is. Checked with `effect` 4.0.0-rc.117.
+Do not use `Schema.Struct({})` for this. Effect renders it to JSON Schema as `{"not":{"type":"null"}}`, with no `type`. An MCP tool's input schema must have `"type": "object"`, so Effect's `McpServer` fails to list every tool with `SchemaError: Missing key at ["type"]`. `NoInput` is `Schema.Record(Schema.String, Schema.Never)`, the same shape as Effect's `Tool.EmptyParams`. It renders as `{"type":"object","additionalProperties":false}`, so an MCP tool can use `contract.input` as its `parameters` as is. Checked with `effect` 4.0.3.
 
 ## An input with several shapes
 
@@ -332,7 +332,7 @@ An MCP tool cannot take a Union: Effect's `McpServer` needs an object at the roo
 
 So a key a member marks `optionalKey(Schema.String)` or `optional(Schema.FiniteFromString)` is optional. Every other key every member has is required, even when the action would take it missing: a decoding default such as `withDecodingDefaultKey`, `OptionFromOptionalKey`, a `transformOptional` or `SchemaGetter.required()` getter, a `Schema.suspend` field, and a check on the member Struct or on the Union all make it required. The advertisement may therefore ask for more than the Union needs. A key some member leaves out stays optional, because one JSON object cannot tie a key to a tag. Any other key is never called optional when the Union refuses to go without it, and for a JSON object with declared keys the gate never refuses what the Union takes, because the Union decides. So `{ "by": "guest" }` passes the gate, fits no member, and fails like any other invalid input: the MCP client gets an `InvalidParams` error, and the handler does not run.
 
-The gate is `Schema.Any` with one filter. The filter's `toJsonSchema` hook returns the advertisement, compiled from its `representation.schemas`, the way `Schema.isPropertyNames` does. `Schema.Any` keeps the filter through `Schema.toCodecJson`, where `Schema.Unknown` would not. Checked with `effect` 4.0.0-rc.117.
+The gate is `Schema.Any` with one filter. The filter's `toJsonSchema` hook returns the advertisement, compiled from its `representation.schemas`, the way `Schema.isPropertyNames` does. `Schema.Any` keeps the filter through `Schema.toCodecJson`, where `Schema.Unknown` would not. Checked with `effect` 4.0.3.
 
 ## Install in another app
 
@@ -341,22 +341,22 @@ Install it from npm at an exact version:
 ```json
 {
   "dependencies": {
-    "@house-rules/capability": "0.14.0",
-    "effect": "4.0.0-rc.117"
+    "@house-rules/capability": "0.15.0",
+    "effect": "4.0.3"
   }
 }
 ```
 
 1. [ ] Pin `effect` to the same exact version this package names in `peerDependencies`. It is an exact peer, and the handler types come from that copy of `effect`.
-2. [ ] A young Effect release candidate fails pnpm's `minimumReleaseAge` check. If your `pnpm-workspace.yaml` sets it, add `effect@<version>` to `minimumReleaseAgeExclude`.
+2. [ ] Stable 4.0.3 needs no release-age exception. For a future version under a day old, wait or get approval for an exact-version `minimumReleaseAgeExclude` entry. Remove the old RC entries.
 3. [ ] The package ships built JavaScript and `.d.ts` files in `dist/`. Plain `node` loads it, and a bundler such as Next's needs no `transpilePackages` entry for it. Browser code imports `@house-rules/capability/contract`.
 4. [ ] Use TypeScript 7 or 6 with `module` and `moduleResolution` set to `NodeNext`, or `Bundler` for UI code, and `skipLibCheck: true`. It is tested with TypeScript 7.0.2. Or extend `@house-rules/rules/tsconfig/effect.json`, installed as [the root README](../../README.md#using-the-rules-in-another-app) shows. Its Effect diagnostics run only after `pnpm exec effect-tsgo patch` from `@effect/tsgo`, as this repo's `prepare` script does.
-5. [ ] The usage example is a test, so it needs two dev dependencies, pinned exactly: `"@effect/vitest": "4.0.0-rc.117"` and `"vitest": "5.0.1"` (the versions this repo uses).
+5. [ ] The usage example is a test, so it needs two dev dependencies, pinned exactly: `"@effect/vitest": "4.0.3"` and `"vitest": "5.0.1"` (the versions this repo uses).
 6. [ ] To upgrade, change the version and run `pnpm install`. An app that still pins a Git SHA moves as [the root README](../../README.md#upgrading-from-a-git-sha-pin) shows.
 
 ## An MCP tool from a contract
 
-`toTool(contract, options)` builds an `effect/unstable/ai` `Tool` from a contract, so an MCP adapter does not write the tool by hand. The contract gives the name, the description, the parameters (`contract.input`, or the merged object of a Union input, as [An input with several shapes](#an-input-with-several-shapes) shows), and the `Tool.Readonly` and `Tool.Destructive` annotations. Every tool is `Tool.Strict`, so `McpServer` rejects a key the input does not take with `InvalidParams` instead of dropping it. This is new in 0.11.0 and breaks callers that sent extra keys; see [Upgrading to 0.11.0](#upgrading-to-0110). The options carry what only MCP needs:
+`toTool(contract, options)` builds an `effect/ai` `Tool` from a contract, so an MCP adapter does not write the tool by hand. The contract gives the name, the description, the parameters (`contract.input`, or the merged object of a Union input, as [An input with several shapes](#an-input-with-several-shapes) shows), and the `Tool.Readonly` and `Tool.Destructive` annotations. Every tool is `Tool.Strict`, so `McpServer` rejects a key the input does not take with `InvalidParams` instead of dropping it. This is new in 0.11.0 and breaks callers that sent extra keys; see [Upgrading to 0.11.0](#upgrading-to-0110). The options carry what only MCP needs:
 
 | Option | Required | Becomes |
 | --- | --- | --- |
@@ -367,7 +367,7 @@ Install it from npm at an exact version:
 | `failure` | no | the tool's failure schema; defaults to `failureSchemaOf(contract)`, the contract's failure plus `Forbidden`, `ApprovalDenied` and `UnitOfWorkFailed` when its gates and `transactional` add them |
 
 ```ts
-import { Toolkit } from "effect/unstable/ai";
+import { Toolkit } from "effect/ai";
 import { toTool } from "@house-rules/capability";
 
 export const Greet = toTool(greet.contract, {
@@ -547,11 +547,21 @@ const booking = yield* client.show_booking({ id }); // Effect<Booking, HttpFailu
 ```
 
 - **Same wire rules.** A GET sends the path values in the path and every other field as one query value, encoded with the StringTree codec the fetch handler decodes with. An array field goes out as one key per item, `status=a&status=b`, and an empty array as no key, as [The query](#the-query) says. A write sends the JSON body without the path keys, because the handler refuses a key given twice. A path value, or a GET field that encodes to neither one string nor a list of strings, such as a struct, is a defect: give that contract a write route.
-- **Types from the contract.** The client's keys are the contract names. Each call takes the input's `Type`, returns the output's `Type`, and needs `HttpClient` from `effect/unstable/http`. A wrong input, a wrong output, or a failure code the endpoint does not declare is a `tsc` error. In the browser, provide `FetchHttpClient.layer`. Outside one, prepend an origin with `HttpClient.mapRequest(HttpClientRequest.prependUrl(origin))`.
+- **Types from the contract.** The client's keys are the contract names. Each call takes the input's `Type`, returns the output's `Type`, and needs `HttpClient` from `effect/http`. A wrong input, a wrong output, or a failure code the endpoint does not declare is a `tsc` error. In the browser, provide `FetchHttpClient.layer`. Outside one, prepend an origin with `HttpClient.mapRequest(HttpClientRequest.prependUrl(origin))`.
 - **Failures send nothing by default.** The server sends the view's status and body, never the error. A view may hide one failure behind another, such as `Forbidden` behind a 404 `not_found`, and nothing on the wire tells them apart. To give the client a code, two sides opt in. The view exposes it: `problemView(404, "not_found", message, { exposeCode: true })`, or a hand-written view that returns `code`. The endpoint declares it: `endpoint(contract, "GET /bookings/:id", { codes: ["not_found"] })`. Only then does a 4xx answer carry `x-failure-code: not_found`. A code the endpoint does not declare, a 5xx, or a code on a route mounted from a string never goes out as `x-failure-code`, and a view's own `x-failure-code` header is dropped. The double opt-in gates only that typed header, the one the client turns into a typed failure. The body is the view's: a code its author writes into a 4xx body goes out as written, so write only what the client may see.
 - **The client checks codes.** It fails with `HttpFailure { code, status, body }`. `code` is typed as the endpoint's declared codes plus `Unknown`. A 4xx whose header names a declared code gets that code. Anything else is `Unknown`: no header, a code the endpoint does not declare, any 5xx, or an output that does not decode. `status` and `body` still say what the view sent, such as a 401 `session_invalid`. A network error stays an `HttpClientError`. The client never decodes the real error, because its fields may hold what the view hides, such as a defect cause or a permission name.
 - **Cookies and CSRF.** `FetchHttpClient` uses `fetch`, which sends same-origin cookies by default. Set `FetchHttpClient.RequestInit` for anything else. The browser adds `Origin` to every POST, PUT, PATCH and DELETE, and to cross-origin requests, so the CSRF check passes from the app's own origin and refuses another site's write with a 403. Script cannot set `Origin`, so the client never does.
 - **OpenAPI.** `toOpenApi(routes, { title, version, prefix, views, security })` returns an OpenAPI 3.1 document. Inputs and outputs come from the contracts through Effect's JSON Schema, with shared, named schemas under `components.schemas`. A named input is followed before it is split. A GET Struct input becomes path and query parameters, an array field a `style: form`, `explode: true` parameter, and a GET Union input becomes one exploded `input` query object, required when every member requires a field. A write gets a JSON body without the path fields. A failure goes under the status its view always answers: a `problemView(404, "not_found", message)` view, or a default view, says it. A view that picks its status per error goes under `default`, as do refusals and the 500. The document names no internal tag. A response lists the `x-failure-code` header only for codes the endpoint declares: under the status of the `problemView` that exposes it, or under `default`. The `operationId` is the contract's name; a contract on two endpoints gets its method and path added, and a clash fails the build. `security: { schemes, require? }` adds the schemes; a `"public"` contract drops them. Effect's `OpenApi.fromApi` needs an `HttpApi`, which wants the HTTP status on the error schema and four input schemas, so House Rules writes the document itself. The tests check its shape; no OpenAPI 3.1 validator runs on it yet.
+
+## Upgrading to 0.15.0
+
+Pin `effect`, `@effect/platform-node`, `@effect/sql-pg` and `@effect/vitest` to 4.0.3. The Effect peer is exact. Move migrations to 0.3.0, call-audit to 0.4.0 and rules to 0.16.2 in the same change. Remove the old RC release-age exceptions. Add an exact-version exception only for a release under a day old.
+
+Stable Effect drops the `unstable/` import prefix. Use `effect/ai`, `effect/http`, `effect/http-api`, `effect/rpc` and `effect/sql`. `Encoding.encodeHex` is now `Hex.encode` from `effect/encoding`. `Schema.Int` advertises safe-integer bounds in JSON Schema, so exact OpenAPI assertions include its `minimum` and `maximum`.
+
+A contract with `transactional: true` no longer exposes `NoOpenUnit` in its implemented handler's error type. Module writes may still fail with it; `implement` turns that impossible failure into a defect inside the unit, and rolls back the work. Delete hand-written `catchTag("NoOpenUnit", ...)` catches inside transactional handlers. A `catchTag("NoOpenUnit", ...)` on the transactional capability's `.handler(...)` result now fails to compile, so delete that catch too. This failure is a defect, not a checked error: HTTP answers 500 `internal_error`, and call-audit records outcome `defect`. Remove `NoOpenUnit` from that contract's failure schema too if it was listed only for those writes. A non-transactional handler, or a direct `UnitOfWork.atomic` call, keeps the typed error.
+
+A fresh install of Node platform rc.117 could pull stable `platform-node-shared`, whose process imports do not exist in RC Effect. The packed-consumer check now installs all tarballs plus stable Node platform without a lockfile, then type-checks and runs Node services with a transactional handler.
 
 ## Upgrading to 0.14.0
 

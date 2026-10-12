@@ -18,6 +18,11 @@ on:
     paths:
       - "packages/**"
       - "scripts/packed-consumer.mjs"
+      - "scripts/packed-next-host.mjs"
+      - "scripts/tag-published.mjs"
+      - "tests/publish-workflow*.mjs"
+      - "tests/tag-published*.mjs"
+      - "tests/fixtures/npm-attestations.json"
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/publish.yml"
@@ -105,11 +110,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
-      contents: read
+      # Push only the tags for packages that this job published.
+      contents: write
       # npm provenance signs each package with this workflow's OIDC identity.
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          # Do not leave the write token in git config during install, build or publish.
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
@@ -131,4 +141,15 @@ jobs:
       - name: Publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm publish -r --access public --provenance --no-git-checks
+        run: pnpm publish -r --access public --provenance --no-git-checks --report-summary
+      - name: Tag published packages
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        # GITHUB_TOKEN pushes do not trigger workflows. Auth exists only for this command.
+        run: |
+          auth="$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          GIT_CONFIG_COUNT=1 \
+          GIT_CONFIG_KEY_0=http.https://github.com/.extraheader \
+          GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $auth" \
+            node scripts/tag-published.mjs

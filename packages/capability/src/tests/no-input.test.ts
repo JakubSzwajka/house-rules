@@ -1,6 +1,6 @@
 import { expect, expectTypeOf, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import { McpServer, Tool, Toolkit } from "effect/unstable/ai";
+import { McpServer, Tool, Toolkit } from "effect/ai";
 import { defineContract, implement, NoInput } from "../index.ts";
 
 const pingContract = defineContract("ping", {

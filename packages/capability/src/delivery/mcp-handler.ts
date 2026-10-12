@@ -1,6 +1,6 @@
 import { Cause, Context, Effect, Exit, Layer, Option, Schema } from "effect";
-import { McpProtocol, McpServer, Toolkit } from "effect/unstable/ai";
-import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
+import { McpProtocol, McpServer, type Tool, Toolkit } from "effect/ai";
+import { HttpRouter, HttpServerResponse } from "effect/http";
 import { requestIdHeader, withRequestId } from "../call/request-id.ts";
 import { toTool } from "../contract/to-tool.ts";
 import { elicitationApproval } from "../gates/elicitation-approval.ts";
@@ -93,7 +93,17 @@ export const toMcpHandler = <
   const tools = options.tools.map((entry) =>
     toTool(entry.capability.contract, { ...entry.options, failure: Schema.Unknown }),
   );
-  const kit = Toolkit.make(...(tools as unknown as [ReturnType<typeof toTool>]));
+  // Contracts have no schema services; preserve that fact when erasing the dynamic tool names.
+  type DynamicTool = Tool.Tool<
+    string,
+    {
+      parameters: Schema.Codec<unknown>;
+      success: Schema.Codec<unknown>;
+      failure: typeof Schema.Unknown;
+      failureMode: "error";
+    }
+  >;
+  const kit = Toolkit.make(...(tools as unknown as [DynamicTool]));
   const handlers = Object.fromEntries(
     options.tools.map((entry) => [
       entry.capability.contract.name,
@@ -128,9 +138,7 @@ export const toMcpHandler = <
         }),
     ]),
   );
-  const handlerLayer = (
-    kit as unknown as { toLayer: (handlers: unknown) => Layer.Layer<never> }
-  ).toLayer(handlers);
+  const handlerLayer = kit.toLayer(handlers);
   const server = McpServer.toolkit(kit).pipe(
     Layer.provide(handlerLayer),
     Layer.provideMerge(

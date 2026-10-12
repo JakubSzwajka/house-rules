@@ -6,7 +6,7 @@ An MCP tool, an RPC, or an HTTP API endpoint is a surface an outside caller reac
 
 ```ts
 import { toTool } from "@house-rules/capability";
-import { Tool } from "effect/unstable/ai";
+import { Tool } from "effect/ai";
 
 export const ShowBooking = toTool(showBooking.contract, {
   title: "Show a booking",
@@ -25,9 +25,9 @@ It reports a call to:
 
 | Call | Imported from |
 | --- | --- |
-| `Tool.make` | `effect/unstable/ai`, or `effect/unstable/ai/Tool` as a namespace or as `make` |
-| `Rpc.make` | `effect/unstable/rpc`, or `effect/unstable/rpc/Rpc` |
-| `HttpApiEndpoint.make`, `.get`, `.post`, `.put`, `.patch`, `.delete`, `.head`, `.options` | `effect/unstable/http*`, such as `effect/unstable/httpapi`, or its `HttpApiEndpoint` module |
+| `Tool.make` | `effect/ai`, or `effect/ai/Tool` as a namespace or as `make`; RC `effect/unstable/ai` paths too |
+| `Rpc.make` | `effect/rpc`, or `effect/rpc/Rpc`; RC `effect/unstable/rpc` paths too |
+| `HttpApiEndpoint.make`, `.get`, `.post`, `.put`, `.patch`, `.delete`, `.head`, `.options` | `effect/http-api`, or its `HttpApiEndpoint` module; RC `effect/unstable/http*` paths too |
 
 It follows aliases (`import { Tool as T }`), barrel namespaces (`Ai.Tool.make`), casts, and `.call`, `.apply` and `.bind`. It resolves names through scopes, so a local `Tool` or a type-only import is not reported. `Toolkit.make`, `RpcGroup.make` and `HttpApiGroup.make` are not reported: they group surfaces that came from contracts.
 

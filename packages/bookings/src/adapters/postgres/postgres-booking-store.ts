@@ -1,7 +1,7 @@
 import { UnitOfWork } from "@house-rules/capability";
 import { Effect, Layer, Schema } from "effect";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
-import * as SqlSchema from "effect/unstable/sql/SqlSchema";
+import { SqlClient } from "effect/sql/SqlClient";
+import * as SqlSchema from "effect/sql/SqlSchema";
 import { BookingStore } from "../../storage.js";
 import { BookingStoreUnavailable } from "../../booking/store-unavailable.js";
 import { Booking } from "../../booking/booking.js";

@@ -21,6 +21,8 @@ The file is CommonJS and loads only its three sibling files in the same folder, 
 npm install --save-dev --save-exact dependency-cruiser@18.4.0
 ```
 
+Since 0.16.2, stable Effect paths get the same rules as their RC paths: `effect/sql` is adapter-only, and `effect/http` is browser-allowlisted. The RC paths remain checked so a rules upgrade does not weaken an older app's fence.
+
 ## Expected layout
 
 ```text
@@ -59,7 +61,7 @@ Every folder name above is an option. The `src` segment is fixed. Every file but
 | `packageRootFiles` | `["index.ts", "facade.ts", "storage.ts"]` | File names that may sit directly in `<package>/src/`. Names, not paths. Must not be empty. |
 | `facadeFile` | `"src/facade.ts"` | The package file that may import the package's own `adaptersDir`, next to `publicEntry`. |
 | `adaptersDir` | `"src/adapters"` | Package code that may import `adapterImports`. Tests under it may too. |
-| `adapterImports` | `DEFAULT_ADAPTER_IMPORTS`: `["effect/unstable/sql", "@effect/sql-*", "@effect/platform-*"]` | Bare import specifiers that only adapter code may import. A `*` matches within one path segment. An entry in `scope`, such as `"@acme/db"`, names a workspace package too. Replaces the default list, so spread `DEFAULT_ADAPTER_IMPORTS` to add to it. Must not be empty. A scoped glob exempts every matching sibling's own folder; see [Adapter imports](#adapter-imports). |
+| `adapterImports` | `DEFAULT_ADAPTER_IMPORTS`: `["effect/unstable/sql", "effect/sql", "@effect/sql-*", "@effect/platform-*"]` | Bare import specifiers that only adapter code may import. A `*` matches within one path segment. An entry in `scope`, such as `"@acme/db"`, names a workspace package too. Replaces the default list, so spread `DEFAULT_ADAPTER_IMPORTS` to add to it. Must not be empty. A scoped glob exempts every matching sibling's own folder; see [Adapter imports](#adapter-imports). |
 | `adapterPackages` | `[]` | Package folder names under `packagesDir` that are adapters by nature, such as plumbing (`"db"`) or the migration runner (`"migrations"`). Every file in them may import `adapterImports`. Names, not paths. |
 | `generatedDeclarationFiles` | `[]` | Declaration files a framework generates, such as `"vite-env.d.ts"`, whose imports `no-unresolved-imports` skips. Paths relative to each app folder, each ending in `.d.ts`, `.d.mts` or `.d.cts`. A `host` adds its own, such as Next's `next-env.d.ts`. See [Web apps](#web-apps). |
 | `trustedContractPackages` | `[]` | Installed packages whose `./contract` entry (`src/contract.ts`, or its build `dist/contract.js`) a contract entry may import. `@house-rules/capability` is always trusted. You vouch for each name: the rule cannot look inside `node_modules`. See [Contract entry](#contract-entry). |
@@ -114,7 +116,7 @@ A deep import that does not resolve fires both `no-unresolved-deep-package-impor
 The returned `options` block:
 
 - parses with SWC (`parser: "swc"`). Install `@swc/core` for that. Without it, Dependency Cruiser falls back to its other parsers.
-- skips `dist`, `coverage`, `generated`, `.turbo`, and `.agent_sources` folders outside `node_modules`. It does not follow `node_modules`, but keeps the packages a file imports in the graph, so `adapter-imports-only-in-adapters` can match their resolved paths, such as `node_modules/.pnpm/effect@<v>/node_modules/effect/dist/unstable/sql/SqlClient.js`. A project that adds `node_modules` to `exclude` turns that rule off.
+- skips `dist`, `coverage`, `generated`, `.turbo`, and `.agent_sources` folders outside `node_modules`. It does not follow `node_modules`, but keeps the packages a file imports in the graph, so `adapter-imports-only-in-adapters` can match their resolved paths, such as `node_modules/.pnpm/effect@<v>/node_modules/effect/dist/sql/SqlClient.js`. A project that adds `node_modules` to `exclude` turns that rule off.
 - sets `skipAnalysisNotInRules: true` and `tsPreCompilationDeps: "specify"`.
 - resolves packages through their `exports` field, with the `import`, `require`, `node`, and `default` conditions.
 
@@ -226,7 +228,7 @@ For an app without `host`, two other things differ from 0.15.0. The composition 
 
 ## Adapter imports
 
-`adapter-imports-only-in-adapters` matches each import by its resolved path under `node_modules`. `effect/unstable/sql` becomes `(?:^|/)node_modules/effect/(?:[^/]+/|)unstable/sql(?:[/.]|$)`: the subpath may sit one folder down, such as `dist/`, as `exports` maps usually put it. A specifier with no subpath, such as `@effect/sql-*`, matches the whole package. An import that does not resolve is left to `no-unresolved-imports`.
+`adapter-imports-only-in-adapters` matches each import by its resolved path under `node_modules`. `effect/sql` becomes `(?:^|/)node_modules/effect/(?:[^/]+/|)sql(?:[/.]|$)`: the subpath may sit one folder down, such as `dist/`, as `exports` maps usually put it. A specifier with no subpath, such as `@effect/sql-*`, matches the whole package. An import that does not resolve is left to `no-unresolved-imports`.
 
 A workspace package resolves through its pnpm link to its own folder, not to `node_modules`. So an entry that starts with `scope`, such as `@acme/db`, matches two paths: `(?:^|/)node_modules/@acme/db/`, and `^packages/db/`, the folder under `packagesDir` named after the part after the scope. A package whose folder name differs from its package name is not matched there; name the folder after the package.
 
@@ -257,7 +259,7 @@ A package may declare one second entry, `src/contract.ts`, as `"./contract"` in 
 | Allowed | Pattern |
 | --- | --- |
 | A workspace package's files under `src/` | not `adaptersDir`, not `publicEntry`, `facadeFile` or `src/storage.ts`, not a test path. This includes another workspace package's `src/contract.ts`, which the rule follows too. |
-| An `effect` module on the allowlist | the root `effect`, a stable top-level module such as `effect/Schema`, and `effect/unstable/http` with its modules. Nothing else from `effect`: not `effect/unstable/sql`, `effect/unstable/process`, or `effect/unstable/persistence/PersistedQueue`. |
+| An `effect` module on the allowlist | the root `effect`, a stable top-level module such as `effect/Schema`, and `effect/http` with its modules, or its RC path `effect/unstable/http`. Nothing else from `effect`: not `effect/sql`, `effect/process`, or `effect/persistence/PersistedQueue`, nor their RC paths. |
 | A trusted installed contract entry | `src/contract.ts`, or its build `dist/contract.js` and `dist/contract.d.ts`, of `@house-rules/capability`, and of each package named in the `trustedContractPackages` option, which defaults to `[]`. A git dependency installs the source file; the npm registry installs the build. |
 
 So a contract entry that reaches `node:fs`, `pg`, `@effect/sql-pg`, its own `facade.ts`, another package's `index.ts`, or an installed contract entry no one vouched for fails.

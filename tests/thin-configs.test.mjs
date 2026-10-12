@@ -135,13 +135,15 @@ describe("thin configs over the house plugin", () => {
       await rulesFor("export const x = 1;\n", "apps/api/src/use-cases/wiring-probe.ts"),
       ["house-rules/use-case-is-capability", "house-rules/use-case-is-capability"],
     );
-    assert.deepEqual(
-      await rulesFor(
-        'import { Tool } from "effect/unstable/ai";\nexport const T = Tool.make("probe");\n',
-        "apps/api/src/delivery/mcp/wiring-probe.ts",
-      ),
-      ["house-rules/no-hand-rolled-surface"],
-    );
+    for (const source of ["effect/ai", "effect/unstable/ai"]) {
+      assert.deepEqual(
+        await rulesFor(
+          `import { Tool } from "${source}";\nexport const T = Tool.make("probe");\n`,
+          "apps/api/src/delivery/mcp/wiring-probe.ts",
+        ),
+        ["house-rules/no-hand-rolled-surface"],
+      );
+    }
     assert.deepEqual(
       await rulesFor(
         'import { Effect } from "effect";\nexport const run = () => Effect.runPromise(Effect.void);\n',

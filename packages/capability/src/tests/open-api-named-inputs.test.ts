@@ -5,6 +5,12 @@ import { defineContract, endpoint, failureCodeHeader, problemView, toOpenApi } f
 type Json = Record<string, unknown>;
 type Operation = Json & { operationId: string; parameters: Array<Json>; requestBody?: Json };
 
+const integer = {
+  type: "integer",
+  minimum: Number.MIN_SAFE_INTEGER,
+  maximum: Number.MAX_SAFE_INTEGER,
+};
+
 const lookup = defineContract("lookup", {
   description: "A named Struct input.",
   input: Schema.Struct({ id: Schema.Int, limit: Schema.Int }).annotate({ identifier: "Lookup" }),
@@ -47,8 +53,8 @@ const resolve = (schema: unknown): Json => {
 
 it("a GET with a named Struct input keeps every field as a path or query parameter", () => {
   expect(operation("/lookup/{id}", "get").parameters).toEqual([
-    { name: "id", in: "path", required: true, schema: { type: "integer" } },
-    { name: "limit", in: "query", required: true, schema: { type: "integer" } },
+    { name: "id", in: "path", required: true, schema: integer },
+    { name: "limit", in: "query", required: true, schema: integer },
   ]);
 });
 
@@ -57,13 +63,13 @@ it("a write with a named Struct input leaves the path field out of the body", ()
     ((operation("/lookup/{id}", "patch").requestBody?.content as Json)["application/json"] as Json)
       .schema,
   );
-  expect(body.properties).toEqual({ limit: { type: "integer" } });
+  expect(body.properties).toEqual({ limit: integer });
   expect(body.required).toEqual(["limit"]);
 });
 
 it("a GET with a named Union input resolves each member, and the input is required", () => {
   const [path, query] = operation("/search/{id}", "get").parameters;
-  expect(path).toEqual({ name: "id", in: "path", required: true, schema: { type: "integer" } });
+  expect(path).toEqual({ name: "id", in: "path", required: true, schema: integer });
   expect(query).toMatchObject({ name: "input", in: "query", required: true });
   const members = (query?.schema as Json).anyOf as Array<Json>;
   expect(members.map((member) => Object.keys(member.properties as Json))).toEqual([

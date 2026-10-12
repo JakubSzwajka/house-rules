@@ -1,5 +1,7 @@
 # @house-rules/migrations: notes for agents
 
+Version 0.3.0 peers on exact `effect` 4.0.3. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
+
 ## What it does
 
 It runs the SQL migrations of many modules against one Postgres database, in one transaction. Each module keeps its own `migrations/` folder and its own history table. Migrations are append-only and checked by SHA-256. It also gives tests a throwaway database. The full guide is `README.md` in this package.

@@ -64,6 +64,12 @@ test("contract-entry-is-browser-safe refuses effect's adapter imports", () => {
   const store = "node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist";
   assert.equal(allowed(`${store}/Schema.js`), true);
   assert.equal(allowed(`${store}/index.js`), true);
+  assert.equal(allowed(`${store}/http/index.js`), true);
+  assert.equal(allowed(`${store}/http/HttpClient.js`), true);
+  assert.equal(allowed(`${store}/sql/SqlClient.js`), false);
+  assert.equal(allowed(`${store}/persistence/PersistedQueue.js`), false);
+  assert.equal(allowed(`${store}/process/index.js`), false);
+  assert.equal(allowed(`${store}/ai/index.js`), false);
   assert.equal(allowed(`${store}/unstable/http/index.js`), true);
   assert.equal(allowed(`${store}/unstable/http/HttpClient.js`), true);
   assert.equal(allowed(`${store}/unstable/sql/SqlClient.js`), false);

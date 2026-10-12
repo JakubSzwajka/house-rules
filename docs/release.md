@@ -4,6 +4,51 @@ This repo carries the reference copy of the release workflow. It is one file, `.
 
 The template has no Dockerfile and no health endpoint, so the workflow never runs here. It starts only by hand (`workflow_dispatch`), never on push or pull request. `ci.yml` is separate.
 
+## House Rules package releases
+
+The npm packages use `.github/workflows/publish.yml`, not the application release flow below. After its read-only verify job passes, an approved publish job runs `pnpm publish -r --access public --provenance --no-git-checks --report-summary`.
+
+Only after that command succeeds, `scripts/tag-published.mjs` reads `pnpm-publish-summary.json`. It creates `@house-rules/<pkg>@<version>` tags for the packages the report says were published, then pushes those tags atomically. Already-published versions and private packages get no new tag. A tag already at the published commit stays untouched; a tag at another commit fails the job rather than moving it.
+
+Only the publish job has `contents: write`, needed to push those tags. Its checkout uses `persist-credentials: false`; install, build and publish get no stored write token. The tagging step alone receives `GITHUB_TOKEN` and passes its authentication header through command-scoped Git config, not the checkout's config file. GitHub does not trigger workflows from `GITHUB_TOKEN` pushes, so the new package tags cannot start a second publish run. The verify job keeps `contents: read` and has no npm token or OIDC permission.
+
+### If tagging failed
+
+A workflow rerun may publish nothing, leaving an empty summary. Normal tagging then does nothing. A missing summary is an error: the tagging step fails the job and prints a recovery hint. Do not bump versions or republish to fix tags.
+
+1. [ ] In a clean checkout, fetch tags and check out the exact release commit from the failed run, not today's `main`. Confirm `git rev-parse HEAD` matches that run. Use the fixed recovery script from a newer checkout if the release commit lacks it.
+2. [ ] Run `node /path/to/fixed/scripts/tag-published.mjs --recover --dry-run` from that release checkout. It reads the four public workspace versions, queries npm for each exact version and fetches `dist.attestations.url`. It decodes the DSSE payload's SLSA provenance and reads `predicate.buildDefinition.resolvedDependencies[].digest.gitCommit`. The workflow repository and source URI must name `JakubSzwajka/house-rules`; the source commit must equal HEAD for a package to qualify. `gitHead` is not used. The dry run prints matching packages and commits, checks local tag conflicts and makes no Git writes.
+3. [ ] With approval to push the release tags and an authenticated `origin`, rerun without `--dry-run`. Recovery pushes all matching tags atomically, including local tags left by a failed push. Check the tags on `origin`. It never moves a tag at another commit and also recovers packages that reached npm before a partial publish failure.
+
+Unpublished versions and versions sourced from another commit are skipped. Missing or unreadable attestations, a foreign repository, malformed provenance and registry failures other than 404 stop recovery before any tag is created. Recovery reads provenance served by npm; it does not verify bundle signatures itself.
+
+Recovery does not publish anything. A personal-token push can trigger the publish workflow; use `GITHUB_TOKEN` in CI if that must be avoided.
+
+### Backfill the two missing release sets
+
+Use Node 24.21.0 and the fixed script while each detached worktree supplies its historical package versions. From the checkout containing this fix:
+
+```sh
+recovery="$(pwd)/scripts/tag-published.mjs"
+git worktree add --detach /tmp/hr-recover-dc422cd dc422cd
+git worktree add --detach /tmp/hr-recover-f844b82 f844b82
+(cd /tmp/hr-recover-dc422cd && mise exec node@24.21.0 -- node "$recovery" --recover --dry-run)
+(cd /tmp/hr-recover-f844b82 && mise exec node@24.21.0 -- node "$recovery" --recover --dry-run)
+```
+
+At `dc422cd`, expect rules `0.16.0`, capability `0.13.1`, migrations `0.2.1` and call-audit `0.2.1`. At `f844b82`, expect rules `0.16.1`, capability `0.14.0` and call-audit `0.3.0`; migrations `0.2.1` is skipped because its provenance names `dc422cd`.
+
+Only after approval to create and push these tags, run:
+
+```sh
+(cd /tmp/hr-recover-dc422cd && mise exec node@24.21.0 -- node "$recovery" --recover)
+(cd /tmp/hr-recover-f844b82 && mise exec node@24.21.0 -- node "$recovery" --recover)
+git worktree remove /tmp/hr-recover-dc422cd
+git worktree remove /tmp/hr-recover-f844b82
+```
+
+If you only run the preview, remove the worktrees without running either write command.
+
 ## The flow
 
 ```text

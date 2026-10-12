@@ -2,7 +2,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { PgClient } from "@effect/sql-pg";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { Layer } from "effect";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
+import { SqlClient } from "effect/sql/SqlClient";
 import { type AuditStore, memoryAuditStore, postgresAuditStore } from "../../index.ts";
 
 const migrationsDirectory = new URL("../../../migrations", import.meta.url).pathname;

@@ -1,6 +1,6 @@
 import { Effect, Layer } from "effect";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
-import type { Connection } from "effect/unstable/sql/SqlConnection";
+import { SqlClient } from "effect/sql/SqlClient";
+import type { Connection } from "effect/sql/SqlConnection";
 import { auditClasses, clampBatchSize, noneDeleted } from "../../audit/limits.ts";
 import { AuditStore } from "../../storage.ts";
 import {

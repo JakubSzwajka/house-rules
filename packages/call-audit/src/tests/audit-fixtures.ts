@@ -1,6 +1,6 @@
 import { CallChannel, defineContract, implement, withRequestId } from "@house-rules/capability";
 import { Context, DateTime, Duration, Effect, Option, Schema } from "effect";
-import { McpSchema } from "effect/unstable/ai";
+import { McpSchema } from "effect/ai";
 import { AuditStore } from "../index.ts";
 import type { AuditPolicy, AuditRow } from "../index.ts";
 

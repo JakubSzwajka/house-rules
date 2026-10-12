@@ -1,6 +1,6 @@
 import { expect, expectTypeOf, it } from "@effect/vitest";
 import { Effect, Layer, Schema, SchemaGetter, SchemaTransformation } from "effect";
-import { McpSchema, McpServer, Tool, Toolkit } from "effect/unstable/ai";
+import { McpSchema, McpServer, Tool, Toolkit } from "effect/ai";
 import { defineContract, type InputSchema, toTool } from "../index.ts";
 
 const strict = { onExcessProperty: "error" } as const;

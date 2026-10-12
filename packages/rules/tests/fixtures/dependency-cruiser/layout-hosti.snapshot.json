@@ -70,7 +70,7 @@
         "reachable": true,
         "pathNot": [
           "^packages/[^/]+/(?!src/adapters(?:/|$)|(?:src/index[.]ts|src/facade[.]ts|src/storage[.]ts)$|src/(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$)src/",
-          "(?:^|/)node_modules/effect/dist/(?:index|[A-Z][A-Za-z0-9]*|unstable/http/(?:index|[A-Z][A-Za-z0-9]*))[.]js$",
+          "(?:^|/)node_modules/effect/dist/(?:index|[A-Z][A-Za-z0-9]*|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js$",
           "(?:^|/)node_modules/(?:@house-rules/capability)/(?:src/contract[.]ts|dist/contract[.](?:js|d[.]ts))$"
         ]
       }
@@ -315,6 +315,7 @@
       "to": {
         "path": [
           "(?:^|/)node_modules/effect/(?:[^/]+/|)unstable/sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)sql(?:[/.]|$)",
           "(?:^|/)node_modules/@effect/sql-[^/]*/",
           "(?:^|/)node_modules/@effect/platform-[^/]*/"
         ]

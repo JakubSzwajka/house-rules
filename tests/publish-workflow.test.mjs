@@ -1,118 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { parse } from "yaml";
-
-const parseWorkflow = (source) => parse(source, { strict: true, uniqueKeys: true });
-const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-
-const PUBLISH_IF =
-  "(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/@house-rules/')) || (github.event_name == 'workflow_dispatch' && inputs.publish == true && github.ref == 'refs/heads/main')";
-
-const MAIN_ONLY_NAME = "Manual publish runs only on main";
-const MAIN_ONLY_RUN = [
-  'if [ "$EVENT" = workflow_dispatch ] && [ "$PUBLISH" = true ] && [ "$REF" != refs/heads/main ]; then',
-  '  echo "A manual publish runs only on refs/heads/main, not ${REF}." >&2',
-  "  exit 1",
-  "fi",
-  "",
-].join("\n");
-const VERIFY_RUNS = [
-  "pnpm check",
-  "pnpm test",
-  "pnpm build",
-  "pnpm run packed-consumer",
-  "pnpm publish -r --access public --dry-run --no-git-checks",
-];
+import {
+  assertPublishWorkflow,
+  parseWorkflow,
+  PUBLISH_IF,
+  runsOf,
+  VERIFY_RUNS,
+} from "./publish-workflow-assertions.mjs";
 
 const stepsOf = (job) => job.steps ?? [];
-const runsOf = (job) =>
-  stepsOf(job)
-    .map((step) => step.run)
-    .filter((run) => typeof run === "string");
-
-function assertPublishWorkflow(workflow) {
-  const { jobs } = workflow;
-  assert.deepEqual(Object.keys(jobs).sort(), ["publish", "verify"]);
-  assert.deepEqual(workflow.permissions, { contents: "read" });
-  assert.deepEqual(Object.keys(workflow.on).sort(), ["pull_request", "push", "workflow_dispatch"]);
-  assert.deepEqual(workflow.on.push, { tags: ["@house-rules/*@*"] });
-  assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), ["publish"]);
-  assert.equal(workflow.on.workflow_dispatch.inputs.publish.type, "boolean");
-  assert.equal(workflow.on.workflow_dispatch.inputs.publish.default, false);
-  assert.ok(
-    !JSON.stringify(workflow.env ?? {}).includes("secrets."),
-    "workflow-level env reads a secret",
-  );
-
-  const { publish, verify } = jobs;
-  assert.deepEqual(verify.permissions, { contents: "read" }, "verify runs on pull requests");
-  assert.equal(verify.if, undefined, "verify runs on every trigger");
-  assert.doesNotMatch(
-    JSON.stringify(verify),
-    /secrets\.|id-token|NODE_AUTH_TOKEN|NPM_TOKEN|registry-url/u,
-  );
-  for (const run of runsOf(verify).filter((line) => /pnpm publish/u.test(line))) {
-    assert.match(run, /--dry-run/u);
-    assert.doesNotMatch(run, /--provenance/u);
-  }
-
-  assert.equal(verify["continue-on-error"], undefined, "verify may not fail softly");
-  const gate = stepsOf(verify)[0];
-  assert.equal(gate?.name, MAIN_ONLY_NAME, "verify starts with the main-only gate");
-  assert.equal(gate.if, undefined, "the main-only gate always runs");
-  assert.equal(gate["continue-on-error"], undefined);
-  assert.deepEqual(gate.env, {
-    EVENT: "${{ github.event_name }}",
-    PUBLISH: "${{ inputs.publish }}",
-    REF: "${{ github.ref }}",
-  });
-  assert.equal(gate.run, MAIN_ONLY_RUN, "the gate compares github.ref exactly, in the shell");
-
-  const verification = stepsOf(verify).filter((step) => VERIFY_RUNS.includes(step.run));
-  assert.deepEqual(
-    verification.map((step) => step.run),
-    VERIFY_RUNS,
-    "verify runs check, test, build, packed-consumer and the dry run, once each, in that order",
-  );
-  for (const step of verification) {
-    assert.equal(step.if, undefined, `${step.run} may not be conditional`);
-    assert.equal(step["continue-on-error"], undefined, `${step.run} may not fail softly`);
-  }
-  assert.equal(
-    stepsOf(verify).at(-1).run,
-    VERIFY_RUNS.at(-1),
-    "the dry run is the last verify step",
-  );
-
-  assert.equal(publish.needs, "verify");
-  assert.equal(
-    publish.if,
-    PUBLISH_IF,
-    "publish is gated on a package tag push or a manual run on main",
-  );
-  assert.deepEqual(publish.permissions, { contents: "read", "id-token": "write" });
-  const real = stepsOf(publish).filter((step) => /pnpm publish/u.test(step.run ?? ""));
-  assert.equal(real.length, 1);
-  assert.doesNotMatch(real[0].run, /--dry-run/u);
-  assert.equal(real[0].env?.NODE_AUTH_TOKEN, "${{ secrets.NPM_TOKEN }}");
-  const reads = stepsOf(publish).filter((step) => JSON.stringify(step).includes("secrets."));
-  assert.deepEqual(reads, real, "only the publish step reads a secret");
-
-  // A job a pull_request can trigger is any job whose `if` is absent or names pull_request.
-  for (const [name, job] of Object.entries(jobs)) {
-    const reachable = job.if === undefined || /pull_request/u.test(job.if);
-    if (!reachable) continue;
-    const text = JSON.stringify(job);
-    assert.doesNotMatch(text, /secrets\./u, `${name} can run on a pull request and reads a secret`);
-    assert.notEqual(
-      job.permissions?.["id-token"],
-      "write",
-      `${name} can run on a pull request and gets id-token: write`,
-    );
-    assert.equal(job.permissions?.contents, "read", `${name} must pin contents: read`);
-  }
-}
+const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 describe("publish workflow", () => {
   const workflow = () => parseWorkflow(read(".github/workflows/publish.yml"));
@@ -133,7 +31,7 @@ describe("publish workflow", () => {
     );
     assert.ok(
       runsOf(workflow().jobs.publish).includes(
-        "pnpm publish -r --access public --provenance --no-git-checks",
+        "pnpm publish -r --access public --provenance --no-git-checks --report-summary",
       ),
     );
   });
@@ -147,6 +45,55 @@ describe("publish workflow", () => {
   });
 
   const breaks = {
+    "publish cannot push tags": (w) => {
+      w.jobs.publish.permissions.contents = "read";
+    },
+    "verify can push tags": (w) => {
+      w.jobs.verify.permissions.contents = "write";
+    },
+    "tagging is removed": (w) => {
+      w.jobs.publish.steps.pop();
+    },
+    "tagging runs even after publish failure": (w) => {
+      w.jobs.publish.steps.at(-1).if = "always()";
+    },
+    "publish fails softly": (w) => {
+      w.jobs.publish.steps.find((step) => step.name === "Publish")["continue-on-error"] = true;
+    },
+    "checkout persists the write token": (w) => {
+      w.jobs.publish.steps[0].with["persist-credentials"] = true;
+    },
+    "checkout falls back to persisting credentials": (w) => {
+      delete w.jobs.publish.steps[0].with["persist-credentials"];
+    },
+    "checkout receives an explicit write token": (w) => {
+      w.jobs.publish.steps[0].with.token = "${{ github.token }}";
+    },
+    "tag pushes use a PAT that could retrigger workflows": (w) => {
+      w.jobs.publish.steps.at(-1).env.GITHUB_TOKEN = "${{ secrets.TAG_TOKEN }}";
+    },
+    "install receives the write token": (w) => {
+      w.jobs.publish.steps.find((step) => step.run === "pnpm install --frozen-lockfile").env = {
+        GITHUB_TOKEN: "${{ github.token }}",
+      };
+    },
+    "the job receives the write token": (w) => {
+      w.jobs.publish.env = { GITHUB_TOKEN: "${{ github.token }}" };
+    },
+    "the workflow receives the write token": (w) => {
+      w.env.GITHUB_TOKEN = "${{ github.token }}";
+    },
+    "tagging persists auth in git config": (w) => {
+      w.jobs.publish.steps.at(-1).run =
+        'git config http.https://github.com/.extraheader "$GITHUB_TOKEN"';
+    },
+    "tagging fails softly": (w) => {
+      w.jobs.publish.steps.at(-1)["continue-on-error"] = true;
+    },
+    "tagging loses the published-package report": (w) => {
+      const step = w.jobs.publish.steps.find((step) => step.name === "Publish");
+      step.run = step.run.replace(" --report-summary", "");
+    },
     "id-token: write on verify": (w) => {
       w.jobs.verify.permissions["id-token"] = "write";
     },
