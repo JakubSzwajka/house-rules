@@ -1,6 +1,6 @@
 # @house-rules/rules
 
-This package, in `packages/rules` of the house-rules repository, is the one installable home of the operator's house rules and house configs. It is a private GitHub package, installed by Git subpath, with thirteen ESLint rules, a preset for the third-party `@shadcn/lint` plugin, one Dependency Cruiser preset, three TypeScript presets, one Biome preset and three bins. It extracts Hosti's comment-discipline rule without changing the rule's semantics, adds a Markdown rule that reports relative links to paths git does not track, adds six design rules for CSS, JS/TS and JSX, ships drunk-cat-stack's monorepo layout rules as a reusable Dependency Cruiser config, ships drunk-cat-stack's tsconfig, Biome config and exact-pins script, and adds five capability rules and a module-owned SQL checker for the stack's capability and module shape.
+This package, in `packages/rules` of the house-rules repository, is the one installable home of the operator's house rules and house configs. It is published to npm as `@house-rules/rules` and installed by exact version, with thirteen ESLint rules, a preset for the third-party `@shadcn/lint` plugin, one Dependency Cruiser preset, three TypeScript presets, one Biome preset and three bins. It extracts Hosti's comment-discipline rule without changing the rule's semantics, adds a Markdown rule that reports relative links to paths git does not track, adds six design rules for CSS, JS/TS and JSX, ships drunk-cat-stack's monorepo layout rules as a reusable Dependency Cruiser config, ships drunk-cat-stack's tsconfig, Biome config and exact-pins script, and adds five capability rules and a module-owned SQL checker for the stack's capability and module shape.
 
 ## Split with consumers
 
@@ -30,7 +30,7 @@ This package owns house rules and house configs. A consumer repository keeps onl
 - **Migrations bin**: `house-rules-migrations`, `bin/migrations.mjs`. It fails when one workspace package's migrations or SQL strings reach another package's tables, when a `.sql` file sits outside a `<package>/migrations/` folder and outside a package's `fixtures/` or `tests/` folder, when code outside an adapter package opens a raw transaction (`withTransaction` or a `begin` string), when a module's own code opens a unit of work, or when the **module list** (`migrations.json`) leaves out a module that has migrations: a workspace package with a `migrations/` folder, or a dependency whose `package.json` declares `houseRules.migrations`.
 - **Layout bin**: `house-rules-layout`, `bin/layout.mjs`. It checks production cycles between subject folders and between packages, using the Dependency Cruiser config. Subject cycles exclude test paths, adapters and loose files in `src/`; package cycles exclude test paths.
 - **Owning package**: the workspace package whose migration creates a table.
-- **Consumer**: a repository that installs this package from GitHub and uses one or more of its presets or its bin.
+- **Consumer**: a repository that installs this package from npm at an exact version and uses one or more of its presets or its bin.
 - **Exception**: one closed, syntax-owned directive or legal header accepted by `comment-discipline`.
 - **Relative link**: a Markdown link, image, or link reference definition whose target has no URI scheme, is not a pure anchor, is not protocol-relative, and contains no `{` placeholder.
 - **Tracked path**: a file listed by `git ls-files` for the repository that holds the linted file, or a parent directory of one. Matching is exact and case-sensitive.
@@ -45,9 +45,9 @@ This package owns house rules and house configs. A consumer repository keeps onl
 
 ## Contract
 
-- Package name and version are `@house-rules/rules@0.14.0` until an intentional release decision changes them. `package.json` and `plugin.meta.version` carry the same version, and `plugin.meta.name` is the package name.
+- Package name and version are `@house-rules/rules@0.15.0` until an intentional release decision changes them. `package.json` and `plugin.meta.version` carry the same version, and `plugin.meta.name` is the package name.
 - The package is ESM, runs checked-in `.mjs` source directly (plus the one `.cjs` layout preset), and supports Node `>=24.21.0`, matching every consumer (all pin Node 24.21.0 in `.nvmrc` and `engines: >=24.21.0`). CI reads `.nvmrc`.
-- `private: true` stays set. Do not npm-publish.
+- The repo's publish workflow, `.github/workflows/publish.yml`, publishes it to npm. Nobody publishes by hand.
 - The plugin key is `house-rules`.
 - `@typescript-eslint/parser` is a runtime dependency so consumers install no parser separately.
 - ESLint is a peer dependency and a development dependency for this repository.
@@ -83,4 +83,4 @@ Keep source modules small. Tests should import the package entry point or exerci
 
 ## Verification
 
-Run `pnpm run check` and `pnpm run pack:check` in `packages/rules`, and `pnpm check` and `pnpm test` at the repository root. For changes to a config preset, also prove it in a throwaway copy of drunk-cat-stack switched to the presets: `pnpm check` and `pnpm test` pass, and planted violations fail. For release or dependency changes, install the package from a fresh fixture using a pinned Git spec and run ESLint against JavaScript, TypeScript, Markdown, and CSS design pass/fail fixtures. The Markdown fixture must be a git repository with its files added to the index.
+Run `pnpm run check` and `pnpm run pack:check` in `packages/rules`, and `pnpm check` and `pnpm test` at the repository root. For changes to a config preset, also prove it in a throwaway copy of drunk-cat-stack switched to the presets: `pnpm check` and `pnpm test` pass, and planted violations fail. For release or dependency changes, run `pnpm run packed-consumer` at the repository root, then install the packed tarball of `@house-rules/rules` in a fresh fixture and run ESLint against JavaScript, TypeScript, Markdown, and CSS design pass/fail fixtures. The Markdown fixture must be a git repository with its files added to the index.

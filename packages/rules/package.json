@@ -1,7 +1,6 @@
 {
   "name": "@house-rules/rules",
-  "version": "0.14.0",
-  "private": true,
+  "version": "0.15.0",
   "description": "House rules and house configs for AI-assisted codebases: ESLint rules, Dependency Cruiser and Node layout checks, TypeScript and Biome presets, and house-rule bins.",
   "license": "MIT",
   "type": "module",
@@ -15,6 +14,9 @@
     "CONTEXT.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "house-rules-pins": "bin/pins.mjs",
     "house-rules-migrations": "bin/migrations.mjs",

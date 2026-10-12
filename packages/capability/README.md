@@ -336,26 +336,23 @@ The gate is `Schema.Any` with one filter. The filter's `toJsonSchema` hook retur
 
 ## Install in another app
 
-The package is not on npm. Install it from GitHub, pinned to a full 40-character commit of this repo, with a pnpm subpath:
+Install it from npm at an exact version:
 
 ```json
 {
   "dependencies": {
-    "@house-rules/capability": "github:JakubSzwajka/house-rules#<full-40-char-sha>&path:/packages/capability",
+    "@house-rules/capability": "0.13.1",
     "effect": "4.0.0-rc.117"
   }
 }
 ```
 
-1. [ ] Use pnpm. npm has no subpath selector for Git dependencies and installs the whole repo root instead, which is the wrong package (checked). Yarn is not checked against this repo.
-2. [ ] Pin `effect` to the same exact version this package names in `peerDependencies`. It is an exact peer, and the handler types come from that copy of `effect`.
-3. [ ] A young Effect release candidate fails pnpm's `minimumReleaseAge` check. If your `pnpm-workspace.yaml` sets it, add `effect@<version>` to `minimumReleaseAgeExclude`.
-4. [ ] The package ships TypeScript source and has no build step. Your `tsc` compiles it as part of your program. Use TypeScript 7 or 6 with `module` and `moduleResolution` set to `NodeNext`, and `skipLibCheck: true`. It is tested with TypeScript 7.0.2.
-5. [ ] Its files import each other with `.ts` extensions, so your tsconfig also needs `allowImportingTsExtensions: true`. TypeScript allows that flag only with `noEmit` or `emitDeclarationOnly`. If your `tsc` emits JavaScript, set `rewriteRelativeImportExtensions: true` instead. Without either flag, `tsc` fails with error `TS5097` on those imports.
-6. [ ] Or extend `@house-rules/rules/tsconfig/effect.json`, installed from the same commit as [the root README](../../README.md#using-the-rules-in-another-app) shows. The package passes its strict flags. The preset sets `noEmit` but not `allowImportingTsExtensions`, so add that flag yourself. Its Effect diagnostics run only after `pnpm exec effect-tsgo patch` from `@effect/tsgo`, as this repo's `prepare` script does.
-7. [ ] In a Next.js app, add `@house-rules/capability` to `transpilePackages` in `next.config.ts`. Without it, a Turbopack build fails with `Unknown module type`, because Next does not compile TypeScript in `node_modules`. The app's tsconfig needs `allowImportingTsExtensions: true` too, or the type check in `next build` fails with `TS5097`. Checked with Next 16.3.5 and `next build` on Turbopack.
-8. [ ] The usage example is a test, so it needs two dev dependencies, pinned exactly: `"@effect/vitest": "4.0.0-rc.117"` and `"vitest": "5.0.1"` (the versions this repo uses). Run the code through a tool that compiles dependencies. Vitest does, so the test above runs as is. Plain `node` will not strip types inside `node_modules`, and fails with `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`.
-9. [ ] To upgrade, change the SHA and run `pnpm install`.
+1. [ ] Pin `effect` to the same exact version this package names in `peerDependencies`. It is an exact peer, and the handler types come from that copy of `effect`.
+2. [ ] A young Effect release candidate fails pnpm's `minimumReleaseAge` check. If your `pnpm-workspace.yaml` sets it, add `effect@<version>` to `minimumReleaseAgeExclude`.
+3. [ ] The package ships built JavaScript and `.d.ts` files in `dist/`. Plain `node` loads it, and a bundler such as Next's needs no `transpilePackages` entry for it. Browser code imports `@house-rules/capability/contract`.
+4. [ ] Use TypeScript 7 or 6 with `module` and `moduleResolution` set to `NodeNext`, or `Bundler` for UI code, and `skipLibCheck: true`. It is tested with TypeScript 7.0.2. Or extend `@house-rules/rules/tsconfig/effect.json`, installed as [the root README](../../README.md#using-the-rules-in-another-app) shows. Its Effect diagnostics run only after `pnpm exec effect-tsgo patch` from `@effect/tsgo`, as this repo's `prepare` script does.
+5. [ ] The usage example is a test, so it needs two dev dependencies, pinned exactly: `"@effect/vitest": "4.0.0-rc.117"` and `"vitest": "5.0.1"` (the versions this repo uses).
+6. [ ] To upgrade, change the version and run `pnpm install`. An app that still pins a Git SHA moves as [the root README](../../README.md#upgrading-from-a-git-sha-pin) shows.
 
 ## An MCP tool from a contract
 

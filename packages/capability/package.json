@@ -1,19 +1,34 @@
 {
   "name": "@house-rules/capability",
-  "version": "0.13.0",
-  "private": true,
+  "version": "0.13.1",
   "description": "Capabilities for Effect apps: one named, schema-described action with one handler.",
   "license": "MIT",
   "type": "module",
   "files": [
-    "src",
-    "AGENTS.md"
+    "dist",
+    "AGENTS.md",
+    "README.md"
   ],
   "exports": {
     ".": "./src/index.ts",
     "./contract": "./src/contract.ts"
   },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./contract": {
+        "types": "./dist/contract.d.ts",
+        "default": "./dist/contract.js"
+      }
+    }
+  },
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "prepack": "pnpm run build",
     "typecheck": "tsc --project tsconfig.json",
     "test": "varlock run --path ../../ -- vitest run"
   },
@@ -23,9 +38,18 @@
   "devDependencies": {
     "@effect/sql-pg": "4.0.0-rc.117",
     "@effect/vitest": "4.0.0-rc.117",
-    "@house-rules/migrations": "workspace:0.2.0",
+    "@house-rules/migrations": "workspace:0.2.1",
     "effect": "4.0.0-rc.117",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JakubSzwajka/house-rules.git",
+    "directory": "packages/capability"
+  },
+  "bugs": {
+    "url": "https://github.com/JakubSzwajka/house-rules/issues"
+  },
+  "homepage": "https://github.com/JakubSzwajka/house-rules"
 }

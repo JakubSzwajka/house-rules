@@ -1,18 +1,20 @@
 # @house-rules/rules
 
-House rules and house configs. One exact GitHub commit pin brings all of it: thirteen ESLint rules, 21 Dependency Cruiser layout rules, subject-folder and package-cycle checks, TypeScript strict flags, a web preset for bundled UI code, Effect diagnostics, Biome linter and formatter with Tailwind v4 parsing, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Private, not on npm.
+House rules and house configs. One exact pin brings all of it: thirteen ESLint rules, 21 Dependency Cruiser layout rules, subject-folder and package-cycle checks, TypeScript strict flags, a web preset for bundled UI code, Effect diagnostics, Biome linter and formatter with Tailwind v4 parsing, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Published to npm as `@house-rules/rules`.
 
 ## Install
 
-Node `>=24.21.0` only. The pins and migrations bins use `fs.globSync`, with no fallback for older Node. The package lives in `packages/rules` of the house-rules repository, so install it with pnpm and a Git subpath spec. The pins bin reads `pnpm-workspace.yaml`; the layout bin reads `.dependency-cruiser.cjs` and needs `dependency-cruiser` installed.
+Node `>=24.21.0` only. The pins and migrations bins use `fs.globSync`, with no fallback for older Node. Install it from npm with an exact pin. The pins bin reads `pnpm-workspace.yaml`; the layout bin reads `.dependency-cruiser.cjs` and needs `dependency-cruiser` installed.
 
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "github:JakubSzwajka/house-rules#<full-40-char-sha>&path:/packages/rules"
+    "@house-rules/rules": "0.15.0"
   }
 }
 ```
+
+Up to 0.14.0 the package was not on npm, and apps pinned a commit with `github:JakubSzwajka/house-rules#<sha>&path:/packages/rules`. That spec still works for those commits. To move, replace it with the exact version and run `pnpm install`.
 
 `@eslint/css`, `@eslint/markdown`, `@shadcn/lint`, and `dependency-cruiser` are optional peer dependencies, so pnpm does not install them. Install the ones your entry points need, each pinned exactly. Importing `/design` without `@eslint/css`, or `/shadcn` without `@shadcn/lint`, fails with `ERR_MODULE_NOT_FOUND`.
 
@@ -201,7 +203,9 @@ pnpm run pack:check # Verify tarball
 
 ## Upgrade flow
 
-1. Review the commit diff and rule docs between current and candidate commit.
-2. Update the commit SHA in `package.json`, regenerate lockfile.
+1. Review the rule docs and the diff between the current and the candidate version.
+2. Update the exact version in `package.json`, regenerate lockfile.
 3. Run `pnpm run check`, `pnpm run pack:check`, and consumer checks (ESLint, Biome, typecheck, Dependency Cruiser, pins).
-4. Merge lockfile and config changes together. Do not npm-publish.
+4. Merge lockfile and config changes together.
+
+The repo's publish workflow, not a person, publishes a new version to npm.

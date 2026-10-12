@@ -1,0 +1,134 @@
+name: Publish packages
+
+# Publishes the public @house-rules packages to npm: rules, capability, migrations, call-audit.
+# `pnpm publish -r` skips private packages and every version already on the registry, so one run
+# publishes exactly the packages whose version was bumped.
+# Two jobs. `verify` runs on every trigger with `contents: read` only: no token, no OIDC. It checks,
+# tests, builds, runs the packed consumer and dry-runs the publish. Its first step refuses a manual
+# publish run from any ref but exactly refs/heads/main.
+# `publish` is the only job with `id-token: write` and NPM_TOKEN. It runs only after `verify`, on a push
+# of a package tag such as `@house-rules/capability@0.13.1`, or on a manual run on main with `publish` ticked.
+# NPM_TOKEN is a repository secret: an npm granular token with publish rights on the @house-rules scope.
+# tests/published-packages.test.mjs parses this file and guards that split.
+on:
+  push:
+    tags:
+      - "@house-rules/*@*"
+  pull_request:
+    paths:
+      - "packages/**"
+      - "scripts/packed-consumer.mjs"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/publish.yml"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish for real. Only honoured on main. Leave unticked to dry-run.
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.event.repository.name }}-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: house_rules
+          POSTGRES_PASSWORD: house_rules
+          POSTGRES_DB: house_rules
+        ports:
+          - 55435:5432
+        options: >-
+          --health-cmd "pg_isready -U house_rules -d house_rules"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      # GitHub's `==` ignores case, so the publish job's `github.ref == 'refs/heads/main'` also
+      # matches a branch named MAIN. This shell comparison is exact, and `publish` needs `verify`.
+      - name: Manual publish runs only on main
+        env:
+          EVENT: ${{ github.event_name }}
+          PUBLISH: ${{ inputs.publish }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ] && [ "$PUBLISH" = true ] && [ "$REF" != refs/heads/main ]; then
+            echo "A manual publish runs only on refs/heads/main, not ${REF}." >&2
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Tag matches the package version
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          name="${TAG%@*}"
+          version="${TAG##*@}"
+          folder="packages/${name#@house-rules/}"
+          [ -f "$folder/package.json" ] || { echo "No package for tag ${TAG}." >&2; exit 1; }
+          actual="$(node -p "require('./${folder}/package.json').version")"
+          [ "$actual" = "$version" ] || { echo "${TAG} does not match ${folder} version ${actual}." >&2; exit 1; }
+      - run: pnpm check
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm run packed-consumer
+      - name: Dry run
+        run: pnpm publish -r --access public --dry-run --no-git-checks
+
+  publish:
+    needs: verify
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/@house-rules/')) || (github.event_name == 'workflow_dispatch' && inputs.publish == true && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # npm provenance signs each package with this workflow's OIDC identity.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Tag matches the package version
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          name="${TAG%@*}"
+          version="${TAG##*@}"
+          folder="packages/${name#@house-rules/}"
+          [ -f "$folder/package.json" ] || { echo "No package for tag ${TAG}." >&2; exit 1; }
+          actual="$(node -p "require('./${folder}/package.json').version")"
+          [ "$actual" = "$version" ] || { echo "${TAG} does not match ${folder} version ${actual}." >&2; exit 1; }
+      - run: pnpm build
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm publish -r --access public --provenance --no-git-checks

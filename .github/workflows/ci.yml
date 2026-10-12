@@ -39,3 +39,5 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm test
+      # The only check that loads the built dist/ that npm consumers get.
+      - run: pnpm run packed-consumer
