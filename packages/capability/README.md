@@ -297,6 +297,43 @@ const pong = ping.handler({}); // Effect<string>: the handler takes an empty obj
 
 Do not use `Schema.Struct({})` for this. Effect renders it to JSON Schema as `{"not":{"type":"null"}}`, with no `type`. An MCP tool's input schema must have `"type": "object"`, so Effect's `McpServer` fails to list every tool with `SchemaError: Missing key at ["type"]`. `NoInput` is `Schema.Record(Schema.String, Schema.Never)`, the same shape as Effect's `Tool.EmptyParams`. It renders as `{"type":"object","additionalProperties":false}`, so an MCP tool can use `contract.input` as its `parameters` as is. Checked with `effect` 4.0.0-rc.117.
 
+## An input with several shapes
+
+Some actions take one of a few inputs, such as "find a booking by its id or by its guest". Give them a `Schema.Union` of Structs, one per shape, with a tag field each:
+
+```ts
+import { Effect, Schema } from "effect";
+import { defineContract, implement } from "@house-rules/capability";
+
+const FindInput = Schema.Union([
+  Schema.Struct({ by: Schema.Literal("id"), bookingId: Schema.String }),
+  Schema.Struct({ by: Schema.Literal("guest"), guest: Schema.String }),
+]);
+
+const findContract = defineContract("find_booking", {
+  description: "Find a booking by its id or by its guest.",
+  input: FindInput,
+  output: Schema.String,
+  failure: Schema.Never,
+  permission: "bookings:read",
+});
+
+const find = implement(findContract, (input) =>
+  Effect.succeed(input.by === "id" ? input.bookingId : input.guest),
+);
+```
+
+The handler gets one decoded member, so `input.by` narrows it. Every member must be a Struct. `audit.target` may name only a string field that every member has.
+
+An MCP tool cannot take a Union: Effect's `McpServer` needs an object at the root of a tool's input schema. So `toTool` splits the tool's parameters into two jobs.
+
+1. The gate is what `McpServer` decodes with. It checks only the outer shape: the input is an object, and every key belongs to some member. A key no member takes fails with `InvalidParams`. The gate checks no value and requires no key, and it hands the raw arguments on unchanged. They then decode once through the real Union, which alone decides what is valid, which keys are required, and what each value becomes. So for MCP arguments that are JSON objects using only declared keys, the gate never refuses an input the Union takes and never changes one, whatever codecs, defaults or getters the members use. A key no member declares is always refused, even when a loose member such as an empty `Schema.Struct({})` would take it. A value one member would trim or parse never reaches another member changed. The promise covers JSON objects with declared keys only. Effect's empty `Schema.Struct({})` takes any value but `null` and `undefined`, such as `1` or `[]`, and the gate still refuses those, because MCP arguments are never anything but an object.
+2. The advertisement is the JSON Schema the model sees: one merged object. Each key shows its wire type, the encoded side, and a key two members type differently shows the Union of both. The tag becomes an enum, here `"id" | "guest"`. The object is closed: `"additionalProperties": false`. A key's requiredness errs strict: a key is optional only when some member leaves it out, or some member is optional on both sides for that key with nothing in its decoding, its Struct or the Union that could refuse a missing key.
+
+So a key a member marks `optionalKey(Schema.String)` or `optional(Schema.FiniteFromString)` is optional. Every other key every member has is required, even when the action would take it missing: a decoding default such as `withDecodingDefaultKey`, `OptionFromOptionalKey`, a `transformOptional` or `SchemaGetter.required()` getter, a `Schema.suspend` field, and a check on the member Struct or on the Union all make it required. The advertisement may therefore ask for more than the Union needs. A key some member leaves out stays optional, because one JSON object cannot tie a key to a tag. Any other key is never called optional when the Union refuses to go without it, and for a JSON object with declared keys the gate never refuses what the Union takes, because the Union decides. So `{ "by": "guest" }` passes the gate, fits no member, and fails like any other invalid input: the MCP client gets an `InvalidParams` error, and the handler does not run.
+
+The gate is `Schema.Any` with one filter. The filter's `toJsonSchema` hook returns the advertisement, compiled from its `representation.schemas`, the way `Schema.isPropertyNames` does. `Schema.Any` keeps the filter through `Schema.toCodecJson`, where `Schema.Unknown` would not. Checked with `effect` 4.0.0-rc.117.
+
 ## Install in another app
 
 The package is not on npm. Install it from GitHub, pinned to a full 40-character commit of this repo, with a pnpm subpath:
@@ -322,7 +359,7 @@ The package is not on npm. Install it from GitHub, pinned to a full 40-character
 
 ## An MCP tool from a contract
 
-`toTool(contract, options)` builds an `effect/unstable/ai` `Tool` from a contract, so an MCP adapter does not write the tool by hand. The contract gives the name, the description, the parameters (`contract.input`), and the `Tool.Readonly` and `Tool.Destructive` annotations. The options carry what only MCP needs:
+`toTool(contract, options)` builds an `effect/unstable/ai` `Tool` from a contract, so an MCP adapter does not write the tool by hand. The contract gives the name, the description, the parameters (`contract.input`, or the merged object of a Union input, as [An input with several shapes](#an-input-with-several-shapes) shows), and the `Tool.Readonly` and `Tool.Destructive` annotations. Every tool is `Tool.Strict`, so `McpServer` rejects a key the input does not take with `InvalidParams` instead of dropping it. This is new in 0.11.0 and breaks callers that sent extra keys; see [Upgrading to 0.11.0](#upgrading-to-0110). The options carry what only MCP needs:
 
 | Option | Required | Becomes |
 | --- | --- | --- |
@@ -348,9 +385,18 @@ export const toolHandlers = tools.toLayer({ greet: (input) => greet.handler(inpu
 
 `idempotent` and `openWorld` are required because Effect defaults `openWorld` to `true`, and an agent client reads the hint. Each MCP adapter decides them. Pass `success` when the tool returns a view of the output, and `failure` when the adapter maps the contract's errors to its own error, such as a `ToolProblem`. The handler you pass to `toLayer` then maps to those schemas. A `failure` override replaces the gate errors too, so that mapper maps `Forbidden` and `ApprovalDenied` as well.
 
-The tool type keeps the contract's exact types: `Tool<"greet", { parameters: typeof GreetInput; success: ...; failure: ... }>`. `toTool` is typed over `Contract<Name, Input, Output, Failure>`, not over `C extends AnyContract`. The constraint form widens the input to `InputSchema`, so the tool loses its exact parameter type. An override the options type marks optional, such as `success?: typeof View`, types the schema as `typeof View | typeof Output`, because at run time it may be either one. A `NoInput` contract renders its parameters as `{"type":"object","additionalProperties":false}`.
+The tool type keeps the contract's exact types: `Tool<"greet", { parameters: typeof GreetInput; success: ...; failure: ... }>`. `toTool` is typed over `Contract<Name, Input, Output, Failure>`, not over `C extends AnyContract`. The constraint form widens the input to `InputSchema`, so the tool loses its exact parameter type. An override the options type marks optional, such as `success?: typeof View`, types the schema as `typeof View | typeof Output`, because at run time it may be either one. A `NoInput` contract renders its parameters as `{"type":"object","additionalProperties":false}`. A Union contract types its parameters as `Schema.decodeTo<Input, MergedParameters<Members>>`: its `Type` is the Union's, so the handler you pass to `toLayer` gets one member, and its `Encoded` is the merged wire shape, built from the members' encoded types. A key in it is optional when some member lacks it or leaves it optional on the wire. This static type is not the JSON advertisement: the advertisement has its own, stricter requiredness, so a key with a decoding default is optional in `Encoded` but required in the JSON. At run time the gate takes any value per key, so this type describes what a caller may send, not what the gate checks. `ToolParameters<Input>` names that type, and is `Input` itself for a Struct or `NoInput`.
 
 The house plugin's `no-hand-rolled-surface` rule fails on `Tool.make` outside this package, so every MCP tool comes from a contract.
+
+## Upgrading to 0.11.0
+
+0.11.0 is a breaking change for MCP tools. Every `toTool` tool, a Struct one too, is now `Tool.Strict`:
+
+1. An MCP call with a key the input does not take, at the root or inside a nested Struct, now fails with `InvalidParams`. Before, `McpServer` dropped the key and ran the handler. A client that sends extra metadata, or resends a whole saved record with fields the input lacks, now gets an error. Send only the keys the input takes.
+2. A tool's JSON schema now says `"additionalProperties": false` where it said `true`. A test that compares a tool's advertised schema exactly must update that value. Trippy has three such assertions.
+
+A Union input is new and changes nothing for a Struct input's types.
 
 ## Limits
 
@@ -358,4 +404,4 @@ It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Appr
 
 ## Exports
 
-`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, `CallWatch`, `UnitOfWork`, and `CurrentUnit` services, the `CallChannel` and `CallRequestId` references, `withRequestId`, `requestIdOf`, `newRequestId`, `requestIdHeader`, `mcpChannel`, `isMcpChannel`, `maxClientNameLength`, `maxTargetIdLength`, `sqlUnitOfWork` and `memoryUnitOfWork`, the `Forbidden`, `ApprovalDenied`, `NoOpenUnit`, and `UnitOfWorkFailed` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `CallFacts`, `CallKind`, `AuditDeclaration`, `AuditOptions`, `StringKeyOf`, `GrantRequirement`, `ApprovalRequirement`, `UnitOfWorkRequirement`, `GateRequirements`, `UnitOfWorkService`, `OpenUnit`, `Atomic`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, and `ToToolOptions`.
+`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, `CallWatch`, `UnitOfWork`, and `CurrentUnit` services, the `CallChannel` and `CallRequestId` references, `withRequestId`, `requestIdOf`, `newRequestId`, `requestIdHeader`, `mcpChannel`, `isMcpChannel`, `maxClientNameLength`, `maxTargetIdLength`, `sqlUnitOfWork` and `memoryUnitOfWork`, the `Forbidden`, `ApprovalDenied`, `NoOpenUnit`, and `UnitOfWorkFailed` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `StructInput`, `UnionInput`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `CallFacts`, `CallKind`, `AuditDeclaration`, `AuditOptions`, `StringKeyOf`, `GrantRequirement`, `ApprovalRequirement`, `UnitOfWorkRequirement`, `GateRequirements`, `UnitOfWorkService`, `OpenUnit`, `Atomic`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, `ToToolOptions`, `ToolParameters`, and `MergedParameters`.

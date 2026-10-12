@@ -4,7 +4,7 @@ Rule ID: `house-rules/testing-exports-only-in-tests`
 
 A package may export helpers for tests, such as `MigrationsTesting` from `@house-rules/migrations`, which gives each test file a throwaway database. Such an export's name ends in `Testing`. It is for tests. Production code that imports one can reach testing-only behavior, such as test setup or a read that exists only for tests, and every other check stays green. The rule reports that use. Enable it with `plugin.configs.testing`, a one-rule preset that runs it on every JS and TS file. `plugin.configs.capability` includes it; `plugin.configs.recommended` does not.
 
-A test file may import a testing export. A test file is any file under a `tests/`, `test/`, or `__tests__/` folder, or named `*.test.*` or `*.spec.*`. These are the same test paths Dependency Cruiser and the migrations bin treat as tests.
+A test file may import a testing export. A test file is any file under a `tests/`, `test/`, or `__tests__/` folder, or named `*.test.*` or `*.spec.*`. These are the same test paths Dependency Cruiser and the migrations bin treat as tests. A layout with a custom `testsDir` passes the same name to this rule, as the `testsDir` option below.
 
 ```ts
 // apps/web/src/use-cases/tests/support.ts: passes, a test file
@@ -51,7 +51,24 @@ A package index publishes its own testing export by path, under a `*Testing` nam
 
 ## Options
 
-None. Type-only imports and re-exports pass, since they run nothing.
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `testsDir` | none | One more folder that holds test files, with the meaning `layout()`'s `testsDir` has in [the Dependency Cruiser preset](dependency-cruiser.md): a relative path with no leading or trailing `/`, such as `"spec"`. A file under it is a test file, next to `tests/`, `test/`, and `__tests__/`, and the message names it. |
+
+A layout that sets `testsDir: "spec"` sets the same value here, after the preset:
+
+```js
+export default [
+  ...houseRules.configs.capability,
+  { rules: { "house-rules/testing-exports-only-in-tests": ["error", { testsDir: "spec" }] } },
+];
+```
+
+Type-only imports and re-exports pass, since they run nothing.
+
+## Upgrading to 0.13.1
+
+Nothing to change. 0.13.1 adds the `testsDir` option. Without it the rule behaves as in 0.13.0.
 
 ## Upgrading to 0.13.0
 
@@ -66,4 +83,5 @@ The rule checks static names in one file at a time. It does not track data flow 
 - A re-export of a whole module passes: `export * from "@acme/db"`, `export * as Live from "@acme/db"`, and `export const Live = Db` after `import * as Db`. Knowing whether such a module carries testing exports needs module resolution. A file that does this is not testing code, though, so it cannot also use a testing export directly.
 - It does not follow `import()` with a computed path (`import(require.resolve("@acme/db"))`), `require` bound to a local (`const require = createRequire(...)`), `import("@acme/db").then(...)`, a `let` alias, a parameter, a module object returned from a function, a default import's members, or `module.exports`.
 - A namespace is a value when TypeScript emits its object, even an empty one: a `declare const` or a `const enum` inside a non-`declare` namespace makes it a value, as TypeScript does under `isolatedModules`. Another compiler that erases such a namespace leaves a file the rule took for testing code with no `*Testing` value.
-- It checks the default test folders only. A custom `testsDir` in the Dependency Cruiser settings does not reach this rule.
+- It does not read the Dependency Cruiser config. A custom `testsDir` there reaches this rule only when the ESLint config passes the same value as the `testsDir` option.
+- The migrations bin (`house-rules-migrations`) ignores a custom `testsDir`. It still counts only `test/`, `tests/`, `__tests__/`, and `*.test.*` or `*.spec.*` files as tests, so a module file under a custom folder such as `spec/` that calls `UnitOfWork.atomic` still fails there.

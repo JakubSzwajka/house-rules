@@ -27,6 +27,7 @@ Hooks the app wires itself:
 
 | Option | Effect |
 | --- | --- |
+| `input` | A `Schema.Struct`, a `Schema.Union` of Structs, or `NoInput`. The handler gets the decoded type, one member for a Union. |
 | `permission` | `"resource:action"` or `"public"`. Required. Non-public adds `Grant` and `Forbidden`. |
 | `needsApproval` | `true` adds `Approval` and `ApprovalDenied`. |
 | `transactional` | `true` runs the handler in one unit of work, adds `UnitOfWork` and `UnitOfWorkFailed`. |
@@ -37,6 +38,7 @@ Hooks the app wires itself:
 
 - A handler is an Effect. Expected errors are `Schema.TaggedError` classes. Never `throw`, never `Effect.run*`.
 - No app calls `Tool.make` by hand. Surfaces come from contracts.
+- `toTool` sets `Tool.Strict`: an MCP call with a key the input does not take fails with `InvalidParams`. A Union input decodes through a gate that checks only its keys, then the real Union; MCP sees one merged object. Its JSON `required` errs strict: a key every member has is required unless one member is plainly optional for it on both sides, so a decoding default is still required there. The static `Encoded` type is the merged wire shape and keeps wire-side requiredness.
 - A `CallWatch` must return the exit of `run` unchanged.
 - The audit target is a field name, never a function. Only a string value is recorded, capped at 256 characters.
 - Review rule: `audit.target` names an id field (`tripId`), never free text (title, note). The type cannot prove it: `target: "note"` compiles and stores the note.

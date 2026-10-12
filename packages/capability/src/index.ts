@@ -29,6 +29,8 @@ export {
   NoInput,
   type PlainSchema,
   type StringKeyOf,
+  type StructInput,
+  type UnionInput,
   type UnitOfWorkRequirement,
 } from "./contract/contract.ts";
 export {
@@ -50,6 +52,7 @@ export {
 } from "./gates/policy.ts";
 export { newRequestId, requestIdHeader, requestIdOf, withRequestId } from "./call/request-id.ts";
 export { type ContractTool, type ToToolOptions, toTool } from "./contract/to-tool.ts";
+export { type MergedParameters, type ToolParameters } from "./contract/tool-parameters.ts";
 export {
   type Atomic,
   CurrentUnit,

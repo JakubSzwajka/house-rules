@@ -1,11 +1,24 @@
 import path from "node:path";
+import layoutOptionParsers from "./layout-option-parsers.cjs";
 import { importOf, staticPropertyName, unwrapExpression } from "./import-bindings.mjs";
 import { ruleDocsUrl } from "./rule-docs.mjs";
 import { declaredNames, emitsValue, isDeclaration } from "./runtime-declarations.mjs";
 
 const TESTING_NAME = /Testing$/u;
-// The same test paths the migrations bin and the capability preset's test globs name.
-const TEST_PATH = /(?:^|\/)(?:tests?|__tests__)\/|\.(?:test|spec)\.[^/]+$/u;
+const BUILT_IN_TEST_DIRS = new Set(["test", "tests", "__tests__"]);
+const BUILT_IN_FOLDERS = "tests/, test/ or __tests__/";
+
+// The test paths Dependency Cruiser's layout() names: the built-in folders, plus a custom testsDir.
+function testPathOf(testsDir) {
+  const custom = testsDir !== undefined && !BUILT_IN_TEST_DIRS.has(testsDir);
+  const dirs = custom
+    ? `tests?|__tests__|${layoutOptionParsers.escape(testsDir)}`
+    : "tests?|__tests__";
+  return {
+    pattern: new RegExp(`(?:^|/)(?:${dirs})/|[.](?:test|spec)[.][^/]+$`, "u"),
+    folders: custom ? `tests/, test/, __tests__/ or ${testsDir}/` : BUILT_IN_FOLDERS,
+  };
+}
 const PATH_SPECIFIER = /^(?:\.{1,2}(?:\/|$)|\/)/u;
 const MAX_ALIAS_HOPS = 8;
 
@@ -153,20 +166,34 @@ export const testingExportsOnlyInTestsRule = {
     },
     messages: {
       testingExport:
-        "{{name}} is a testing export. Import it only in a test file (under tests/, test/ or __tests__/, or named *.test.* or *.spec.*), or in testing code whose runtime exports are all named *Testing.",
+        "{{name}} is a testing export. Import it only in a test file (under {{folders}}, or named *.test.* or *.spec.*), or in testing code whose runtime exports are all named *Testing.",
       renamedTestingExport:
         "{{name}} is a testing export re-exported as {{exported}}. Keep a name that ends in Testing, so whoever imports it is checked.",
     },
-    schema: [],
+    schema: [
+      {
+        type: "object",
+        properties: {
+          // Same meaning as layout()'s testsDir: a relative folder path with no leading or trailing "/".
+          testsDir: { type: "string", pattern: "^[^/](?:.*[^/])?$" },
+        },
+        additionalProperties: false,
+      },
+    ],
   },
 
   create(context) {
     const { sourceCode } = context;
-    if (TEST_PATH.test(relativeFilename(context))) return {};
+    const testPath = testPathOf(context.options[0]?.testsDir);
+    if (testPath.pattern.test(relativeFilename(context))) return {};
     if (isTestingOnlyFile(sourceCode.ast)) return {};
 
     const report = (node, name) =>
-      context.report({ node, messageId: "testingExport", data: { name } });
+      context.report({
+        node,
+        messageId: "testingExport",
+        data: { name, folders: testPath.folders },
+      });
     const reportPattern = (pattern, init) => {
       if (pattern.type !== "ObjectPattern" || !isModuleObject(init, sourceCode)) return;
       for (const property of pattern.properties) {
