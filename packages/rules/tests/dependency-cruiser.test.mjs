@@ -18,6 +18,8 @@ const RULES = [
   "delivery-does-not-import-server",
   "server-does-not-import-delivery",
   "use-cases-do-not-import-outer-layers",
+  "composition-imports-packages-only",
+  "use-cases-do-not-import-composition",
   "no-unresolved-deep-package-imports",
   "production-does-not-import-tests",
   "tests-live-in-tests-dir",
@@ -99,7 +101,7 @@ test("layout() is exported for require and import, returns a fresh config, and v
     "(?:^|/)(?:tests?|__tests__|spec)(?:/|$)|[.](?:test|spec)[.][^/]+$",
   );
   assert.deepEqual(byName["app-code-in-layers"].module.pathNot.slice(0, 2), [
-    "^services/[^/]+/src/(?:delivery|server|application)/",
+    "^services/[^/]+/src/(?:delivery|server|application|composition)/",
     "^services/[^/]+/src/(?:main[.]ts|index[.]ts)$",
   ]);
   assert.equal(
@@ -176,7 +178,7 @@ test("the preset loads only its own sibling files in src, never ESLint or node_m
     JSON.parse(loaded)
       .map((file) => path.relative(sourceDirectory, file))
       .sort(),
-    ["dependency-cruiser.cjs", "layout-option-parsers.cjs", "layout-patterns.cjs"],
+    ["dependency-cruiser.cjs", "hosts.cjs", "layout-option-parsers.cjs", "layout-patterns.cjs"],
   );
 });
 
@@ -235,14 +237,29 @@ test("appEntryFiles changes which files may sit directly in src/", async () => {
   ]);
 });
 
-test("use-cases-do-not-import-use-cases reports imports across use-case entries only", async () => {
+test("use-cases-do-not-import-use-cases reports use-case entries reached from another entry only", async () => {
   const violations = await violatedRules(
     "violations/use-cases-do-not-import-use-cases",
     layout({ scope: "@acme/" }),
   );
+  // book.ts reaches cancel/policy.ts through cancel/index.ts.
   assert.deepEqual(fromPaths(violations), [
     "use-cases-do-not-import-use-cases: apps/web/src/use-cases/book.ts -> apps/web/src/use-cases/cancel/index.ts",
+    "use-cases-do-not-import-use-cases: apps/web/src/use-cases/book.ts -> apps/web/src/use-cases/cancel/policy.ts",
     "use-cases-do-not-import-use-cases: apps/web/src/use-cases/refund.ts -> apps/web/src/use-cases/cancel/policy.ts",
+  ]);
+});
+
+// Each app in bridges/ reaches a forbidden layer only through a file that may import every layer:
+// src/index.ts, src/main.ts, or a file beside src/. Rules that checked direct imports only passed all of them.
+test("the layer rules follow re-exports through entry files and files outside the layers", async () => {
+  assert.deepEqual(fromPaths(await violatedRules("bridges", layout({ scope: "@acme/" }))), [
+    "delivery-does-not-import-server: apps/delivery-to-server/src/delivery/route.ts -> apps/delivery-to-server/src/server/runtime.ts",
+    "delivery-does-not-import-server: apps/outside-src/src/delivery/route.ts -> apps/outside-src/src/server/runtime.ts",
+    "server-does-not-import-delivery: apps/server-to-delivery/src/server/loop.ts -> apps/server-to-delivery/src/delivery/route.ts",
+    "use-cases-do-not-import-composition: apps/use-case-to-composition/src/use-cases/show.ts -> apps/use-case-to-composition/src/composition/index.ts",
+    "use-cases-do-not-import-outer-layers: apps/use-case-to-outer/src/use-cases/book.ts -> apps/use-case-to-outer/src/delivery/route.ts",
+    "use-cases-do-not-import-use-cases: apps/use-case-to-outer/src/use-cases/book.ts -> apps/use-case-to-outer/src/use-cases/cancel.ts",
   ]);
 });
 
@@ -278,23 +295,4 @@ test("ownerlessNames replaces the default names", async () => {
     "no-ownerless-files: packages/a/src/errors/booking-not-found.ts",
     "no-ownerless-files: packages/a/src/internal/watch.ts",
   ]);
-});
-
-test("renaming layers.useCases moves the use-cases rules to the new folder", async () => {
-  assert.deepEqual(fromPaths(await violatedRules("renamed-layers", layout({ scope: "@acme/" }))), [
-    "app-code-in-layers: apps/web/src/application/show.ts",
-  ]);
-  assert.deepEqual(
-    await violatedRules(
-      "renamed-layers",
-      layout({ scope: "@acme/", layers: { useCases: "application" } }),
-    ),
-    [
-      {
-        rule: "use-cases-do-not-import-outer-layers",
-        from: "apps/web/src/application/show.ts",
-        to: "apps/web/src/delivery/route.ts",
-      },
-    ],
-  );
 });

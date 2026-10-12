@@ -58,7 +58,7 @@ test("web.json extends strict.json with DOM libs and bundler resolution, and no 
 });
 
 test("TypeScript resolves every tsconfig preset through package exports", async () => {
-  for (const preset of ["strict", "effect", "web"]) {
+  for (const preset of ["strict", "effect", "web", "next"]) {
     const tsconfig = {
       extends: `@house-rules/rules/tsconfig/${preset}.json`,
       include: ["*.ts"],
@@ -135,6 +135,44 @@ test("a UI file that needs DOM and bundler resolution passes on web.json and fai
       },
     );
   }
+});
+
+// Next 16 rewrites a tsconfig only when it has no `extends`, so these options live in the preset.
+test("next.json extends web.json with the options and plugin Next.js needs", async () => {
+  const next = await readJson("tsconfig/next.json");
+  assert.equal(next.extends, "./web.json");
+  assert.deepEqual(next.compilerOptions, {
+    jsx: "react-jsx",
+    allowJs: true,
+    esModuleInterop: true,
+    resolveJsonModule: true,
+    plugins: [{ name: "next" }],
+  });
+  const manifest = await readJson("package.json");
+  assert.equal(manifest.exports["./tsconfig/next.json"], "./tsconfig/next.json");
+  const nextFiles = (preset) => ({
+    ...WEB_FILES,
+    "src/data.json": '{ "title": "Ready" }\n',
+    "src/legacy.js": "export const legacy = 1;\n",
+    "src/view.ts":
+      'import data from "./data.json";\nimport { legacy } from "./legacy.js";\nexport const view = `${data.title} ${legacy}`;\n',
+    "tsconfig.json": { extends: `@house-rules/rules/tsconfig/${preset}.json`, include: ["src"] },
+  });
+  await withConsumer(nextFiles("web"), async (run) => {
+    const result = run(tsc7, ["--project", "tsconfig.json"]);
+    assert.match(result.output, /view\.ts\(2,\d+\): error TS7016/);
+  });
+  await withConsumer(nextFiles("next"), async (run) => {
+    const shown = run(tsc7, ["--showConfig"]);
+    assert.equal(shown.status, 0, shown.output);
+    const { compilerOptions } = JSON.parse(shown.output);
+    assert.deepEqual(compilerOptions.lib, ["es2023", "dom", "dom.iterable"]);
+    assert.equal(compilerOptions.moduleResolution, "bundler");
+    assert.equal(compilerOptions.allowJs, true);
+    assert.equal(compilerOptions.exactOptionalPropertyTypes, true);
+    const result = run(tsc7, ["--project", "tsconfig.json"]);
+    assert.equal(result.status, 0, result.output);
+  });
 });
 
 test("web.json keeps every strict flag", async () => {

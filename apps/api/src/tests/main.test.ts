@@ -1,7 +1,7 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { api, openApi } from "../main.js";
-import { app } from "../server/composition.js";
+import { app } from "../composition/index.js";
 
 afterAll(() => api.dispose().then(app.dispose));
 

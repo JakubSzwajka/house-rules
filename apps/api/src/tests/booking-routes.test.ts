@@ -8,7 +8,7 @@ import { afterAll, expect, it } from "@effect/vitest";
 import { composition, Grant, toFetchHandler } from "@house-rules/capability";
 import { Context, Effect, Layer } from "effect";
 import { bookingRoutes } from "../delivery/http/routes.js";
-import { bookingViews } from "../server/composition.js";
+import { bookingViews } from "../composition/views.js";
 
 const bookings = Bookings.fromRecords([{ id: "b-1", guestName: "Ada" }]);
 const reader = Grant.layerFromPermissions([BookingPermissions.read]);

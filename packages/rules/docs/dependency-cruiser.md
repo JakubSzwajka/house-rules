@@ -2,7 +2,7 @@
 
 Import path: `@house-rules/rules/dependency-cruiser`
 
-This preset is not an ESLint preset. It is a [Dependency Cruiser](https://github.com/sverweij/dependency-cruiser) configuration for a workspace monorepo with apps under `apps/` and packages under `packages/`. The `layout(options)` factory returns a whole config object, `forbidden` rules and `options` together, that a `.dependency-cruiser.cjs` file can export as-is. `tests/fixtures/dependency-cruiser/layout-hosti.snapshot.json` is a snapshot of `layout({ scope: "@hosti/" })`, and a test compares them. The first 13 rules are drunk-cat-stack's hand-written `.dependency-cruiser.cjs` from before 0.4.0. Version 0.4.0 adds three rules, 0.7.0 adds `adapter-imports-only-in-adapters` and keeps `node_modules` in the graph, 0.8.0 runs that rule at error and lets `adapterImports` name workspace packages, and 0.10.0 adds the package layout rules (`package-root-files`, `domain-does-not-import-adapters`, `subjects-do-not-import-package-root`, and mechanism names in `no-ownerless-files`). Version 0.11.0 adds `no-package-cycles` to the separate `house-rules-layout` bin. `no-subject-folder-cycles` also runs there, so the Dependency Cruiser rule set still contains 20 named rules. Version 0.12.0 adds the `serverEntryFiles` and `generatedDeclarationFiles` options for web apps; both default to `[]`, which leaves the config byte-identical to 0.11.0. See [Web apps](#web-apps). Version 0.14.0 adds `contract-entry-is-browser-safe` and its `trustedContractPackages` option, and lets a package declare one more entry, `src/contract.ts`, so the config holds 21 named rules. See [Contract entry](#contract-entry). Version 0.15.0 trusts an installed contract entry in its built form, `dist/contract.js`, as the registry ships it, and `house-rules-layout` checks `publishConfig.exports` too.
+This preset is not an ESLint preset. It is a [Dependency Cruiser](https://github.com/sverweij/dependency-cruiser) configuration for a workspace monorepo with apps under `apps/` and packages under `packages/`. The `layout(options)` factory returns a whole config object, `forbidden` rules and `options` together, that a `.dependency-cruiser.cjs` file can export as-is. `tests/fixtures/dependency-cruiser/layout-hosti.snapshot.json` is a snapshot of `layout({ scope: "@hosti/" })`, and a test compares them. The first 13 rules are drunk-cat-stack's hand-written `.dependency-cruiser.cjs` from before 0.4.0. Version 0.4.0 adds three rules, 0.7.0 adds `adapter-imports-only-in-adapters` and keeps `node_modules` in the graph, 0.8.0 runs that rule at error and lets `adapterImports` name workspace packages, and 0.10.0 adds the package layout rules (`package-root-files`, `domain-does-not-import-adapters`, `subjects-do-not-import-package-root`, and mechanism names in `no-ownerless-files`). Version 0.11.0 adds `no-package-cycles` to the separate `house-rules-layout` bin. `no-subject-folder-cycles` also runs there, so the Dependency Cruiser rule set still contains 20 named rules. Version 0.12.0 adds the `serverEntryFiles` and `generatedDeclarationFiles` options for web apps; both default to `[]`, which leaves the config byte-identical to 0.11.0. See [Web apps](#web-apps). Version 0.14.0 adds `contract-entry-is-browser-safe` and its `trustedContractPackages` option, and lets a package declare one more entry, `src/contract.ts`, so the config holds 21 named rules. See [Contract entry](#contract-entry). Version 0.15.0 trusts an installed contract entry in its built form, `dist/contract.js`, as the registry ships it, and `house-rules-layout` checks `publishConfig.exports` too. Version 0.16.0 is breaking. It adds the composition layer, `src/composition/`, with two rules, `composition-imports-packages-only` and `use-cases-do-not-import-composition`, so the config holds 23 named rules. It removes `serverEntryFiles`, and adds an opt-in host preset, `layout({ host: "next" })`. Without `host`, the config differs from 0.15.0 by the composition layer, the removed `serverEntryFiles`, and five rules that now follow reachability: `delivery-does-not-import-server`, `server-does-not-import-delivery`, `use-cases-do-not-import-outer-layers`, `composition-imports-packages-only` and `use-cases-do-not-import-composition`. See [Composition](#composition), [Web apps](#web-apps) and [Upgrading to 0.16.0](#upgrading-to-0160).
 
 ```js
 // .dependency-cruiser.cjs
@@ -15,7 +15,7 @@ Run it with the Dependency Cruiser CLI:
 npx depcruise --config .dependency-cruiser.cjs apps packages
 ```
 
-The file is CommonJS and loads only its two sibling files in the same folder, `layout-option-parsers.cjs` and `layout-patterns.cjs`, which ship with it. It exports `layout` and `DEFAULT_ADAPTER_IMPORTS`, the default `adapterImports` list. `require()` and `import` both work, and neither loads ESLint, `@eslint/css`, `@eslint/markdown`, or anything from `node_modules`. Dependency Cruiser is an optional peer dependency (`^18.4.0`), so install it yourself:
+The file is CommonJS and loads only its three sibling files in the same folder, `layout-option-parsers.cjs`, `layout-patterns.cjs` and `hosts.cjs`, which ship with it. It exports `layout` and `DEFAULT_ADAPTER_IMPORTS`, the default `adapterImports` list. `require()` and `import` both work, and neither loads ESLint, `@eslint/css`, `@eslint/markdown`, or anything from `node_modules`. Dependency Cruiser is an optional peer dependency (`^18.4.0`), so install it yourself:
 
 ```sh
 npm install --save-dev --save-exact dependency-cruiser@18.4.0
@@ -27,6 +27,7 @@ npm install --save-dev --save-exact dependency-cruiser@18.4.0
 apps/<app>/src/delivery/       delivery layer
 apps/<app>/src/server/         server layer
 apps/<app>/src/use-cases/      use-cases layer, one use-case per top-level entry
+apps/<app>/src/composition/    composition layer: the one composition root, its callers and views
 apps/<app>/src/main.ts         entry files, the only code directly in src/
 packages/<pkg>/src/index.ts    the one public entry of a package
 packages/<pkg>/src/facade.ts   the service and its layers, wiring the default adapters
@@ -48,9 +49,11 @@ Every folder name above is an option. The `src` segment is fixed. Every file but
 | `layers.delivery` | `"delivery"` | Delivery folder under `<app>/src/`. |
 | `layers.server` | `"server"` | Server folder under `<app>/src/`. |
 | `layers.useCases` | `"use-cases"` | Use-cases folder under `<app>/src/`. |
+| `layers.composition` | `"composition"` | Composition folder under `<app>/src/`: the app's one composition root. Since 0.16.0. See [Composition](#composition). |
+| `host` | none | A host preset that names its framework's files, so the app names none of them. `"next"` is the only host. Leaving it out changes nothing. See [Web apps](#web-apps). |
 | `publicEntry` | `"src/index.ts"` | The only file of a package that another workspace may import. |
 | `internalDir` | `"src/internal"` | Private package code that tests may not import. Subject folders replace it; see [Package layout](#package-layout). |
-| `appEntryFiles` | `["main.ts", "index.ts"]` | File names that may sit directly in `<app>/src/`. Names, not paths. `[]` allows none. |
+| `appEntryFiles` | `["main.ts", "index.ts"]` | File names that may sit directly in `<app>/src/`. Names, not paths. `[]` allows none. A `host` adds its own entry files to this list. |
 | `ownerlessNames` | `["utils", "helpers", "misc"]` | File and folder names that `no-ownerless-files` rejects. A name matches `utils.ts`, `utils.test.ts`, `utils/`, but not `string-utils.ts` or `utilities.ts`. Must not be empty. |
 | `mechanismNames` | `["types", "models", "schemas", "drafts", "errors", "validate", "validation", "constants", "interfaces", "internal"]` | File and folder names that `no-ownerless-files` rejects inside a package under `packagesDir`, not in apps. Matched by whole name, like `ownerlessNames`, so `item-errors.ts` passes, and in any letter case, so `Types.ts` and `Errors/` fail. (`ownerlessNames` stay case-sensitive.) Replaces the default list. `[]` turns the check off. |
 | `packageRootFiles` | `["index.ts", "facade.ts", "storage.ts"]` | File names that may sit directly in `<package>/src/`. Names, not paths. Must not be empty. |
@@ -58,16 +61,15 @@ Every folder name above is an option. The `src` segment is fixed. Every file but
 | `adaptersDir` | `"src/adapters"` | Package code that may import `adapterImports`. Tests under it may too. |
 | `adapterImports` | `DEFAULT_ADAPTER_IMPORTS`: `["effect/unstable/sql", "@effect/sql-*", "@effect/platform-*"]` | Bare import specifiers that only adapter code may import. A `*` matches within one path segment. An entry in `scope`, such as `"@acme/db"`, names a workspace package too. Replaces the default list, so spread `DEFAULT_ADAPTER_IMPORTS` to add to it. Must not be empty. A scoped glob exempts every matching sibling's own folder; see [Adapter imports](#adapter-imports). |
 | `adapterPackages` | `[]` | Package folder names under `packagesDir` that are adapters by nature, such as plumbing (`"db"`) or the migration runner (`"migrations"`). Every file in them may import `adapterImports`. Names, not paths. |
-| `serverEntryFiles` | `[]` | Files under `<app>/src/<layers.server>/` that delivery may import, such as `"runtime.ts"` or `"runtime/index.ts"`: the server runtime that runs use-cases. Paths relative to the server folder. Every other server file stays closed to delivery. See [Web apps](#web-apps). |
-| `generatedDeclarationFiles` | `[]` | Declaration files a framework generates, such as `"next-env.d.ts"`, whose imports `no-unresolved-imports` skips. Paths relative to each app folder, each ending in `.d.ts`, `.d.mts` or `.d.cts`. See [Web apps](#web-apps). |
+| `generatedDeclarationFiles` | `[]` | Declaration files a framework generates, such as `"vite-env.d.ts"`, whose imports `no-unresolved-imports` skips. Paths relative to each app folder, each ending in `.d.ts`, `.d.mts` or `.d.cts`. A `host` adds its own, such as Next's `next-env.d.ts`. See [Web apps](#web-apps). |
 | `trustedContractPackages` | `[]` | Installed packages whose `./contract` entry (`src/contract.ts`, or its build `dist/contract.js`) a contract entry may import. `@house-rules/capability` is always trusted. You vouch for each name: the rule cannot look inside `node_modules`. See [Contract entry](#contract-entry). |
 | `testsDir` | `"tests"` | Name of the folder every test file must sit in directly, somewhere under `<workspace>/src/`. It also counts as a test path for `production-does-not-import-tests`, next to `test`, `tests`, and `__tests__`. |
 
-Option values are folder names and paths, not regular expressions. The factory escapes them. Each layer root ends in `(?:/|$)`, so `delivery-legacy` is not `delivery`. An unknown option or layer name throws, and so does a path that is empty or starts or ends with `/`. `adapterImportsSeverity` was removed in 0.8.0. Passing it throws, because `adapter-imports-only-in-adapters` is always an error: a repo that breaks it fixes the imports by hand.
+Option values are folder names and paths, not regular expressions. The factory escapes them. Each layer root ends in `(?:/|$)`, so `delivery-legacy` is not `delivery`. An unknown option or layer name throws, and so does a path that is empty or starts or ends with `/`. `adapterImportsSeverity` was removed in 0.8.0. Passing it throws, because `adapter-imports-only-in-adapters` is always an error: a repo that breaks it fixes the imports by hand. `serverEntryFiles` was removed in 0.16.0. Passing it throws too, even as `[]`, and the error says what replaces it: see [Upgrading to 0.16.0](#upgrading-to-0160). An unknown `host` throws and names the known hosts.
 
 ## Rules
 
-Each rule carries a `comment` with `See https://stack.kubaszwajka.com/rules/#<rule name>`, which only the `err-long` reporter prints under a violation. The default `err` reporter omits it, so run `depcruise --output-type err-long`, as the root `deps` script does. All 21 named Dependency Cruiser rules run at error level. None can be turned down to a warning through `layout()`. `no-subject-folder-cycles` and `no-package-cycles` run separately through the `house-rules-layout` bin.
+Each rule carries a `comment` with `See https://stack.kubaszwajka.com/rules/#<rule name>`, which only the `err-long` reporter prints under a violation. The default `err` reporter omits it, so run `depcruise --output-type err-long`, as the root `deps` script does. All 23 named Dependency Cruiser rules run at error level. None can be turned down to a warning through `layout()`. `no-subject-folder-cycles` and `no-package-cycles` run separately through the `house-rules-layout` bin.
 
 | Rule | Reports |
 | --- | --- |
@@ -77,16 +79,18 @@ Each rule carries a `comment` with `See https://stack.kubaszwajka.com/rules/#<ru
 | `packages-imported-by-name` | A relative-path import into another package. Import it by its package name. |
 | `packages-public-entry-only` | Another workspace reaching a package file other than its `publicEntry` or its contract entry, `src/contract.ts`. |
 | `contract-entry-is-browser-safe` | A package's `src/contract.ts` that reaches, directly or through other files, anything outside the browser-safe set. Always on, at error; `trustedContractPackages` only adds installed contract entries you vouch for. See [Contract entry](#contract-entry). |
-| `delivery-does-not-import-server` | Delivery code importing server code. |
-| `server-does-not-import-delivery` | Server code importing delivery code. |
-| `use-cases-do-not-import-outer-layers` | Use-cases code importing delivery or server code. |
+| `delivery-does-not-import-server` | Delivery code reaching server code, directly or through any other file, such as `src/index.ts` re-exporting it. No option opens it: delivery reaches the app's services through `composition/` and the delivery adapters. See [Reachability](#reachability). |
+| `server-does-not-import-delivery` | Server code reaching delivery code, directly or through any other file. |
+| `use-cases-do-not-import-outer-layers` | Use-cases code reaching delivery or server code, directly or through any other file. |
+| `composition-imports-packages-only` | A file under `<app>/src/composition/` importing any app file outside `composition/`: delivery, server, a use-case, an entry file. Its tests count too. Packages and installed modules are fine. See [Composition](#composition). |
+| `use-cases-do-not-import-composition` | A use-case reaching `composition/`, directly or through any other file. A use-case's test may import it, to share the app's layers. See [Composition](#composition). |
 | `no-unresolved-deep-package-imports` | An unresolved deep import such as `@acme/bookings/internal/x`. |
 | `production-does-not-import-tests` | Source code under `src/` importing a test file or anything in a test folder. |
 | `no-unresolved-imports` | Any import that does not resolve, including a workspace package the importer does not declare. |
 | `tests-live-in-tests-dir` | A `*.test.*` or `*.spec.*` file in a workspace that does not sit directly in a `testsDir` folder under `src/`. A package-root `tests/`, a subfolder of `tests/`, and `unit-tests/` all fail. |
 | `tests-do-not-import-internals` | A test file, or a file in a test folder, importing `packages/<pkg>/src/internal/`. Test through the public entry. |
-| `app-code-in-layers` | A file under `<app>/src/` outside the three layer folders, unless it is an `appEntryFiles` file directly in `src/`. Test files and files in test folders are left to the test rules. |
-| `use-cases-do-not-import-use-cases` | A use-case importing another use-case. A use-case is one top-level entry under `use-cases/`: a file, or a folder with everything in it. Imports inside one entry are fine. Test files are never the importer, and a test path is never the target. |
+| `app-code-in-layers` | A file under `<app>/src/` outside the four layer folders (delivery, server, use-cases, composition), unless it is an `appEntryFiles` file directly in `src/`. Test files and files in test folders are left to the test rules. |
+| `use-cases-do-not-import-use-cases` | A use-case reaching another use-case, directly or through any other file. A use-case is one top-level entry under `use-cases/`: a file, or a folder with everything in it. Imports inside one entry are fine. Test files are never the importer, and a test path is never the target. |
 | `no-ownerless-files` | A file or folder named after one of `ownerlessNames`, anywhere under `appsDir` or `packagesDir`, or after one of `mechanismNames` inside a package. Name the file after what it owns instead. |
 | `package-root-files` | A file directly in `<package>/src/` that is not one of `packageRootFiles` or `contract.ts`. Folders are fine: they are subject folders, `adapters/`, or `tests/`. Test files are left to the test rules. |
 | `domain-does-not-import-adapters` | Package code may import its own `adaptersDir` only from the `publicEntry`, `facadeFile`, or within `adaptersDir`; test files may also import `adaptersDir/tests/`, but no other domain file may. Tests still cannot import adapter production code under `adaptersDir`. Another package's adapters are already closed by `packages-public-entry-only`. Several rules share this name, so select them with `filter`, not `find`. |
@@ -94,6 +98,12 @@ Each rule carries a `comment` with `See https://stack.kubaszwajka.com/rules/#<ru
 | `no-subject-folder-cycles` | Subject folders of one package importing each other in a cycle, even when no file-level cycle exists. Test paths do not contribute edges. A Node check; see [Package layout](#package-layout). |
 | `no-package-cycles` | Workspace packages importing each other in a production cycle. Test paths do not contribute edges. A Node check; see [Package layout](#package-layout). |
 | `adapter-imports-only-in-adapters` | A file under `<package>/src/`, outside `adaptersDir` and outside the `adapterPackages`, that imports one of `adapterImports`. A module's domain code talks to its storage port; the SQL lives in its adapters. Tests outside `adaptersDir` count too: run store tests from `src/adapters/tests/`. A package may import its own files, even when `adapterImports` names it; the exception names that package's folder exactly. Apps are not checked, so a server may import `@effect/platform-node`. Several rules share this name, so select them with `filter`, not `find`; see [Adapter imports](#adapter-imports). |
+
+### Reachability
+
+Entry files, such as `src/main.ts`, `src/index.ts` and a host's `proxy.ts`, may import every layer. So a direct-import check has a bridge: `delivery/route.ts -> src/index.ts -> server/runtime.ts` imports no server file, yet runs one. The five layer rules above therefore set `reachable: true`. They report every forbidden file the importer reaches through any chain of imports, whatever sits in between: an entry file, a file beside `src/`, or one not yet thought of. Banning imports of entry files would close only the bridges someone listed.
+
+A valid app never has such a path. Composition imports no app file, a use-case imports only its own entry and packages, and packages never import apps. So delivery reaches use-cases, composition and packages, and never the server; `main.ts` still wires all four. A report lists each forbidden file the importer reaches, so one bad import can give several lines. `tests/fixtures/dependency-cruiser/bridges/` holds one app per bridge.
 
 A deep import that does not resolve fires both `no-unresolved-deep-package-imports` and `no-unresolved-imports`. That is intended: the first names the cause.
 
@@ -150,24 +160,69 @@ config.forbidden.push({
 module.exports = config;
 ```
 
+## Composition
+
+An app keeps its one composition root in `src/composition/`: the app layer, `composition({ layer, caller, views })` from `@house-rules/capability`, its callers and its views. Everything else reaches the app's services through it.
+
+```text
+apps/<app>/src/
+  composition/   app = composition({ layer, caller, views }); callers; views
+  use-cases/     capabilities
+  delivery/      routes, MCP, pages (Next.js keeps src/app/ as its delivery folder)
+  server/        host entry for a plain Node app, background loops
+
+  delivery ──> composition <── server          composition ──> packages only
+  tests    ──> composition                     use-cases ─X─> composition
+```
+
+- `composition-imports-packages-only`: the composition imports packages and installed modules only, never another app file. It cannot reach a route, a server loop or a use-case, so wiring never depends on what it wires. Its own tests follow the rule too; a test that needs a use-case and the composition sits in `src/tests/` or `use-cases/tests/`.
+- `use-cases-do-not-import-composition`: a use-case yields services and never picks their layers. Its test may import `composition/`, so use-case tests share the app's layers instead of copying them.
+- Delivery, server and every test may import `composition/`. `app-code-in-layers` counts `composition/` as a layer.
+
+`layers.composition` renames the folder. `tests/fixtures/dependency-cruiser/node-app/` is a plain Node app with a composition folder and no host, and it passes with no option.
+
 ## Web apps
 
-A web framework, such as Next.js, Remix or Astro, runs pages and routes in the delivery layer, with no separate entry point that joins delivery and the composition root. Two options let such an app keep every layout rule:
+A web framework, such as Next.js, Remix or Astro, runs pages and routes in the delivery layer. A page reaches a use-case through `composition/` and the delivery adapters: `call(app, capability, input, incoming)` for server components, `toFetchHandler` for routes, `toMcpHandler` for MCP. It never imports the server folder.
 
-- `serverEntryFiles` names the server files a page or route may import: the runtime that provides the root's layer and runs a use-case. `delivery-does-not-import-server` then skips those exact paths, and only those. Delivery importing any other server file, such as the database pool, still fails. `server-does-not-import-delivery` does not change.
-- `generatedDeclarationFiles` names declaration files the framework writes, which import build output that does not exist before a build. Next.js writes `next-env.d.ts` with `import "./.next/types/routes.d.ts"`. `no-unresolved-imports` skips imports from those exact files, and only that rule.
+`generatedDeclarationFiles` names declaration files the framework writes, which import build output that does not exist before a build. `no-unresolved-imports` skips imports from those exact files, and only that rule. Paths are matched exactly, so `next-env.d.ts` does not cover `src/next-env.d.ts`. `tests/fixtures/dependency-cruiser/web-app/` is the fixture.
+
+### The Next.js host
+
+`layout({ host: "next" })` knows Next's own files, so a Next app sets no option or exclude for them:
+
+| Next file | What the host does | Bend it replaces |
+| --- | --- | --- |
+| `src/app/` | The delivery folder: `layers.delivery` defaults to `"app"`. An app's own `layers.delivery` still wins. | `layers: { delivery: "app" }` |
+| `src/proxy.ts`, `src/instrumentation.ts` | Entry files, added to the app's `appEntryFiles`. | `appEntryFiles: ["proxy.ts", "instrumentation.ts"]` |
+| `next-env.d.ts` | A generated declaration file, added to the app's `generatedDeclarationFiles`. | `generatedDeclarationFiles: ["next-env.d.ts"]` |
+| `.next/` | Build output, added to `options.exclude` next to `dist` and `coverage`. | A hand-edited `exclude` |
 
 ```js
 // .dependency-cruiser.cjs, a Next.js app at apps/web
 module.exports = require("@house-rules/rules/dependency-cruiser").layout({
   scope: "@acme/",
-  layers: { delivery: "app" },
-  serverEntryFiles: ["runtime.ts"],
-  generatedDeclarationFiles: ["next-env.d.ts"],
+  host: "next",
 });
 ```
 
-An app whose framework generates nothing, such as a Vite app with a hand-written `src/vite-env.d.ts`, sets only `serverEntryFiles`, or neither. Both options apply to every app under `appsDir`. Paths are matched exactly, so `runtime.ts` does not cover `runtime/index.ts`, and `next-env.d.ts` does not cover `src/next-env.d.ts`. `tests/fixtures/dependency-cruiser/web-app/` is the fixture for both.
+The host changes nothing else: every rule keeps its name, its order and its shape, apart from the folder, file and exclude patterns above. `tests/fixtures/dependency-cruiser/layout-hosti-next.snapshot.json` is a snapshot of `layout({ scope: "@hosti/", host: "next" })`, and `tests/fixtures/dependency-cruiser/next-app/` is a Next-shaped app that fails six times without the host and passes with it. `appEntryFiles` and `generatedDeclarationFiles` stay general options for other hosts, such as a Vite app's `vite-env.d.ts`. The same host name turns on the ESLint side in `shadcn({ host: "next" })`, see `shadcn.md`; `configs.nextHost` from the package root makes ESLint ignore `.next/` and `next-env.d.ts`; and the TypeScript side is `tsconfig/next.json`, see [tsconfig.md](tsconfig.md#nextjson).
+
+## Upgrading to 0.16.0
+
+0.16.0 removes `serverEntryFiles`. Passing it throws:
+
+```text
+layout(): serverEntryFiles was removed in 0.16.0. Delivery no longer imports a server runtime. ...
+```
+
+1. [ ] Move the app layer, the callers and the views into `src/composition/`, and export `app = composition({ layer, caller, views })` from `@house-rules/capability`. The composition may import packages only.
+2. [ ] Replace each page or route that ran a use-case on the server runtime with a delivery adapter over `app`: `call` in a server component or server action, `toFetchHandler` for HTTP routes, `toMcpHandler` for MCP.
+3. [ ] Delete the runtime file from `src/server/`, and drop `serverEntryFiles` from `layout()`.
+4. [ ] Move shared test layers, such as identity-backed holders, into `composition/`; use-case tests may import it.
+5. [ ] A Next.js app: replace `layers: { delivery: "app" }`, the Next entry files, `next-env.d.ts` and the `.next` exclude with `host: "next"`, and extend `tsconfig/next.json`.
+
+For an app without `host`, two other things differ from 0.15.0. The composition layer is new, and an app without `src/composition/` never meets it. The five layer rules now follow reachability, see [Reachability](#reachability): a layer that reached a forbidden layer through `src/index.ts` or another file passed before and fails now. Remove the bridge import; it is a bug the old check missed.
 
 ## Adapter imports
 

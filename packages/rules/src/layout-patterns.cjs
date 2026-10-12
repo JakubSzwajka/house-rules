@@ -10,6 +10,7 @@ const {
   pathOption,
   scopeName,
 } = require("./layout-option-parsers.cjs");
+const { hostOption } = require("./hosts.cjs");
 
 const DEFAULTS = {
   appsDir: "apps",
@@ -38,8 +39,8 @@ const DEFAULT_NAME_LISTS = {
   packageRootFiles: ["index.ts", "facade.ts", "storage.ts"],
   adapterPackages: [],
 };
-// Path lists are empty by default, so a layout that does not name them is byte-identical to 0.11.0.
-const DEFAULT_PATH_LISTS = { serverEntryFiles: [], generatedDeclarationFiles: [] };
+// Empty by default, so a layout that names none keeps the rule's 0.11.0 shape.
+const DEFAULT_PATH_LISTS = { generatedDeclarationFiles: [] };
 const DECLARATION_FILE = /[.]d[.][cm]?ts$/u;
 const DEFAULT_ADAPTER_IMPORTS = Object.freeze([
   "effect/unstable/sql",
@@ -48,6 +49,7 @@ const DEFAULT_ADAPTER_IMPORTS = Object.freeze([
 ]);
 const OPTION_NAMES = new Set([
   "scope",
+  "host",
   "layers",
   "adapterImports",
   "trustedContractPackages",
@@ -81,11 +83,18 @@ function trustedContractPackagesOption(names) {
   return [...TRUSTED_CONTRACT_PACKAGES, ...names].map(escape);
 }
 
+const REMOVED_OPTIONS = {
+  adapterImportsSeverity:
+    "layout(): adapterImportsSeverity was removed in 0.8.0. adapter-imports-only-in-adapters is always an error: move the import into an adapter, or name the package in adapterPackages.",
+  serverEntryFiles:
+    'layout(): serverEntryFiles was removed in 0.16.0. Delivery no longer imports a server runtime. Move the app layer, its callers and its views into src/composition/ as composition({ layer, caller, views }) from @house-rules/capability; delivery may import src/composition/ and runs use-cases through toFetchHandler, toMcpHandler or call. Then delete the option. The upgrade note is in @house-rules/rules docs/dependency-cruiser.md, "Upgrading to 0.16.0".',
+};
+
+const unique = (values) => [...new Set(values)];
+
 function patterns(options) {
-  if (Object.hasOwn(options, "adapterImportsSeverity")) {
-    throw new TypeError(
-      "layout(): adapterImportsSeverity was removed in 0.8.0. adapter-imports-only-in-adapters is always an error: move the import into an adapter, or name the package in adapterPackages.",
-    );
+  for (const [name, message] of Object.entries(REMOVED_OPTIONS)) {
+    if (Object.hasOwn(options, name)) throw new TypeError(message);
   }
   const unknown = Object.keys(options).filter((name) => !OPTION_NAMES.has(name));
   if (unknown.length) {
@@ -94,19 +103,19 @@ function patterns(options) {
     );
   }
   const settings = { ...DEFAULTS, ...options };
+  const host = hostOption(settings.host, "layout()");
   const scope = scopeName(settings.scope);
   const apps = pathOption(settings.appsDir, "appsDir");
   const packages = pathOption(settings.packagesDir, "packagesDir");
   const tests = pathOption(settings.testsDir, "testsDir");
-  const layers = layerOptions(settings.layers ?? {});
+  const layers = layerOptions(settings.layers ?? {}, host ? { delivery: host.deliveryLayer } : {});
   const layerRoot = (layer) => `^${apps}/[^/]+/src/${layer}(?:/|$)`;
-  const entryFiles = nameListOption(
-    settings.appEntryFiles ?? DEFAULT_NAME_LISTS.appEntryFiles,
-    "appEntryFiles",
-    {
+  const entryFiles = unique([
+    ...nameListOption(settings.appEntryFiles ?? DEFAULT_NAME_LISTS.appEntryFiles, "appEntryFiles", {
       allowEmpty: true,
-    },
-  );
+    }),
+    ...(host ? host.appEntryFiles.map(escape) : []),
+  ]);
   const ownerless = nameListOption(
     settings.ownerlessNames ?? DEFAULT_NAME_LISTS.ownerlessNames,
     "ownerlessNames",
@@ -135,12 +144,12 @@ function patterns(options) {
     ? "tests?|__tests__"
     : `tests?|__tests__|${tests}`;
   const testFile = "[.](?:test|spec)[.][^/]+$";
-  const serverEntries = pathListOption(
-    settings.serverEntryFiles ?? DEFAULT_PATH_LISTS.serverEntryFiles,
-    "serverEntryFiles",
-  );
+  const declarationFiles =
+    settings.generatedDeclarationFiles ?? DEFAULT_PATH_LISTS.generatedDeclarationFiles;
   const declarations = pathListOption(
-    settings.generatedDeclarationFiles ?? DEFAULT_PATH_LISTS.generatedDeclarationFiles,
+    Array.isArray(declarationFiles) && host
+      ? unique([...declarationFiles, ...host.generatedDeclarationFiles])
+      : declarationFiles,
     "generatedDeclarationFiles",
     (entry) => DECLARATION_FILE.test(entry),
     ', each ending in ".d.ts", ".d.mts" or ".d.cts"',
@@ -175,8 +184,9 @@ function patterns(options) {
     internalRoot: `^${packages}/[^/]+/${pathOption(settings.internalDir, "internalDir")}(?:/|$)`,
     deliveryRoot: layerRoot(layers.delivery),
     serverRoot: layerRoot(layers.server),
+    compositionRoot: layerRoot(layers.composition),
+    appFolder: `^${apps}/[^/]+/`,
     // null when no file is named, so the rule keeps its 0.11.0 shape.
-    serverEntry: serverEntries && `^${apps}/[^/]+/src/${layers.server}/${serverEntries}$`,
     generatedDeclaration: declarations && `^${apps}/[^/]+/${declarations}$`,
     useCasesRoot: layerRoot(layers.useCases),
     appSource: `^${apps}/[^/]+/src/`,
@@ -222,6 +232,7 @@ function patterns(options) {
       ...(adapterPackages.length ? [`^${packages}/(?:${adapterPackages.join("|")})/`] : []),
     ],
     adapterImports,
+    buildOutputFolders: host ? host.buildOutputFolders.map(escape) : [],
   };
 }
 

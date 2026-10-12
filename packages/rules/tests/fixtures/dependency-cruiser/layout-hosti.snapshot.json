@@ -83,7 +83,8 @@
         "path": "^apps/[^/]+/src/delivery(?:/|$)"
       },
       "to": {
-        "path": "^apps/[^/]+/src/server(?:/|$)"
+        "path": "^apps/[^/]+/src/server(?:/|$)",
+        "reachable": true
       }
     },
     {
@@ -94,7 +95,8 @@
         "path": "^apps/[^/]+/src/server(?:/|$)"
       },
       "to": {
-        "path": "^apps/[^/]+/src/delivery(?:/|$)"
+        "path": "^apps/[^/]+/src/delivery(?:/|$)",
+        "reachable": true
       }
     },
     {
@@ -108,7 +110,33 @@
         "path": [
           "^apps/[^/]+/src/delivery(?:/|$)",
           "^apps/[^/]+/src/server(?:/|$)"
-        ]
+        ],
+        "reachable": true
+      }
+    },
+    {
+      "name": "composition-imports-packages-only",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#composition-imports-packages-only",
+      "from": {
+        "path": "^apps/[^/]+/src/composition(?:/|$)"
+      },
+      "to": {
+        "path": "^apps/[^/]+/",
+        "pathNot": "^apps/[^/]+/src/composition(?:/|$)"
+      }
+    },
+    {
+      "name": "use-cases-do-not-import-composition",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#use-cases-do-not-import-composition",
+      "from": {
+        "path": "^apps/[^/]+/src/use-cases(?:/|$)",
+        "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+      },
+      "to": {
+        "path": "^apps/[^/]+/src/composition(?:/|$)",
+        "reachable": true
       }
     },
     {
@@ -171,7 +199,7 @@
       "module": {
         "path": "^apps/[^/]+/src/",
         "pathNot": [
-          "^apps/[^/]+/src/(?:delivery|server|use-cases)/",
+          "^apps/[^/]+/src/(?:delivery|server|use-cases|composition)/",
           "^apps/[^/]+/src/(?:main[.]ts|index[.]ts)$",
           "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
         ],
@@ -192,7 +220,8 @@
         "pathNot": [
           "^$1(?:/|$)",
           "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
-        ]
+        ],
+        "reachable": true
       }
     },
     {

@@ -3,7 +3,7 @@ import { HttpFailure } from "@house-rules/capability";
 import { Effect, Layer, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
 import { api } from "../main.js";
-import { app } from "../server/composition.js";
+import { app } from "../composition/index.js";
 import { bookingClient } from "../delivery/web/booking-client.js";
 
 afterAll(() => api.dispose().then(app.dispose));

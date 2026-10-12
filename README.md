@@ -40,7 +40,7 @@ Root tools run once over the whole repo. Biome and ESLint warnings fail the chec
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.15.0`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.16.0`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
@@ -90,7 +90,7 @@ These are what a reviewer checks. A green `pnpm check` says nothing about them.
 - A cartridge passes the pull-out test. Delete its package and its one `Layer.provide` line, and the rest still builds and passes. A reviewer runs the test in their head for each new cartridge.
 - A module opens no transaction. The use-case opens the unit of work (`transactional: true`, or `UnitOfWork.atomic` in its handler), and a module's write runs inside it. The migrations bin catches a raw `withTransaction` or `begin` outside an adapter package and a module that calls `UnitOfWork.atomic`; it cannot see a unit opened through an alias.
 - Domain code decides, the store answers. A module's port never decides a permission, a standing, or a limit.
-- Only the composition root, `src/server/` or `src/main.ts`, provides services and slots. Delivery provides only per-request values: the Viewer, the call channel, the request id, and a Grant or Approval it fills for this request.
+- Only the composition root, `src/composition/`, provides services and slots. Delivery provides only per-request values: the Viewer, the call channel, the request id, and a Grant or Approval it fills for this request.
 - One service per file, named after its job, with its Layer beside it as a static member. A storage port is the exception: its layers are the adapters under `src/adapters/`.
 - Modules are cut by life cycle, not by noun. A package holds one module around a consistency and access boundary. A thing with its own life gets its own module.
 - Packages may use other packages through their public entries. The package graph has no cycles or fixed levels, enforced by `no-package-cycles`. A package calls another package's service, never its tables or SQL.
@@ -140,7 +140,7 @@ Four packages from this repo are on the public npm registry, under the `@house-r
 
 | Package | What it is | Version |
 | --- | --- | --- |
-| [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript. | `0.15.0` |
+| [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript. | `0.16.0` |
 | [`@house-rules/capability`](packages/capability/README.md) | Capabilities, gates, units of work, delivery | `0.13.1` |
 | [`@house-rules/migrations`](packages/migrations/README.md) | Module-owned SQL migrations | `0.2.1` |
 | [`@house-rules/call-audit`](packages/call-audit/README.md) | One audit line or row per capability call | `0.2.1` |
@@ -175,7 +175,7 @@ An app outside this repo installs the rules from npm at an exact version:
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "0.15.0"
+    "@house-rules/rules": "0.16.0"
   }
 }
 ```
@@ -226,7 +226,7 @@ Its README lists the install steps, the permission and approval gates, and what 
 ### Add an app
 
 1. Create `apps/<name>/` from `apps/api`: `package.json` with a new `name`, `tsconfig.json`, and `vitest.config.ts`.
-2. Put code under `src/delivery/`, `src/server/`, and `src/use-cases/`. Only `src/main.ts` and `src/index.ts` sit directly in `src/`. The services and slots go in one composition root, `src/server/`, as `apps/api/src/server/app-layer.ts` shows.
+2. Put code under `src/delivery/`, `src/use-cases/`, `src/composition/`, and `src/server/` when the app has a background loop. Only `src/main.ts` and `src/index.ts` sit directly in `src/`. The services, slots, callers and views go in one composition root, `src/composition/`, as `apps/api/src/composition/` shows. A Next.js app sets `host: "next"` in `layout()` and extends `tsconfig/next.json`; see the [house plugin README](packages/rules/README.md#a-web-app).
 3. Add each package with `pnpm --filter <app name> add <package name>`.
 4. Run `pnpm install`, `pnpm check`, and `pnpm test`.
 
@@ -264,13 +264,13 @@ Follow `skills/add-an-mcp-tool/SKILL.md`. `docs/mcp-adapter.md` records why an M
 
 ```text
 apps/api
-  delivery ───> use-cases ───> @hosti/bookings  (packages/bookings/src/index.ts)
-      └──────────────────────> @hosti/bookings  (Bookings type)
-  server   ──────────────────> @hosti/bookings  (Bookings layer, BookingPermissions value)
-  main.ts  ───> delivery routes + server composition  (toFetchHandler)
+  delivery    ───> use-cases ───> @hosti/bookings  (packages/bookings/src/index.ts)
+      └─────────────────────────> @hosti/bookings  (Bookings type)
+  composition ──────────────────> @hosti/bookings  (Bookings layer, BookingPermissions, error types)
+  main.ts     ───> delivery routes + composition  (toFetchHandler)
 ```
 
-The package exposes a `Bookings` service, a `Booking` schema, and typed `BookingNotFound`, `BookingAlreadyExists`, and `BookingStoreUnavailable` errors. The package also names its permission, `bookings:read`. `Bookings` talks only to its storage port, `BookingStore`. The package ships two adapters for it: a memory adapter (`memoryBookingStore`, behind `Bookings.fromRecords`) and a Postgres adapter in plain SQL (`postgresBookingStore`, with its migration in `packages/bookings/migrations/`). One shared suite in `src/adapters/tests/` runs every store case on both. `Bookings.create` is the write path: it runs inside an open unit of work and fails with `NoOpenUnit` without one, and the memory adapter registers an undo with `UnitOfWork.onRollback` so a rollback leaves no row. The `showBooking` use-case is a capability: a contract, `showBookingContract` in the module's contract entry, that names `Booking` as its output, `BookingNotFound` and `BookingStoreUnavailable` as its failures, and `bookings:read` as its permission, plus a handler that yields the service. The HTTP handler calls `showBooking.handler({ id })`, maps `BookingNotFound` to a 404, `BookingStoreUnavailable` to a 503, and `Forbidden` to a 403 once, so its error channel is `never`. It provides nothing. The composition root, `src/server/app-layer.ts`, provides `Bookings` and the `Grant`: the example has no sign-in, so every visitor holds `bookings:read`, and a Grant that is the same for every request belongs in the root. The entry point, `src/main.ts`, mounts the same use-case as a Web fetch handler with `toFetchHandler`. `src/server/composition.ts` wraps the root layer with `composition(...)` and a views table that maps `BookingNotFound` to 404 and `BookingStoreUnavailable` to 503, and `src/delivery/http/routes.ts` lists `route(showBooking, bookingEndpoints.showBooking)`, the endpoint the SPA client shares. Leave out a view and `tsc` fails. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
+The package exposes a `Bookings` service, a `Booking` schema, and typed `BookingNotFound`, `BookingAlreadyExists`, and `BookingStoreUnavailable` errors. The package also names its permission, `bookings:read`. `Bookings` talks only to its storage port, `BookingStore`. The package ships two adapters for it: a memory adapter (`memoryBookingStore`, behind `Bookings.fromRecords`) and a Postgres adapter in plain SQL (`postgresBookingStore`, with its migration in `packages/bookings/migrations/`). One shared suite in `src/adapters/tests/` runs every store case on both. `Bookings.create` is the write path: it runs inside an open unit of work and fails with `NoOpenUnit` without one, and the memory adapter registers an undo with `UnitOfWork.onRollback` so a rollback leaves no row. The `showBooking` use-case is a capability: a contract, `showBookingContract` in the module's contract entry, that names `Booking` as its output, `BookingNotFound` and `BookingStoreUnavailable` as its failures, and `bookings:read` as its permission, plus a handler that yields the service. The HTTP handler calls `showBooking.handler({ id })`, maps `BookingNotFound` to a 404, `BookingStoreUnavailable` to a 503, and `Forbidden` to a 403 once, so its error channel is `never`. It provides nothing. The composition root, `src/composition/`, provides `Bookings` and the `Grant` in `app-layer.ts`: the example has no sign-in, so every visitor holds `bookings:read`, and a Grant that is the same for every request belongs in the root. The entry point, `src/main.ts`, mounts the same use-case as a Web fetch handler with `toFetchHandler`. `src/composition/index.ts` wraps the root layer with `composition(...)` and the views table in `views.ts`, which maps `BookingNotFound` to 404 and `BookingStoreUnavailable` to 503, and `src/delivery/http/routes.ts` lists `route(showBooking, bookingEndpoints.showBooking)`, the endpoint the SPA client shares. Leave out a view and `tsc` fails. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
 
 ## Commands
 
