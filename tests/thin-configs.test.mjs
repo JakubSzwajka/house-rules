@@ -124,7 +124,7 @@ describe("thin configs over the house plugin", () => {
     assert.match(scripts.check, /pnpm run deps && pnpm run layout$/);
   });
 
-  it("eslint.config.mjs turns on the capability rules for use-cases, delivery, and tests", async () => {
+  it("eslint.config.mjs turns on the capability rules for use-cases, delivery, server, and tests", async () => {
     const eslint = new ESLint({ cwd: repositoryRoot });
     const rulesFor = async (code, filePath) => {
       const [result] = await eslint.lintText(code, { filePath });
@@ -148,6 +148,13 @@ describe("thin configs over the house plugin", () => {
         "apps/api/src/use-cases/tests/wiring-probe.test.ts",
       ),
       ["house-rules/no-hand-run-effect"],
+    );
+    assert.deepEqual(
+      await rulesFor(
+        'import { MigrationsTesting } from "@house-rules/migrations";\nexport const db = MigrationsTesting;\n',
+        "apps/api/src/server/wiring-probe.ts",
+      ),
+      ["house-rules/testing-exports-only-in-tests"],
     );
   });
 });

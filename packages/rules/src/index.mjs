@@ -9,13 +9,14 @@ import { designScaleValueRule } from "./design-scale-value.mjs";
 import { noBrokenRelativeLinksRule } from "./no-broken-relative-links.mjs";
 import { noHandRolledSurfaceRule } from "./no-hand-rolled-surface.mjs";
 import { noHandRunEffectRule } from "./no-hand-run-effect.mjs";
+import { testingExportsOnlyInTestsRule } from "./testing-exports-only-in-tests.mjs";
 import { useCaseIsCapabilityRule } from "./use-case-is-capability.mjs";
 import { ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL } from "./rule-docs.mjs";
 
 const plugin = {
   meta: {
     name: "@house-rules/rules",
-    version: "0.12.0",
+    version: "0.13.0",
   },
   rules: {
     "comment-discipline": commentDisciplineRule,
@@ -29,6 +30,7 @@ const plugin = {
     "use-case-is-capability": useCaseIsCapabilityRule,
     "no-hand-rolled-surface": noHandRolledSurfaceRule,
     "no-hand-run-effect": noHandRunEffectRule,
+    "testing-exports-only-in-tests": testingExportsOnlyInTestsRule,
   },
   configs: {},
 };
@@ -56,6 +58,28 @@ plugin.configs.recommended = [
   },
 ];
 
+const testingRules = {
+  "house-rules/testing-exports-only-in-tests": "error",
+};
+
+plugin.configs.testing = [
+  {
+    files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+    plugins: {
+      "house-rules": plugin,
+    },
+    rules: { ...testingRules },
+  },
+];
+
 plugin.configs.capability = [
   {
     files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
@@ -72,6 +96,7 @@ plugin.configs.capability = [
     },
     rules: {
       "house-rules/no-hand-rolled-surface": "error",
+      ...testingRules,
     },
   },
   {

@@ -229,7 +229,7 @@ put: (booking) =>
   ),
 ```
 
-`CurrentUnit` is a `Context.Reference` holding the open unit, `undefined` by default, so reading it adds no requirement. The SQL adapter puts the transaction connection in the fiber's context, so every statement on the same `SqlClient` inside the unit joins it. Build the module stores and `sqlUnitOfWork` from one `SqlClient` layer. Scripts and tests open a unit themselves: `memoryUnitOfWork` with memory stores, or `sqlUnitOfWork` with Postgres stores. `UnitOfWork.make(transaction)` builds another adapter from a function that wraps an effect in a transaction.
+`CurrentUnit` is a `Context.Reference` holding the open unit, `undefined` by default, so reading it adds no requirement. The SQL adapter puts the transaction connection in the fiber's context, so every statement on the same `SqlClient` inside the unit joins it. Build the module stores and `sqlUnitOfWork` from one `SqlClient` layer. Scripts, tests, and the app's server process open a unit themselves, such as a background loop that opens one unit per item: `memoryUnitOfWork` with memory stores, or `sqlUnitOfWork` with Postgres stores. `UnitOfWork.make(transaction)` builds another adapter from a function that wraps an effect in a transaction.
 
 A `CallWatch` runs outside the unit, so an audit row written there survives a rollback.
 

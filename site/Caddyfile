@@ -59,6 +59,7 @@
 	redir /rules/eslint/use-case-is-capability/ /rules/#use-case-is-capability 301
 	redir /rules/eslint/no-hand-rolled-surface/ /rules/#no-hand-rolled-surface 301
 	redir /rules/eslint/no-hand-run-effect/ /rules/#no-hand-run-effect 301
+	redir /rules/eslint/testing-exports-only-in-tests/ /rules/#testing-exports-only-in-tests 301
 	redir /rules/dependency-cruiser/no-cycles/ /rules/#no-cycles 301
 	redir /rules/dependency-cruiser/packages-do-not-import-apps/ /rules/#packages-do-not-import-apps 301
 	redir /rules/dependency-cruiser/apps-do-not-import-other-apps/ /rules/#apps-do-not-import-other-apps 301

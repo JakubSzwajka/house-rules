@@ -38,6 +38,8 @@ export function importOf(identifier, sourceCode) {
       const definition = variable.defs[0];
       if (definition?.type !== "ImportBinding") return null;
       const declaration = definition.parent;
+      // `import x = require("y")` and `import x = A.B` bind no import specifier.
+      if (declaration.type !== "ImportDeclaration") return null;
       if (declaration.importKind === "type" || definition.node.importKind === "type") return null;
       return { source: declaration.source.value, imported: importedName(definition.node) };
     }
