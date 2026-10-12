@@ -7,6 +7,7 @@ import { designNoRawElementRule } from "./design-no-raw-element.mjs";
 import { designNoUnknownTokenRule } from "./design-no-unknown-token.mjs";
 import { designScaleValueRule } from "./design-scale-value.mjs";
 import { noBrokenRelativeLinksRule } from "./no-broken-relative-links.mjs";
+import { noComputedImportRule } from "./no-computed-import.mjs";
 import { noHandRolledSurfaceRule } from "./no-hand-rolled-surface.mjs";
 import { noHandRunEffectRule } from "./no-hand-run-effect.mjs";
 import { testingExportsOnlyInTestsRule } from "./testing-exports-only-in-tests.mjs";
@@ -16,7 +17,7 @@ import { ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL } from "./rule-docs.m
 const plugin = {
   meta: {
     name: "@house-rules/rules",
-    version: "0.13.1",
+    version: "0.14.0",
   },
   rules: {
     "comment-discipline": commentDisciplineRule,
@@ -30,6 +31,7 @@ const plugin = {
     "use-case-is-capability": useCaseIsCapabilityRule,
     "no-hand-rolled-surface": noHandRolledSurfaceRule,
     "no-hand-run-effect": noHandRunEffectRule,
+    "no-computed-import": noComputedImportRule,
     "testing-exports-only-in-tests": testingExportsOnlyInTestsRule,
   },
   configs: {},
@@ -80,41 +82,66 @@ plugin.configs.testing = [
   },
 ];
 
-plugin.configs.capability = [
-  {
-    files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        ecmaFeatures: {
-          jsx: true,
+// One packages root for the whole preset: pass the folder layout({ packagesDir }) names, so
+// no-computed-import covers the same package source that contract-entry-is-browser-safe follows.
+function capabilityConfig({ packagesDir = "packages" } = {}) {
+  if (
+    typeof packagesDir !== "string" ||
+    !packagesDir ||
+    packagesDir.startsWith("/") ||
+    packagesDir.endsWith("/") ||
+    /[*?{}[\]!]/u.test(packagesDir)
+  ) {
+    throw new TypeError(
+      'capabilityConfig(): packagesDir must be a non-empty relative path without a leading or trailing "/" or glob characters.',
+    );
+  }
+  return [
+    {
+      files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
+      languageOptions: {
+        parser: tsParser,
+        parserOptions: {
+          ecmaFeatures: {
+            jsx: true,
+          },
         },
       },
+      plugins: {
+        "house-rules": plugin,
+      },
+      rules: {
+        "house-rules/no-hand-rolled-surface": "error",
+        ...testingRules,
+      },
     },
-    plugins: {
-      "house-rules": plugin,
+    {
+      files: ["**/*.{ts,tsx,mts,cts}"],
+      rules: {
+        "house-rules/use-case-is-capability": "error",
+      },
     },
-    rules: {
-      "house-rules/no-hand-rolled-surface": "error",
-      ...testingRules,
+    {
+      files: [
+        "**/{tests,test,__tests__}/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}",
+        "**/*.{test,spec}.{js,jsx,mjs,cjs,ts,tsx,mts,cts}",
+      ],
+      rules: {
+        "house-rules/no-hand-run-effect": "error",
+      },
     },
-  },
-  {
-    files: ["**/*.{ts,tsx,mts,cts}"],
-    rules: {
-      "house-rules/use-case-is-capability": "error",
+    // Package source a contract entry may reach. Dependency Cruiser records no edge for import(at).
+    {
+      files: [`${packagesDir}/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}`],
+      ignores: ["**/{tests,test,__tests__}/**", "**/*.{test,spec}.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
+      rules: {
+        "house-rules/no-computed-import": "error",
+      },
     },
-  },
-  {
-    files: [
-      "**/{tests,test,__tests__}/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}",
-      "**/*.{test,spec}.{js,jsx,mjs,cjs,ts,tsx,mts,cts}",
-    ],
-    rules: {
-      "house-rules/no-hand-run-effect": "error",
-    },
-  },
-];
+  ];
+}
 
-export { plugin, ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL };
+plugin.configs.capability = capabilityConfig();
+
+export { capabilityConfig, plugin, ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL };
 export default plugin;

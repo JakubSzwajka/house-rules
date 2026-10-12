@@ -13,9 +13,9 @@ It is a GitHub template. Create a repo from it with `gh repo create my-app --pri
 ```text
 .
 ├── apps/api/               @hosti/api: delivery, server, use-cases
-├── packages/bookings/      @hosti/bookings: one Effect module with a storage port and two adapters, src/index.ts is its only export
+├── packages/bookings/      @hosti/bookings: one Effect module with a storage port and two adapters; src/index.ts, plus src/contract.ts for browsers
 ├── packages/call-audit/    @house-rules/call-audit: an audit trail of capability calls, as log lines or table rows
-├── packages/capability/    @house-rules/capability: contracts, handlers, and toTool
+├── packages/capability/    @house-rules/capability: contracts, handlers, delivery, a typed HTTP client and OpenAPI
 ├── packages/migrations/    @house-rules/migrations: runs the migrations of every listed module
 ├── packages/rules/         @house-rules/rules: the house rules, presets, and bins
 ├── site/                   @house-rules/site: the docs site (Astro + Starlight)
@@ -40,7 +40,7 @@ Root tools run once over the whole repo. Biome and ESLint warnings fail the chec
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.13.1`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.14.0`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
@@ -197,11 +197,25 @@ Its README lists the install steps, the permission and approval gates, and what 
 
 ### Add a package
 
-Follow [`skills/add-an-effect-module/SKILL.md`](skills/add-an-effect-module/SKILL.md). In short: copy `packages/bookings`, keep `exports` to `"." : "./src/index.ts"`, lay the code out in subject folders such as `src/booking/`, and run `pnpm install`.
+Follow [`skills/add-an-effect-module/SKILL.md`](skills/add-an-effect-module/SKILL.md). In short: copy `packages/bookings`, keep `exports` to `"." : "./src/index.ts"`, plus `"./contract": "./src/contract.ts"` only when a browser needs the package's contracts, lay the code out in subject folders such as `src/booking/`, and run `pnpm install`.
 
 ### Add a docs page
 
 Follow [`skills/write-a-docs-page/SKILL.md`](skills/write-a-docs-page/SKILL.md). In short: the site has one hand-written page, `site/src/content/docs/start/index.md`, and one generated page, the rules table. To change the table, change `packages/rules`, then run `pnpm --filter @house-rules/site generate` and commit the result.
+
+### Single-page apps
+
+A single-page app calls the HTTP routes through a typed client built from the same contracts. It must not bundle SQL, so it imports only contract entries: `@house-rules/capability/contract` and a package's `src/contract.ts`, such as `@hosti/bookings/contract`. `contract-entry-is-browser-safe` fails the check when a contract entry reaches an adapter, a facade, a `node:` module, a driver, an `effect` module off its allowlist, or an installed contract entry no one vouched for. In `apps/api`:
+
+```text
+@hosti/bookings/contract ──> showBookingContract (schemas, errors, permission)
+delivery/http/endpoints.ts   endpoint(showBookingContract, "GET /bookings/:id")
+  ├─> delivery/http/routes.ts      route(showBooking, endpoint)  -> toFetchHandler  (server)
+  ├─> delivery/web/booking-client.ts toHttpClient([endpoint])     -> the SPA        (browser)
+  └─> main.ts                      toOpenApi(routes, { views })   -> OpenAPI 3.1
+```
+
+The route and the client read one `endpoint`, so the path, the method and the status cannot drift. `src/tests/browser-bundle.test.ts` bundles the contract entries and the client with esbuild for the browser and fails on server code. It also bundles every `effect` module the rule trusts, because the rule cannot look inside `node_modules`. The [capability README](packages/capability/README.md#single-page-apps) covers failures, cookies, CSRF and OpenAPI.
 
 ### Let agents call a use-case
 
@@ -221,7 +235,7 @@ apps/api
   main.ts  ───> delivery routes + server composition  (toFetchHandler)
 ```
 
-The package exposes a `Bookings` service, a `Booking` schema, and typed `BookingNotFound`, `BookingAlreadyExists`, and `BookingStoreUnavailable` errors. The package also names its permission, `bookings:read`. `Bookings` talks only to its storage port, `BookingStore`. The package ships two adapters for it: a memory adapter (`memoryBookingStore`, behind `Bookings.fromRecords`) and a Postgres adapter in plain SQL (`postgresBookingStore`, with its migration in `packages/bookings/migrations/`). One shared suite in `src/adapters/tests/` runs every store case on both. `Bookings.create` is the write path: it runs inside an open unit of work and fails with `NoOpenUnit` without one, and the memory adapter registers an undo with `UnitOfWork.onRollback` so a rollback leaves no row. The `showBooking` use-case is a capability: a contract that names `Booking` as its output, `BookingNotFound` and `BookingStoreUnavailable` as its failures, and `bookings:read` as its permission, plus a handler that yields the service. The HTTP handler calls `showBooking.handler({ id })`, maps `BookingNotFound` to a 404, `BookingStoreUnavailable` to a 503, and `Forbidden` to a 403 once, so its error channel is `never`. It provides nothing. The composition root, `src/server/app-layer.ts`, provides `Bookings` and the `Grant`: the example has no sign-in, so every visitor holds `bookings:read`, and a Grant that is the same for every request belongs in the root. The entry point, `src/main.ts`, mounts the same use-case as a Web fetch handler with `toFetchHandler`. `src/server/composition.ts` wraps the root layer with `composition(...)` and a views table that maps `BookingNotFound` to 404 and `BookingStoreUnavailable` to 503, and `src/delivery/http/routes.ts` lists `route(showBooking, "GET /bookings/:id")`. Leave out a view and `tsc` fails. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
+The package exposes a `Bookings` service, a `Booking` schema, and typed `BookingNotFound`, `BookingAlreadyExists`, and `BookingStoreUnavailable` errors. The package also names its permission, `bookings:read`. `Bookings` talks only to its storage port, `BookingStore`. The package ships two adapters for it: a memory adapter (`memoryBookingStore`, behind `Bookings.fromRecords`) and a Postgres adapter in plain SQL (`postgresBookingStore`, with its migration in `packages/bookings/migrations/`). One shared suite in `src/adapters/tests/` runs every store case on both. `Bookings.create` is the write path: it runs inside an open unit of work and fails with `NoOpenUnit` without one, and the memory adapter registers an undo with `UnitOfWork.onRollback` so a rollback leaves no row. The `showBooking` use-case is a capability: a contract, `showBookingContract` in the module's contract entry, that names `Booking` as its output, `BookingNotFound` and `BookingStoreUnavailable` as its failures, and `bookings:read` as its permission, plus a handler that yields the service. The HTTP handler calls `showBooking.handler({ id })`, maps `BookingNotFound` to a 404, `BookingStoreUnavailable` to a 503, and `Forbidden` to a 403 once, so its error channel is `never`. It provides nothing. The composition root, `src/server/app-layer.ts`, provides `Bookings` and the `Grant`: the example has no sign-in, so every visitor holds `bookings:read`, and a Grant that is the same for every request belongs in the root. The entry point, `src/main.ts`, mounts the same use-case as a Web fetch handler with `toFetchHandler`. `src/server/composition.ts` wraps the root layer with `composition(...)` and a views table that maps `BookingNotFound` to 404 and `BookingStoreUnavailable` to 503, and `src/delivery/http/routes.ts` lists `route(showBooking, bookingEndpoints.showBooking)`, the endpoint the SPA client shares. Leave out a view and `tsc` fails. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
 
 ## Commands
 

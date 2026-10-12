@@ -29,11 +29,13 @@ const result = await call(app, showBooking, { id }, { headers, url }); // React 
 | Delivery option | Effect |
 | --- | --- |
 | `caller` | Per adapter. Turns `{ headers, url }` into `Context<Viewer \| Grant ...>` or `Refused`. |
-| `views` | Failure tag to `(error, caller) => { status, body, headers? }`. Defaults cover `Refused`, `InputInvalid`, `Forbidden`, `ApprovalDenied`, `UnitOfWorkFailed`, `NoOpenUnit`. |
+| `views` | Failure tag to `(error, caller) => { status, body, headers?, code? }`. Defaults cover `Refused`, `InputInvalid`, `Forbidden`, `ApprovalDenied`, `UnitOfWorkFailed`, `NoOpenUnit`. |
 | `approval` | Defaults: `denyAll` on HTTP, `elicitationApproval` on MCP, `allowAll` for `call`. It beats an `Approval` the caller returns, unless set to `"fromCaller"`. |
 | `origins` | The app's origins for the CSRF check, each a plain `http(s)` origin; anything else, `"null"` too, throws at mount. Default: the request URL's origin. |
 | `maxBodyBytes` | Write body limit. Default 1 MB; over it is 413. |
-| `route(cap, "GET /x/:id", { status, csrf })` | Default `POST /<name>`. `csrf: { skip: true, reason }` opts one route out. |
+| `route(cap, "GET /x/:id", { status, csrf })` | Default `POST /<name>`. `csrf: { skip: true, reason }` opts one route out. `route(cap, endpoint)` takes method, path and status from an endpoint the SPA client shares. |
+
+A single-page app imports only `@house-rules/capability/contract` and packages' `/contract` entries: `toHttpClient(endpoints, { prefix })` gives Effect calls that need `HttpClient` and fail with `HttpFailure { code, status, body }`; `toOpenApi(routes, { title, version, views })` describes the routes. Use `problemView(status, code, message)` so OpenAPI knows a view's status. A client sees a failure code only when the view opts in (`problemView(..., { exposeCode: true })`) and the endpoint declares it (`endpoint(contract, at, { codes: [...] })`); anything else is `Unknown`. The opt-in gates only the `x-failure-code` header; the view's body goes out as its author wrote it.
 
 Hooks the app wires itself when it does not use delivery:
 
@@ -56,8 +58,10 @@ Hooks the app wires itself when it does not use delivery:
 
 - Delivery: a missing view, a view that takes the wrong error, or a service nobody provides is a compile error at `toFetchHandler`, `toMcpHandler` or `call`. Never cast it away; add the view.
 - Delivery: any write that carries a `Cookie`, whatever the caller, from another origin or an opaque one (`null`) is a 403 before the layer builds or the caller runs. A route skips it only with a written `reason`.
-- Delivery: the caller runs before input is read or decoded, so refusals do no capability service work. The app layer still builds on the first request, a refused one too. `InputInvalid` never quotes a value. A repeated JSON member and a `__proto__` key are 400s. A defect anywhere, a throwing view or an output that does not encode too, is a 500 `internal_error`, logged with the request id.
+- Delivery: the caller runs before input is read or decoded, so refusals do no capability service work. The app layer still builds on the first request, a refused one too. `InputInvalid` never quotes a value. A repeated JSON member and a `__proto__` key are 400s. A defect anywhere, a throwing view or an output that does not encode too, is a 500 `internal_error`, logged with the request id. A view may not answer 500: `problem` and `problemView` refuse a literal 500, and a view that answers 500 anyway sends `internal_error` while its body goes to the log.
 - Delivery: each handler builds its own router. A fetch handler never answers MCP or another handler's routes.
+- Delivery: a failure response never names the error's tag or fields. A 4xx carries `x-failure-code` only for a code its view exposes and its endpoint declares, so a view that hides one failure behind another stays hidden.
+- `src/contract.ts` is the browser entry. Anything it reaches must stay browser-safe; `contract-entry-is-browser-safe` checks it. Consumer apps trust it by name, so it may import only `effect` modules on the rule's allowlist.
 
 - A handler is an Effect. Expected errors are `Schema.TaggedError` classes. Never `throw`, never `Effect.run*`.
 - No app calls `Tool.make` by hand. Surfaces come from contracts.

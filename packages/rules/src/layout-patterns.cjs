@@ -50,11 +50,34 @@ const OPTION_NAMES = new Set([
   "scope",
   "layers",
   "adapterImports",
+  "trustedContractPackages",
   ...Object.keys(DEFAULTS),
   ...Object.keys(DEFAULT_NAME_LISTS),
   ...Object.keys(DEFAULT_PATH_LISTS),
 ]);
 const BUILT_IN_TEST_DIRS = new Set(["test", "tests", "__tests__"]);
+// Fixed on purpose: the one extra entry a package may declare, as "./contract" in its exports.
+const CONTRACT_ENTRY = "src/contract[.]ts";
+// node_modules is never followed, so an installed contract entry is trusted by name only. The
+// framework's own is checked as a workspace file in its repo, and its browser bundle is tested there.
+const TRUSTED_CONTRACT_PACKAGES = Object.freeze(["@house-rules/capability"]);
+// The effect modules a contract entry may import: the root barrel, its stable top-level modules, and
+// unstable/http. Their import graphs are unseen here; apps/api's browser-bundle test bundles each one.
+const EFFECT_BROWSER_MODULES =
+  "(?:index|[A-Z][A-Za-z0-9]*|unstable/http/(?:index|[A-Z][A-Za-z0-9]*))[.]js";
+const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u;
+
+function trustedContractPackagesOption(names) {
+  if (
+    !Array.isArray(names) ||
+    names.some((name) => typeof name !== "string" || !PACKAGE_NAME.test(name))
+  ) {
+    throw new TypeError(
+      'layout(): trustedContractPackages must be an array of package names, such as "@acme/catalogue".',
+    );
+  }
+  return [...TRUSTED_CONTRACT_PACKAGES, ...names].map(escape);
+}
 
 function patterns(options) {
   if (Object.hasOwn(options, "adapterImportsSeverity")) {
@@ -121,13 +144,32 @@ function patterns(options) {
     ', each ending in ".d.ts", ".d.mts" or ".d.cts"',
   );
 
+  const publicEntry = pathOption(settings.publicEntry, "publicEntry");
+  const facadeFile = pathOption(settings.facadeFile, "facadeFile");
+  const trustedContracts = trustedContractPackagesOption(settings.trustedContractPackages ?? []);
+  const adapterImports = adapterImportsOption(
+    settings.adapterImports ?? DEFAULT_ADAPTER_IMPORTS,
+    scope,
+    packages,
+  );
+
   return {
     appsRoot: `^${apps}/`,
     packagesRoot: `^${packages}/`,
     workspaceRoot: `^((?:${apps}|${packages})/[^/]+)/`,
     appRoot: `^(${apps}/[^/]+)/`,
     sourceRoot: `^(?:${apps}|${packages})/[^/]+/src(?:/|$)`,
-    publicEntry: `${pathOption(settings.publicEntry, "publicEntry")}$`,
+    publicEntry: `${publicEntry}$`,
+    publicEntries: `(?:${publicEntry}|${CONTRACT_ENTRY})$`,
+    contractEntry: `^${packages}/[^/]+/${CONTRACT_ENTRY}$`,
+    // Safe-regex counts `?` on a group as nesting, so optional groups are written `(?:x|)`.
+    // The browser-safe set: workspace domain files and contract entries, which the rule follows, the
+    // allowlisted effect modules, and the trusted installed contract entries. Anything else is refused.
+    browserSafe: [
+      `^${packages}/[^/]+/(?!${adapters}(?:/|$)|(?:${publicEntry}|${facadeFile}|src/storage[.]ts)$|src/(?:.*/|)(?:${testDirs})/|.*${testFile})src/`,
+      `(?:^|/)node_modules/effect/dist/${EFFECT_BROWSER_MODULES}$`,
+      `(?:^|/)node_modules/(?:${trustedContracts.join("|")})/${CONTRACT_ENTRY}$`,
+    ],
     internalRoot: `^${packages}/[^/]+/${pathOption(settings.internalDir, "internalDir")}(?:/|$)`,
     deliveryRoot: layerRoot(layers.delivery),
     serverRoot: layerRoot(layers.server),
@@ -150,18 +192,19 @@ function patterns(options) {
     ],
     packageRootFile: `^${packages}/[^/]+/src/[^/]+$`,
     packageRootFileAllowed: `^${packages}/[^/]+/src/(?:${rootFiles.join("|")})$`,
+    contractEntryFile: `^${packages}/[^/]+/${CONTRACT_ENTRY}$`,
     // $1 is the package folder. Only the public entry and the facade wire the package's own adapters.
     packageCode: `^(${packages}/[^/]+)/src/`,
     adapterImporters: [
       `^${packages}/[^/]+/${adapters}(?:/|$)`,
-      `^${packages}/[^/]+/${pathOption(settings.publicEntry, "publicEntry")}$`,
-      `^${packages}/[^/]+/${pathOption(settings.facadeFile, "facadeFile")}$`,
+      `^${packages}/[^/]+/${publicEntry}$`,
+      `^${packages}/[^/]+/${facadeFile}$`,
     ],
     ownAdapters: `^$1/${adapters}(?:/|$)`,
     ownAdapterTests: `^$1/${adapters}/tests(?:/|$)`,
     // A file in a subject folder, and the package's own root barrel ($1 is the package folder).
     subjectFile: `^(${packages}/[^/]+)/src/[^/]+/`,
-    ownRootBarrel: `^$1/(?:${pathOption(settings.publicEntry, "publicEntry")}|${pathOption(settings.facadeFile, "facadeFile")})$`,
+    ownRootBarrel: `^$1/(?:${publicEntry}|${facadeFile}|${CONTRACT_ENTRY})$`,
     notSubjectFolder: [
       "^$1/$2(?:/|$)",
       `^${packages}/[^/]+/${adapters}(?:/|$)`,
@@ -176,11 +219,7 @@ function patterns(options) {
       `^${packages}/[^/]+/${adapters}(?:/|$)`,
       ...(adapterPackages.length ? [`^${packages}/(?:${adapterPackages.join("|")})/`] : []),
     ],
-    adapterImports: adapterImportsOption(
-      settings.adapterImports ?? DEFAULT_ADAPTER_IMPORTS,
-      scope,
-      packages,
-    ),
+    adapterImports,
   };
 }
 

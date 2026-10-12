@@ -1,6 +1,14 @@
 import { Effect, Layer, Result } from "effect";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 import { requestIdHeader, withRequestId } from "../call/request-id.ts";
+import {
+  type Endpoint,
+  type EndpointShape,
+  failureCodeHeader,
+  type Method,
+  parseAt,
+  writeMethods,
+} from "../contract/endpoint.ts";
 import { Approval } from "../gates/approval.ts";
 import { type Caller, type Incoming, Refused } from "./caller.ts";
 import type { Composition } from "./composition.ts";
@@ -17,34 +25,49 @@ import type { MountCheck } from "./mount-check.ts";
 import { givenTwice, parseObject, readCapped } from "./request-body.ts";
 import { defaultViews, internalErrorView, safeViewOf, type View, type ViewTable } from "./views.ts";
 
-export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-
 export type CsrfOptOut = Readonly<{ skip: true; reason: string }>;
 
 export type RouteOptions = Readonly<{ status?: number; csrf?: CsrfOptOut }>;
 
-export type Route<Cap extends Mountable = Mountable> = Readonly<{
-  _tag: "Route";
-  capability: Cap;
-  method: Method;
-  path: `/${string}`;
-  status: number;
-  csrf: "check" | CsrfOptOut;
-}>;
+export type Route<Cap extends Mountable = Mountable> = EndpointShape<Cap["contract"]> &
+  Readonly<{
+    _tag: "Route";
+    capability: Cap;
+    csrf: "check" | CsrfOptOut;
+  }>;
 
 export const defaultMaxBodyBytes = 1024 * 1024;
 
-const writeMethods: ReadonlySet<Method> = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const placeOf = (
+  capability: Mountable,
+  at: `${Method} /${string}` | Endpoint | undefined,
+  status: number | undefined,
+): Readonly<{
+  method: Method;
+  path: `/${string}`;
+  status: number;
+  codes: ReadonlyArray<string>;
+}> => {
+  if (typeof at !== "object")
+    return { ...parseAt(capability.contract.name, at), status: status ?? 200, codes: [] };
+  // Mount time, not a request: an endpoint shared with a client must describe this very capability.
+  if (at.contract !== capability.contract) {
+    throw new TypeError(
+      `route ${at.method} ${at.path} names ${at.contract.name}, not ${capability.contract.name}`,
+    );
+  }
+  if (status !== undefined) {
+    throw new TypeError(`route ${at.method} ${at.path} takes its status from the endpoint`);
+  }
+  return { method: at.method, path: at.path, status: at.status, codes: at.codes };
+};
 
 export const route = <Cap extends Mountable>(
   capability: Cap,
-  at?: `${Method} /${string}`,
+  at?: `${Method} /${string}` | Endpoint<Cap["contract"]>,
   options: RouteOptions = {},
 ): Route<Cap> => {
-  const [method, path] = (at ?? `POST /${capability.contract.name}`).split(" ") as [
-    Method,
-    `/${string}`,
-  ];
+  const { method, path, status, codes } = placeOf(capability, at, options.status);
   if (options.csrf !== undefined && options.csrf.reason.trim() === "") {
     // Mount time, not a request: a route that skips the Origin check must say why.
     throw new TypeError(`route ${method} ${path} skips the CSRF check without a reason`);
@@ -52,9 +75,11 @@ export const route = <Cap extends Mountable>(
   return {
     _tag: "Route",
     capability,
+    contract: capability.contract,
     method,
     path,
-    status: options.status ?? 200,
+    status,
+    codes,
     csrf: options.csrf ?? "check",
   };
 };
@@ -138,6 +163,17 @@ const csrfRefusal = (
   return source !== null && source !== "null" && allowed.includes(source) ? undefined : crossOrigin;
 };
 
+const publicHeaders = (route: Route, view: View): View["headers"] => {
+  // Only a code the view opted in to and the endpoint declares goes out, never the error's tag.
+  const headers = Object.entries(view.headers ?? {}).filter(
+    ([name]) => name.toLowerCase() !== failureCodeHeader,
+  );
+  const { code } = view;
+  const declared =
+    code !== undefined && view.status >= 400 && view.status < 500 && route.codes.includes(code);
+  return Object.fromEntries(declared ? [...headers, [failureCodeHeader, code]] : headers);
+};
+
 const respond = (
   status: number,
   body: unknown,
@@ -182,7 +218,7 @@ export const toFetchHandler = <
           const refused = csrfRefusal(route, web.success, options.origins);
           if (refused !== undefined) {
             const view = yield* safeViewOf(views, refused, undefined);
-            return respond(view.status, view.body, requestId, view.headers);
+            return respond(view.status, view.body, requestId, publicHeaders(route, view));
           }
           const outcome = yield* invoke(app, route.capability, {
             incoming,
@@ -197,7 +233,12 @@ export const toFetchHandler = <
           });
           return outcome.ok
             ? respond(route.status, outcome.value, requestId)
-            : respond(outcome.view.status, outcome.view.body, requestId, outcome.view.headers);
+            : respond(
+                outcome.view.status,
+                outcome.view.body,
+                requestId,
+                publicHeaders(route, outcome.view),
+              );
         });
         // One boundary for the whole request: a defect anywhere is the fixed 500 with this request id.
         return yield* answer.pipe(

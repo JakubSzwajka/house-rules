@@ -149,7 +149,7 @@ for (const sibling of ["layout-option-parsers.cjs", "layout-patterns.cjs"]) {
 }
 const dependencyCruiserConfig = createRequire(import.meta.url)("./.dependency-cruiser.cjs");
 assert.deepEqual(dependencyCruiserConfig, layout({ scope: "@acme/" }));
-assert.equal(dependencyCruiserConfig.forbidden.length, 21);
+assert.equal(dependencyCruiserConfig.forbidden.length, 22);
 assert.equal(dependencyCruiserConfig.options.parser, "swc");
 
 const eslint = new ESLint({ cwd: process.cwd(), overrideConfigFile: "eslint.config.mjs" });

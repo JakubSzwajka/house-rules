@@ -29,6 +29,21 @@ const slowDeleteFunction = `
 const slowDeleteTrigger =
   "create trigger slow_delete before delete on call_audit for each row execute function slow_delete()";
 
+const gateKey = 424242;
+
+const gatedDeleteFunction = `
+  create or replace function gated_delete() returns trigger language plpgsql as $$
+  begin perform pg_advisory_lock(${gateKey}); perform pg_advisory_unlock(${gateKey}); return old; end $$`;
+
+const gatedDeleteTrigger =
+  "create trigger gated_delete before delete on call_audit for each row execute function gated_delete()";
+
+const deleteWaitingAtGate = SqlClient.use(
+  (sql) => sql`
+    select count(*)::int as waiting from pg_stat_activity
+    where datname = current_database() and wait_event_type = 'Lock' and wait_event = 'advisory'`,
+).pipe(Effect.map((rows) => Number(rows[0]?.waiting)));
+
 const noCutoffs = { read: null, write: null, failure: null };
 
 const audit = CallAudit.layerPostgres({ who, policy: CallAudit.presets.minimal });
@@ -58,6 +73,57 @@ layer(migratedDatabase("audit_lock"), { excludeTestServices: true, timeout: "30 
         );
         expect(after).toEqual({ ran: true, deleted: { read: 0, write: 1, failure: 0 } });
       }),
+    );
+
+    it.effect("a second run skips while the first holds the lock mid-delete", () =>
+      Effect.gen(function* overlapForced() {
+        const sql = yield* SqlClient;
+        yield* sql`delete from call_audit`;
+        for (let index = 0; index < 3; index += 1) {
+          yield* seed({ capability: `old_${index}` }, 100);
+        }
+        yield* sql.unsafe(gatedDeleteFunction);
+        yield* sql.unsafe(gatedDeleteTrigger);
+        yield* Effect.scoped(
+          Effect.gen(function* holdGate() {
+            const gate = yield* sql.reserve;
+            yield* gate.execute(`select pg_advisory_lock(${gateKey})`, [], undefined);
+            const releaseGate = gate
+              .execute(`select pg_advisory_unlock(${gateKey})`, [], undefined)
+              .pipe(Effect.ignore);
+            yield* Effect.gen(function* overlap() {
+              const first = yield* CallAudit.runRetention(CallAudit.presets.minimal, {
+                batchSize: 1,
+              }).pipe(Effect.forkChild);
+              // The first run now holds the retention lock and waits inside its first delete.
+              yield* deleteWaitingAtGate.pipe(
+                Effect.repeat({
+                  schedule: Schedule.spaced("10 millis"),
+                  until: (waiting) => waiting >= 1,
+                  times: 1000,
+                }),
+              );
+              expect(yield* advisoryLocksHeld).toBe(1);
+              const second = yield* CallAudit.runRetention(CallAudit.presets.minimal, {
+                batchSize: 1,
+              });
+              expect(second).toEqual({ ran: false, deleted: { read: 0, write: 0, failure: 0 } });
+              expect(yield* allRows).toHaveLength(3);
+              yield* releaseGate;
+              expect(yield* Fiber.join(first)).toEqual({
+                ran: true,
+                deleted: { read: 0, write: 3, failure: 0 },
+              });
+            }).pipe(Effect.ensuring(releaseGate));
+          }),
+        ).pipe(
+          Effect.ensuring(
+            sql.unsafe("drop trigger if exists gated_delete on call_audit").pipe(Effect.ignore),
+          ),
+        );
+        expect(yield* allRows).toEqual([]);
+        expect(yield* advisoryLocksHeld).toBe(0);
+      }).pipe(Effect.provide(postgresAuditStore)),
     );
 
     it.effect("the lock is released when a delete fails in SQL", () =>

@@ -55,8 +55,24 @@
         "path": "^((?:apps|packages)/[^/]+)/"
       },
       "to": {
-        "path": "^packages/[^/]+/(?!src/index[.]ts$)",
+        "path": "^packages/[^/]+/(?!(?:src/index[.]ts|src/contract[.]ts)$)",
         "pathNot": "^$1/"
+      }
+    },
+    {
+      "name": "contract-entry-is-browser-safe",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#contract-entry-is-browser-safe",
+      "from": {
+        "path": "^packages/[^/]+/src/contract[.]ts$"
+      },
+      "to": {
+        "reachable": true,
+        "pathNot": [
+          "^packages/[^/]+/(?!src/adapters(?:/|$)|(?:src/index[.]ts|src/facade[.]ts|src/storage[.]ts)$|src/(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$)src/",
+          "(?:^|/)node_modules/effect/dist/(?:index|[A-Z][A-Za-z0-9]*|unstable/http/(?:index|[A-Z][A-Za-z0-9]*))[.]js$",
+          "(?:^|/)node_modules/(?:@house-rules/capability)/src/contract[.]ts$"
+        ]
       }
     },
     {
@@ -200,7 +216,8 @@
         "path": "^packages/[^/]+/src/[^/]+$",
         "pathNot": [
           "^packages/[^/]+/src/(?:index[.]ts|facade[.]ts|storage[.]ts)$",
-          "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+          "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$",
+          "^packages/[^/]+/src/contract[.]ts$"
         ],
         "numberOfDependentsLessThan": 100
       },
@@ -253,7 +270,7 @@
         ]
       },
       "to": {
-        "path": "^$1/(?:src/index[.]ts|src/facade[.]ts)$"
+        "path": "^$1/(?:src/index[.]ts|src/facade[.]ts|src/contract[.]ts)$"
       }
     },
     {

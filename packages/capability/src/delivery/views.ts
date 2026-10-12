@@ -8,6 +8,7 @@ export type View = Readonly<{
   status: number;
   body: unknown;
   headers?: Readonly<Record<string, string>>;
+  code?: string;
 }>;
 
 export type CallerContext<C> = Context.Context<C> | undefined;
@@ -16,33 +17,95 @@ export type ViewFn<C = never> = (error: never, caller: CallerContext<C>) => View
 
 export type ViewTable<C = never> = Readonly<Record<string, ViewFn<C>>>;
 
-export const problem = (
+export type DefectStatusReserved = "status 500 is reserved for defects; a view may not answer it";
+
+export type ViewStatus<S extends number> = [number] extends [S]
+  ? S
+  : 500 extends S
+    ? DefectStatusReserved
+    : S;
+
+const problemBody = (
   status: number,
   code: string,
   message: string,
-  extra: Readonly<Record<string, unknown>> = {},
+  extra: Readonly<Record<string, unknown>>,
 ): View => ({ status, body: { error: { code, message, ...extra } } });
 
-export const internalErrorView: View = problem(
+export const problem = <const S extends number>(
+  status: ViewStatus<S>,
+  code: string,
+  message: string,
+  extra: Readonly<Record<string, unknown>> = {},
+): View => problemBody(status as number, code, message, extra);
+
+export const internalErrorView: View = problemBody(
   500,
   "internal_error",
   "Something went wrong on the server.",
+  {},
 );
+
+export type StaticStatus = Readonly<{ status: number }>;
+
+const atStatus = <Fn extends (error: never) => View>(status: number, view: Fn): Fn & StaticStatus =>
+  Object.assign(view, { status });
+
+export type ProblemViewOptions = Readonly<{ exposeCode?: boolean }>;
+
+export const problemView = <E, const S extends number = number>(
+  viewStatus: ViewStatus<S>,
+  code: string,
+  message: (error: E) => string,
+  options: ProblemViewOptions = {},
+): ((error: E) => View) & StaticStatus => {
+  const status = viewStatus as number;
+  if (options.exposeCode !== true) {
+    return atStatus(status, (error: E) => problemBody(status, code, message(error), {}));
+  }
+  const view = atStatus(status, (error: E) => ({
+    ...problemBody(status, code, message(error), {}),
+    code,
+  }));
+  return Object.assign(view, { code });
+};
+
+export const staticStatusOf = (view: unknown): number | undefined =>
+  typeof view === "function" && "status" in view && typeof view.status === "number"
+    ? view.status
+    : undefined;
+
+export const staticCodeOf = (view: unknown): string | undefined =>
+  typeof view === "function" && "code" in view && typeof view.code === "string"
+    ? view.code
+    : undefined;
 
 export const defaultViews = {
   Refused: (error: Refused): View => ({
-    ...problem(error.status, error.code, error.message),
+    ...problemBody(error.status, error.code, error.message, {}),
     ...(error.challenge === undefined ? {} : { headers: { "www-authenticate": error.challenge } }),
   }),
-  InputInvalid: (error: InputInvalid): View =>
-    problem(400, "invalid_input", error.message, { field: error.field }),
-  Forbidden: (error: Forbidden): View =>
-    problem(403, "forbidden", `You may not use ${error.capabilityName}.`),
-  ApprovalDenied: (error: ApprovalDenied): View =>
-    problem(403, "approval_denied", `${error.capabilityName} was not approved: ${error.reason}.`),
-  UnitOfWorkFailed: (_error: UnitOfWorkFailed): View =>
-    problem(503, "unavailable", "Try again shortly."),
-  NoOpenUnit: (_error: NoOpenUnit): View => internalErrorView,
+  InputInvalid: atStatus(
+    400,
+    (error: InputInvalid): View =>
+      problemBody(400, "invalid_input", error.message, { field: error.field }),
+  ),
+  Forbidden: problemView(
+    403,
+    "forbidden",
+    (error: Forbidden) => `You may not use ${error.capabilityName}.`,
+  ),
+  ApprovalDenied: problemView(
+    403,
+    "approval_denied",
+    (error: ApprovalDenied) => `${error.capabilityName} was not approved: ${error.reason}.`,
+  ),
+  UnitOfWorkFailed: problemView(
+    503,
+    "unavailable",
+    (_error: UnitOfWorkFailed) => "Try again shortly.",
+  ),
+  NoOpenUnit: atStatus(500, (_error: NoOpenUnit): View => internalErrorView),
 } as const;
 
 export type DefaultViewTag = keyof typeof defaultViews;
@@ -86,6 +149,15 @@ export const viewOf = (
   return view(error, caller);
 };
 
+const withoutDefectStatus = (view: View, error: unknown): Effect.Effect<View> =>
+  // A status held in a variable slips past ViewStatus, so a 500 view's body could leak a reason.
+  view.status === internalErrorView.status && view !== internalErrorView
+    ? Effect.logError("A view answered 500, which only a defect may; sent internal_error", {
+        failure: tagOf(error),
+        body: view.body,
+      }).pipe(Effect.as(internalErrorView))
+    : Effect.succeed(view);
+
 export const safeViewOf = (
   views: Readonly<Record<string, unknown>>,
   error: unknown,
@@ -95,4 +167,5 @@ export const safeViewOf = (
     Effect.catchCause((cause) =>
       Effect.logError("A view failed", cause).pipe(Effect.as(internalErrorView)),
     ),
+    Effect.flatMap((view) => withoutDefectStatus(view, error)),
   );

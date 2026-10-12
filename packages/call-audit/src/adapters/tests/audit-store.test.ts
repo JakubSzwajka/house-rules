@@ -1,5 +1,5 @@
-import { expect, layer } from "@effect/vitest";
-import { Effect, Layer, Schedule } from "effect";
+import { expect, it, layer } from "@effect/vitest";
+import { Effect, Fiber, Layer, Schedule } from "effect";
 import { type AuditPolicy, CallAudit } from "../../index.ts";
 import {
   allRows,
@@ -180,8 +180,12 @@ const suite = <R, E, E2>(store: StoreUnderTest<R, E, E2>) => {
             ],
             { concurrency: 2 },
           );
-          expect(runs.map((run) => run.ran).sort()).toEqual([false, true]);
-          expect(runs.map((run) => run.deleted.write).sort((a, b) => a - b)).toEqual([0, 60]);
+          // Serial and overlapping schedules are both valid; forced overlap is tested per store.
+          expect(runs.some((run) => run.ran)).toBe(true);
+          expect(runs.reduce((total, run) => total + run.deleted.write, 0)).toBe(60);
+          for (const run of runs.filter((each) => !each.ran)) {
+            expect(run.deleted).toEqual({ read: 0, write: 0, failure: 0 });
+          }
           expect(yield* allRows).toEqual([]);
           expect((yield* CallAudit.runRetention(policy)).ran).toBe(true);
         }).pipe(Effect.provide(store.fresh())),
@@ -211,3 +215,27 @@ const suite = <R, E, E2>(store: StoreUnderTest<R, E, E2>) => {
 
 suite(postgresStore);
 suite(memoryStore);
+
+it.effect("memory: a run that meets a running retention skips and deletes nothing", () =>
+  Effect.gen(function* overlapForced() {
+    for (let index = 0; index < 60; index += 1) {
+      yield* seed({ capability: `old_${index}` }, 100);
+    }
+    const policy = CallAudit.presets.minimal;
+    const first = yield* CallAudit.runRetention(policy, { batchSize: 1 }).pipe(Effect.forkChild);
+    // The first run yields after each one-row batch, so it holds the lock while rows remain.
+    yield* allRows.pipe(
+      Effect.repeat({
+        until: (rows) => rows.length < 60,
+        times: 5000,
+      }),
+    );
+    const second = yield* CallAudit.runRetention(policy, { batchSize: 1 });
+    expect(second).toEqual({ ran: false, deleted: { read: 0, write: 0, failure: 0 } });
+    expect(yield* Fiber.join(first)).toEqual({
+      ran: true,
+      deleted: { read: 0, write: 60, failure: 0 },
+    });
+    expect(yield* allRows).toEqual([]);
+  }).pipe(Effect.provide(memoryStore.fresh())),
+);

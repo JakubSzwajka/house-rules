@@ -1,13 +1,20 @@
 import type { BookingNotFound, BookingStoreUnavailable } from "@hosti/bookings";
-import { composition, problem, type View } from "@house-rules/capability";
+import { composition, problemView } from "@house-rules/capability";
 import { Context, Effect } from "effect";
 import { appLayer } from "./app-layer.js";
 
 export const bookingViews = {
-  BookingNotFound: (error: BookingNotFound): View =>
-    problem(404, "not_found", `Booking ${error.id} was not found.`),
-  BookingStoreUnavailable: (_error: BookingStoreUnavailable): View =>
-    problem(503, "unavailable", "Bookings are unavailable right now."),
+  BookingNotFound: problemView(
+    404,
+    "not_found",
+    (error: BookingNotFound) => `Booking ${error.id} was not found.`,
+    { exposeCode: true },
+  ),
+  BookingStoreUnavailable: problemView(
+    503,
+    "unavailable",
+    (_error: BookingStoreUnavailable) => "Bookings are unavailable right now.",
+  ),
 };
 
 const visitorCaller = () => {

@@ -1,0 +1,1 @@
+{ "name": "@acme/d", "private": true, "exports": { ".": "./src/index.ts", "./contract": { "types": "./src/contract.ts", "default": "./src/contract.ts" } } }

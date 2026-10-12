@@ -59,12 +59,14 @@
 	redir /rules/eslint/use-case-is-capability/ /rules/#use-case-is-capability 301
 	redir /rules/eslint/no-hand-rolled-surface/ /rules/#no-hand-rolled-surface 301
 	redir /rules/eslint/no-hand-run-effect/ /rules/#no-hand-run-effect 301
+	redir /rules/eslint/no-computed-import/ /rules/#no-computed-import 301
 	redir /rules/eslint/testing-exports-only-in-tests/ /rules/#testing-exports-only-in-tests 301
 	redir /rules/dependency-cruiser/no-cycles/ /rules/#no-cycles 301
 	redir /rules/dependency-cruiser/packages-do-not-import-apps/ /rules/#packages-do-not-import-apps 301
 	redir /rules/dependency-cruiser/apps-do-not-import-other-apps/ /rules/#apps-do-not-import-other-apps 301
 	redir /rules/dependency-cruiser/packages-imported-by-name/ /rules/#packages-imported-by-name 301
 	redir /rules/dependency-cruiser/packages-public-entry-only/ /rules/#packages-public-entry-only 301
+	redir /rules/dependency-cruiser/contract-entry-is-browser-safe/ /rules/#contract-entry-is-browser-safe 301
 	redir /rules/dependency-cruiser/delivery-does-not-import-server/ /rules/#delivery-does-not-import-server 301
 	redir /rules/dependency-cruiser/server-does-not-import-delivery/ /rules/#server-does-not-import-delivery 301
 	redir /rules/dependency-cruiser/use-cases-do-not-import-outer-layers/ /rules/#use-cases-do-not-import-outer-layers 301

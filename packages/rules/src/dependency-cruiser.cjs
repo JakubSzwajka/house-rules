@@ -49,7 +49,16 @@ function layout(options = {}) {
       rule(
         "packages-public-entry-only",
         { path: p.workspaceRoot },
-        { path: `${p.packagesRoot}[^/]+/(?!${p.publicEntry})`, pathNot: "^$1/" },
+        { path: `${p.packagesRoot}[^/]+/(?!${p.publicEntries})`, pathNot: "^$1/" },
+      ),
+      // A contract entry is what a browser bundle loads, so everything it reaches must be browser-safe.
+      rule(
+        "contract-entry-is-browser-safe",
+        { path: p.contractEntry },
+        {
+          reachable: true,
+          pathNot: p.browserSafe,
+        },
       ),
       // Delivery may reach only the named server entry files, such as the runtime that runs use-cases.
       rule(
@@ -94,7 +103,7 @@ function layout(options = {}) {
       moduleRule("no-ownerless-files", { path: p.ownerlessPath }),
       moduleRule("package-root-files", {
         path: p.packageRootFile,
-        pathNot: [p.packageRootFileAllowed, p.testPath],
+        pathNot: [p.packageRootFileAllowed, p.testPath, p.contractEntryFile],
       }),
       rule(
         "domain-does-not-import-adapters",

@@ -1,0 +1,164 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+import { layout } from "../src/dependency-cruiser.cjs";
+import { cruiseFixture, fromPaths, violatedRules } from "./dependency-cruiser-helpers.mjs";
+
+const layoutBin = fileURLToPath(new URL("../bin/layout.mjs", import.meta.url));
+
+// A package may declare one more entry, src/contract.ts, for browsers; these rules keep it honest.
+test("the contract entry is fixed, and its rule follows every reachable import", () => {
+  const rule = layout({
+    scope: "@acme/",
+    packagesDir: "libs",
+    publicEntry: "src/main.ts",
+  }).forbidden.find(({ name }) => name === "contract-entry-is-browser-safe");
+  assert.deepEqual(rule.from, { path: "^libs/[^/]+/src/contract[.]ts$" });
+  assert.equal(rule.severity, "error");
+  assert.equal(rule.to.reachable, true);
+});
+
+test("packages-public-entry-only lets another workspace import a declared contract entry, and nothing else", async () => {
+  assert.deepEqual(
+    fromPaths(
+      await violatedRules("violations/packages-public-entry-only", layout({ scope: "@acme/" })),
+    ),
+    [
+      "packages-public-entry-only: apps/web/src/main.ts -> packages/a/src/private/secret.ts",
+      "packages-public-entry-only: apps/web/src/main.ts -> packages/c/src/private/client.ts",
+    ],
+  );
+});
+
+test("contract-entry-is-browser-safe reports server code a contract entry reaches, directly or not", async () => {
+  const violations = await violatedRules(
+    "violations/contract-entry-is-browser-safe",
+    layout({ scope: "@acme/" }),
+  );
+  // Another package's contract entry, the package's own subjects and effect stay allowed.
+  assert.deepEqual(
+    fromPaths(violations).map((line) => line.replace(/node_modules\/.*$/u, "node_modules/...")),
+    [
+      "contract-entry-is-browser-safe: packages/a/src/contract.ts -> fs",
+      "contract-entry-is-browser-safe: packages/a/src/contract.ts -> node_modules/...",
+      "contract-entry-is-browser-safe: packages/a/src/contract.ts -> packages/a/src/adapters/memory/booking-store.ts",
+      "contract-entry-is-browser-safe: packages/a/src/contract.ts -> packages/a/src/facade.ts",
+      "contract-entry-is-browser-safe: packages/a/src/contract.ts -> packages/a/src/storage.ts",
+      "contract-entry-is-browser-safe: packages/a/src/contract.ts -> packages/b/src/index.ts",
+    ],
+  );
+  assert.ok(
+    violations.some(({ to }) => /node_modules\/pg\//u.test(to)),
+    JSON.stringify(violations),
+  );
+});
+
+test("contract-entry-is-browser-safe refuses effect's adapter imports", () => {
+  const safe = layout({ scope: "@acme/" }).forbidden.find(
+    (rule) => rule.name === "contract-entry-is-browser-safe",
+  ).to.pathNot;
+  const allowed = (source) => safe.some((pattern) => new RegExp(pattern, "u").test(source));
+  const store = "node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist";
+  assert.equal(allowed(`${store}/Schema.js`), true);
+  assert.equal(allowed(`${store}/index.js`), true);
+  assert.equal(allowed(`${store}/unstable/http/index.js`), true);
+  assert.equal(allowed(`${store}/unstable/http/HttpClient.js`), true);
+  assert.equal(allowed(`${store}/unstable/sql/SqlClient.js`), false);
+  assert.equal(allowed(`${store}/unstable/persistence/PersistedQueue.js`), false);
+  assert.equal(allowed(`${store}/unstable/process/index.js`), false);
+  assert.equal(allowed(`${store}/internal/schema/schema.js`), false);
+  assert.equal(allowed("node_modules/@acme/x/src/contract.ts"), false);
+  assert.equal(allowed("node_modules/@house-rules/capability/src/contract.ts"), true);
+  assert.equal(allowed("node_modules/@house-rules/capability/src/index.ts"), false);
+  assert.equal(allowed("node_modules/@acme/x/src/index.ts"), false);
+  assert.equal(allowed("packages/a/src/booking/tests/booking.test.ts"), false);
+  assert.equal(allowed("packages/a/src/booking/booking.ts"), true);
+});
+
+// node_modules is never followed, so whatever an installed entry or an effect module imports is unseen.
+// The rule refuses all of them but a vouched-for list; the stack's apps/api/src/tests/browser-bundle.test.ts
+// bundles the effect allowlist for a browser as the second guard.
+test("contract-entry-is-browser-safe trusts only allowlisted effect modules and vouched-for installed contract entries", async () => {
+  const lines = (violations) =>
+    fromPaths(violations).map((line) => line.replace(/node_modules\/.*?node_modules\//u, ""));
+  assert.deepEqual(
+    lines(await violatedRules("contract-entry-imports", layout({ scope: "@acme/" }))),
+    [
+      "contract-entry-is-browser-safe: packages/a/src/contract.ts -> effect/dist/unstable/persistence/PersistedQueue.js",
+      "contract-entry-is-browser-safe: packages/a/src/contract.ts -> effect/dist/unstable/process/index.js",
+      "contract-entry-is-browser-safe: packages/a/src/contract.ts -> node_modules/@acme/installed/src/contract.ts",
+    ],
+  );
+  assert.deepEqual(
+    lines(
+      await violatedRules(
+        "contract-entry-imports",
+        layout({ scope: "@acme/", trustedContractPackages: ["@acme/installed"] }),
+      ),
+    ),
+    [
+      "contract-entry-is-browser-safe: packages/a/src/contract.ts -> effect/dist/unstable/persistence/PersistedQueue.js",
+      "contract-entry-is-browser-safe: packages/a/src/contract.ts -> effect/dist/unstable/process/index.js",
+    ],
+  );
+  assert.throws(
+    () => layout({ scope: "@acme/", trustedContractPackages: ["../escape"] }),
+    /trustedContractPackages/u,
+  );
+});
+
+const runLayoutBin = (config) =>
+  cruiseFixture("contract-entry-exports", config, ({ workspace }) => {
+    writeFileSync(
+      path.join(workspace, ".dependency-cruiser.cjs"),
+      `module.exports = ${JSON.stringify(config)};\n`,
+    );
+    return spawnSync(process.execPath, [layoutBin, "--cwd", workspace], { encoding: "utf8" });
+  });
+
+// The rules match the resolved file, so only the manifest shows what an exports key or pattern reaches.
+test("house-rules-layout fails every export but . and ./contract, and any target but their own file", async () => {
+  const { status, stderr } = await runLayoutBin(layout({ scope: "@acme/" }));
+  assert.equal(status, 1, stderr);
+  assert.match(stderr, /contract-entry-is-browser-safe: 6 package manifest\(s\)/u);
+  assert.match(stderr, /packages\/a\/package\.json: "\.\/alias" is exported/u);
+  assert.match(stderr, /packages\/b\/package\.json: "\.\/browser" is exported/u);
+  assert.match(stderr, /packages\/c\/package\.json: "\.\/contract" points at src\/index\.ts/u);
+  assert.doesNotMatch(stderr, /packages\/d\//u);
+  // A pattern export reaches every src file, src/contract.ts and the facade included.
+  assert.match(stderr, /packages\/e\/package\.json: "\.\/browser\/\*" is exported/u);
+  assert.match(
+    stderr,
+    /packages\/f\/package\.json: "\." points at src\/facade\.ts, not src\/index\.ts/u,
+  );
+  assert.match(stderr, /packages\/g\/package\.json: "\.\/extra" is exported/u);
+  assert.match(stderr, /rules\/#contract-entry-is-browser-safe/u);
+});
+
+test("house-rules-layout reads the public entry from the config and skips excluded packages", async () => {
+  const config = layout({ scope: "@acme/", publicEntry: "src/main.ts" });
+  const base = layout({ scope: "@acme/" });
+  base.options.exclude.path = `${base.options.exclude.path}|^packages/[a-f]/`;
+  const excluded = await runLayoutBin(base);
+  assert.equal(excluded.status, 1, excluded.stderr);
+  assert.match(excluded.stderr, /1 package manifest\(s\)/u);
+  assert.match(excluded.stderr, /packages\/g\//u);
+  const moved = await runLayoutBin(config);
+  assert.match(
+    moved.stderr,
+    /packages\/d\/package\.json: "\." points at src\/index\.ts, not src\/main\.ts/u,
+  );
+});
+
+test("package-root-files allows contract.ts, and subjects treat it as a barrel", async () => {
+  assert.deepEqual(
+    fromPaths(await violatedRules("contract-entry-layout", layout({ scope: "@acme/" }))),
+    [
+      "package-root-files: packages/a/src/contracts.ts",
+      "subjects-do-not-import-package-root: packages/a/src/one/contract-user.ts -> packages/a/src/contract.ts",
+    ],
+  );
+});
