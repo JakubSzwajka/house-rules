@@ -75,7 +75,7 @@ Add the package to the app that uses it:
 pnpm --filter @hosti/api add @hosti/<name>
 ```
 
-The app also needs `@house-rules/capability`. `apps/api` already has it as `"workspace:0.10.0"`. An app outside this repo installs it from GitHub, as `packages/capability/README.md` shows.
+The app also needs `@house-rules/capability`. `apps/api` already has it as `"workspace:0.11.0"`. An app outside this repo installs it from GitHub, as `packages/capability/README.md` shows.
 
 `saveWorkspaceProtocol: true` and `saveExact: true` in `pnpm-workspace.yaml` make pnpm write `"@hosti/<name>": "workspace:0.0.0"` into the app's `package.json`. Do not name a spec such as `@workspace:0.0.0` on the command line: pnpm then writes `workspace:*`, which the pin check rejects.
 

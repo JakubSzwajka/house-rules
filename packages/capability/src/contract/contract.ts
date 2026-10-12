@@ -14,7 +14,11 @@ export const NoInput = Schema.Record(Schema.String, Schema.Never);
 
 export type NoInput = typeof NoInput;
 
-export type InputSchema = Schema.Struct<Record<string, PlainSchema>> | NoInput;
+export type StructInput = Schema.Struct<Record<string, PlainSchema>>;
+
+export type UnionInput = Schema.Union<ReadonlyArray<StructInput>>;
+
+export type InputSchema = StructInput | UnionInput | NoInput;
 
 export type Annotations = Readonly<{
   readOnly: boolean;

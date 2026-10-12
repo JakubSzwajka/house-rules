@@ -8,6 +8,7 @@ import {
   type PlainSchema,
 } from "./contract.ts";
 import type { PermissionDeclaration } from "../gates/permission.ts";
+import { type ToolParameters, toolParameters } from "./tool-parameters.ts";
 
 export type ToToolOptions = Readonly<{
   title: string;
@@ -41,7 +42,7 @@ export type ContractTool<
 > = Tool.Tool<
   Name,
   {
-    readonly parameters: Input;
+    readonly parameters: ToolParameters<Input>;
     readonly success: Success;
     readonly failure: Failure;
     readonly failureMode: "error";
@@ -86,13 +87,15 @@ export const toTool = <
   >;
   return Tool.make(contract.name, {
     description: contract.description,
-    parameters: contract.input,
+    parameters: toolParameters(contract.input),
     success,
     failure,
   })
     .annotate(Tool.Title, options.title)
     .annotateMerge(
-      Context.make(Tool.Readonly, contract.annotations.readOnly).pipe(
+      // Strict makes the MCP server reject keys the input does not take, instead of dropping them.
+      Context.make(Tool.Strict, true).pipe(
+        Context.add(Tool.Readonly, contract.annotations.readOnly),
         Context.add(Tool.Destructive, contract.annotations.destructive),
         Context.add(Tool.Idempotent, options.idempotent),
         Context.add(Tool.OpenWorld, options.openWorld),
