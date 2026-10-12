@@ -1,5 +1,5 @@
 import { Effect, Layer, Option, Result } from "effect";
-import { McpSchema } from "effect/unstable/ai";
+import { McpSchema } from "effect/ai";
 import { Approval } from "./approval.ts";
 import { ApprovalDenied } from "./gate-errors.ts";
 

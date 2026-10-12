@@ -1,6 +1,6 @@
 import { Crypto, Effect, FileSystem, Path } from "effect";
-import * as Migrator from "effect/unstable/sql/Migrator";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
+import * as Migrator from "effect/sql/Migrator";
+import { SqlClient } from "effect/sql/SqlClient";
 import { adoptHistories } from "./history/adoption.ts";
 import { checkApplied, createHistory, lockTable, toMigrationRecord } from "./history/history.ts";
 import { readMigrationFiles } from "./migration/migration-files.ts";

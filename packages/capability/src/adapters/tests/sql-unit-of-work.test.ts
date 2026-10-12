@@ -1,6 +1,6 @@
 import { expect, layer } from "@effect/vitest";
 import { Cause, Deferred, Effect, Exit, Fiber } from "effect";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
+import { SqlClient } from "effect/sql/SqlClient";
 import { UnitOfWork, UnitOfWorkFailed } from "../../index.ts";
 import {
   causeShape,

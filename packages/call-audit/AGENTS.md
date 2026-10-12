@@ -1,5 +1,7 @@
 # @house-rules/call-audit: notes for agents
 
+Version 0.4.0 peers on exact `effect` 4.0.3 and `@house-rules/capability` 0.15.0. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
+
 ## What it does
 
 It records every capability call through the `CallWatch` hook of `@house-rules/capability`: who, which capability, outcome, duration, kind (read or write), target id, channel and request id. An `AuditPolicy` decides which calls it keeps and how long rows live. Retention runs inside the layer. `CallAudit.erase(viewerId)` deletes one viewer's rows. The full guide is `README.md` in this package.

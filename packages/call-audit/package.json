@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/call-audit",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Audit every capability call: one log line per call, a row per call in a table, or an in-memory log for tests.",
   "license": "MIT",
   "type": "module",
@@ -32,16 +32,16 @@
     "test": "varlock run --path ../../ -- vitest run"
   },
   "peerDependencies": {
-    "@house-rules/capability": "0.14.0",
-    "effect": "4.0.0-rc.117"
+    "@house-rules/capability": "0.15.0",
+    "effect": "4.0.3"
   },
   "devDependencies": {
-    "@effect/platform-node": "4.0.0-rc.117",
-    "@effect/sql-pg": "4.0.0-rc.117",
-    "@effect/vitest": "4.0.0-rc.117",
-    "@house-rules/capability": "workspace:0.14.0",
-    "@house-rules/migrations": "workspace:0.2.1",
-    "effect": "4.0.0-rc.117",
+    "@effect/platform-node": "4.0.3",
+    "@effect/sql-pg": "4.0.3",
+    "@effect/vitest": "4.0.3",
+    "@house-rules/capability": "workspace:0.15.0",
+    "@house-rules/migrations": "workspace:0.3.0",
+    "effect": "4.0.3",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
   },

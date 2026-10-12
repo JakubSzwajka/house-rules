@@ -6,7 +6,8 @@ import {
   failureSchemaOf,
   type Grant,
   implement,
-  type UnitOfWork,
+  NoOpenUnit,
+  UnitOfWork,
   UnitOfWorkFailed,
 } from "../index.ts";
 
@@ -30,6 +31,25 @@ const transactionalGreeting = implement(
   greetHandler,
 );
 
+const writeHandler = ({ name }: { readonly name: string }) =>
+  UnitOfWork.required.pipe(Effect.andThen(greetHandler({ name })));
+const transactionalWrite = implement(
+  defineContract("transactional_write", { ...base, transactional: true }),
+  writeHandler,
+);
+const redundantWrite = implement(
+  defineContract("redundant_write", {
+    ...base,
+    failure: Schema.Union([NameIsEmpty, NoOpenUnit]),
+    transactional: true,
+  }),
+  writeHandler,
+);
+const plainWrite = implement(
+  defineContract("plain_write", { ...base, failure: Schema.Union([NameIsEmpty, NoOpenUnit]) }),
+  writeHandler,
+);
+
 it.effect("transactional defaults to false and adds nothing", () =>
   Effect.sync(() => {
     expect(plainGreeting.contract.transactional).toBe(false);
@@ -39,6 +59,20 @@ it.effect("transactional defaults to false and adds nothing", () =>
     >();
     const failure = failureSchemaOf(plainGreeting.contract);
     expect(Schema.is(failure)(new UnitOfWorkFailed({ reason: "commit" }))).toBe(false);
+  }),
+);
+
+it.effect("transactional handlers exclude NoOpenUnit; plain handlers keep it", () =>
+  Effect.sync(() => {
+    expectTypeOf(transactionalWrite.handler).returns.toEqualTypeOf<
+      Effect.Effect<string, NameIsEmpty | Forbidden | UnitOfWorkFailed, Grant | UnitOfWork>
+    >();
+    expectTypeOf(redundantWrite.handler).returns.toEqualTypeOf<
+      Effect.Effect<string, NameIsEmpty | Forbidden | UnitOfWorkFailed, Grant | UnitOfWork>
+    >();
+    expectTypeOf(plainWrite.handler).returns.toEqualTypeOf<
+      Effect.Effect<string, NameIsEmpty | NoOpenUnit | Forbidden, Grant>
+    >();
   }),
 );
 

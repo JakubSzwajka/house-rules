@@ -1,5 +1,5 @@
 import { Cause, Context, Effect, Exit, Layer } from "effect";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
+import { SqlClient } from "effect/sql/SqlClient";
 import { holdsClosedUnit, UnitOfWork, UnitOfWorkFailed } from "../unit-of-work/unit-of-work.ts";
 
 const describe = (failure: unknown): string =>
@@ -15,12 +15,20 @@ const settle = <A, E>(
 ): Cause.Cause<E | UnitOfWorkFailed> => {
   // The work never ran: acquiring the connection or BEGIN failed. Interrupts stay as they are.
   if (work === undefined) return Cause.map(cause, failed);
-  // The work's reasons were swapped for WorkExited, so a Die here is a failed COMMIT or ROLLBACK.
-  const control = cause.reasons.find(Cause.isDieReason);
+  // Stable Effect returns COMMIT errors as Fail; ROLLBACK errors still arrive as Die.
+  const control = Cause.fromReasons<UnitOfWorkFailed>(
+    cause.reasons.flatMap<Cause.Reason<UnitOfWorkFailed>>((reason) => {
+      if (Cause.isDieReason(reason)) return [Cause.makeFailReason(failed(reason.defect))];
+      if (Cause.isFailReason(reason)) {
+        return reason.error instanceof WorkExited
+          ? []
+          : [Cause.makeFailReason(failed(reason.error))];
+      }
+      return [reason];
+    }),
+  );
   const workCause = Exit.isFailure(work) ? work.cause : Cause.empty;
-  if (control === undefined) return workCause;
-  // A failed ROLLBACK replaces the work's exit inside withTransaction; put the work's cause back.
-  return Cause.combine(Cause.fail(failed(control.defect)), workCause);
+  return Cause.combine(control, workCause);
 };
 
 export const sqlUnitOfWork: Layer.Layer<UnitOfWork, never, SqlClient> = Layer.effect(
@@ -37,7 +45,7 @@ export const sqlUnitOfWork: Layer.Layer<UnitOfWork, never, SqlClient> = Layer.ef
             Effect.exit,
             Effect.flatMap((exit) => {
               work = exit;
-              // A stand-in failure, so any Die withTransaction returns is transaction control.
+              // A stand-in failure separates the work from transaction control failures.
               return Exit.isSuccess(exit)
                 ? Effect.succeed(exit.value)
                 : Effect.fail(new WorkExited());

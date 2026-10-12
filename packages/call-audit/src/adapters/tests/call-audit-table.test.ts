@@ -4,7 +4,7 @@ import { defineContract, Grant, implement } from "@house-rules/capability";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { expect, layer } from "@effect/vitest";
 import { Context, Effect, Exit, Layer, Logger, Option, Schema } from "effect";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
+import { SqlClient } from "effect/sql/SqlClient";
 import { CallAudit } from "../../index.ts";
 
 class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {}) {}

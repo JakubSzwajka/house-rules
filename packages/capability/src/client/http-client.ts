@@ -4,7 +4,7 @@ import {
   type HttpClientError,
   HttpClientRequest,
   type HttpClientResponse,
-} from "effect/unstable/http";
+} from "effect/http";
 import type { AnyContract } from "../contract/contract.ts";
 import {
   type EndpointShape,

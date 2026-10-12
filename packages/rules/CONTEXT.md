@@ -47,7 +47,7 @@ This package owns house rules and house configs. A consumer repository keeps onl
 
 ## Contract
 
-- Package name and version are `@house-rules/rules@0.16.1` until an intentional release decision changes them. `package.json` and `plugin.meta.version` carry the same version, and `plugin.meta.name` is the package name.
+- Package name and version are `@house-rules/rules@0.16.2` until an intentional release decision changes them. `package.json` and `plugin.meta.version` carry the same version, and `plugin.meta.name` is the package name.
 - The package is ESM, runs checked-in `.mjs` source directly (plus the one `.cjs` layout preset), and supports Node `>=24.21.0`, matching every consumer (all pin Node 24.21.0 in `.nvmrc` and `engines: >=24.21.0`). CI reads `.nvmrc`.
 - The repo's publish workflow, `.github/workflows/publish.yml`, publishes it to npm. Nobody publishes by hand.
 - The plugin key is `house-rules`.
@@ -69,6 +69,8 @@ This package owns house rules and house configs. A consumer repository keeps onl
 - The migrations bin reads files with regular expressions and a small string lexer, kept in `src/sql-text.mjs`. It has no SQL or TypeScript parser dependency. Its module list check sits in `src/module-list.mjs`.
 - The design rules were specified from a read-only probe of Hosti's styles. `tests/fixtures/hosti/` keeps a trimmed copy of real Hosti cases as the parity fixture. The code is written fresh; nothing is copied from `pubnub/blocksnetwork`.
 - `tests/fixtures/shadcn-app/` is a small Tailwind v4 app with a `components.json`, a Button with `cva` variants, and a page that breaks each shadcn rule once. `src/pages/brand.ts` holds the colour constants behind the partly verdict in `docs/shadcn.md`.
+
+Stable Effect import paths and RC paths carry the same fences. The SQL adapter fence covers `effect/sql` and `effect/unstable/sql`; the browser allowlist covers `effect/http` and its RC path. Hand-built tools, RPCs and HTTP API endpoints are checked under both import layouts. The TypeScript preset is unchanged; upgrading `@effect/tsgo` past 0.45.0 needs a separate policy decision for its new unstable-API diagnostics.
 
 ## Layout
 

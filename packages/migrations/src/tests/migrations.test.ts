@@ -2,7 +2,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { PgClient } from "@effect/sql-pg";
 import { expect, layer } from "@effect/vitest";
 import { Effect, Layer, Path } from "effect";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
+import { SqlClient } from "effect/sql/SqlClient";
 import { Migrations, MigrationsTesting } from "../index.ts";
 import { alphaAndBeta, BETA_ENTRY, scratchApp, TRIPS_ITEM, TRIPS_NOTE } from "./scratch-app.ts";
 

@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/capability",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Capabilities for Effect apps: one named, schema-described action with one handler.",
   "license": "MIT",
   "type": "module",
@@ -33,13 +33,13 @@
     "test": "varlock run --path ../../ -- vitest run"
   },
   "peerDependencies": {
-    "effect": "4.0.0-rc.117"
+    "effect": "4.0.3"
   },
   "devDependencies": {
-    "@effect/sql-pg": "4.0.0-rc.117",
-    "@effect/vitest": "4.0.0-rc.117",
-    "@house-rules/migrations": "workspace:0.2.1",
-    "effect": "4.0.0-rc.117",
+    "@effect/sql-pg": "4.0.3",
+    "@effect/vitest": "4.0.3",
+    "@house-rules/migrations": "workspace:0.3.0",
+    "effect": "4.0.3",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
   },

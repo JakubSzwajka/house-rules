@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { McpSchema } from "effect/unstable/ai";
+import { McpSchema } from "effect/ai";
 import { captureLogs, formClient, type LogLine, runShare } from "./elicitation-fixtures.ts";
 
 const probe = "privacy-probe@example.invalid";

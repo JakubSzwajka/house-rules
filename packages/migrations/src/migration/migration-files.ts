@@ -1,4 +1,5 @@
-import { type Crypto, Effect, Encoding, type FileSystem, type Path } from "effect";
+import { type Crypto, Effect, type FileSystem, type Path } from "effect";
+import { Hex } from "effect/encoding";
 import { MigrationFailed } from "./migration.ts";
 
 const FILE_NAME = /^(\d+)_([a-z0-9_]+)\.sql$/;
@@ -64,7 +65,7 @@ export const readMigrationFiles = Effect.fnUntraced(function* readMigrationFiles
     files.push({
       id: Number(match[1]),
       name: match[2],
-      sha256: Encoding.encodeHex(digest),
+      sha256: Hex.encode(digest),
       statements: text
         .split(STATEMENT_BREAKPOINT)
         .map((statement) => statement.trim())

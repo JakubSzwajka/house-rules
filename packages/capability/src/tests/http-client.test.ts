@@ -1,6 +1,6 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import { FetchHttpClient, type HttpClientError } from "effect/unstable/http";
+import { FetchHttpClient, type HttpClientError } from "effect/http";
 import {
   defineContract,
   endpoint,

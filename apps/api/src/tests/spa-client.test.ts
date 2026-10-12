@@ -1,7 +1,7 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { HttpFailure } from "@house-rules/capability";
 import { Effect, Layer, Schema } from "effect";
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 import { api } from "../main.js";
 import { app } from "../composition/index.js";
 import { bookingClient } from "../delivery/web/booking-client.js";

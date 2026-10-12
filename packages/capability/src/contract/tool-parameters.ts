@@ -51,7 +51,7 @@ const hasDecodeLogic = (ast: SchemaAST.AST): boolean =>
 const passesMissingGetters = new Set(["Passthrough", "Transform", "TransformEffect"]);
 
 const passesMissing = (ast: SchemaAST.AST): boolean =>
-  // Effect rc.117 internal/schema/interpreter.ts:36-55 passes a missing key through these getters; :183 skips checks.
+  // Effect 4.0.3 internal/schema/interpreter.ts passes a missing key through these getters without running checks.
   ast._tag !== "Suspend" &&
   (ast.encoding ?? []).every(
     (link) =>
@@ -67,7 +67,7 @@ const takesMissingKey = (member: StructInput, field: Schema.Top): boolean =>
   SchemaAST.isOptional(SchemaAST.toType(field.ast));
 
 const fieldNames = (member: StructInput): ReadonlyArray<string> =>
-  // Effect's Struct reads fields with Reflect.ownKeys (SchemaAST.ts:3191), so non-enumerable ones count.
+  // Effect's Struct reads fields with Reflect.ownKeys (SchemaAST.struct), so non-enumerable ones count.
   Reflect.ownKeys(member.fields).filter((key) => typeof key === "string");
 
 const ownField = (member: StructInput, key: string): Schema.Top | undefined =>

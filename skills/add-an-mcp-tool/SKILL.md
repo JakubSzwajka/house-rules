@@ -36,7 +36,7 @@ Trippy is a Next.js app, so its delivery layer is `src/app/`. In the template la
 
 Skip this step when the app already serves MCP.
 
-1. [ ] Ask the owner before you add any MCP or OAuth dependency. Use `McpServer`, `Tool`, and `Toolkit` from `effect/unstable/ai` in the pinned `effect` first. Read `McpServer.ts` and `Tool.ts` under `.agent_sources/github.com/Effect-TS/effect/packages/effect/src/unstable/ai/` for the current API.
+1. [ ] Ask the owner before you add any MCP or OAuth dependency. Use `McpServer`, `Tool`, and `Toolkit` from `effect/ai` in the pinned `effect` first. Read `McpServer.ts` and `Tool.ts` under `.agent_sources/github.com/Effect-TS/effect/packages/effect/src/ai/` for the current API.
 2. [ ] Declare the app's canonical public URL in `.env.schema`, marked `@sensitive=false`. The metadata document and the token audience both use it. Trippy calls it `APP_URL`, and MCP works only on that one host, even though the app answers on more.
 3. [ ] Create `apps/<app>/src/delivery/mcp/` for the adapter: the route, the bearer check, the tool catalogue, and the error mapper.
 4. [ ] Serve the MCP server with `McpServer.layerHttp`, turned into a web handler by `HttpRouter.toWebHandler`. Keep one long-lived handler per process. For the protocol versions clients speak today (2025-03-26, 2025-06-18, 2025-11-25), Effect's HTTP transport needs an `Mcp-Session-Id` and keeps the session in process memory. A fully stateless mode exists only in the draft 2026-07-28 protocol. So:

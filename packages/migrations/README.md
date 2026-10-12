@@ -1,5 +1,7 @@
 # @house-rules/migrations
 
+Version 0.3.0 peers on exact `effect` 4.0.3. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
+
 Runs the SQL migrations of many modules against one Postgres database. Each module keeps its own folder of `.sql` files and its own history table. It is a port of Trippy's `@trippy/db` runner, which runs in production, widened from one folder to a list.
 
 It depends on `effect` only. The app provides the driver (`SqlClient`, for example from `@effect/sql-pg`) and the platform services (`FileSystem`, `Path`, `Crypto`, for example from `@effect/platform-node`).
@@ -39,7 +41,7 @@ A migration file is named `<id>_<name>.sql`, such as `0001_call_audit.sql`, with
 4. Create each history table if it is missing, and add the `sha256` column to an older table that has none.
 5. Copy the rows a module adopts, when its history is still empty.
 6. Check every applied row against its file. A row with no digest gets one (backfilled). A row whose digest differs fails the run.
-7. Apply the pending files of each module, in list order, through `Migrator` from `effect/unstable/sql`.
+7. Apply the pending files of each module, in list order, through `Migrator` from `effect/sql`.
 
 Any failure rolls back the whole run: no module applies or backfills anything. The run returns one report per module, and `Migrations.formatReport` turns it into one line per module:
 

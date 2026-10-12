@@ -3,7 +3,7 @@ import { PgClient } from "@effect/sql-pg";
 import { expect, layer } from "@effect/vitest";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { Effect, Layer } from "effect";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
+import { SqlClient } from "effect/sql/SqlClient";
 import { AuditReadFailed, CallAudit } from "../../index.ts";
 
 const migrationsDirectory = new URL("../../../migrations", import.meta.url).pathname;

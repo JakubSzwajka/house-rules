@@ -1,7 +1,7 @@
 import { PgClient } from "@effect/sql-pg";
 import { MigrationsTesting } from "@house-rules/migrations";
 import { Cause, Context, Deferred, Effect, Exit, Fiber, Layer, Schema } from "effect";
-import { SqlClient } from "effect/unstable/sql/SqlClient";
+import { SqlClient } from "effect/sql/SqlClient";
 import {
   defineContract,
   implement,

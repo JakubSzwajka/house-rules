@@ -9,7 +9,7 @@ Node `>=24.21.0` only. The pins and migrations bins use `fs.globSync`, with no f
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "0.16.1"
+    "@house-rules/rules": "0.16.2"
   }
 }
 ```
@@ -74,7 +74,7 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `subjects-do-not-import-package-root` | A file in a subject folder importing its own package's `index.ts` or `facade.ts` | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
 | `no-subject-folder-cycles` | Subject folders of one package importing each other in a cycle, even when no file-level cycle exists | Node | `house-rules-layout` bin | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
 | `no-package-cycles` | Workspace packages importing each other in a production cycle, even when no file-level cycle exists | Node | `house-rules-layout` bin | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
-| `adapter-imports-only-in-adapters` | A package file outside `src/adapters/` importing `effect/unstable/sql`, `@effect/sql-*`, `@effect/platform-*`, or a workspace package listed in `adapterImports` (always an error) | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
+| `adapter-imports-only-in-adapters` | A package file outside `src/adapters/` importing `effect/sql` or `effect/unstable/sql`, `@effect/sql-*`, `@effect/platform-*`, or a workspace package listed in `adapterImports` (always an error) | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | Strict compiler flags | 15 flags: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and more | TypeScript | `tsconfig/strict.json` | [tsconfig.md](docs/tsconfig.md) |
 | Effect diagnostics | 31 diagnostics set to error | TypeScript | `tsconfig/effect.json` | [tsconfig.md](docs/tsconfig.md) |
 | `noReExportAll` | `export * from` | Biome | `@house-rules/rules/biome` | [biome.md](docs/biome.md) |
@@ -217,6 +217,7 @@ pnpm run pack:check # Verify tarball
 3. Run `pnpm run check`, `pnpm run pack:check`, and consumer checks (ESLint, Biome, typecheck, Dependency Cruiser, pins).
    0.16.0 is breaking: `serverEntryFiles` is gone. Follow [Upgrading to 0.16.0](docs/dependency-cruiser.md#upgrading-to-0160).
    0.16.1 tightens two Next host defaults: `main.ts` and `index.ts` are no longer host entry files, and `tsconfig/next.json` sets `allowJs: false`, so an app that imports a `.js` file gives it types or converts it to TypeScript.
+   0.16.2 adds stable Effect import paths: the SQL fence covers `effect/sql`, the browser allowlist covers `effect/http`, and `no-hand-rolled-surface` covers `effect/ai`, `effect/rpc` and `effect/http-api`. The RC paths stay checked too.
 4. Merge lockfile and config changes together.
 
 The repo's publish workflow, not a person, publishes a new version to npm.

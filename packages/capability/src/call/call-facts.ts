@@ -1,5 +1,5 @@
 import { Context, Effect, Option } from "effect";
-import { McpSchema } from "effect/unstable/ai";
+import { McpSchema } from "effect/ai";
 import type { AnyContract } from "../contract/contract.ts";
 
 export type CallKind = "read" | "write";

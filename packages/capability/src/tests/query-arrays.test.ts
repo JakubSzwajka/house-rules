@@ -1,6 +1,6 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { Context, Effect, Layer, Schema } from "effect";
-import { FetchHttpClient } from "effect/unstable/http";
+import { FetchHttpClient } from "effect/http";
 import {
   composition,
   defineContract,

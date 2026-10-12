@@ -1,5 +1,5 @@
 import { Effect, Stream } from "effect";
-import type { HttpServerRequest } from "effect/unstable/http";
+import type { HttpServerRequest } from "effect/http";
 import { Refused } from "./caller.ts";
 import { fieldName, InputFault } from "./input.ts";
 

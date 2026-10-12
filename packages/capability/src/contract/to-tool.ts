@@ -1,5 +1,5 @@
 import { Context, type Schema } from "effect";
-import { Tool } from "effect/unstable/ai";
+import { Tool } from "effect/ai";
 import {
   type Contract,
   type FailureSchemaOf,

@@ -44,6 +44,7 @@ const DEFAULT_PATH_LISTS = { generatedDeclarationFiles: [] };
 const DECLARATION_FILE = /[.]d[.][cm]?ts$/u;
 const DEFAULT_ADAPTER_IMPORTS = Object.freeze([
   "effect/unstable/sql",
+  "effect/sql",
   "@effect/sql-*",
   "@effect/platform-*",
 ]);
@@ -66,9 +67,9 @@ const CONTRACT_ENTRY = "src/contract[.]ts";
 const INSTALLED_CONTRACT_ENTRY = `(?:${CONTRACT_ENTRY}|dist/contract[.](?:js|d[.]ts))`;
 const TRUSTED_CONTRACT_PACKAGES = Object.freeze(["@house-rules/capability"]);
 // The effect modules a contract entry may import: the root barrel, its stable top-level modules, and
-// unstable/http. Their import graphs are unseen here; apps/api's browser-bundle test bundles each one.
+// http (unstable/http on RCs). Their import graphs are unseen here; apps/api's browser-bundle test bundles each one.
 const EFFECT_BROWSER_MODULES =
-  "(?:index|[A-Z][A-Za-z0-9]*|unstable/http/(?:index|[A-Z][A-Za-z0-9]*))[.]js";
+  "(?:index|[A-Z][A-Za-z0-9]*|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js";
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u;
 
 function trustedContractPackagesOption(names) {

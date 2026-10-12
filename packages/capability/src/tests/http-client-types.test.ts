@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import type { HttpClient, HttpClientError } from "effect/unstable/http";
+import type { HttpClient, HttpClientError } from "effect/http";
 import { endpoint, type HttpFailureOf, toHttpClient } from "../index.ts";
 import { findBookings, renameGuest, showBooking } from "./delivery-fixtures.ts";
 

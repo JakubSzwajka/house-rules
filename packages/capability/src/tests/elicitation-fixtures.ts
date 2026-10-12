@@ -1,5 +1,5 @@
 import { Effect, Logger, References, Schema } from "effect";
-import { McpSchema } from "effect/unstable/ai";
+import { McpSchema } from "effect/ai";
 import { defineContract, elicitationApproval, implement } from "../index.ts";
 
 export const shareContract = defineContract("share_trip", {

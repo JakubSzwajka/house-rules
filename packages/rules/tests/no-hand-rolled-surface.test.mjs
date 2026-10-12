@@ -58,6 +58,29 @@ T.make.call(undefined, "d");
   ]);
 });
 
+test("stable Effect paths fence barrels, deep imports and namespaces too", () => {
+  const code = `import { Tool } from "effect/ai";
+import * as Ai from "effect/ai";
+import * as DeepTool from "effect/ai/Tool";
+import { make as makeRpc } from "effect/rpc/Rpc";
+import { HttpApiEndpoint } from "effect/http-api";
+import * as Endpoint from "effect/http-api/HttpApiEndpoint";
+Tool.make("a");
+Ai.Tool.make("b");
+DeepTool.make("c");
+makeRpc("d");
+HttpApiEndpoint.get("e", "/e");
+Endpoint.post("f", "/f");`;
+  assert.deepEqual(lint(code), [
+    ["Tool.make", 7],
+    ["Tool.make", 8],
+    ["Tool.make", 9],
+    ["Rpc.make", 10],
+    ["HttpApiEndpoint.get", 11],
+    ["HttpApiEndpoint.post", 12],
+  ]);
+});
+
 test("passes toTool, Toolkit.make, other modules, and shadowed names", () => {
   const code = `import { toTool } from "@house-rules/capability";
 import { Toolkit } from "effect/unstable/ai";

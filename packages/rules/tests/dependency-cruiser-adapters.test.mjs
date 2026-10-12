@@ -28,6 +28,23 @@ test("adapter-imports-only-in-adapters is always an error, and adapterImportsSev
   }
 });
 
+test("the SQL fence matches stable and RC paths, not other Effect modules", () => {
+  const rule = layout({ scope: "@acme/" }).forbidden.find(
+    ({ name }) => name === "adapter-imports-only-in-adapters",
+  );
+  const fenced = (module) => rule.to.path.some((pattern) => new RegExp(pattern, "u").test(module));
+  for (const prefix of ["sql", "unstable/sql"]) {
+    for (const file of ["index", "SqlClient", "SqlConnection"]) {
+      assert.equal(
+        fenced(`node_modules/.pnpm/effect@4.0.3/node_modules/effect/dist/${prefix}/${file}.js`),
+        true,
+      );
+    }
+  }
+  assert.equal(fenced("node_modules/effect/dist/http/HttpClient.js"), false);
+  assert.equal(fenced("node_modules/effect/dist/Schema.js"), false);
+});
+
 test("a workspace package in adapterImports fences a domain file that imports it", async () => {
   const fixture = "violations/adapter-imports-only-in-adapters";
   const adapterImports = [...DEFAULT_ADAPTER_IMPORTS, "@acme/db"];
@@ -52,6 +69,7 @@ test("a workspace package in adapterImports fences a domain file that imports it
 test("a scoped adapterImports entry matches its workspace folder and its node_modules path", () => {
   assert.deepEqual(DEFAULT_ADAPTER_IMPORTS, [
     "effect/unstable/sql",
+    "effect/sql",
     "@effect/sql-*",
     "@effect/platform-*",
   ]);

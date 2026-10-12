@@ -1,5 +1,5 @@
 import { Effect, Layer, Result } from "effect";
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http";
 import { requestIdHeader, withRequestId } from "../call/request-id.ts";
 import {
   type Endpoint,

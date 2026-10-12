@@ -11,12 +11,6 @@ saveWorkspaceProtocol: true
 # Setting it explicitly makes the check strict, so a young version fails the install.
 minimumReleaseAge: 1440
 
-# Exact pins allowed through the release-age check, one entry per version.
-# A bump replaces its entry. Effect 4 release candidates ship every few days.
-minimumReleaseAgeExclude:
-  - effect@4.0.0-rc.117
-  - "@effect/vitest@4.0.0-rc.117"
-
 # The comment plugin's @typescript-eslint/parser peers on TypeScript below 6.1.
 # Giving the plugin its own TypeScript 6.0.3 satisfies that peer inside its subtree.
 # The root and every workspace package keep TypeScript 7.

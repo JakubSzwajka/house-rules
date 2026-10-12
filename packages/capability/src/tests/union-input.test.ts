@@ -1,6 +1,6 @@
 import { expect, expectTypeOf, it } from "@effect/vitest";
 import { Context, Effect, Layer, Schema } from "effect";
-import { McpSchema, McpServer, Tool, Toolkit } from "effect/unstable/ai";
+import { McpSchema, McpServer, Tool, Toolkit } from "effect/ai";
 import { defineContract, Grant, implement, toTool } from "../index.ts";
 
 class BookingNotFound extends Schema.TaggedError<BookingNotFound>()("BookingNotFound", {}) {}
