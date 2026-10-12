@@ -12,7 +12,7 @@
     "test": "varlock run --path ../../ -- vitest run"
   },
   "dependencies": {
-    "@house-rules/capability": "workspace:0.13.1",
+    "@house-rules/capability": "workspace:0.14.0",
     "effect": "4.0.0-rc.117"
   },
   "devDependencies": {

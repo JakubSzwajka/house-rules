@@ -110,10 +110,10 @@ function patterns(options) {
   const tests = pathOption(settings.testsDir, "testsDir");
   const layers = layerOptions(settings.layers ?? {}, host ? { delivery: host.deliveryLayer } : {});
   const layerRoot = (layer) => `^${apps}/[^/]+/src/${layer}(?:/|$)`;
+  // A host app has only its host's entry files, so the generic main.ts and index.ts stay out unless named.
+  const ownEntryFiles = settings.appEntryFiles ?? (host ? [] : DEFAULT_NAME_LISTS.appEntryFiles);
   const entryFiles = unique([
-    ...nameListOption(settings.appEntryFiles ?? DEFAULT_NAME_LISTS.appEntryFiles, "appEntryFiles", {
-      allowEmpty: true,
-    }),
+    ...nameListOption(ownEntryFiles, "appEntryFiles", { allowEmpty: true }),
     ...(host ? host.appEntryFiles.map(escape) : []),
   ]);
   const ownerless = nameListOption(

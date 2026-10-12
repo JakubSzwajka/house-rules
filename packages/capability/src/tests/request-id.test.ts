@@ -1,17 +1,22 @@
 import { expect, it } from "@effect/vitest";
-import { Effect, Layer, Logger, Random, References, Schema } from "effect";
+import { Context, Effect, Layer, Logger, Random, References, Schema } from "effect";
 import {
   type CallFacts,
   CallRequestId,
   CallWatch,
+  call,
+  composition,
   defineContract,
   implement,
   NoInput,
   newRequestId,
   requestIdHeader,
   requestIdOf,
+  toMcpHandler,
+  tool,
   withRequestId,
 } from "../index.ts";
+import { mcpInitialize, mcpPost } from "./delivery-mcp-client.ts";
 
 const loggingPing = implement(
   defineContract("ping", {
@@ -111,5 +116,45 @@ it.effect("withRequestId works data-first, and an inner id wins over an outer on
     const inner = yield* withRequestId(readId, "inner").pipe(withRequestId("outer"));
     expect(inner).toBe("inner");
     expect(yield* CallRequestId).toBeNull();
+  }),
+);
+
+const zeroRandom = Layer.succeed(Random.Random, {
+  nextDoubleUnsafe: () => 0,
+  nextIntUnsafe: () => 0,
+});
+
+const zeroId = "0".repeat(32);
+
+const idPing = implement(
+  defineContract("id_ping", {
+    description: "Answer the request id.",
+    input: NoInput,
+    output: Schema.String,
+    failure: Schema.Never,
+    permission: "public",
+  }),
+  () =>
+    Effect.gen(function* idOfCall() {
+      return (yield* CallRequestId) ?? "none";
+    }),
+);
+
+it.effect("a built app's Random makes the fresh request id on call() and MCP", () =>
+  Effect.gen(function* seededAdapters() {
+    const app = composition({ layer: zeroRandom, caller: () => Effect.succeed(Context.empty()) });
+    const outcome = yield* Effect.promise(() =>
+      call(app, idPing, {}, { headers: new Headers(), url: "https://a.test/" }),
+    );
+    expect(outcome).toEqual({ ok: true, value: zeroId });
+    const mcp = toMcpHandler(app, {
+      path: "/mcp",
+      name: "t",
+      version: "0",
+      tools: [tool(idPing, { title: "Id", idempotent: true, openWorld: false })],
+    });
+    const init = yield* mcpPost(mcp, {}, mcpInitialize);
+    expect(init.headers.get(requestIdHeader)).toBe(zeroId);
+    yield* Effect.promise(() => mcp.dispose().then(app.dispose));
   }),
 );

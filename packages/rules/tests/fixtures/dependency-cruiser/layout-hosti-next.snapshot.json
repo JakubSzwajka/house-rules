@@ -202,7 +202,7 @@
         "path": "^apps/[^/]+/src/",
         "pathNot": [
           "^apps/[^/]+/src/(?:app|server|use-cases|composition)/",
-          "^apps/[^/]+/src/(?:main[.]ts|index[.]ts|proxy[.]ts|instrumentation[.]ts)$",
+          "^apps/[^/]+/src/(?:proxy[.]ts|instrumentation[.]ts)$",
           "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
         ],
         "numberOfDependentsLessThan": 100

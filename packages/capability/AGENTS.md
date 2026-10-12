@@ -29,7 +29,7 @@ const result = await call(app, showBooking, { id }, { headers, url }); // React 
 | Delivery option | Effect |
 | --- | --- |
 | `caller` | Per adapter. Turns `{ headers, url }` into `Context<Viewer \| Grant ...>` or `Refused`. |
-| `views` | Failure tag to `(error, caller) => { status, body, headers?, code? }`. Defaults cover `Refused`, `InputInvalid`, `Forbidden`, `ApprovalDenied`, `UnitOfWorkFailed`, `NoOpenUnit`. |
+| `views` | Failure tag to `(error, caller) => { status, body, headers?, code? }`. Defaults cover `Refused`, `InputInvalid`, `Forbidden`, `ApprovalDenied`, `UnitOfWorkFailed`, `NoOpenUnit`, `CompositionClosed`. The composition's table also needs a view for each tag the layer can fail with, such as `DbUnavailable`. `InputInvalid` carries `capabilityName`, `field`, `issue` (`unexpected`, `missing`, `invalid`, `repeated`) and `message`, so a view can word a message per capability and field. |
 | `approval` | Defaults: `denyAll` on HTTP, `elicitationApproval` on MCP, `allowAll` for `call`. It beats an `Approval` the caller returns, unless set to `"fromCaller"`. |
 | `origins` | The app's origins for the CSRF check, each a plain `http(s)` origin; anything else, `"null"` too, throws at mount. Default: the request URL's origin. |
 | `maxBodyBytes` | Write body limit. Default 1 MB; over it is 413. |
@@ -56,9 +56,14 @@ Hooks the app wires itself when it does not use delivery:
 
 ## Fixed rules
 
-- Delivery: a missing view, a view that takes the wrong error, or a service nobody provides is a compile error at `toFetchHandler`, `toMcpHandler` or `call`. Never cast it away; add the view.
+- Delivery: a missing view, a view that takes the wrong error, or a service nobody provides is a compile error at `toFetchHandler`, `toMcpHandler` or `call`. A layer error tag without a view is one at `composition()`. Never cast it away; add the view.
+- Delivery: a layer that fails to build with a tagged error answers that error's view on every adapter; `call` and the MCP handler resolve, never reject. A dying layer is the fixed 500. The next use builds the layer again, so read `app.runtime` each time instead of keeping it.
+- Delivery: requests run as fibers of the app runtime. `app.dispose()` is final: it interrupts running requests, then closes the layer, and never rebuilds it. Later requests answer `CompositionClosed`, 503 `unavailable`, on every adapter.
+- Delivery: the success body is the encoded contract output over HTTP and MCP. `call` returns the handler's typed value without encoding.
+- Delivery: there is no success view; paging goes in the body, such as `{ items, next }`.
+- Delivery: a GET array field takes a repeated key, `status=a&status=b`, and one key is a one-item list. A comma is data. A repeat on any other field, an unknown key and a path key in the query stay 400s. Write a GET default in the contract with `Schema.withDecodingDefaultKey`.
 - Delivery: any write that carries a `Cookie`, whatever the caller, from another origin or an opaque one (`null`) is a 403 before the layer builds or the caller runs. A route skips it only with a written `reason`.
-- Delivery: the caller runs before input is read or decoded, so refusals do no capability service work. The app layer still builds on the first request, a refused one too. `InputInvalid` never quotes a value. A repeated JSON member and a `__proto__` key are 400s. A defect anywhere, a throwing view or an output that does not encode too, is a 500 `internal_error`, logged with the request id. A view may not answer 500: `problem` and `problemView` refuse a literal 500, and a view that answers 500 anyway sends `internal_error` while its body goes to the log.
+- Delivery: the caller runs before input is read or decoded, so refusals do no capability service work. The app layer still builds on the first request, a refused one too. `InputInvalid` never quotes a value. A repeated JSON member, a `__proto__` key and a body that is not valid UTF-8 are 400s. A defect anywhere, a throwing view or an output that does not encode too, is a 500 `internal_error`, logged with the request id. A view may not answer 500: `problem` and `problemView` refuse a literal 500, and a view that answers 500 anyway sends `internal_error` while its body goes to the log.
 - Delivery: each handler builds its own router. A fetch handler never answers MCP or another handler's routes.
 - Delivery: a failure response never names the error's tag or fields. A 4xx carries `x-failure-code` only for a code its view exposes and its endpoint declares, so a view that hides one failure behind another stays hidden.
 - `src/contract.ts` is the browser entry. Anything it reaches must stay browser-safe; `contract-entry-is-browser-safe` checks it. Consumer apps trust it by name, so it may import only `effect` modules on the rule's allowlist.
@@ -71,4 +76,4 @@ Hooks the app wires itself when it does not use delivery:
 - Review rule: `audit.target` names an id field (`tripId`), never free text (title, note). The type cannot prove it: `target: "note"` compiles and stores the note.
 - `around` takes `facts` as an optional fourth argument. A watch must handle `undefined` (use `unknownCallFacts(contract)`).
 - A capability cannot opt itself out of the watch.
-- The request id only traces. It never decides access. Only an id that passes `requestIdOf` (`^[A-Za-z0-9._:-]{1,128}$`) is kept; anything else gets a fresh one.
+- The request id only traces. It never decides access. Only an id that passes `requestIdOf` (`^[A-Za-z0-9._:-]{1,128}$`) is kept, untrimmed; anything else gets a fresh one, 32 lowercase hex characters.

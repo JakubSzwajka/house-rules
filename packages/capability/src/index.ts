@@ -91,6 +91,7 @@ export { sqlUnitOfWork } from "./adapters/sql-unit-of-work.ts";
 export { call, type CallOptions } from "./delivery/call.ts";
 export { type Caller, type Incoming, Refused } from "./delivery/caller.ts";
 export { type Composition, composition, once } from "./delivery/composition.ts";
+export { CompositionClosed } from "./delivery/composition-closed.ts";
 export {
   type CsrfOptOut,
   defaultMaxBodyBytes,
@@ -101,7 +102,7 @@ export {
   route,
   toFetchHandler,
 } from "./delivery/fetch-handler.ts";
-export { decodeInput, InputInvalid, type InputSource } from "./delivery/input.ts";
+export { decodeInput, InputInvalid, type InputIssue, type InputSource } from "./delivery/input.ts";
 export type { ApprovalOption, Mountable, Outcome } from "./delivery/invoke.ts";
 export {
   type McpHandlerOptions,

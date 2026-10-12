@@ -178,7 +178,7 @@ One id per incoming request ties its audit rows and its log lines together, so a
 | --- | --- |
 | `requestIdHeader` | `"x-request-id"`, the header the app reads, forwards and echoes |
 | `requestIdOf(value)` | the value when it is a safe id (`^[A-Za-z0-9._:-]{1,128}$`), else `null` |
-| `newRequestId` | an `Effect<string>`: 32 random hex characters from Effect's `Random`, so a test can seed it |
+| `newRequestId` | an `Effect<string>`: 32 random lowercase hex characters from Effect's `Random`, so a test can seed it. It is a log key, not a secret. |
 | `withRequestId(id)` | wraps an effect: provides `CallRequestId` and adds the log annotation `requestId`, so every log line inside carries it, not only the audit line |
 
 ```
@@ -196,7 +196,7 @@ const id = requestIdOf(request.headers.get(requestIdHeader)) ?? (yield* newReque
 return yield* capability.handler(input).pipe(withRequestId(id));
 ```
 
-A valid incoming id is kept, so an id set by a proxy or a client in front can be followed through. Anything else is replaced. The id only traces a request: it grants nothing and never decides access, so a client that sends its own id can only confuse its own trail. Free text never reaches the audit, because `requestIdOf` lets only id characters through. `withRequestId` is dual: `withRequestId(effect, id)` works too. An inner `withRequestId` wins over an outer one.
+A valid incoming id is kept as sent, so an id set by a proxy or a client in front can be followed through. Anything else is replaced. The id is not trimmed first: ` abc ` is replaced, not kept as `abc`. The id only traces a request: it grants nothing and never decides access, so a client that sends its own id can only confuse its own trail. Free text never reaches the audit, because `requestIdOf` lets only id characters through. `withRequestId` is dual: `withRequestId(effect, id)` works too. An inner `withRequestId` wins over an outer one.
 
 ### Units of work
 
@@ -341,7 +341,7 @@ Install it from npm at an exact version:
 ```json
 {
   "dependencies": {
-    "@house-rules/capability": "0.13.1",
+    "@house-rules/capability": "0.14.0",
     "effect": "4.0.0-rc.117"
   }
 }
@@ -400,7 +400,7 @@ Delivery mounts capabilities on a host. The seam is the Web fetch standard: the 
    3 caller(incoming) -> Context<Viewer | Grant | ...>  or Refused -> its status + challenge
    4 decode input with contract.input                   or InputInvalid -> 400
         v
- composition: the app layer (built once), the caller, the views
+ composition: the app layer (built on first use, again after a failed build), the caller, the views
         v
  capability.handler: CallWatch -> Grant -> Approval -> UnitOfWork -> handler
         v value | typed failure
@@ -438,25 +438,65 @@ const result = await call(app, showBooking, { id }, { headers: await headers(), 
 // { ok: true, value } | { ok: false, error, view }
 ```
 
-1. [ ] **Composition.** `composition({ layer, caller, views })` builds one `ManagedRuntime` over the layer. `call`, every fetch handler and every MCP handler read the same built services, so they share one pool. A layer that fails to build is logged and answers 500. `app.dispose()` closes it. The layer starts cold: the first request builds it, even one that a refusal then turns away, such as a 401 from the caller. Only the CSRF check runs before the build. To keep a refused request from doing startup work, warm the app at startup, for example with `app.runtime.runPromise(Effect.void)`.
+1. [ ] **Composition.** `composition({ layer, caller, views })` builds one `ManagedRuntime` over the layer. `call`, every fetch handler and every MCP handler read the same built services, so they share one pool. `app.dispose()` closes it. The layer's error type stays in the composition, `Composition<A, C, Views, E>`, so a layer that fails with a tagged error, such as a database that is down, answers that error's view on every adapter: `toFetchHandler` sends its status and body, `toMcpHandler` refuses the HTTP request with them before `McpServer` runs, and `call` resolves to `{ ok: false, error, view }`. None of them rejects. A layer that dies, or fails with an error that has no tag, is the fixed 500. Each failure is logged with the request id. A failed build is not kept: the next use builds the layer again, so a 503 clears when the database comes back, with no restart. Concurrent first requests share one build, and a build that succeeds is kept. `app.runtime` is the current runtime, a fresh one after a failed build. Each request runs as a fiber of that runtime once the layer is built. `app.dispose()` is final: it interrupts every request still running, then closes the layer's resources, so no request runs on a closed pool. After it, nothing builds the layer again, not even after a failed build. A request that arrives later, or waits on a build when dispose runs, answers `CompositionClosed`, whose default view is 503 `unavailable` `The app is shutting down.`, on all three adapters. A second `dispose()` returns the same finished shutdown. The layer starts cold: the first request builds it, even one that a refusal then turns away, such as a 401 from the caller. Only the CSRF check runs before the build. To keep a refused request from doing startup work, warm the app at startup, for example with `app.runtime.runPromise(Effect.void)`.
 2. [ ] **Caller.** `Caller<C, R>` is `(incoming: { headers, url }) => Effect<Context<C>, Refused, R>`. It runs with the app's services, so it can ask an identity module who this is. It returns the per-request services, usually `Viewer` and `Grant`. `Refused` carries a `status`, a `code`, a `message` and an optional `challenge`, which goes out as `WWW-Authenticate`. Each adapter may take its own caller; the composition's is the default.
-3. [ ] **Input.** The adapter decodes the whole input once, with `contract.input`, and the handler gets the decoded type. A path param on a write, and an MCP call's arguments, pass a field or toolkit decode first, so a schema filter may run more than once. A GET takes path params plus query, decoded with the StringTree codec, so `"5"` becomes `5`. A write (POST, PUT, PATCH, DELETE) takes the JSON body plus path params; a path param is decoded through its field's codec first. A key given twice, a JSON member given twice (even spelled with an escape), a key the input does not take (`__proto__` too), or a query key on a write is a 400. `InputInvalid` names the field and never quotes the value. `call` decodes its input too, because a server action's input is untrusted.
+3. [ ] **Input.** The adapter decodes the whole input once, with `contract.input`, and the handler gets the decoded type. A path param on a write, and an MCP call's arguments, pass a field or toolkit decode first, so a schema filter may run more than once. A GET takes path params plus query, decoded with the StringTree codec, so `"5"` becomes `5`. A write (POST, PUT, PATCH, DELETE) takes the JSON body plus path params; a path param is decoded through its field's codec first. A key given twice, a JSON member given twice (even spelled with an escape), a key the input does not take (`__proto__` too), or a query key on a write is a 400. An array field in a GET query is the one exception to "once": see [The query](#the-query). A write body must be valid UTF-8; a stray byte is a 400 `The body is not valid UTF-8.`, never a replacement character. `InputInvalid` names the capability, the field and the issue, and never quotes the value. `call` decodes its input too, because a server action's input is untrusted.
 4. [ ] **Views.** A view is `{ status, body, headers?, code? }`; `code` is the public failure code it opts in to send, see [Single-page apps](#single-page-apps). The app keeps one table, failure tag to `(error, caller) => View`. Defaults cover House Rules' own tags; an app or adapter view replaces one by tag. A defect, or an error with no view, is a 500 `internal_error`, logged with the request id. So is a view that throws, an output the contract cannot encode, and any other defect while the adapter answers. Status 500 is kept for defects. `problem` and `problemView` refuse a literal 500 at compile time. A view that answers 500 anyway, say from a status held in a variable, sends the same `internal_error` body, and its own body goes to the log. A view may still pick another 5xx, such as 503 `unavailable`, with the body its author wrote. MCP uses the same table: the body becomes an `isError` tool result and the status is dropped.
 5. [ ] **Approval per channel.** `toFetchHandler` fails closed (`Approval.denyAll`), `toMcpHandler` asks the human with `elicitationApproval`, and `call` uses `Approval.allowAll`, because a click in the app is the human's yes. Each takes an `approval` option. The adapter's Approval always wins over one a caller returns, so a caller cannot switch off the human's yes by mistake. To let the caller's Approval decide, say so by name: `approval: "fromCaller"`. The adapter's default still applies when the caller returns none.
 6. [ ] **Body limit.** A write body over 1 MB (`defaultMaxBodyBytes`) is a 413 `body_too_large`, checked on `content-length` and again while it streams. Set `maxBodyBytes` to change it.
+7. [ ] **Success body.** The success body is the contract's output, encoded with its JSON codec, with `content-type: application/json` and no charset (JSON has none). There is no success view. Keys the output schema does not declare are dropped, so a handler cannot leak them. The status is the route's: `route(cap, at, { status: 201 })`. Paging goes in the body, such as `{ items, next }`, not in a `Link` header. MCP encodes the output the same way and sends it as `structuredContent`. `call` does not encode: it returns the handler's typed value as is, undeclared keys included, because it never leaves the process.
 
 | Tag | Default view |
 | --- | --- |
 | `Refused` | its `status` and `code`; `WWW-Authenticate` when it has a `challenge` |
-| `InputInvalid` | 400 `invalid_input`, with `field` |
+| `InputInvalid` | 400 `invalid_input`, with `field`; the error also carries `capabilityName` and `issue` for an app view |
 | `Forbidden` | 403 `forbidden` |
 | `ApprovalDenied` | 403 `approval_denied` |
 | `UnitOfWorkFailed` | 503 `unavailable` |
+| `CompositionClosed` | 503 `unavailable`, `The app is shutting down.` |
 | `NoOpenUnit`, a defect, no view | 500 `internal_error` |
+
+### Input errors
+
+`InputInvalid` has four fields. An app view can word its own message from them:
+
+| Field | Value |
+| --- | --- |
+| `capabilityName` | the contract's name, such as `search_tasks` |
+| `field` | the field's path, such as `status` or `positions.0.x`; `body` when the body itself is wrong; `input` when the key cannot be named safely |
+| `issue` | `unexpected` (a key the input does not take, or a query key on a write), `missing`, `invalid` (a value the field refuses, or a body that is not JSON, not an object, not UTF-8, or unreadable), `repeated` (a key given twice) |
+| `message` | the default text, such as `status is not valid.` or `Give q once.` |
+
+```ts
+const views = {
+  InputInvalid: (e: InputInvalid) =>
+    problem(422, "invalid_input",
+      e.issue === "invalid" || e.issue === "missing"
+        ? (MESSAGES[e.capabilityName]?.[e.field] ?? e.message)
+        : e.message),
+};
+```
+
+The default view's body stays `{ code, message, field }`. `decodeInput(contract, raw, source)` names `contract.name` too.
+
+### The query
+
+A GET reads its input from the path and the query, decoded with the StringTree codec. The field's StringTree side decides how a key is read:
+
+| Field | Query | Notes |
+| --- | --- | --- |
+| a string, number or literal | `k=v`, once | `5` decodes to `5` |
+| `Schema.Boolean` | `k=true` or `k=false` | `1`, `0` and an empty value are invalid |
+| an array of scalars | `k=a&k=b`, one key per item, in order; `k=a` is `[a]` | OpenAPI `style: form`, `explode: true` |
+| optional | leave the key out | an empty array sends no key |
+| with a default | leave the key out | write the default in the contract: `Schema.withDecodingDefaultKey(Effect.succeed(v))`; it works in the JSON codec too |
+| anything else, such as a struct or a nullable array | not a GET field | give the contract a write route |
+
+A key is a list only when every Union member that has it reads a list. Still refused: a repeat on a field that is not a list (`Give x once.`), a key the input does not take, a path key in the query, and a comma list. A comma is data, so `status=a,b` is one item, `"a,b"`.
 
 ### A missing view is a type error
 
-`toFetchHandler`, `toMcpHandler` and `call` check each mounted capability against the app at compile time. Every failure tag needs a view in the defaults, the composition's `views`, or the adapter's `views`. A view keyed by a tag must take that tag's error. Every service the handler needs must come from the app layer, the caller or the adapter. A gap fails `tsc` and names it:
+`toFetchHandler`, `toMcpHandler` and `call` check each mounted capability against the app at compile time. Every failure tag needs a view in the defaults, the composition's `views`, or the adapter's `views`. So does every tag in the layer's error type: `composition()` fails `tsc` with `missingViews` when the layer can fail with a tag that has no view there, and each adapter checks it again against its own views. A view keyed by a tag must take that tag's error. Every service the handler needs must come from the app layer, the caller or the adapter. A gap fails `tsc` and names it:
 
 ```text
 Property 'missingViews' is missing in type '{ routes: ... }'
@@ -483,7 +523,7 @@ Each `toFetchHandler` and `toMcpHandler` builds its own router. A fetch handler 
 
 ### Request ids
 
-Every adapter takes `x-request-id` when it is safe, or makes a fresh one, and echoes it on the response. MCP keeps one id per HTTP request: the caller, the tool's `CallRequestId`, the logs and the response header all carry it.
+Every adapter takes `x-request-id` when it is safe, or makes a fresh one of 32 lowercase hex characters, and echoes it on the response. MCP keeps one id per HTTP request: the caller, the tool's `CallRequestId`, the logs and the response header all carry it.
 
 ## Single-page apps
 
@@ -506,12 +546,26 @@ const client = toHttpClient([bookingEndpoints.showBooking], { prefix: "/api" });
 const booking = yield* client.show_booking({ id }); // Effect<Booking, HttpFailure | HttpClientError, HttpClient>
 ```
 
-- **Same wire rules.** A GET sends the path values in the path and every other field as one query value, encoded with the StringTree codec the fetch handler decodes with. A write sends the JSON body without the path keys, because the handler refuses a key given twice. A GET field that does not encode to one string, such as an array, is a defect: give that contract a write route.
+- **Same wire rules.** A GET sends the path values in the path and every other field as one query value, encoded with the StringTree codec the fetch handler decodes with. An array field goes out as one key per item, `status=a&status=b`, and an empty array as no key, as [The query](#the-query) says. A write sends the JSON body without the path keys, because the handler refuses a key given twice. A path value, or a GET field that encodes to neither one string nor a list of strings, such as a struct, is a defect: give that contract a write route.
 - **Types from the contract.** The client's keys are the contract names. Each call takes the input's `Type`, returns the output's `Type`, and needs `HttpClient` from `effect/unstable/http`. A wrong input, a wrong output, or a failure code the endpoint does not declare is a `tsc` error. In the browser, provide `FetchHttpClient.layer`. Outside one, prepend an origin with `HttpClient.mapRequest(HttpClientRequest.prependUrl(origin))`.
 - **Failures send nothing by default.** The server sends the view's status and body, never the error. A view may hide one failure behind another, such as `Forbidden` behind a 404 `not_found`, and nothing on the wire tells them apart. To give the client a code, two sides opt in. The view exposes it: `problemView(404, "not_found", message, { exposeCode: true })`, or a hand-written view that returns `code`. The endpoint declares it: `endpoint(contract, "GET /bookings/:id", { codes: ["not_found"] })`. Only then does a 4xx answer carry `x-failure-code: not_found`. A code the endpoint does not declare, a 5xx, or a code on a route mounted from a string never goes out as `x-failure-code`, and a view's own `x-failure-code` header is dropped. The double opt-in gates only that typed header, the one the client turns into a typed failure. The body is the view's: a code its author writes into a 4xx body goes out as written, so write only what the client may see.
 - **The client checks codes.** It fails with `HttpFailure { code, status, body }`. `code` is typed as the endpoint's declared codes plus `Unknown`. A 4xx whose header names a declared code gets that code. Anything else is `Unknown`: no header, a code the endpoint does not declare, any 5xx, or an output that does not decode. `status` and `body` still say what the view sent, such as a 401 `session_invalid`. A network error stays an `HttpClientError`. The client never decodes the real error, because its fields may hold what the view hides, such as a defect cause or a permission name.
 - **Cookies and CSRF.** `FetchHttpClient` uses `fetch`, which sends same-origin cookies by default. Set `FetchHttpClient.RequestInit` for anything else. The browser adds `Origin` to every POST, PUT, PATCH and DELETE, and to cross-origin requests, so the CSRF check passes from the app's own origin and refuses another site's write with a 403. Script cannot set `Origin`, so the client never does.
-- **OpenAPI.** `toOpenApi(routes, { title, version, prefix, views, security })` returns an OpenAPI 3.1 document. Inputs and outputs come from the contracts through Effect's JSON Schema, with shared, named schemas under `components.schemas`. A named input is followed before it is split. A GET Struct input becomes path and query parameters, and a GET Union input becomes one exploded `input` query object, required when every member requires a field. A write gets a JSON body without the path fields. A failure goes under the status its view always answers: a `problemView(404, "not_found", message)` view, or a default view, says it. A view that picks its status per error goes under `default`, as do refusals and the 500. The document names no internal tag. A response lists the `x-failure-code` header only for codes the endpoint declares: under the status of the `problemView` that exposes it, or under `default`. The `operationId` is the contract's name; a contract on two endpoints gets its method and path added, and a clash fails the build. `security: { schemes, require? }` adds the schemes; a `"public"` contract drops them. Effect's `OpenApi.fromApi` needs an `HttpApi`, which wants the HTTP status on the error schema and four input schemas, so House Rules writes the document itself. The tests check its shape; no OpenAPI 3.1 validator runs on it yet.
+- **OpenAPI.** `toOpenApi(routes, { title, version, prefix, views, security })` returns an OpenAPI 3.1 document. Inputs and outputs come from the contracts through Effect's JSON Schema, with shared, named schemas under `components.schemas`. A named input is followed before it is split. A GET Struct input becomes path and query parameters, an array field a `style: form`, `explode: true` parameter, and a GET Union input becomes one exploded `input` query object, required when every member requires a field. A write gets a JSON body without the path fields. A failure goes under the status its view always answers: a `problemView(404, "not_found", message)` view, or a default view, says it. A view that picks its status per error goes under `default`, as do refusals and the 500. The document names no internal tag. A response lists the `x-failure-code` header only for codes the endpoint declares: under the status of the `problemView` that exposes it, or under `default`. The `operationId` is the contract's name; a contract on two endpoints gets its method and path added, and a clash fails the build. `security: { schemes, require? }` adds the schemes; a `"public"` contract drops them. Effect's `OpenApi.fromApi` needs an `HttpApi`, which wants the HTTP status on the error schema and four input schemas, so House Rules writes the document itself. The tests check its shape; no OpenAPI 3.1 validator runs on it yet.
+
+## Upgrading to 0.14.0
+
+0.14.0 breaks five things:
+
+1. [ ] **`InputInvalid` has two new required fields**, `capabilityName` and `issue`. Code that builds one by hand adds both. A view that reads only `field` and `message` keeps working, and the default body is unchanged.
+2. [ ] **A layer error goes through the views.** `Composition` has a fourth type parameter, the layer's error type, which defaults to `never`. A layer that can fail with a tagged error now needs a view for that tag at `composition()`, or `tsc` fails with `missingViews`. Add one, such as `DbUnavailable: problemView(503, "unavailable", () => "Try again shortly.")`. At run time a failed build answers that view where it answered 500, `call` resolves where it rejected, and the MCP handler answers where it rejected. `call`'s `Outcome` error type now includes the layer error. Code that caught a rejected `call` can drop the catch.
+3. [ ] **A failed build is retried.** The next use builds the layer again, where before the failure stayed until a restart. `app.runtime` is a getter: read it each time, do not keep it.
+4. [ ] **A GET reads arrays.** An array field now takes a repeated key, and one key is a one-item list; before, both were 400s. `toHttpClient` sends such a field as repeated keys, where it died. OpenAPI marks the parameter `style: form`, `explode: true`.
+5. [ ] **`dispose()` is final.** After `app.dispose()`, `call` resolves to `{ ok: false, error: CompositionClosed, view }` where it rejected, and both handlers answer its 503 where they answered 500. Nothing rebuilds the layer after dispose. `Outcome`'s error type now includes `CompositionClosed`, and `defaultViews` has its view, so an exhaustive switch over the error adds a case.
+
+A fresh request id still comes from the app: on a built app, `call` and MCP make it inside the app runtime, so a `Random` the layer provides seeds it, as in 0.13. When the layer did not build, or after dispose, the id comes from Effect's default `Random`. `toFetchHandler` makes its id before it reads the layer, with the default `Random`, as before.
+
+Two stricter checks: a write body that is not valid UTF-8 is a 400, where it decoded with replacement characters; and an MCP server that rejects, such as for a tool schema it cannot list, is the fixed 500 with the request id, where the handler rejected. `@house-rules/call-audit` 0.3.0 peers on this version.
 
 ## Upgrading to 0.13.0
 
@@ -532,8 +586,8 @@ It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Appr
 
 ## Exports
 
-Delivery: `composition`, `once`, `call`, `toFetchHandler`, `route`, `toMcpHandler`, `tool`, `decodeInput`, `defaultViews`, `defaultMaxBodyBytes`, `problem`, `problemView`, `toOpenApi`, the `Refused` and `InputInvalid` errors, and the types `Composition`, `Caller`, `Incoming`, `View`, `ViewFn`, `ViewTable`, `CallerContext`, `DefaultViewTag`, `ViewsCheck`, `MountCheck`, `ServicesCheck`, `Mountable`, `Outcome`, `ApprovalOption`, `CallOptions`, `Route`, `RouteOptions`, `CsrfOptOut`, `Method`, `FetchHandler`, `FetchHandlerOptions`, `McpTool`, `McpToolOptions`, `McpHandlerOptions`, `InputSource`, `ProblemViewOptions`, `StaticStatus`, `OpenApiDocument`, `OpenApiOptions`, `OpenApiSecurity`, and `OpenApiSecurityScheme`.
+Delivery: `composition`, `once`, `call`, `toFetchHandler`, `route`, `toMcpHandler`, `tool`, `decodeInput`, `defaultViews`, `defaultMaxBodyBytes`, `problem`, `problemView`, `toOpenApi`, the `Refused` and `InputInvalid` errors, and the types `Composition`, `Caller`, `Incoming`, `View`, `ViewFn`, `ViewTable`, `CallerContext`, `DefaultViewTag`, `ViewsCheck`, `MountCheck`, `ServicesCheck`, `Mountable`, `Outcome`, `ApprovalOption`, `CallOptions`, `Route`, `RouteOptions`, `CsrfOptOut`, `Method`, `FetchHandler`, `FetchHandlerOptions`, `McpTool`, `McpToolOptions`, `McpHandlerOptions`, `InputSource`, `InputIssue`, `ProblemViewOptions`, `StaticStatus`, `OpenApiDocument`, `OpenApiOptions`, `OpenApiSecurity`, and `OpenApiSecurityScheme`.
 
-Client, also from `@house-rules/capability/contract`: `endpoint`, `toHttpClient`, `failureCodeHeader`, the `HttpFailure` error, and the types `Endpoint`, `EndpointOptions`, `EndpointShape`, `HttpClientOf`, `HttpClientOptions`, `ClientCall`, `ClientFailureCode` and `HttpFailureOf`. The contract entry also exports `defineContract`, `failureSchemaOf`, `NoInput`, the `Forbidden`, `ApprovalDenied`, `UnitOfWorkFailed`, `InputInvalid` and `Refused` errors, and the contract and permission types.
+Client, also from `@house-rules/capability/contract`: `endpoint`, `toHttpClient`, `failureCodeHeader`, the `HttpFailure` error, and the types `Endpoint`, `EndpointOptions`, `EndpointShape`, `HttpClientOf`, `HttpClientOptions`, `ClientCall`, `ClientFailureCode` and `HttpFailureOf`. The contract entry also exports `defineContract`, `failureSchemaOf`, `NoInput`, the `Forbidden`, `ApprovalDenied`, `UnitOfWorkFailed`, `InputInvalid` and `Refused` errors, the `InputIssue` type, and the contract and permission types.
 
 The rest: `defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, `CallWatch`, `UnitOfWork`, and `CurrentUnit` services, the `CallChannel` and `CallRequestId` references, `withRequestId`, `requestIdOf`, `newRequestId`, `requestIdHeader`, `mcpChannel`, `isMcpChannel`, `maxClientNameLength`, `maxTargetIdLength`, `sqlUnitOfWork` and `memoryUnitOfWork`, the `Forbidden`, `ApprovalDenied`, `NoOpenUnit`, and `UnitOfWorkFailed` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `StructInput`, `UnionInput`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `CallFacts`, `CallKind`, `AuditDeclaration`, `AuditOptions`, `StringKeyOf`, `GrantRequirement`, `ApprovalRequirement`, `UnitOfWorkRequirement`, `GateRequirements`, `UnitOfWorkService`, `OpenUnit`, `Atomic`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, `ToToolOptions`, `ToolParameters`, and `MergedParameters`.

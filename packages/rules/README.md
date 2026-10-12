@@ -9,7 +9,7 @@ Node `>=24.21.0` only. The pins and migrations bins use `fs.globSync`, with no f
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "0.16.0"
+    "@house-rules/rules": "0.16.1"
   }
 }
 ```
@@ -199,7 +199,7 @@ module.exports = require("@house-rules/rules/dependency-cruiser").layout({
 ...shadcn({ host: "next" }),
 ```
 
-`host: "next"` makes `src/app/` the delivery folder, allows `src/proxy.ts` and `src/instrumentation.ts`, treats `next-env.d.ts` as a generated declaration and leaves `.next/` out. `configs.nextHost` is the ESLint side of that: one global-ignores block for `**/.next/**` and `**/next-env.d.ts`, so ESLint never lints build output or the generated file. `tsconfig/next.json` adds `allowJs`, `esModuleInterop`, `resolveJsonModule`, `jsx: "react-jsx"` and the `next` plugin to `web.json`. Next 16 never rewrites a tsconfig that uses `extends`, so these options must come from the preset. The Effect tsconfig keeps `web.json`, because `next.json`'s `plugins` would replace the Effect block. In `shadcn()`, the host lets `app/global-error.tsx` use raw elements and inline styles. Next renders that file in place of the root layout, so the app's components and stylesheet may not be loaded there. Every other rule stays on in that file, and every other file keeps both rules.
+`host: "next"` makes `src/app/` the delivery folder, allows `src/proxy.ts` and `src/instrumentation.ts`, treats `next-env.d.ts` as a generated declaration and leaves `.next/` out. `configs.nextHost` is the ESLint side of that: one global-ignores block for `**/.next/**` and `**/next-env.d.ts`, so ESLint never lints build output or the generated file. `tsconfig/next.json` sets `allowJs: false` and adds `esModuleInterop`, `resolveJsonModule`, `jsx: "react-jsx"` and the `next` plugin to `web.json`. Next 16 never rewrites a tsconfig that uses `extends`, so these options must come from the preset. The Effect tsconfig keeps `web.json`, because `next.json`'s `plugins` would replace the Effect block. In `shadcn()`, the host lets `app/global-error.tsx` use raw elements and inline styles. Next renders that file in place of the root layout, so the app's components and stylesheet may not be loaded there. Every other rule stays on in that file, and every other file keeps both rules.
 
 ## Commands
 
@@ -216,6 +216,7 @@ pnpm run pack:check # Verify tarball
 2. Update the exact version in `package.json`, regenerate lockfile.
 3. Run `pnpm run check`, `pnpm run pack:check`, and consumer checks (ESLint, Biome, typecheck, Dependency Cruiser, pins).
    0.16.0 is breaking: `serverEntryFiles` is gone. Follow [Upgrading to 0.16.0](docs/dependency-cruiser.md#upgrading-to-0160).
+   0.16.1 tightens two Next host defaults: `main.ts` and `index.ts` are no longer host entry files, and `tsconfig/next.json` sets `allowJs: false`, so an app that imports a `.js` file gives it types or converts it to TypeScript.
 4. Merge lockfile and config changes together.
 
 The repo's publish workflow, not a person, publishes a new version to npm.

@@ -222,10 +222,9 @@ function assertNextHost(app, tsc) {
   const useComposition = 'import { app } from "../composition/index";\n';
   write(next, {
     "tsconfig.json": { extends: "@house-rules/rules/tsconfig/next.json", include: [src] },
-    "tsconfig.web.json": {
-      extends: "@house-rules/rules/tsconfig/web.json",
-      include: [`${src}/composition`],
-    },
+    "tsconfig.js.json": { extends: "@house-rules/rules/tsconfig/next.json", include: ["legacy"] },
+    "legacy/legacy.js": "export const legacy = 1;\n",
+    "legacy/use.ts": 'import { legacy } from "./legacy.js";\nexport const used = legacy;\n',
     ".dependency-cruiser.cjs":
       'module.exports = require("@house-rules/rules/dependency-cruiser").layout({ scope: "@consumer/", host: "next" });\n',
     "eslint.config.mjs":
@@ -237,9 +236,8 @@ function assertNextHost(app, tsc) {
       '/// <reference types="next" />\nimport "./.next/types/routes.d.ts";\n',
     "apps/web/.next/server/chunk.js": 'import "./missing-chunk.js";\n',
     [`${src}/composition/data.json`]: '{ "title": "Ready" }\n',
-    [`${src}/composition/legacy.js`]: "export const legacy = 1;\n",
     [`${src}/composition/index.ts`]:
-      'import data from "./data.json";\nimport { legacy } from "./legacy.js";\nexport const app = { title: data.title, legacy };\n',
+      'import data from "./data.json";\nexport const app = { title: data.title };\n',
     [`${src}/use-cases/show-item.ts`]: "export const showItem = (id: string) => ({ id });\n",
     [`${src}/app/page.tsx`]: `${useComposition}import { showItem } from "../use-cases/show-item";\nexport default function Page() {\n  return showItem(app.title).id;\n}\n`,
     [`${src}/proxy.ts`]:
@@ -251,10 +249,10 @@ function assertNextHost(app, tsc) {
       "const list: string[] = [];\n// @ts-expect-error noUncheckedIndexedAccess\nexport const first: string = list[0];\ntype Options = { title?: string };\n// @ts-expect-error exactOptionalPropertyTypes\nexport const options: Options = { title: undefined };\n",
   });
   run(tsc, ["--project", "tsconfig.json"], next);
-  // Without next.json, the same JS import fails to compile.
+  // next.json keeps allowJs off: an import of a .js file stays an untyped-module error.
   assert.match(
-    failure(tsc, ["--project", "tsconfig.web.json"], next),
-    /composition\/index\.ts\(\d+,\d+\): error TS7016/u,
+    failure(tsc, ["--project", "tsconfig.js.json"], next),
+    /legacy\/use\.ts\(\d+,\d+\): error TS7016/u,
   );
   const depcruise = path.join(app, "node_modules/.bin/depcruise");
   const cruise = (type) => [depcruise, ["--config", ".dependency-cruiser.cjs", "-T", type, "apps"]];

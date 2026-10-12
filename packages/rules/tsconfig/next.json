@@ -3,7 +3,7 @@
   "extends": "./web.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "allowJs": true,
+    "allowJs": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "plugins": [{ "name": "next" }]

@@ -55,8 +55,14 @@ const encodedRecord = (codec: Codec, input: unknown) =>
 const oneString = (name: string, key: string, value: unknown): Effect.Effect<string> =>
   typeof value === "string"
     ? Effect.succeed(value)
-    : // A GET field or a path value must be one plain string on the wire, as the fetch handler reads it.
+    : // A path value, or a GET field that is not a list, must be one plain string, as the fetch handler reads it.
       Effect.die(`${name}: ${key} does not encode to one string`);
+
+const queryStrings = (name: string, key: string, value: unknown) =>
+  // A list goes out as one key per item, the repeated keys the fetch handler gathers back.
+  Array.isArray(value)
+    ? Effect.forEach(value, (item: unknown) => oneString(name, key, item))
+    : Effect.map(oneString(name, key, value), (text) => [text]);
 
 const bodyOf = (response: HttpClientResponse.HttpClientResponse) =>
   Effect.flatMap(response.text, (text) =>
@@ -95,8 +101,9 @@ const callOf = (shape: EndpointShape, options: HttpClientOptions) => {
       } else {
         for (const [key, value] of Object.entries(tree)) {
           if (params.includes(key) || value === undefined) continue;
-          const text = yield* oneString(contract.name, key, value);
-          request = HttpClientRequest.appendUrlParam(request, key, text);
+          for (const text of yield* queryStrings(contract.name, key, value)) {
+            request = HttpClientRequest.appendUrlParam(request, key, text);
+          }
         }
       }
       // The browser sends same-origin cookies and an Origin header on a write; the CSRF check reads it.

@@ -61,7 +61,7 @@ test("host: next changes only the delivery folder, entry files, generated declar
   ]);
   assert.deepEqual(ruleByName(next, "app-code-in-layers").module.pathNot.slice(0, 2), [
     "^apps/[^/]+/src/(?:app|server|use-cases|composition)/",
-    "^apps/[^/]+/src/(?:main[.]ts|index[.]ts|proxy[.]ts|instrumentation[.]ts)$",
+    "^apps/[^/]+/src/(?:proxy[.]ts|instrumentation[.]ts)$",
   ]);
   assert.deepEqual(ruleByName(next, "no-unresolved-imports").from, {
     pathNot: "^apps/[^/]+/(?:next-env[.]d[.]ts)$",
@@ -88,6 +88,23 @@ test("host: next adds its files to the app's own lists, and the app's layers sti
   assert.deepEqual(ruleByName(config, "no-unresolved-imports").from, {
     pathNot: "^apps/[^/]+/(?:src/routes[.]d[.]ts|next-env[.]d[.]ts)$",
   });
+});
+
+// next-generic-entry: a Next app with src/main.ts and src/index.ts next to its src/proxy.ts.
+test("host: next drops the generic main.ts and index.ts unless the app names them", async () => {
+  assert.deepEqual(
+    fromPaths(await violatedRules("next-generic-entry", layout({ scope: "@acme/", host: "next" }))),
+    ["app-code-in-layers: apps/web/src/index.ts", "app-code-in-layers: apps/web/src/main.ts"],
+  );
+  assert.deepEqual(
+    fromPaths(await violatedRules("next-generic-entry", layout({ scope: "@acme/" }))),
+    ["app-code-in-layers: apps/web/src/proxy.ts"],
+  );
+  const named = layout({ scope: "@acme/", host: "next", appEntryFiles: ["main.ts"] });
+  assert.equal(
+    ruleByName(named, "app-code-in-layers").module.pathNot[1],
+    "^apps/[^/]+/src/(?:main[.]ts|proxy[.]ts|instrumentation[.]ts)$",
+  );
 });
 
 test("an unknown host throws and names the known hosts", () => {

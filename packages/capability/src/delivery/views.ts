@@ -2,6 +2,7 @@ import { type Context, Effect } from "effect";
 import type { ApprovalDenied, Forbidden } from "../gates/gate-errors.ts";
 import type { NoOpenUnit, UnitOfWorkFailed } from "../unit-of-work/unit-of-work.ts";
 import type { Refused } from "./caller.ts";
+import type { CompositionClosed } from "./composition-closed.ts";
 import type { InputInvalid } from "./input.ts";
 
 export type View = Readonly<{
@@ -106,6 +107,11 @@ export const defaultViews = {
     (_error: UnitOfWorkFailed) => "Try again shortly.",
   ),
   NoOpenUnit: atStatus(500, (_error: NoOpenUnit): View => internalErrorView),
+  CompositionClosed: problemView(
+    503,
+    "unavailable",
+    (_error: CompositionClosed) => "The app is shutting down.",
+  ),
 } as const;
 
 export type DefaultViewTag = keyof typeof defaultViews;
