@@ -389,6 +389,105 @@ The tool type keeps the contract's exact types: `Tool<"greet", { parameters: typ
 
 The house plugin's `no-hand-rolled-surface` rule fails on `Tool.make` outside this package, so every MCP tool comes from a contract.
 
+## Delivery
+
+Delivery mounts capabilities on a host. The seam is the Web fetch standard: the host hands over a `Request` and gets a `Response`. Next route files, `node:http`, Bun, Hono and Workers all speak it. React server code skips HTTP and calls the capability in-process with `call`.
+
+```text
+ host: Next route | node:http | Bun | Worker           React server component
+        | Request                                       | headers(), input
+        v                                               v
+ toFetchHandler / toMcpHandler                        call(app, capability, input, incoming)
+   1 request id (x-request-id, echoed)
+   2 CSRF: a write with a Cookie from another origin -> 403
+   3 caller(incoming) -> Context<Viewer | Grant | ...>  or Refused -> its status + challenge
+   4 decode input with contract.input                   or InputInvalid -> 400
+        v
+ composition: the app layer (built once), the caller, the views
+        v
+ capability.handler: CallWatch -> Grant -> Approval -> UnitOfWork -> handler
+        v value | typed failure
+ encode output | views[tag](error, caller) -> Response, MCP tool result, or Outcome
+```
+
+```ts
+import { composition, route, toFetchHandler, toMcpHandler, tool, call, once } from "@house-rules/capability";
+
+// The one composition root: the layer is built once and shared by every adapter.
+export const app = composition({ layer: appLayer, caller: sessionCaller, views });
+
+export const api = toFetchHandler(app, {
+  prefix: "/api",
+  caller: bearerCaller,
+  routes: [
+    route(showBooking, "GET /bookings/:id"), // path params and query, decoded from strings
+    route(findBookings), // default: POST /api/find_bookings, JSON body
+  ],
+});
+
+// MCP sessions live in memory, so make the handler once per process, even across Next dev reloads.
+export const mcp = once("mcp", () =>
+  toMcpHandler(app, {
+    path: "/mcp",
+    name: "hosti",
+    version: "1.0.0",
+    caller: oauthCaller,
+    tools: [tool(showBooking, { title: "Show a booking", idempotent: true, openWorld: false })],
+  }),
+);
+
+// React server code: no HTTP hop.
+const result = await call(app, showBooking, { id }, { headers: await headers(), url });
+// { ok: true, value } | { ok: false, error, view }
+```
+
+1. [ ] **Composition.** `composition({ layer, caller, views })` builds one `ManagedRuntime` over the layer. `call`, every fetch handler and every MCP handler read the same built services, so they share one pool. A layer that fails to build is logged and answers 500. `app.dispose()` closes it. The layer starts cold: the first request builds it, even one that a refusal then turns away, such as a 401 from the caller. Only the CSRF check runs before the build. To keep a refused request from doing startup work, warm the app at startup, for example with `app.runtime.runPromise(Effect.void)`.
+2. [ ] **Caller.** `Caller<C, R>` is `(incoming: { headers, url }) => Effect<Context<C>, Refused, R>`. It runs with the app's services, so it can ask an identity module who this is. It returns the per-request services, usually `Viewer` and `Grant`. `Refused` carries a `status`, a `code`, a `message` and an optional `challenge`, which goes out as `WWW-Authenticate`. Each adapter may take its own caller; the composition's is the default.
+3. [ ] **Input.** The adapter decodes the whole input once, with `contract.input`, and the handler gets the decoded type. A path param on a write, and an MCP call's arguments, pass a field or toolkit decode first, so a schema filter may run more than once. A GET takes path params plus query, decoded with the StringTree codec, so `"5"` becomes `5`. A write (POST, PUT, PATCH, DELETE) takes the JSON body plus path params; a path param is decoded through its field's codec first. A key given twice, a JSON member given twice (even spelled with an escape), a key the input does not take (`__proto__` too), or a query key on a write is a 400. `InputInvalid` names the field and never quotes the value. `call` decodes its input too, because a server action's input is untrusted.
+4. [ ] **Views.** A view is `{ status, body, headers? }`. The app keeps one table, failure tag to `(error, caller) => View`. Defaults cover House Rules' own tags; an app or adapter view replaces one by tag. A defect, or an error with no view, is a 500 `internal_error`, logged with the request id. So is a view that throws, an output the contract cannot encode, and any other defect while the adapter answers. MCP uses the same table: the body becomes an `isError` tool result and the status is dropped.
+5. [ ] **Approval per channel.** `toFetchHandler` fails closed (`Approval.denyAll`), `toMcpHandler` asks the human with `elicitationApproval`, and `call` uses `Approval.allowAll`, because a click in the app is the human's yes. Each takes an `approval` option. The adapter's Approval always wins over one a caller returns, so a caller cannot switch off the human's yes by mistake. To let the caller's Approval decide, say so by name: `approval: "fromCaller"`. The adapter's default still applies when the caller returns none.
+6. [ ] **Body limit.** A write body over 1 MB (`defaultMaxBodyBytes`) is a 413 `body_too_large`, checked on `content-length` and again while it streams. Set `maxBodyBytes` to change it.
+
+| Tag | Default view |
+| --- | --- |
+| `Refused` | its `status` and `code`; `WWW-Authenticate` when it has a `challenge` |
+| `InputInvalid` | 400 `invalid_input`, with `field` |
+| `Forbidden` | 403 `forbidden` |
+| `ApprovalDenied` | 403 `approval_denied` |
+| `UnitOfWorkFailed` | 503 `unavailable` |
+| `NoOpenUnit`, a defect, no view | 500 `internal_error` |
+
+### A missing view is a type error
+
+`toFetchHandler`, `toMcpHandler` and `call` check each mounted capability against the app at compile time. Every failure tag needs a view in the defaults, the composition's `views`, or the adapter's `views`. A view keyed by a tag must take that tag's error. Every service the handler needs must come from the app layer, the caller or the adapter. A gap fails `tsc` and names it:
+
+```text
+Property 'missingViews' is missing in type '{ routes: ... }'
+  but required in type '{ readonly missingViews: "BookingNotFound"; }'.
+```
+
+The same check reports `wrongViews` and `missingServices`.
+
+### CSRF
+
+A browser sends cookies with a cross-site write by itself, whoever the caller is. So `toFetchHandler` checks every write (POST, PUT, PATCH, DELETE) that carries a `Cookie` header, even an empty one, and even one that also has a bearer token. A write whose `Origin` does not match the app's origin is a 403 `cross_origin` before the app layer builds or the caller runs. Without `Origin`, the `Referer`'s origin decides; with neither, the write is refused. An opaque source, `Origin: null` or a `data:` Referer, is always refused. The app's origin is the request URL's origin, or the `origins` list you pass to `toFetchHandler`. Set `origins` when a proxy changes the host. Each entry must be a plain `http(s)` origin, such as `https://app.example`, with no path; anything else, `"null"` included, throws when the handler is built. A write with no `Cookie` is not checked: no session rides along cross-site. A route opts out only with a written reason:
+
+```ts
+route(stripeWebhook, "POST /hooks/stripe", {
+  csrf: { skip: true, reason: "Stripe signs the body; no browser sends it." },
+});
+```
+
+An empty reason throws when the route is built.
+
+### One router per handler
+
+Each `toFetchHandler` and `toMcpHandler` builds its own router. A fetch handler answers only its own routes, so it never serves MCP, and two handlers on one composition may mount the same path. They still share the app's services through the composition.
+
+### Request ids
+
+Every adapter takes `x-request-id` when it is safe, or makes a fresh one, and echoes it on the response. MCP keeps one id per HTTP request: the caller, the tool's `CallRequestId`, the logs and the response header all carry it.
+
 ## Upgrading to 0.11.0
 
 0.11.0 is a breaking change for MCP tools. Every `toTool` tool, a Struct one too, is now `Tool.Strict`:
@@ -400,8 +499,10 @@ A Union input is new and changes nothing for a Struct input's types.
 
 ## Limits
 
-It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, the `CallWatch` hook with its call facts, the `UnitOfWork` slot with its SQL and memory adapters, and `definePolicy` with its `withStates`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities, and nothing turns a contract into an HTTP route or a CLI command yet. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job. For MCP, Effect's `McpServer` decodes it with the tool's parameters.
+It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, the `CallWatch` hook with its call facts, the `UnitOfWork` slot with its SQL and memory adapters, and `definePolicy` with its `withStates`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities, no CLI command from a contract, and no `HttpApi` projection, so no OpenAPI document or typed SPA client yet. Delivery has no streaming, file upload or rate limit, and plain HTTP has no confirm flow for a write that needs approval. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job; the delivery adapters do it for you.
 
 ## Exports
 
-`defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, `CallWatch`, `UnitOfWork`, and `CurrentUnit` services, the `CallChannel` and `CallRequestId` references, `withRequestId`, `requestIdOf`, `newRequestId`, `requestIdHeader`, `mcpChannel`, `isMcpChannel`, `maxClientNameLength`, `maxTargetIdLength`, `sqlUnitOfWork` and `memoryUnitOfWork`, the `Forbidden`, `ApprovalDenied`, `NoOpenUnit`, and `UnitOfWorkFailed` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `StructInput`, `UnionInput`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `CallFacts`, `CallKind`, `AuditDeclaration`, `AuditOptions`, `StringKeyOf`, `GrantRequirement`, `ApprovalRequirement`, `UnitOfWorkRequirement`, `GateRequirements`, `UnitOfWorkService`, `OpenUnit`, `Atomic`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, `ToToolOptions`, `ToolParameters`, and `MergedParameters`.
+Delivery: `composition`, `once`, `call`, `toFetchHandler`, `route`, `toMcpHandler`, `tool`, `decodeInput`, `defaultViews`, `defaultMaxBodyBytes`, `problem`, the `Refused` and `InputInvalid` errors, and the types `Composition`, `Caller`, `Incoming`, `View`, `ViewFn`, `ViewTable`, `CallerContext`, `DefaultViewTag`, `ViewsCheck`, `MountCheck`, `ServicesCheck`, `Mountable`, `Outcome`, `ApprovalOption`, `CallOptions`, `Route`, `RouteOptions`, `CsrfOptOut`, `Method`, `FetchHandler`, `FetchHandlerOptions`, `McpTool`, `McpToolOptions`, `McpHandlerOptions`, and `InputSource`.
+
+The rest: `defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, `CallWatch`, `UnitOfWork`, and `CurrentUnit` services, the `CallChannel` and `CallRequestId` references, `withRequestId`, `requestIdOf`, `newRequestId`, `requestIdHeader`, `mcpChannel`, `isMcpChannel`, `maxClientNameLength`, `maxTargetIdLength`, `sqlUnitOfWork` and `memoryUnitOfWork`, the `Forbidden`, `ApprovalDenied`, `NoOpenUnit`, and `UnitOfWorkFailed` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `StructInput`, `UnionInput`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `CallFacts`, `CallKind`, `AuditDeclaration`, `AuditOptions`, `StringKeyOf`, `GrantRequirement`, `ApprovalRequirement`, `UnitOfWorkRequirement`, `GateRequirements`, `UnitOfWorkService`, `OpenUnit`, `Atomic`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, `ToToolOptions`, `ToolParameters`, and `MergedParameters`.

@@ -75,7 +75,7 @@ Add the package to the app that uses it:
 pnpm --filter @hosti/api add @hosti/<name>
 ```
 
-The app also needs `@house-rules/capability`. `apps/api` already has it as `"workspace:0.11.0"`. An app outside this repo installs it from GitHub, as `packages/capability/README.md` shows.
+The app also needs `@house-rules/capability`. `apps/api` already has it as `"workspace:0.12.0"`. An app outside this repo installs it from GitHub, as `packages/capability/README.md` shows.
 
 `saveWorkspaceProtocol: true` and `saveExact: true` in `pnpm-workspace.yaml` make pnpm write `"@hosti/<name>": "workspace:0.0.0"` into the app's `package.json`. Do not name a spec such as `@workspace:0.0.0` on the command line: pnpm then writes `workspace:*`, which the pin check rejects.
 
@@ -113,13 +113,13 @@ export const showBooking = implement(showBookingContract, ({ id }) =>
 
 The handler yields the service and calls its methods. Let typed errors flow through the error channel. Do not catch them here. To make the writes atomic, set `transactional: true` on the contract: `implement` then wraps the handler in a unit of work after the gates. When only a part must be atomic, call `UnitOfWork.atomic(...)` around that part instead. Either way the use-case opens the transaction, and the module never does. One unit may cover writes in several modules. Set `readOnly` when the action only reads, and `destructive` when it deletes or overwrites. Every contract names a `permission`, a `resource:action` string the module exports, such as `BookingPermissions.read`. Write `permission: "public"` only for an action any caller may run. Set `needsApproval: true` when a human must confirm each call. The package names its permissions next to its data, as `packages/bookings/src/booking/permissions.ts` does. An action with no input uses `NoInput` from `@house-rules/capability`. `use-case-is-capability` fails a use-case file that exports anything else.
 
-## 4. Map errors once in delivery
+## 4. Mount it in delivery
 
-Create the handler under `apps/<app>/src/delivery/`. It calls the use-case through its handler, such as `showBooking.handler({ id })`, and maps every typed error to a response in one place, with `Effect.catchTag` or `Effect.catchTags`. That includes the gate errors: `Forbidden` when the contract names a permission, and `ApprovalDenied` when it needs approval. The handler's error channel ends as `never`. Group delivery by mechanism, such as `delivery/http/` and `delivery/mcp/`.
+Mount the use-case with a delivery adapter from `@house-rules/capability`, as `skills/add-a-capability/SKILL.md` step 4 says. Add a route under `apps/<app>/src/delivery/`, such as `route(showBooking, "GET /bookings/:id")`, and mount it with `toFetchHandler`. The adapter decodes the input, runs the gates, and maps every typed error once through the app's views table. That includes `Forbidden` and `ApprovalDenied`. A missing view is a compile error that names the tag. Do not write a per-route error mapper, and do not call `catchTag` in delivery. Group delivery by mechanism, such as `delivery/http/` and `delivery/mcp/`.
 
-Delivery provides only per-request values: the `Viewer`, the `CallChannel`, the request id through `withRequestId`, and the `Grant` and `Approval` an adapter fills for this request, such as a Grant built from the signed-in user. Everything else comes from the app's one composition root, `src/server/` or `src/main.ts`. Provide the module's layer there, its storage adapter, and any Grant that is the same for every request. `apps/api/src/server/app-layer.ts` provides `Bookings` and the visitor Grant, and `apps/api/src/delivery/http/get-booking-route.ts` provides nothing.
+Delivery provides only per-request values, through the composition's `caller`: the `Viewer`, the `CallChannel`, and the `Grant` an adapter fills for this request. Everything else comes from the app's one composition root, `src/server/` or `src/main.ts`. Provide the module's layer there, its storage adapter, and any Grant that is the same for every request. `apps/api/src/server/app-layer.ts` provides `Bookings` and the visitor Grant, `apps/api/src/server/composition.ts` wraps it with `composition(...)`, and `apps/api/src/delivery/http/routes.ts` provides nothing.
 
-Delivery returns an Effect. The entry point that owns the runtime runs it over the root's layer. Do not call `Effect.run*` inside Effect code.
+The entry point, `apps/api/src/main.ts`, mounts the routes and owns the runtime. Do not call `Effect.run*` inside Effect code.
 
 ## 5. Test it
 

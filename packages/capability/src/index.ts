@@ -64,3 +64,37 @@ export {
 } from "./unit-of-work/unit-of-work.ts";
 export { memoryUnitOfWork } from "./adapters/memory-unit-of-work.ts";
 export { sqlUnitOfWork } from "./adapters/sql-unit-of-work.ts";
+export { call, type CallOptions } from "./delivery/call.ts";
+export { type Caller, type Incoming, Refused } from "./delivery/caller.ts";
+export { type Composition, composition, once } from "./delivery/composition.ts";
+export {
+  type CsrfOptOut,
+  defaultMaxBodyBytes,
+  type FetchHandler,
+  type FetchHandlerOptions,
+  type Method,
+  type Route,
+  type RouteOptions,
+  route,
+  toFetchHandler,
+} from "./delivery/fetch-handler.ts";
+export { decodeInput, InputInvalid, type InputSource } from "./delivery/input.ts";
+export type { ApprovalOption, Mountable, Outcome } from "./delivery/invoke.ts";
+export {
+  type McpHandlerOptions,
+  type McpTool,
+  type McpToolOptions,
+  tool,
+  toMcpHandler,
+} from "./delivery/mcp-handler.ts";
+export type { MountCheck, ServicesCheck } from "./delivery/mount-check.ts";
+export {
+  type CallerContext,
+  type DefaultViewTag,
+  defaultViews,
+  problem,
+  type View,
+  type ViewFn,
+  type ViewsCheck,
+  type ViewTable,
+} from "./delivery/views.ts";

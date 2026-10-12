@@ -61,13 +61,13 @@ The file exports the contract, the capability, and types. Nothing else. `use-cas
 
 ## 4. Call it from delivery
 
-An adapter in `src/delivery/` calls `showBooking.handler(input)`, provides the gate slots, and maps every typed error once:
+Mount the capability with a delivery adapter from `@house-rules/capability`. It decodes the input, runs the gates, and maps every typed error once through the app's views table:
 
-1. [ ] Provide `Grant` for the request, such as `Grant.layerFromPermissions([...])` from the caller's role.
-2. [ ] Provide `Approval` when the contract needs it: `Approval.allowAll` on the web, where the click is the yes; `elicitationApproval` on MCP.
-3. [ ] Map the contract's failure, plus `Forbidden` and `ApprovalDenied` when the gates add them, with `Effect.catchTags`. The handler's error channel ends as `never`.
+1. [ ] Add a route in `src/delivery/http/routes.ts`: `route(showBooking, "GET /bookings/:id")`.
+2. [ ] Give each failure tag a view in the composition's `views`, in `src/server/composition.ts`. A missing view fails `tsc` and names the tag.
+3. [ ] Let the composition's `caller` provide the per-request `Grant`, or let the root provide one that is the same for every request. Each adapter fills `Approval`: `denyAll` on HTTP, `elicitationApproval` on MCP, `allowAll` for `call`.
 
-`apps/api/src/delivery/http/get-booking-route.ts` is the example. For an MCP tool, follow `skills/add-an-mcp-tool/SKILL.md`, which builds the tool with `toTool(capability.contract, ...)`. Never call `Tool.make` by hand: `no-hand-rolled-surface` fails it.
+`apps/api/src/delivery/http/routes.ts`, `apps/api/src/server/composition.ts` and `apps/api/src/main.ts` are the example. For an MCP tool, follow `skills/add-an-mcp-tool/SKILL.md`, which builds the tool with `toTool(capability.contract, ...)`. Never call `Tool.make` by hand: `no-hand-rolled-surface` fails it.
 
 ## 5. Test it
 
