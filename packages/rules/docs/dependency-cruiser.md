@@ -2,7 +2,7 @@
 
 Import path: `@house-rules/rules/dependency-cruiser`
 
-This preset is not an ESLint preset. It is a [Dependency Cruiser](https://github.com/sverweij/dependency-cruiser) configuration for a workspace monorepo with apps under `apps/` and packages under `packages/`. The `layout(options)` factory returns a whole config object, `forbidden` rules and `options` together, that a `.dependency-cruiser.cjs` file can export as-is. `tests/fixtures/dependency-cruiser/layout-hosti.snapshot.json` is a snapshot of `layout({ scope: "@hosti/" })`, and a test compares them. The first 13 rules are drunk-cat-stack's hand-written `.dependency-cruiser.cjs` from before 0.4.0. Version 0.4.0 adds three rules, 0.7.0 adds `adapter-imports-only-in-adapters` and keeps `node_modules` in the graph, 0.8.0 runs that rule at error and lets `adapterImports` name workspace packages, and 0.10.0 adds the package layout rules (`package-root-files`, `domain-does-not-import-adapters`, `subjects-do-not-import-package-root`, and mechanism names in `no-ownerless-files`). Version 0.11.0 adds `no-package-cycles` to the separate `house-rules-layout` bin. `no-subject-folder-cycles` also runs there, so the Dependency Cruiser rule set still contains 20 named rules. Version 0.12.0 adds the `serverEntryFiles` and `generatedDeclarationFiles` options for web apps; both default to `[]`, which leaves the config byte-identical to 0.11.0. See [Web apps](#web-apps).
+This preset is not an ESLint preset. It is a [Dependency Cruiser](https://github.com/sverweij/dependency-cruiser) configuration for a workspace monorepo with apps under `apps/` and packages under `packages/`. The `layout(options)` factory returns a whole config object, `forbidden` rules and `options` together, that a `.dependency-cruiser.cjs` file can export as-is. `tests/fixtures/dependency-cruiser/layout-hosti.snapshot.json` is a snapshot of `layout({ scope: "@hosti/" })`, and a test compares them. The first 13 rules are drunk-cat-stack's hand-written `.dependency-cruiser.cjs` from before 0.4.0. Version 0.4.0 adds three rules, 0.7.0 adds `adapter-imports-only-in-adapters` and keeps `node_modules` in the graph, 0.8.0 runs that rule at error and lets `adapterImports` name workspace packages, and 0.10.0 adds the package layout rules (`package-root-files`, `domain-does-not-import-adapters`, `subjects-do-not-import-package-root`, and mechanism names in `no-ownerless-files`). Version 0.11.0 adds `no-package-cycles` to the separate `house-rules-layout` bin. `no-subject-folder-cycles` also runs there, so the Dependency Cruiser rule set still contains 20 named rules. Version 0.12.0 adds the `serverEntryFiles` and `generatedDeclarationFiles` options for web apps; both default to `[]`, which leaves the config byte-identical to 0.11.0. See [Web apps](#web-apps). Version 0.14.0 adds `contract-entry-is-browser-safe` and its `trustedContractPackages` option, and lets a package declare one more entry, `src/contract.ts`, so the config holds 21 named rules. See [Contract entry](#contract-entry).
 
 ```js
 // .dependency-cruiser.cjs
@@ -60,13 +60,14 @@ Every folder name above is an option. The `src` segment is fixed. Every file but
 | `adapterPackages` | `[]` | Package folder names under `packagesDir` that are adapters by nature, such as plumbing (`"db"`) or the migration runner (`"migrations"`). Every file in them may import `adapterImports`. Names, not paths. |
 | `serverEntryFiles` | `[]` | Files under `<app>/src/<layers.server>/` that delivery may import, such as `"runtime.ts"` or `"runtime/index.ts"`: the server runtime that runs use-cases. Paths relative to the server folder. Every other server file stays closed to delivery. See [Web apps](#web-apps). |
 | `generatedDeclarationFiles` | `[]` | Declaration files a framework generates, such as `"next-env.d.ts"`, whose imports `no-unresolved-imports` skips. Paths relative to each app folder, each ending in `.d.ts`, `.d.mts` or `.d.cts`. See [Web apps](#web-apps). |
+| `trustedContractPackages` | `[]` | Installed packages whose `./contract` entry (`src/contract.ts`) a contract entry may import. `@house-rules/capability` is always trusted. You vouch for each name: the rule cannot look inside `node_modules`. See [Contract entry](#contract-entry). |
 | `testsDir` | `"tests"` | Name of the folder every test file must sit in directly, somewhere under `<workspace>/src/`. It also counts as a test path for `production-does-not-import-tests`, next to `test`, `tests`, and `__tests__`. |
 
 Option values are folder names and paths, not regular expressions. The factory escapes them. Each layer root ends in `(?:/|$)`, so `delivery-legacy` is not `delivery`. An unknown option or layer name throws, and so does a path that is empty or starts or ends with `/`. `adapterImportsSeverity` was removed in 0.8.0. Passing it throws, because `adapter-imports-only-in-adapters` is always an error: a repo that breaks it fixes the imports by hand.
 
 ## Rules
 
-Each rule carries a `comment` with `See https://stack.kubaszwajka.com/rules/#<rule name>`, which only the `err-long` reporter prints under a violation. The default `err` reporter omits it, so run `depcruise --output-type err-long`, as the root `deps` script does. All 20 named Dependency Cruiser rules run at error level. None can be turned down to a warning through `layout()`. `no-subject-folder-cycles` and `no-package-cycles` run separately through the `house-rules-layout` bin.
+Each rule carries a `comment` with `See https://stack.kubaszwajka.com/rules/#<rule name>`, which only the `err-long` reporter prints under a violation. The default `err` reporter omits it, so run `depcruise --output-type err-long`, as the root `deps` script does. All 21 named Dependency Cruiser rules run at error level. None can be turned down to a warning through `layout()`. `no-subject-folder-cycles` and `no-package-cycles` run separately through the `house-rules-layout` bin.
 
 | Rule | Reports |
 | --- | --- |
@@ -74,7 +75,8 @@ Each rule carries a `comment` with `See https://stack.kubaszwajka.com/rules/#<ru
 | `packages-do-not-import-apps` | A package importing app code. |
 | `apps-do-not-import-other-apps` | An app importing another app. |
 | `packages-imported-by-name` | A relative-path import into another package. Import it by its package name. |
-| `packages-public-entry-only` | Another workspace reaching a package file other than its `publicEntry`. |
+| `packages-public-entry-only` | Another workspace reaching a package file other than its `publicEntry` or its contract entry, `src/contract.ts`. |
+| `contract-entry-is-browser-safe` | A package's `src/contract.ts` that reaches, directly or through other files, anything outside the browser-safe set. Always on, at error; `trustedContractPackages` only adds installed contract entries you vouch for. See [Contract entry](#contract-entry). |
 | `delivery-does-not-import-server` | Delivery code importing server code. |
 | `server-does-not-import-delivery` | Server code importing delivery code. |
 | `use-cases-do-not-import-outer-layers` | Use-cases code importing delivery or server code. |
@@ -86,9 +88,9 @@ Each rule carries a `comment` with `See https://stack.kubaszwajka.com/rules/#<ru
 | `app-code-in-layers` | A file under `<app>/src/` outside the three layer folders, unless it is an `appEntryFiles` file directly in `src/`. Test files and files in test folders are left to the test rules. |
 | `use-cases-do-not-import-use-cases` | A use-case importing another use-case. A use-case is one top-level entry under `use-cases/`: a file, or a folder with everything in it. Imports inside one entry are fine. Test files are never the importer, and a test path is never the target. |
 | `no-ownerless-files` | A file or folder named after one of `ownerlessNames`, anywhere under `appsDir` or `packagesDir`, or after one of `mechanismNames` inside a package. Name the file after what it owns instead. |
-| `package-root-files` | A file directly in `<package>/src/` that is not one of `packageRootFiles`. Folders are fine: they are subject folders, `adapters/`, or `tests/`. Test files are left to the test rules. |
+| `package-root-files` | A file directly in `<package>/src/` that is not one of `packageRootFiles` or `contract.ts`. Folders are fine: they are subject folders, `adapters/`, or `tests/`. Test files are left to the test rules. |
 | `domain-does-not-import-adapters` | Package code may import its own `adaptersDir` only from the `publicEntry`, `facadeFile`, or within `adaptersDir`; test files may also import `adaptersDir/tests/`, but no other domain file may. Tests still cannot import adapter production code under `adaptersDir`. Another package's adapters are already closed by `packages-public-entry-only`. Several rules share this name, so select them with `filter`, not `find`. |
-| `subjects-do-not-import-package-root` | A file in a subject folder that imports its own package's `publicEntry` or `facadeFile`. Those barrels re-export every subject, so a cycle through one, such as `a/one.ts -> index.ts -> b/id.ts` with `b/two.ts -> a/id.ts`, is no file cycle and no subject-folder cycle. `storage.ts`, `adaptersDir` and the test folders may still import them. This dependency rule names a file; `no-subject-folder-cycles` checks direct subject-to-subject imports. See [Package layout](#package-layout). |
+| `subjects-do-not-import-package-root` | A file in a subject folder that imports its own package's `publicEntry`, `facadeFile` or `src/contract.ts`. Those barrels re-export every subject, so a cycle through one, such as `a/one.ts -> index.ts -> b/id.ts` with `b/two.ts -> a/id.ts`, is no file cycle and no subject-folder cycle. `storage.ts`, `adaptersDir` and the test folders may still import them. This dependency rule names a file; `no-subject-folder-cycles` checks direct subject-to-subject imports. See [Package layout](#package-layout). |
 | `no-subject-folder-cycles` | Subject folders of one package importing each other in a cycle, even when no file-level cycle exists. Test paths do not contribute edges. A Node check; see [Package layout](#package-layout). |
 | `no-package-cycles` | Workspace packages importing each other in a production cycle. Test paths do not contribute edges. A Node check; see [Package layout](#package-layout). |
 | `adapter-imports-only-in-adapters` | A file under `<package>/src/`, outside `adaptersDir` and outside the `adapterPackages`, that imports one of `adapterImports`. A module's domain code talks to its storage port; the SQL lives in its adapters. Tests outside `adaptersDir` count too: run store tests from `src/adapters/tests/`. A package may import its own files, even when `adapterImports` names it; the exception names that package's folder exactly. Apps are not checked, so a server may import `@effect/platform-node`. Several rules share this name, so select them with `filter`, not `find`; see [Adapter imports](#adapter-imports). |
@@ -190,3 +192,25 @@ module.exports = layout({
 `adapterPackages` still names the plumbing packages that may import the list. A domain file under `packages/trips/src/` that imports `@acme/db` fails; `packages/trips/src/adapters/postgres/trip-store.ts` may.
 
 The fence is several rules that share the name `adapter-imports-only-in-adapters`: one for installed paths, and one for each listed workspace package. A thin config that overrides the whole fence must use `forbidden.filter(r => r.name === "adapter-imports-only-in-adapters")`. `find` returns only the installed-path rule.
+
+## Contract entry
+
+A package may declare one second entry, `src/contract.ts`, as `"./contract"` in its `exports`, and everything that file reaches must load in a browser.
+
+`packages-public-entry-only` lets another workspace import exactly that file, `package-root-files` allows it, and `subjects-do-not-import-package-root` treats it as a barrel. `contract-entry-is-browser-safe` follows every import from it, type-only ones too, and reports any module outside this set:
+
+| Allowed | Pattern |
+| --- | --- |
+| A workspace package's files under `src/` | not `adaptersDir`, not `publicEntry`, `facadeFile` or `src/storage.ts`, not a test path. This includes another workspace package's `src/contract.ts`, which the rule follows too. |
+| An `effect` module on the allowlist | the root `effect`, a stable top-level module such as `effect/Schema`, and `effect/unstable/http` with its modules. Nothing else from `effect`: not `effect/unstable/sql`, `effect/unstable/process`, or `effect/unstable/persistence/PersistedQueue`. |
+| A trusted installed contract entry | `src/contract.ts` of `@house-rules/capability`, and of each package named in the `trustedContractPackages` option, which defaults to `[]` |
+
+So a contract entry that reaches `node:fs`, `pg`, `@effect/sql-pg`, its own `facade.ts`, another package's `index.ts`, or an installed contract entry no one vouched for fails.
+
+The rule is always on, at error. Its one option, `trustedContractPackages`, names installed packages whose `./contract` entry you vouch for. Use it only for a package whose own repo runs this rule on that entry and bundles it for a browser.
+
+What it cannot see:
+
+- **Inside `node_modules`.** The config never follows an installed package, so whatever an allowlisted `effect` module or a trusted contract entry imports goes unchecked. That is why both lists are short and named. `@house-rules/capability`'s entry is checked as a workspace file in this repo. The stack's `apps/api/src/tests/browser-bundle.test.ts` bundles every allowlisted `effect` module with esbuild for the browser and fails if SQL or process code ships. Re-run it when you bump `effect`.
+- **A computed import.** `import(at)` leaves no edge in the graph. The ESLint rule `no-computed-import` (`docs/no-computed-import.md`) fails it in every package's source. With another `packagesDir`, build the ESLint preset with `capabilityConfig({ packagesDir })` so it covers the same folder.
+- **The manifest.** The rule matches the resolved file, not the `exports` key. `house-rules-layout` reads every package's `package.json`. It fails any exports key but `.` and `./contract`, a pattern such as `./browser/*` included, since a pattern reaches every file under `src/`. It also fails a target, a condition's too, that is not that key's file: `publicEntry` for `.`, `src/contract.ts` for `./contract`. A package the config's `options.exclude.path` excludes, such as the stack's `packages/rules`, is skipped.

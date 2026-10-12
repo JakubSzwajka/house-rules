@@ -1,1 +1,5 @@
-{ "name": "@acme/bookings", "private": true, "exports": { ".": "./src/index.ts" } }
+{
+  "name": "@acme/bookings",
+  "private": true,
+  "exports": { ".": "./src/index.ts", "./contract": "./src/contract.ts" }
+}

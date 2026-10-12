@@ -1,8 +1,8 @@
-import { BookingPermissions, Bookings } from "@hosti/bookings";
+import { BookingPermissions, Bookings, showBookingContract } from "@hosti/bookings";
 import { expect, it } from "@effect/vitest";
 import { Forbidden, Grant } from "@house-rules/capability";
 import { Effect, Layer } from "effect";
-import { showBooking, showBookingContract } from "../show-booking.js";
+import { showBooking } from "../show-booking.js";
 
 const bookings = Bookings.fromRecords([{ id: "b-1", guestName: "Ada" }]);
 

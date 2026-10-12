@@ -1,6 +1,6 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { api } from "../main.js";
+import { api, openApi } from "../main.js";
 import { app } from "../server/composition.js";
 
 afterAll(() => api.dispose().then(app.dispose));
@@ -34,3 +34,16 @@ it.effect("an unknown query key is a 400 that names it", () =>
     expect(r.body).toMatchObject({ error: { code: "invalid_input", field: "admin" } });
   }),
 );
+
+it("the OpenAPI document lists the route with the statuses its views fix", () => {
+  const get = (openApi.paths["/api/bookings/{id}"] ?? {}).get ?? {};
+  expect(get.operationId).toBe("show_booking");
+  expect(Object.keys(get.responses ?? {}).sort()).toEqual([
+    "200",
+    "400",
+    "403",
+    "404",
+    "503",
+    "default",
+  ]);
+});

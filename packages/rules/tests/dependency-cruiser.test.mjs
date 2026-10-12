@@ -14,6 +14,7 @@ const RULES = [
   "apps-do-not-import-other-apps",
   "packages-imported-by-name",
   "packages-public-entry-only",
+  "contract-entry-is-browser-safe",
   "delivery-does-not-import-server",
   "server-does-not-import-delivery",
   "use-cases-do-not-import-outer-layers",
@@ -85,7 +86,8 @@ test("layout() is exported for require and import, returns a fresh config, and v
     byName["delivery-does-not-import-server"].from.path,
     "^services/[^/]+/src/delivery(?:/|$)",
   );
-  assert.equal(byName["packages-public-entry-only"].to.path, "^libs/[^/]+/(?!src/main[.]ts$)");
+  const entries = "^libs/[^/]+/(?!(?:src/main[.]ts|src/contract[.]ts)$)";
+  assert.equal(byName["packages-public-entry-only"].to.path, entries);
   assert.equal(byName["no-unresolved-deep-package-imports"].to.path, "^@my[.]org/[^/]+/.+");
   assert.equal(byName["tests-do-not-import-internals"].to.path, "^libs/[^/]+/lib/private(?:/|$)");
   assert.equal(

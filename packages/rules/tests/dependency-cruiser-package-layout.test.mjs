@@ -66,7 +66,7 @@ test("the package layout rules build their patterns from the options", () => {
   });
   assert.deepEqual(adapterRules[1].to, { path: "^$1/src/adapters/tests(?:/|$)" });
   assert.deepEqual(byName["subjects-do-not-import-package-root"].to, {
-    path: "^$1/(?:src/main[.]ts|src/facade[.]ts)$",
+    path: "^$1/(?:src/main[.]ts|src/facade[.]ts|src/contract[.]ts)$",
   });
   assert.equal(byName["no-subject-folder-cycles"], undefined);
 

@@ -1,0 +1,1 @@
+{ "name": "@acme/f", "private": true, "exports": { ".": { "import": "./src/index.ts", "browser": "./src/facade.ts" } } }

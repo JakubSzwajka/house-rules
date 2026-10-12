@@ -30,7 +30,7 @@ async function stubPackage(workspace, manifest, files, store) {
 
 // Copies a fixture tree to a temporary workspace and links each package into node_modules, as pnpm does.
 // A stub `test-runner` package stands in for a third-party import such as `@effect/vitest`, and stub
-// `effect`, `@effect/sql-pg` and `@effect/platform-node` packages for the adapter imports.
+// `effect`, `@effect/sql-pg` and `@effect/platform-node` packages for the adapter imports, and `pg` for a driver.
 export async function cruiseFixture(fixture, config, inspect) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "house-rules-depcruise-"));
   try {
@@ -51,17 +51,37 @@ export async function cruiseFixture(fixture, config, inspect) {
         exports: {
           ".": "./dist/index.js",
           "./unstable/sql": "./dist/unstable/sql/index.js",
+          "./unstable/http": "./dist/unstable/http/index.js",
+          "./unstable/process": "./dist/unstable/process/index.js",
           "./*": "./dist/*.js",
         },
       },
       {
         "dist/index.js": "export const Effect = {};\n",
+        "dist/Schema.js": "export const Schema = {};\n",
+        "dist/unstable/http/index.js": "export const HttpClient = {};\n",
+        "dist/unstable/http/HttpClient.js": "export const HttpClient = {};\n",
         "dist/unstable/sql/index.js": "export const sql = {};\n",
         "dist/unstable/sql/SqlClient.js": "export const SqlClient = {};\n",
+        // The real module imports SqlClient; node_modules is not followed, so the rule never sees that.
+        "dist/unstable/persistence/PersistedQueue.js": "export const PersistedQueue = {};\n",
+        "dist/unstable/process/index.js": "export const ChildProcess = {};\n",
       },
       "effect@4.0.0",
     );
-    for (const name of ["@effect/sql-pg", "@effect/platform-node"]) {
+    // Installed contract entries: the framework's own, and one nobody vouched for.
+    for (const name of ["@house-rules/capability", "@acme/installed"]) {
+      await stubPackage(
+        workspace,
+        { name, exports: { ".": "./src/index.ts", "./contract": "./src/contract.ts" } },
+        {
+          "src/index.ts": 'export * from "./facade.ts";\n',
+          "src/facade.ts": 'export * from "node:fs";\n',
+          "src/contract.ts": 'export * from "./facade.ts";\n',
+        },
+      );
+    }
+    for (const name of ["@effect/sql-pg", "@effect/platform-node", "pg"]) {
       await stubPackage(
         workspace,
         { name, exports: { ".": "./dist/index.js" } },

@@ -52,6 +52,30 @@ export {
 } from "./gates/policy.ts";
 export { newRequestId, requestIdHeader, requestIdOf, withRequestId } from "./call/request-id.ts";
 export { type ContractTool, type ToToolOptions, toTool } from "./contract/to-tool.ts";
+export {
+  type Endpoint,
+  type EndpointOptions,
+  type EndpointShape,
+  endpoint,
+  failureCodeHeader,
+  type Method,
+} from "./contract/endpoint.ts";
+export {
+  type ClientCall,
+  type ClientFailureCode,
+  HttpFailure,
+  type HttpFailureOf,
+  type HttpClientOf,
+  type HttpClientOptions,
+  toHttpClient,
+} from "./client/http-client.ts";
+export {
+  type OpenApiDocument,
+  type OpenApiOptions,
+  type OpenApiSecurity,
+  type OpenApiSecurityScheme,
+  toOpenApi,
+} from "./delivery/open-api.ts";
 export { type MergedParameters, type ToolParameters } from "./contract/tool-parameters.ts";
 export {
   type Atomic,
@@ -72,7 +96,6 @@ export {
   defaultMaxBodyBytes,
   type FetchHandler,
   type FetchHandlerOptions,
-  type Method,
   type Route,
   type RouteOptions,
   route,
@@ -91,10 +114,15 @@ export type { MountCheck, ServicesCheck } from "./delivery/mount-check.ts";
 export {
   type CallerContext,
   type DefaultViewTag,
+  type DefectStatusReserved,
   defaultViews,
   problem,
+  problemView,
+  type ProblemViewOptions,
+  type StaticStatus,
   type View,
   type ViewFn,
+  type ViewStatus,
   type ViewsCheck,
   type ViewTable,
 } from "./delivery/views.ts";

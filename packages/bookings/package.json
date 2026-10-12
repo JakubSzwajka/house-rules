@@ -4,14 +4,15 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./contract": "./src/contract.ts"
   },
   "scripts": {
     "typecheck": "tsc --project tsconfig.json",
     "test": "varlock run --path ../../ -- vitest run"
   },
   "dependencies": {
-    "@house-rules/capability": "workspace:0.12.0",
+    "@house-rules/capability": "workspace:0.13.0",
     "effect": "4.0.0-rc.117"
   },
   "devDependencies": {

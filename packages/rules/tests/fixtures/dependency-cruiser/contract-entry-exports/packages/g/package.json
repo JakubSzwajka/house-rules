@@ -1,0 +1,1 @@
+{ "name": "@acme/g", "private": true, "exports": { ".": "./src/index.ts", "./extra": { "import": "./dist/extra.js" } } }
