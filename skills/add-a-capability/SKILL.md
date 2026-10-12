@@ -64,10 +64,10 @@ The file exports the contract, the capability, and types. Nothing else. `use-cas
 Mount the capability with a delivery adapter from `@house-rules/capability`. It decodes the input, runs the gates, and maps every typed error once through the app's views table:
 
 1. [ ] Add a route in `src/delivery/http/routes.ts`: `route(showBooking, "GET /bookings/:id")`.
-2. [ ] Give each failure tag a view in the composition's `views`, in `src/server/composition.ts`. A missing view fails `tsc` and names the tag.
+2. [ ] Give each failure tag a view in the composition's `views`, in `src/composition/views.ts`. A missing view fails `tsc` and names the tag.
 3. [ ] Let the composition's `caller` provide the per-request `Grant`, or let the root provide one that is the same for every request. Each adapter fills `Approval`: `denyAll` on HTTP, `elicitationApproval` on MCP, `allowAll` for `call`.
 
-`apps/api/src/delivery/http/routes.ts`, `apps/api/src/server/composition.ts` and `apps/api/src/main.ts` are the example. For an MCP tool, follow `skills/add-an-mcp-tool/SKILL.md`, which builds the tool with `toTool(capability.contract, ...)`. Never call `Tool.make` by hand: `no-hand-rolled-surface` fails it.
+`apps/api/src/delivery/http/routes.ts`, `apps/api/src/composition/` and `apps/api/src/main.ts` are the example. For an MCP tool, follow `skills/add-an-mcp-tool/SKILL.md`, which builds the tool with `toTool(capability.contract, ...)`. Never call `Tool.make` by hand: `no-hand-rolled-surface` fails it.
 
 ## 5. Test it
 

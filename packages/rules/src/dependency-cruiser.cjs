@@ -7,8 +7,9 @@ const { DEFAULT_ADAPTER_IMPORTS, patterns } = require("./layout-patterns.cjs");
 const seeRuleLine = (name) => `See https://stack.kubaszwajka.com/rules/#${name}`;
 
 // node_modules is not followed, but stays in the graph, so a rule can see which package a file imports.
-const EXCLUDED_PATH =
-  "^(?!.*node_modules/)(?:|.*/)(?:dist|coverage|generated|[.]turbo|[.]agent_sources)(?:/|$)";
+// A host adds its build output, such as Next's `.next`.
+const excludedPath = (buildOutputFolders) =>
+  `^(?!.*node_modules/)(?:|.*/)(?:${["dist", "coverage", "generated", "[.]turbo", "[.]agent_sources", ...buildOutputFolders].join("|")})(?:/|$)`;
 
 function rule(name, from, to) {
   return { name, severity: "error", comment: seeRuleLine(name), from, to };
@@ -60,17 +61,36 @@ function layout(options = {}) {
           pathNot: p.browserSafe,
         },
       ),
-      // Delivery may reach only the named server entry files, such as the runtime that runs use-cases.
+      // The layer rules below check reachability, not just direct imports: an app's entry files may
+      // import every layer, so a layer that imports `src/index.ts`, or any other file that re-exports
+      // a forbidden layer, would otherwise reach it in two hops. A valid graph never has such a path.
       rule(
         "delivery-does-not-import-server",
         { path: p.deliveryRoot },
-        p.serverEntry ? { path: p.serverRoot, pathNot: p.serverEntry } : { path: p.serverRoot },
+        { path: p.serverRoot, reachable: true },
       ),
-      rule("server-does-not-import-delivery", { path: p.serverRoot }, { path: p.deliveryRoot }),
+      rule(
+        "server-does-not-import-delivery",
+        { path: p.serverRoot },
+        { path: p.deliveryRoot, reachable: true },
+      ),
       rule(
         "use-cases-do-not-import-outer-layers",
         { path: p.useCasesRoot },
-        { path: [p.deliveryRoot, p.serverRoot] },
+        { path: [p.deliveryRoot, p.serverRoot], reachable: true },
+      ),
+      // The composition root wires packages only. Delivery, server and tests import it; it imports
+      // no other app file, so it cannot reach a route, a server loop or a use-case.
+      rule(
+        "composition-imports-packages-only",
+        { path: p.compositionRoot },
+        { path: p.appFolder, pathNot: p.compositionRoot },
+      ),
+      // A use-case's test may share the composition's layers; the use-case itself may not.
+      rule(
+        "use-cases-do-not-import-composition",
+        { path: p.useCasesRoot, pathNot: p.testPath },
+        { path: p.compositionRoot, reachable: true },
       ),
       rule(
         "no-unresolved-deep-package-imports",
@@ -94,11 +114,12 @@ function layout(options = {}) {
         path: p.appSource,
         pathNot: [...p.appLayerOrEntry, p.testPath],
       }),
-      // $1 is the importing use-case's top-level entry under use-cases/, a file or a folder.
+      // $1 is the importing use-case's top-level entry under use-cases/, a file or a folder. Reachable,
+      // so an entry file that re-exports another use-case is no bridge either.
       rule(
         "use-cases-do-not-import-use-cases",
         { path: p.useCaseEntry, pathNot: p.testPath },
-        { path: p.useCaseAny, pathNot: ["^$1(?:/|$)", p.testPath] },
+        { path: p.useCaseAny, pathNot: ["^$1(?:/|$)", p.testPath], reachable: true },
       ),
       moduleRule("no-ownerless-files", { path: p.ownerlessPath }),
       moduleRule("package-root-files", {
@@ -144,7 +165,7 @@ function layout(options = {}) {
     ],
     options: {
       parser: "swc",
-      exclude: { path: EXCLUDED_PATH },
+      exclude: { path: excludedPath(p.buildOutputFolders) },
       doNotFollow: { path: "(?:^|/)node_modules(?:/|$)" },
       skipAnalysisNotInRules: true,
       tsPreCompilationDeps: "specify",

@@ -1,7 +1,12 @@
 "use strict";
 
 // Option parsers for layout(). Each one validates a value and returns the Dependency Cruiser pattern for it.
-const DEFAULT_LAYERS = { delivery: "delivery", server: "server", useCases: "use-cases" };
+const DEFAULT_LAYERS = {
+  delivery: "delivery",
+  server: "server",
+  useCases: "use-cases",
+  composition: "composition",
+};
 
 // Dots become `[.]` so the default patterns stay byte-equal to drunk-cat-stack's hand-written ones.
 function escape(value) {
@@ -111,7 +116,8 @@ function adapterImportsOption(specifiers, scope, packages) {
   return { installed, workspace };
 }
 
-function layerOptions(layers) {
+// `hostLayers` are a host preset's defaults, such as Next's `app` folder; the app's own layers win.
+function layerOptions(layers, hostLayers = {}) {
   if (layers === null || typeof layers !== "object" || Array.isArray(layers)) {
     throw new TypeError("layout(): layers must be an object.");
   }
@@ -122,7 +128,7 @@ function layerOptions(layers) {
       );
     }
   }
-  const merged = { ...DEFAULT_LAYERS, ...layers };
+  const merged = { ...DEFAULT_LAYERS, ...hostLayers, ...layers };
   return Object.fromEntries(
     Object.entries(merged).map(([name, value]) => [name, pathOption(value, `layers.${name}`)]),
   );

@@ -70,6 +70,8 @@
 	redir /rules/dependency-cruiser/delivery-does-not-import-server/ /rules/#delivery-does-not-import-server 301
 	redir /rules/dependency-cruiser/server-does-not-import-delivery/ /rules/#server-does-not-import-delivery 301
 	redir /rules/dependency-cruiser/use-cases-do-not-import-outer-layers/ /rules/#use-cases-do-not-import-outer-layers 301
+	redir /rules/dependency-cruiser/composition-imports-packages-only/ /rules/#composition-imports-packages-only 301
+	redir /rules/dependency-cruiser/use-cases-do-not-import-composition/ /rules/#use-cases-do-not-import-composition 301
 	redir /rules/dependency-cruiser/no-unresolved-deep-package-imports/ /rules/#no-unresolved-deep-package-imports 301
 	redir /rules/dependency-cruiser/production-does-not-import-tests/ /rules/#production-does-not-import-tests 301
 	redir /rules/dependency-cruiser/tests-live-in-tests-dir/ /rules/#tests-live-in-tests-dir 301

@@ -5,6 +5,7 @@ Import paths:
 - `@house-rules/rules/tsconfig/strict.json`: compiler flags only.
 - `@house-rules/rules/tsconfig/effect.json`: extends `strict.json` and adds the `@effect/language-service` plugin block.
 - `@house-rules/rules/tsconfig/web.json`: extends `strict.json` for UI code a bundler builds: DOM libs and bundler resolution, no plugin block. Since 0.12.0. See [web.json](#webjson).
+- `@house-rules/rules/tsconfig/next.json`: extends `web.json` with what Next.js needs. Since 0.16.0. See [next.json](#nextjson).
 
 `strict.json` and `effect.json` come from drunk-cat-stack's `tsconfig.base.json`. Merged, they equal it exactly. A test checks that against the copy in `tests/fixtures/presets/`.
 
@@ -42,40 +43,13 @@ Every strict flag stays. It has no `plugins` block, so a framework plugin such a
 A web app splits its code across two tsconfig files:
 
 - `tsconfig.json` checks the whole app as UI code. It extends `web.json` and adds the framework's values.
-- `tsconfig.effect.json` checks the app's Effect code, `src/server/` and `src/use-cases/`. It extends `effect.json` first and `web.json` second, so the Effect diagnostics run with the same libs and resolution as the UI. Its `typecheck` script runs it with the patched `tsc`.
+- `tsconfig.effect.json` checks the app's Effect code, `src/composition/`, `src/server/` and `src/use-cases/`. It extends `effect.json` first and `web.json` second, so the Effect diagnostics run with the same libs and resolution as the UI. Its `typecheck` script runs it with the patched `tsc`.
 
 Order matters. In an `extends` array, a later file wins. `[effect.json, web.json]` keeps the plugin block, which only `effect.json` sets, and takes `web.json`'s libs and resolution. `packages/rules/tests/config-presets-effect.test.mjs` keeps this as a test: with the patched root `tsc`, DOM types resolve and a floating Effect still fails with TS377001. `[web.json, effect.json]` puts `strict.json`'s `NodeNext` and ES2023-only `lib` back, because `effect.json` extends `strict.json`.
 
 Packages keep extending the root `tsconfig.base.json`, which extends `effect.json`. Neither app file sets `plugins` over an Effect block, so no file switches Effect diagnostics off.
 
-Next.js:
-
-```json
-// apps/web/tsconfig.json
-{
-  "extends": "@house-rules/rules/tsconfig/web.json",
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "incremental": true,
-    "plugins": [{ "name": "next" }],
-    "paths": { "@/*": ["./src/*"] }
-  },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", ".next"]
-}
-```
-
-```json
-// apps/web/tsconfig.effect.json
-{
-  "extends": [
-    "@house-rules/rules/tsconfig/effect.json",
-    "@house-rules/rules/tsconfig/web.json"
-  ],
-  "compilerOptions": { "paths": { "@/*": ["./src/*"] } },
-  "include": ["src/server/**/*.ts", "src/use-cases/**/*.ts"]
-}
-```
+Next.js uses its own preset, [next.json](#nextjson).
 
 Vite with React:
 
@@ -95,7 +69,7 @@ Vite with React:
     "@house-rules/rules/tsconfig/effect.json",
     "@house-rules/rules/tsconfig/web.json"
   ],
-  "include": ["src/server/**/*.ts", "src/use-cases/**/*.ts"]
+  "include": ["src/composition/**/*.ts", "src/server/**/*.ts", "src/use-cases/**/*.ts"]
 }
 ```
 
@@ -109,6 +83,46 @@ Vite with React:
 ```
 
 An app with no Effect code needs only `tsconfig.json`.
+
+## next.json
+
+For a Next.js app's `tsconfig.json`. It extends `web.json` and adds what Next needs:
+
+| Option | Value | Why |
+| --- | --- | --- |
+| `jsx` | `"react-jsx"` | Next 16 requires the React automatic runtime. |
+| `allowJs` | `true` | Next suggests it, so it can compile `.js` files in the app. It is not required. |
+| `esModuleInterop` | `true` | Next requires it for SWC. |
+| `resolveJsonModule` | `true` | Next requires it to match its bundler. |
+| `plugins` | `[{ "name": "next" }]` | Next's editor plugin. |
+
+Every strict flag and `web.json`'s libs and resolution stay. `allowJs` is no exemption from them: every `.ts` and `.tsx` file is checked as strictly as before. It does let `.js` files into the program unchecked, because `checkJs` stays off. A function from a `.js` file comes back as `any`, and TypeScript accepts that `any` anywhere, even as a `string`. Keep app code in TypeScript, and treat an import from a `.js` file as untyped. Next 16.3.5 reads these options from the app's own `tsconfig.json`, and when that file has `extends`, Next leaves it alone and writes nothing back (`writeConfigurationDefaults` in `next/dist/lib/typescript`). So the app does not repeat them. Before, an app kept them in its own file because `next build` wrote them there.
+
+The app still keeps `include`, `exclude` and `paths`: TypeScript resolves those relative to the file that declares them, so a preset in `node_modules` cannot hold them.
+
+```json
+// apps/web/tsconfig.json
+{
+  "extends": "@house-rules/rules/tsconfig/next.json",
+  "compilerOptions": { "incremental": true, "paths": { "@/*": ["./src/*"] } },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
+  "exclude": ["node_modules", ".next"]
+}
+```
+
+```json
+// apps/web/tsconfig.effect.json
+{
+  "extends": [
+    "@house-rules/rules/tsconfig/effect.json",
+    "@house-rules/rules/tsconfig/web.json"
+  ],
+  "compilerOptions": { "paths": { "@/*": ["./src/*"] } },
+  "include": ["src/composition/**/*.ts", "src/server/**/*.ts", "src/use-cases/**/*.ts"]
+}
+```
+
+The Effect tsconfig extends `web.json`, not `next.json`. `next.json` sets `plugins`, and a later file in `extends` replaces the whole array, so `[effect.json, next.json]` would switch the Effect diagnostics off. The Effect code needs none of Next's options.
 
 ## Resolution
 

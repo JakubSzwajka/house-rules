@@ -1,6 +1,6 @@
 import { toFetchHandler, toOpenApi } from "@house-rules/capability";
 import { bookingRoutes } from "./delivery/http/routes.js";
-import { app } from "./server/composition.js";
+import { app } from "./composition/index.js";
 
 export const api = toFetchHandler(app, { prefix: "/api", routes: bookingRoutes });
 

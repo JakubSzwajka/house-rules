@@ -41,10 +41,11 @@ export default [
 ];
 ```
 
-`shadcn(options)` is the default and the named export. It returns two flat-config blocks:
+`shadcn(options)` is the default and the named export. It returns two flat-config blocks, and a third with `host`:
 
 1. The app block. It runs the six rules and `house-rules/design-no-raw-element` on `files`, with the same parser setup as `recommended`.
 2. The component-folder block. It turns `no-restyle`, `no-arbitrary-values`, `require-static-classes` and `design-no-raw-element` off for files in `components` that the app block also lints.
+3. The host block, only with `host`. It turns `no-inline-styles` and `design-no-raw-element` off for the host's shell-free files that the app block also lints. See [Next.js root error boundary](#nextjs-root-error-boundary).
 
 ## What it turns on
 
@@ -70,6 +71,7 @@ The component-folder override is the one in [docs/adoption.md:118-133](https://g
 type Severity = "off" | "warn" | "error";
 
 shadcn({
+  host?: "next";           // default: none
   files?: string[];        // default: ["**/*.{jsx,tsx}"]
   components?: string[] | false; // default: ["**/components/ui/**"]
   severity?: Severity;     // default: each rule's default above
@@ -84,6 +86,7 @@ shadcn({
 });
 ```
 
+- `host`: a host preset, the same name `layout({ host })` takes. `"next"` is the only host. See [Next.js root error boundary](#nextjs-root-error-boundary).
 - `files`: the files the six rules check. Add `.ts` and `.js` only if class strings live there, such as in `cva()` calls outside components.
 - `components`: folder globs for the component-folder override. The override covers a file only if it also matches `files`. Pass `false` to skip the override.
 - `severity`: one severity for every rule. `"warn"` is the way to start in an app that already has findings.
@@ -91,7 +94,24 @@ shadcn({
 - `settings`: the plugin's shared settings, such as `ui`, `componentImports` or `note`. See the plugin's [README, Settings](https://github.com/shadcn-ui/lint/blob/a89d04792f340bcea26af2d539a9eec7285fcc77/README.md#settings).
 - `rawElements`: the `design-no-raw-element` entry. `false` turns it off. A severity sets only the level. An object sets `elements`, `allow` and `components` as the rule's options in `design-no-raw-element.md`, and `severity`. With `components: false`, the rule falls back to its own default folder, `**/components/ui/**`, unless `rawElements.components` names one.
 
-The factory throws a `TypeError` for an unknown rule name, a bad severity, a `rules` value that is not a plain object, a rule entry of any other shape (the message names the rule), a non-array `files` or `components`, or a `rawElements` value of any other shape or with an unknown key.
+The factory throws a `TypeError` for an unknown host, an unknown rule name, a bad severity, a `rules` value that is not a plain object, a rule entry of any other shape (the message names the rule), a non-array `files` or `components`, or a `rawElements` value of any other shape or with an unknown key.
+
+## Next.js root error boundary
+
+Next renders `app/global-error.tsx` in place of the root layout when the root layout itself fails. The file brings its own `<html>` and `<body>`, and the root layout's stylesheet and providers may not be there. A `Button` from the component folder could render unstyled or not at all. So the file needs raw elements and inline styles.
+
+`shadcn({ host: "next" })` adds one block for `**/app/global-error.{jsx,tsx}` that turns off exactly two rules there:
+
+| Rule | Why it is off in that file |
+| --- | --- |
+| `house-rules/design-no-raw-element` | The component folder may not render outside the root layout, so the file uses a raw `<button>`. |
+| `shadcn/no-inline-styles` | The app's stylesheet may be missing, so the file styles itself with `style={{ ... }}`. |
+
+Every other rule stays on in that file, so a palette class or a raw colour literal still fails. Every other file keeps both rules: `app/error.tsx` renders inside the root layout, and a `global-error.tsx` anywhere but directly in an `app/` folder, such as `app/settings/global-error.tsx`, is no Next file at all. The list lives in House Rules (`src/hosts.cjs`), so a Next app needs no `rawElements.allow` glob for it. `tests/fixtures/next-shell-app/` holds the root boundary and both siblings, and `tests/shadcn-host.test.mjs` checks that only the root boundary is freed.
+
+```js
+...shadcn({ host: "next", components: ["apps/web/src/components/ui/**"] }),
+```
 
 ## Apps with findings already
 

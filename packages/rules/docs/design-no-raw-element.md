@@ -65,7 +65,7 @@ type Options = [
 - `components`: globs for the component folders, relative to ESLint's working directory. `shadcn()` passes its own `components` option here. Folders named `node_modules` and folders that start with `.` are skipped.
 - `elements`: entries by element name, merged over the default map. An entry replaces the default for that element, so `input: "input"` drops the `type="hidden"` exemption. `false` drops the element. A `use` entry always reports, whether or not the folder has a file: use it for framework components, such as `a: { use: "Link", from: "next/link" }`.
 - `unless`: attribute values that make an element harmless, such as `{ type: ["hidden"] }`. Only a static string counts: `type="hidden"`, `type={"hidden"}` or `` type={`hidden`} ``.
-- `allow`: file globs, relative to ESLint's working directory, where the rule does nothing. It supports `**`, `*`, `?`, `[...]` and `{a,b}`. Use it for a file that must stay plain, such as a Next.js `global-error.tsx` that renders without the app shell.
+- `allow`: file globs, relative to ESLint's working directory, where the rule does nothing. It supports `**`, `*`, `?`, `[...]` and `{a,b}`. Use it for a file that must stay plain. A Next.js app does not list `app/global-error.tsx` here: `shadcn({ host: "next" })` frees that file already, see [shadcn.md](shadcn.md#nextjs-root-error-boundary).
 
 ESLint rejects an element name that is not lower case, an entry with both `component` and `use`, and an empty object.
 
@@ -73,10 +73,11 @@ ESLint rejects an element name that is not lower case, an entry with both `compo
 
 ```js
 ...shadcn({
+  host: "next",
   components: ["apps/web/src/app/_components/ui/**"],
   rawElements: {
     elements: { a: { use: "Link", from: "next/link" } },
-    allow: ["apps/web/src/app/global-error.tsx"],
+    allow: ["apps/web/src/app/legacy-embed.tsx"],
   },
 }),
 ```

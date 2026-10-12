@@ -37,7 +37,12 @@ test("the package entry point does not load @eslint/markdown", async () => {
   }
   assert.ok(seen.has("no-broken-relative-links.mjs"));
   assert.equal(packages.has("@eslint/markdown"), false, [...packages].join(", "));
-  assert.deepEqual(Object.keys(plugin.configs), ["recommended", "testing", "capability"]);
+  assert.deepEqual(Object.keys(plugin.configs), [
+    "recommended",
+    "testing",
+    "capability",
+    "nextHost",
+  ]);
 });
 
 test("ESLint reports exact findings for good, broken, and wrong-case links in a git repository", async () => {

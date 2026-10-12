@@ -117,13 +117,13 @@ The handler yields the service and calls its methods. Let typed errors flow thro
 
 Mount the use-case with a delivery adapter from `@house-rules/capability`, as `skills/add-a-capability/SKILL.md` step 4 says. Add a route under `apps/<app>/src/delivery/`, such as `route(showBooking, "GET /bookings/:id")`, and mount it with `toFetchHandler`. The adapter decodes the input, runs the gates, and maps every typed error once through the app's views table. That includes `Forbidden` and `ApprovalDenied`. A missing view is a compile error that names the tag. Do not write a per-route error mapper, and do not call `catchTag` in delivery. Group delivery by mechanism, such as `delivery/http/` and `delivery/mcp/`.
 
-Delivery provides only per-request values, through the composition's `caller`: the `Viewer`, the `CallChannel`, and the `Grant` an adapter fills for this request. Everything else comes from the app's one composition root, `src/server/` or `src/main.ts`. Provide the module's layer there, its storage adapter, and any Grant that is the same for every request. `apps/api/src/server/app-layer.ts` provides `Bookings` and the visitor Grant, `apps/api/src/server/composition.ts` wraps it with `composition(...)`, and `apps/api/src/delivery/http/routes.ts` provides nothing.
+Delivery provides only per-request values, through the composition's `caller`: the `Viewer`, the `CallChannel`, and the `Grant` an adapter fills for this request. Everything else comes from the app's one composition root, `src/composition/`. Provide the module's layer there, its storage adapter, and any Grant that is the same for every request. The composition imports packages only. `apps/api/src/composition/app-layer.ts` provides `Bookings` and the visitor Grant, `apps/api/src/composition/index.ts` wraps it with `composition(...)`, and `apps/api/src/delivery/http/routes.ts` provides nothing.
 
 The entry point, `apps/api/src/main.ts`, mounts the routes and owns the runtime. Do not call `Effect.run*` inside Effect code.
 
 ## 5. Test it
 
-Put each test in a `tests/` folder inside the folder it tests, as `<file>.test.ts`: `packages/<name>/src/tests/`, `apps/<app>/src/use-cases/tests/`, `apps/<app>/src/delivery/<kind>/tests/`, `apps/<app>/src/server/tests/`. A package's own tests import `../index.js`. `pnpm check` fails on a test anywhere else, and on a test outside `src/adapters/` that imports an adapter. Use `@effect/vitest`:
+Put each test in a `tests/` folder inside the folder it tests, as `<file>.test.ts`: `packages/<name>/src/tests/`, `apps/<app>/src/use-cases/tests/`, `apps/<app>/src/delivery/<kind>/tests/`, `apps/<app>/src/server/tests/`. A use-case test may import `src/composition/` to share the app's layers; the use-case itself may not. A package's own tests import `../index.js`. `pnpm check` fails on a test anywhere else, and on a test outside `src/adapters/` that imports an adapter. Use `@effect/vitest`:
 
 - `it.layer(<Service>.<layer>)` to provide the service;
 - `it.effect` for each case;

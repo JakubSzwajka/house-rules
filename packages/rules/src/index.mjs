@@ -6,6 +6,7 @@ import { designNoRawColorRule } from "./design-no-raw-color.mjs";
 import { designNoRawElementRule } from "./design-no-raw-element.mjs";
 import { designNoUnknownTokenRule } from "./design-no-unknown-token.mjs";
 import { designScaleValueRule } from "./design-scale-value.mjs";
+import hosts from "./hosts.cjs";
 import { noBrokenRelativeLinksRule } from "./no-broken-relative-links.mjs";
 import { noComputedImportRule } from "./no-computed-import.mjs";
 import { noHandRolledSurfaceRule } from "./no-hand-rolled-surface.mjs";
@@ -17,7 +18,7 @@ import { ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL } from "./rule-docs.m
 const plugin = {
   meta: {
     name: "@house-rules/rules",
-    version: "0.15.0",
+    version: "0.16.0",
   },
   rules: {
     "comment-discipline": commentDisciplineRule,
@@ -142,6 +143,11 @@ function capabilityConfig({ packagesDir = "packages" } = {}) {
 }
 
 plugin.configs.capability = capabilityConfig();
+
+// A block with only `name` and `ignores` is a global ignore: ESLint never reads those paths.
+plugin.configs.nextHost = [
+  { name: "house-rules/next-host", ignores: [...hosts.HOSTS.next.eslintIgnores] },
+];
 
 export { capabilityConfig, plugin, ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL };
 export default plugin;

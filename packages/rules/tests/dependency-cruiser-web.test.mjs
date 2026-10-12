@@ -4,7 +4,8 @@ import { layout } from "../src/dependency-cruiser.cjs";
 import { fromPaths, violatedRules } from "./dependency-cruiser-helpers.mjs";
 
 // web-app: delivery pages that reach the server runtime and the database, and two declaration files
-// that import framework build output, one at the app root and one under src/server/.
+// that import framework build output, one at the app root and one under src/server/. Since 0.16.0 no
+// option lets delivery reach the server: it imports src/composition/ instead.
 const DEFAULT_VIOLATIONS = [
   "delivery-does-not-import-server: apps/web/src/delivery/pages/health-page.ts -> apps/web/src/server/database.ts",
   "delivery-does-not-import-server: apps/web/src/delivery/pages/item-page.ts -> apps/web/src/server/runtime/index.ts",
@@ -14,49 +15,37 @@ const DEFAULT_VIOLATIONS = [
 
 const ruleByName = (config, name) => config.forbidden.find((rule) => rule.name === name);
 
-test("empty serverEntryFiles and generatedDeclarationFiles leave the config as it was", () => {
+test("an empty generatedDeclarationFiles leaves the config as it was", () => {
   const plain = layout({ scope: "@acme/" });
-  assert.deepEqual(
-    layout({ scope: "@acme/", serverEntryFiles: [], generatedDeclarationFiles: [] }),
-    plain,
-  );
+  assert.deepEqual(layout({ scope: "@acme/", generatedDeclarationFiles: [] }), plain);
   assert.deepEqual(ruleByName(plain, "delivery-does-not-import-server").to, {
     path: "^apps/[^/]+/src/server(?:/|$)",
+    reachable: true,
   });
   assert.deepEqual(ruleByName(plain, "no-unresolved-imports").from, {});
 });
 
-test("without the options, delivery may not import the server and declaration imports must resolve", async () => {
+test("without the option, delivery may not import the server and declaration imports must resolve", async () => {
   assert.deepEqual(
     fromPaths(await violatedRules("web-app", layout({ scope: "@acme/" }))),
     DEFAULT_VIOLATIONS,
   );
 });
 
-test("serverEntryFiles lets delivery import only the named server files", async () => {
-  const config = layout({ scope: "@acme/", serverEntryFiles: ["runtime/index.ts"] });
-  assert.deepEqual(ruleByName(config, "delivery-does-not-import-server").to, {
-    path: "^apps/[^/]+/src/server(?:/|$)",
-    pathNot: "^apps/[^/]+/src/server/(?:runtime/index[.]ts)$",
-  });
-  assert.deepEqual(fromPaths(await violatedRules("web-app", config)), [
-    DEFAULT_VIOLATIONS[0],
-    ...DEFAULT_VIOLATIONS.slice(2),
-  ]);
-  const server = ruleByName(config, "server-does-not-import-delivery");
-  assert.deepEqual(server, ruleByName(layout({ scope: "@acme/" }), server.name));
-});
-
-test("serverEntryFiles follows a renamed server layer", () => {
-  const config = layout({
-    scope: "@acme/",
-    layers: { server: "backend" },
-    serverEntryFiles: ["runtime.ts", "shared-runtime.ts"],
-  });
-  assert.equal(
-    ruleByName(config, "delivery-does-not-import-server").to.pathNot,
-    "^apps/[^/]+/src/backend/(?:runtime[.]ts|shared-runtime[.]ts)$",
-  );
+// Removed in 0.16.0: delivery reaches use-cases through src/composition/ and the delivery adapters.
+test("serverEntryFiles is gone, and the error says what replaces it", () => {
+  for (const value of [[], ["runtime.ts"], "runtime.ts"]) {
+    assert.throws(
+      () => layout({ scope: "@acme/", serverEntryFiles: value }),
+      (error) =>
+        error instanceof TypeError &&
+        error.message.startsWith("layout(): serverEntryFiles was removed in 0.16.0.") &&
+        error.message.includes("src/composition/") &&
+        error.message.includes("composition({ layer, caller, views })") &&
+        error.message.includes("toFetchHandler, toMcpHandler or call") &&
+        error.message.includes("Upgrading to 0.16.0"),
+    );
+  }
 });
 
 test("generatedDeclarationFiles exempts only the named files, relative to each app folder", async () => {
@@ -70,30 +59,28 @@ test("generatedDeclarationFiles exempts only the named files, relative to each a
   ]);
 });
 
-test("both options together leave only the real violations", async () => {
+test("generatedDeclarationFiles for both files leaves only the delivery violations", async () => {
   const config = layout({
     scope: "@acme/",
-    serverEntryFiles: ["runtime/index.ts"],
     generatedDeclarationFiles: ["framework-env.d.ts", "src/server/framework-env.d.ts"],
   });
-  assert.deepEqual(fromPaths(await violatedRules("web-app", config)), [DEFAULT_VIOLATIONS[0]]);
+  assert.deepEqual(
+    fromPaths(await violatedRules("web-app", config)),
+    DEFAULT_VIOLATIONS.slice(0, 2),
+  );
 });
 
-test("serverEntryFiles and generatedDeclarationFiles validate their paths", () => {
+test("generatedDeclarationFiles validates its paths", () => {
   for (const bad of [
-    "runtime.ts",
     [""],
-    ["/runtime.ts"],
-    ["runtime/"],
-    ["../delivery/x.ts"],
+    ["/env.d.ts"],
+    ["../env.d.ts"],
     [1],
+    ["framework-env.ts"],
+    ["src/app.tsx"],
+    ["types.d.ts/"],
+    "env.d.ts",
   ]) {
-    assert.throws(
-      () => layout({ scope: "@acme/", serverEntryFiles: bad }),
-      /serverEntryFiles must be an array of relative paths/,
-    );
-  }
-  for (const bad of [["framework-env.ts"], ["src/app.tsx"], ["types.d.ts/"], "env.d.ts"]) {
     assert.throws(
       () => layout({ scope: "@acme/", generatedDeclarationFiles: bad }),
       /generatedDeclarationFiles must be an array of relative paths .*ending in "\.d\.ts"/,

@@ -1,6 +1,6 @@
 # @house-rules/rules
 
-House rules and house configs. One exact pin brings all of it: thirteen ESLint rules, 21 Dependency Cruiser layout rules, subject-folder and package-cycle checks, TypeScript strict flags, a web preset for bundled UI code, Effect diagnostics, Biome linter and formatter with Tailwind v4 parsing, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Published to npm as `@house-rules/rules`.
+House rules and house configs. One exact pin brings all of it: thirteen ESLint rules, 23 Dependency Cruiser layout rules, subject-folder and package-cycle checks, TypeScript strict flags, a web preset for bundled UI code, Effect diagnostics, Biome linter and formatter with Tailwind v4 parsing, an exact-pins checker, and a module-owned SQL checker. It also ships a preset that turns on the six rules of `@shadcn/lint` for Tailwind v4 apps. Published to npm as `@house-rules/rules`.
 
 ## Install
 
@@ -9,7 +9,7 @@ Node `>=24.21.0` only. The pins and migrations bins use `fs.globSync`, with no f
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "0.15.0"
+    "@house-rules/rules": "0.16.0"
   }
 }
 ```
@@ -56,16 +56,18 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `packages-imported-by-name` | Local imports of packages by path instead of name | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `packages-public-entry-only` | Imports of package internals | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `contract-entry-is-browser-safe` | A package's `src/contract.ts` reaching server code: adapters, `storage.ts`, `facade.ts`, any package's `index.ts`, `node:` modules, any installed package but the allowlisted `effect` modules and trusted contract entries; and, through `house-rules-layout`, a manifest that exports any key or pattern but `.` and `./contract`, or points either at another file | Dependency Cruiser | `layout({ scope })`, `house-rules-layout` bin | [dependency-cruiser.md](docs/dependency-cruiser.md#contract-entry) |
-| `delivery-does-not-import-server` | Delivery layer importing server layer | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
-| `server-does-not-import-delivery` | Server layer importing delivery layer | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
-| `use-cases-do-not-import-outer-layers` | Use-cases importing delivery or server | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
+| `delivery-does-not-import-server` | Delivery layer reaching server layer, directly or through any file | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
+| `server-does-not-import-delivery` | Server layer reaching delivery layer, directly or through any file | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
+| `use-cases-do-not-import-outer-layers` | Use-cases reaching delivery or server, directly or through any file | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
+| `composition-imports-packages-only` | The app's `src/composition/` importing any other app file: delivery, server, a use-case, an entry file | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md#composition) |
+| `use-cases-do-not-import-composition` | A use-case reaching `src/composition/`, directly or through any file; its tests may import it | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md#composition) |
 | `no-unresolved-deep-package-imports` | Unresolved deep package imports | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `production-does-not-import-tests` | Production code importing tests | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `tests-live-in-tests-dir` | Test files outside tests/ folders | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `tests-do-not-import-internals` | Tests importing package internals | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `no-unresolved-imports` | Unresolved imports | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `app-code-in-layers` | App code outside layer folders | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
-| `use-cases-do-not-import-use-cases` | Use-case importing another use-case | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
+| `use-cases-do-not-import-use-cases` | Use-case reaching another use-case, directly or through any file | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `no-ownerless-files` | `utils/`, `helpers/`, `misc/` files or folders, and mechanism names (`types`, `errors`, `validation`, `internal`, ...) in packages, in any letter case | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `package-root-files` | A loose file in a package's `src/` other than `index.ts`, `facade.ts`, `storage.ts`, `contract.ts` | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
 | `domain-does-not-import-adapters` | Only `index.ts`, `facade.ts`, and files under `src/adapters/` may import the package's own adapters; test files may also import `src/adapters/tests/`, but no other file may | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md#package-layout) |
@@ -164,14 +166,16 @@ Biome replaces an extended `files.includes` instead of merging, so it stays in t
 
 ### A web app
 
-A web app, Next.js, Vite, Remix, Astro or similar, checks its UI with `tsconfig/web.json` (DOM libs, bundler resolution, no plugin block) and its Effect code with a second tsconfig that lists `effect.json` first and `web.json` second. The Biome preset already parses Tailwind v4 directives. Two `layout()` options cover a framework's pages calling the server runtime and its generated declaration file. Both default to `[]`. [tsconfig.md](docs/tsconfig.md#webjson), [biome.md](docs/biome.md#tailwind-css) and [dependency-cruiser.md](docs/dependency-cruiser.md#web-apps) have the details and a non-Next example.
+A web app, Next.js, Vite, Remix, Astro or similar, checks its UI with `tsconfig/web.json` (DOM libs, bundler resolution, no plugin block) and its Effect code with a second tsconfig that lists `effect.json` first and `web.json` second. The Biome preset already parses Tailwind v4 directives. Its pages reach use-cases through the app's `src/composition/` and the delivery adapters, never through the server folder. [tsconfig.md](docs/tsconfig.md#webjson), [biome.md](docs/biome.md#tailwind-css) and [dependency-cruiser.md](docs/dependency-cruiser.md#web-apps) have the details.
+
+A Next.js app names the host once on each side, and House Rules knows Next's files from there:
 
 ```json
 // apps/web/tsconfig.json
 {
-  "extends": "@house-rules/rules/tsconfig/web.json",
-  "compilerOptions": { "jsx": "react-jsx" },
-  "include": ["src"]
+  "extends": "@house-rules/rules/tsconfig/next.json",
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", ".next"]
 }
 ```
 
@@ -179,7 +183,7 @@ A web app, Next.js, Vite, Remix, Astro or similar, checks its UI with `tsconfig/
 // apps/web/tsconfig.effect.json
 {
   "extends": ["@house-rules/rules/tsconfig/effect.json", "@house-rules/rules/tsconfig/web.json"],
-  "include": ["src/server/**/*.ts", "src/use-cases/**/*.ts"]
+  "include": ["src/composition/**/*.ts", "src/server/**/*.ts", "src/use-cases/**/*.ts"]
 }
 ```
 
@@ -187,10 +191,15 @@ A web app, Next.js, Vite, Remix, Astro or similar, checks its UI with `tsconfig/
 // .dependency-cruiser.cjs
 module.exports = require("@house-rules/rules/dependency-cruiser").layout({
   scope: "@acme/",
-  serverEntryFiles: ["runtime.ts"],
-  generatedDeclarationFiles: ["next-env.d.ts"],
+  host: "next",
 });
+
+// eslint.config.mjs
+...houseRules.configs.nextHost,
+...shadcn({ host: "next" }),
 ```
+
+`host: "next"` makes `src/app/` the delivery folder, allows `src/proxy.ts` and `src/instrumentation.ts`, treats `next-env.d.ts` as a generated declaration and leaves `.next/` out. `configs.nextHost` is the ESLint side of that: one global-ignores block for `**/.next/**` and `**/next-env.d.ts`, so ESLint never lints build output or the generated file. `tsconfig/next.json` adds `allowJs`, `esModuleInterop`, `resolveJsonModule`, `jsx: "react-jsx"` and the `next` plugin to `web.json`. Next 16 never rewrites a tsconfig that uses `extends`, so these options must come from the preset. The Effect tsconfig keeps `web.json`, because `next.json`'s `plugins` would replace the Effect block. In `shadcn()`, the host lets `app/global-error.tsx` use raw elements and inline styles. Next renders that file in place of the root layout, so the app's components and stylesheet may not be loaded there. Every other rule stays on in that file, and every other file keeps both rules.
 
 ## Commands
 
@@ -206,6 +215,7 @@ pnpm run pack:check # Verify tarball
 1. Review the rule docs and the diff between the current and the candidate version.
 2. Update the exact version in `package.json`, regenerate lockfile.
 3. Run `pnpm run check`, `pnpm run pack:check`, and consumer checks (ESLint, Biome, typecheck, Dependency Cruiser, pins).
+   0.16.0 is breaking: `serverEntryFiles` is gone. Follow [Upgrading to 0.16.0](docs/dependency-cruiser.md#upgrading-to-0160).
 4. Merge lockfile and config changes together.
 
 The repo's publish workflow, not a person, publishes a new version to npm.

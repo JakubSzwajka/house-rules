@@ -1,5 +1,6 @@
 import { plugin } from "@shadcn/lint";
 import tsParser from "@typescript-eslint/parser";
+import hosts from "./hosts.cjs";
 import housePlugin from "./index.mjs";
 
 const PREFIX = "shadcn";
@@ -18,6 +19,9 @@ const RECOMMENDED = {
   "no-unknown-classes": ["warn"],
 };
 const COMPONENT_RULES_OFF = ["no-restyle", "no-arbitrary-values", "require-static-classes"];
+// A host's shell-free file, such as Next's global-error.tsx, renders without the app's components
+// and stylesheet, so it needs raw elements and inline styles. Every other rule stays on there.
+const SHELL_FREE_RULES_OFF = [`${PREFIX}/no-inline-styles`, RAW_ELEMENT];
 const DEFAULT_FILES = ["**/*.{jsx,tsx}"];
 const DEFAULT_COMPONENTS = ["**/components/ui/**"];
 
@@ -94,7 +98,9 @@ function rawElementEntry(setting, severity, components) {
 
 // Builds flat-config blocks for @shadcn/lint and design-no-raw-element: one block for the app's JSX and
 // TSX, and one that turns off the rules a component folder needs off. `components: false` skips it.
+// A `host` adds one block for the files its framework renders outside the app shell.
 export function shadcn({
+  host,
   files = DEFAULT_FILES,
   components = DEFAULT_COMPONENTS,
   severity,
@@ -102,6 +108,7 @@ export function shadcn({
   settings,
   rawElements = {},
 } = {}) {
+  const hostPreset = hosts.hostOption(host, "shadcn()");
   stringArray(files, "files");
   if (components !== false) stringArray(components, "components");
   if (severity !== undefined) checkSeverity(severity, "severity");
@@ -152,6 +159,13 @@ export function shadcn({
         ...Object.fromEntries(COMPONENT_RULES_OFF.map((name) => [`${PREFIX}/${name}`, "off"])),
         [RAW_ELEMENT]: "off",
       },
+    });
+  }
+  if (hostPreset) {
+    blocks.push({
+      files: hostPreset.shellFreeFiles.flatMap((file) => files.map((pattern) => [file, pattern])),
+      plugins: { [PREFIX]: plugin, [HOUSE]: housePlugin },
+      rules: Object.fromEntries(SHELL_FREE_RULES_OFF.map((name) => [name, "off"])),
     });
   }
   return blocks;
