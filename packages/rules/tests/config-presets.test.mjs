@@ -143,35 +143,33 @@ test("next.json extends web.json with the options and plugin Next.js needs", asy
   assert.equal(next.extends, "./web.json");
   assert.deepEqual(next.compilerOptions, {
     jsx: "react-jsx",
-    allowJs: true,
+    allowJs: false,
     esModuleInterop: true,
     resolveJsonModule: true,
     plugins: [{ name: "next" }],
   });
   const manifest = await readJson("package.json");
   assert.equal(manifest.exports["./tsconfig/next.json"], "./tsconfig/next.json");
-  const nextFiles = (preset) => ({
+  const nextFiles = {
     ...WEB_FILES,
     "src/data.json": '{ "title": "Ready" }\n',
     "src/legacy.js": "export const legacy = 1;\n",
-    "src/view.ts":
-      'import data from "./data.json";\nimport { legacy } from "./legacy.js";\nexport const view = `${data.title} ${legacy}`;\n',
-    "tsconfig.json": { extends: `@house-rules/rules/tsconfig/${preset}.json`, include: ["src"] },
-  });
-  await withConsumer(nextFiles("web"), async (run) => {
-    const result = run(tsc7, ["--project", "tsconfig.json"]);
-    assert.match(result.output, /view\.ts\(2,\d+\): error TS7016/);
-  });
-  await withConsumer(nextFiles("next"), async (run) => {
+    "src/view.ts": 'import data from "./data.json";\nexport const view = data.title;\n',
+    "src/untyped.ts": 'import { legacy } from "./legacy.js";\nexport const untyped = legacy;\n',
+    "tsconfig.json": { extends: "@house-rules/rules/tsconfig/next.json", include: ["src"] },
+  };
+  await withConsumer(nextFiles, async (run) => {
     const shown = run(tsc7, ["--showConfig"]);
     assert.equal(shown.status, 0, shown.output);
     const { compilerOptions } = JSON.parse(shown.output);
     assert.deepEqual(compilerOptions.lib, ["es2023", "dom", "dom.iterable"]);
     assert.equal(compilerOptions.moduleResolution, "bundler");
-    assert.equal(compilerOptions.allowJs, true);
+    assert.equal(compilerOptions.allowJs, false);
     assert.equal(compilerOptions.exactOptionalPropertyTypes, true);
+    // A JSON import compiles; a .js file stays out, so its import is an untyped-module error.
     const result = run(tsc7, ["--project", "tsconfig.json"]);
-    assert.equal(result.status, 0, result.output);
+    assert.doesNotMatch(result.output, /view\.ts/);
+    assert.match(result.output, /untyped\.ts\(1,\d+\): error TS7016/);
   });
 });
 

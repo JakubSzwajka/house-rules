@@ -11,13 +11,16 @@ import {
 } from "../contract/endpoint.ts";
 import { Approval } from "../gates/approval.ts";
 import { type Caller, type Incoming, Refused } from "./caller.ts";
-import type { Composition } from "./composition.ts";
-import { fieldName, InputInvalid, pathParamAsJson } from "./input.ts";
+import { type Composition, serveIn } from "./composition.ts";
+import { arrayKeysOf, fieldName, InputFault, pathParamAsJson } from "./input.ts";
 import {
   type ApprovalOption,
+  closedFailure,
   invoke,
+  layerFailure,
   logDefect,
   type Mountable,
+  type Outcome,
   type RawInput,
   requestIdFor,
 } from "./invoke.ts";
@@ -97,30 +100,55 @@ export type FetchHandlerOptions<A, CA, Routes, AdapterViews> = Readonly<{
   maxBodyBytes?: number;
 }>;
 
-const notAField = (key: string): InputInvalid =>
-  new InputInvalid({ field: fieldName(key), message: `${fieldName(key)} is not a field here.` });
+const notAField = (key: string): InputFault =>
+  new InputFault({
+    field: fieldName(key),
+    issue: "unexpected",
+    message: `${fieldName(key)} is not a field here.`,
+  });
+
+type QueryValue = string | Array<string>;
+
+const queryInput = (
+  query: URLSearchParams,
+  pathKeys: ReadonlyArray<readonly [string, string]>,
+  arrayKeys: ReadonlySet<string>,
+): Effect.Effect<RawInput, InputFault> =>
+  Effect.gen(function* queryInputOf() {
+    // No prototype, so a key such as __proto__ is an own field the decoder sees and refuses.
+    const strings = Object.create(null) as Record<string, QueryValue>;
+    for (const [key, value] of query) {
+      const held = strings[key];
+      // An array field takes the key once per item, in order; one key is a one-item list.
+      if (arrayKeys.has(key)) {
+        if (Array.isArray(held)) held.push(value);
+        else strings[key] = [value];
+        continue;
+      }
+      if (held !== undefined) return yield* givenTwice(key);
+      strings[key] = value;
+    }
+    for (const [key, value] of pathKeys) {
+      if (Object.hasOwn(strings, key)) return yield* givenTwice(key);
+      strings[key] = value;
+    }
+    return { value: strings, source: "strings" as const };
+  });
 
 const rawInput = (
   route: Route,
+  arrayKeys: ReadonlySet<string>,
   server: HttpServerRequest.HttpServerRequest,
   request: Request,
   params: Readonly<Record<string, string | undefined>>,
   limit: number,
-): Effect.Effect<RawInput, InputInvalid | Refused> =>
+): Effect.Effect<RawInput, InputFault | Refused> =>
   Effect.gen(function* rawInputOf() {
     const query = new URL(request.url).searchParams;
-    // No prototype, so a key such as __proto__ is an own field the decoder sees and refuses.
-    const strings: Record<string, string> = Object.create(null) as Record<string, string>;
     const pathKeys = Object.entries(params).flatMap(([key, value]) =>
       value === undefined ? [] : [[key, value] as const],
     );
-    if (!writeMethods.has(route.method)) {
-      for (const [key, value] of [...query, ...pathKeys]) {
-        if (Object.hasOwn(strings, key)) return yield* givenTwice(key);
-        strings[key] = value;
-      }
-      return { value: strings, source: "strings" as const };
-    }
+    if (!writeMethods.has(route.method)) return yield* queryInput(query, pathKeys, arrayKeys);
     for (const [key] of query) return yield* notAField(key);
     const body = yield* parseObject(yield* readCapped(server, request, limit));
     for (const [key, value] of pathKeys) {
@@ -192,10 +220,11 @@ export const toFetchHandler = <
   const Routes extends ReadonlyArray<Route>,
   CA = C,
   const AdapterViews extends ViewTable<CA> = Record<never, never>,
+  E = never,
 >(
-  app: Composition<A, C, Views>,
+  app: Composition<A, C, Views, E>,
   options: FetchHandlerOptions<A, CA, Routes, AdapterViews> &
-    MountCheck<Routes[number]["capability"], A, CA, Views & AdapterViews>,
+    MountCheck<Routes[number]["capability"], A, CA, Views & AdapterViews, E>,
 ): FetchHandler => {
   const views = { ...defaultViews, ...app.views, ...options.views };
   const caller = (options.caller ?? app.caller) as Caller<never, A>;
@@ -206,8 +235,9 @@ export const toFetchHandler = <
       throw new TypeError(`origins: ${JSON.stringify(origin)} is not an http(s) origin`);
     }
   }
-  const serve = (route: Route) =>
-    HttpRouter.add(route.method, `${options.prefix ?? ""}${route.path}`, (request) =>
+  const serve = (route: Route) => {
+    const arrayKeys = arrayKeysOf(route.capability.contract.input);
+    return HttpRouter.add(route.method, `${options.prefix ?? ""}${route.path}`, (request) =>
       Effect.gen(function* serveRoute() {
         const params = yield* HttpRouter.params;
         const requestId = yield* requestIdFor(request.headers[requestIdHeader] ?? null);
@@ -220,16 +250,21 @@ export const toFetchHandler = <
             const view = yield* safeViewOf(views, refused, undefined);
             return respond(view.status, view.body, requestId, publicHeaders(route, view));
           }
-          const outcome = yield* invoke(app, route.capability, {
-            incoming,
-            input: rawInput(route, request, web.success, params, limit),
-            channel: "web",
-            caller,
-            approval: options.approval,
-            // Plain HTTP has no way to ask the human, so approval fails closed.
-            defaultApproval: Approval.denyAll,
-            views,
-            encodeOutput: true,
+          const outcome = yield* serveIn<A, Outcome<unknown, unknown>>(app, {
+            ready: (context) =>
+              invoke(context, route.capability, {
+                incoming,
+                input: rawInput(route, arrayKeys, request, web.success, params, limit),
+                channel: "web",
+                caller,
+                approval: options.approval,
+                // Plain HTTP has no way to ask the human, so approval fails closed.
+                defaultApproval: Approval.denyAll,
+                views,
+                encodeOutput: true,
+              }).pipe(withRequestId(requestId)),
+            failed: (cause) => layerFailure(views, cause),
+            closed: closedFailure(views),
           });
           return outcome.ok
             ? respond(route.status, outcome.value, requestId)
@@ -251,6 +286,7 @@ export const toFetchHandler = <
         );
       }),
     );
+  };
   const [first, ...rest] = options.routes.map(serve);
   const routes = first === undefined ? Layer.empty : Layer.mergeAll(first, ...rest);
   // Each handler builds its own router. Sharing one would let this handler answer another's routes.

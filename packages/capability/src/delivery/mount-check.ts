@@ -6,8 +6,8 @@ export type ServicesCheck<Needs, Provided> = [Exclude<Needs, Provided>] extends 
   ? unknown
   : { readonly missingServices: Exclude<Needs, Provided> };
 
-export type MountCheck<Cap extends Mountable, A, C, Views> = ViewsCheck<
-  FailureOfCapability<Cap>,
+export type MountCheck<Cap extends Mountable, A, C, Views, E = never> = ViewsCheck<
+  FailureOfCapability<Cap> | E,
   Views
 > &
   ServicesCheck<ServicesOf<Cap>, A | C | Approval>;

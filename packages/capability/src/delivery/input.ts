@@ -1,10 +1,32 @@
-import { Effect, Schema, type SchemaIssue } from "effect";
+import { Effect, Schema, SchemaAST, type SchemaIssue } from "effect";
 import type { AnyContract, InputSchema, StructInput } from "../contract/contract.ts";
 
+export const inputIssues = ["unexpected", "missing", "invalid", "repeated"] as const;
+
+export type InputIssue = (typeof inputIssues)[number];
+
 export class InputInvalid extends Schema.TaggedError<InputInvalid>()("InputInvalid", {
+  capabilityName: Schema.String,
   field: Schema.String,
+  issue: Schema.Literals(inputIssues),
   message: Schema.String,
 }) {}
+
+export class InputFault extends Schema.TaggedError<InputFault>()("InputFault", {
+  field: Schema.String,
+  issue: Schema.Literals(inputIssues),
+  message: Schema.String,
+}) {}
+
+export const invalidFor =
+  (capabilityName: string) =>
+  (fault: InputFault): InputInvalid =>
+    new InputInvalid({
+      capabilityName,
+      field: fault.field,
+      issue: fault.issue,
+      message: fault.message,
+    });
 
 export type InputSource = "json" | "strings";
 
@@ -31,16 +53,20 @@ const nameableField = /^[A-Za-z][A-Za-z0-9_.]{0,63}$/u;
 
 export const fieldName = (key: string): string => (nameableField.test(key) ? key : "input");
 
-const invalidFrom = (issue: SchemaIssue.Issue): InputInvalid => {
+const faultFrom = (issue: SchemaIssue.Issue): InputFault => {
   const leaf = leafOf(issue);
   const field = fieldName(leaf.path.map(String).join("."));
   switch (leaf.tag) {
     case "UnexpectedKey":
-      return new InputInvalid({ field, message: `${field} is not a field here.` });
+      return new InputFault({
+        field,
+        issue: "unexpected",
+        message: `${field} is not a field here.`,
+      });
     case "MissingKey":
-      return new InputInvalid({ field, message: `${field} is required.` });
+      return new InputFault({ field, issue: "missing", message: `${field} is required.` });
     default:
-      return new InputInvalid({ field, message: `${field} is not valid.` });
+      return new InputFault({ field, issue: "invalid", message: `${field} is not valid.` });
   }
 };
 
@@ -57,7 +83,7 @@ export const decodeInput = <Contract extends AnyContract>(
   Schema.decodeUnknownEffect(codecOf(contract.input, source))(raw, {
     onExcessProperty: "error",
   }).pipe(
-    Effect.mapError((error) => invalidFrom(error.issue)),
+    Effect.mapError((error) => invalidFor(contract.name)(faultFrom(error.issue))),
     Effect.map((value) => value as Contract["input"]["Type"]),
   );
 
@@ -77,11 +103,28 @@ const fieldOf = (input: InputSchema, key: string): Schema.Top | undefined => {
     : undefined;
 };
 
+const isArrayOnStrings = (field: Schema.Top): boolean =>
+  SchemaAST.toEncoded(Schema.toCodecStringTree(field).ast)._tag === "Arrays";
+
+export const arrayKeysOf = (input: InputSchema): ReadonlySet<string> => {
+  const members = membersOf(input);
+  const keys = new Set(members.flatMap((member) => Object.keys(member.fields)));
+  // A key is a list only when every member that has it reads a list from strings.
+  return new Set(
+    [...keys].filter((key) =>
+      members.every(
+        (member) =>
+          !Object.hasOwn(member.fields, key) || isArrayOnStrings(member.fields[key] as Schema.Top),
+      ),
+    ),
+  );
+};
+
 export const pathParamAsJson = (
   input: InputSchema,
   key: string,
   value: string,
-): Effect.Effect<unknown, InputInvalid> => {
+): Effect.Effect<unknown, InputFault> => {
   const field = fieldOf(input, key);
   // A key the input lacks, or that members type differently, stays a string for the real decode to judge.
   if (field === undefined) return Effect.succeed(value);
@@ -89,6 +132,6 @@ export const pathParamAsJson = (
   return Schema.decodeUnknownEffect(codecOf(one, "strings"))({ [key]: value }).pipe(
     Effect.flatMap(Schema.encodeUnknownEffect(codecOf(one, "json"))),
     Effect.map((encoded) => (encoded as Record<string, unknown>)[key]),
-    Effect.mapError((error) => invalidFrom(error.issue)),
+    Effect.mapError((error) => faultFrom(error.issue)),
   );
 };

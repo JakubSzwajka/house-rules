@@ -1,10 +1,17 @@
 import { Effect, Stream } from "effect";
 import type { HttpServerRequest } from "effect/unstable/http";
 import { Refused } from "./caller.ts";
-import { fieldName, InputInvalid } from "./input.ts";
+import { fieldName, InputFault } from "./input.ts";
 
-export const givenTwice = (key: string): InputInvalid =>
-  new InputInvalid({ field: fieldName(key), message: `Give ${fieldName(key)} once.` });
+export const givenTwice = (key: string): InputFault =>
+  new InputFault({
+    field: fieldName(key),
+    issue: "repeated",
+    message: `Give ${fieldName(key)} once.`,
+  });
+
+const badBody = (message: string): InputFault =>
+  new InputFault({ field: "body", issue: "invalid", message });
 
 const tooLarge = (limit: number): Refused =>
   new Refused({
@@ -13,13 +20,15 @@ const tooLarge = (limit: number): Refused =>
     message: `The body is larger than ${limit} bytes.`,
   });
 
-const unreadable = new InputInvalid({ field: "body", message: "The body could not be read." });
+const unreadable = badBody("The body could not be read.");
+
+const notUtf8 = badBody("The body is not valid UTF-8.");
 
 export const readCapped = (
   request: HttpServerRequest.HttpServerRequest,
   web: Request,
   limit: number,
-): Effect.Effect<string, InputInvalid | Refused> =>
+): Effect.Effect<string, InputFault | Refused> =>
   Effect.gen(function* readBody() {
     const declared = Number(web.headers.get("content-length") ?? "0");
     if (Number.isFinite(declared) && declared > limit) return yield* tooLarge(limit);
@@ -43,7 +52,11 @@ export const readCapped = (
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    return new TextDecoder().decode(bytes);
+    // Fatal decoding: a stray byte is a 400, never a silent U+FFFD in the input.
+    return yield* Effect.try({
+      try: () => new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+      catch: () => notUtf8,
+    });
   });
 
 const repeatedMember = (text: string): string | undefined => {
@@ -78,16 +91,16 @@ const repeatedMember = (text: string): string | undefined => {
   return undefined;
 };
 
-export const parseObject = (text: string): Effect.Effect<Record<string, unknown>, InputInvalid> => {
+export const parseObject = (text: string): Effect.Effect<Record<string, unknown>, InputFault> => {
   if (text.trim() === "") return Effect.succeed({});
   return Effect.try({
     try: () => JSON.parse(text) as unknown,
-    catch: () => new InputInvalid({ field: "body", message: "The body is not valid JSON." }),
+    catch: () => badBody("The body is not valid JSON."),
   }).pipe(
     Effect.filterOrFail(
       (body): body is Record<string, unknown> =>
         typeof body === "object" && body !== null && !Array.isArray(body),
-      () => new InputInvalid({ field: "body", message: "The body must be a JSON object." }),
+      () => badBody("The body must be a JSON object."),
     ),
     Effect.flatMap((body) => {
       const repeated = repeatedMember(text);

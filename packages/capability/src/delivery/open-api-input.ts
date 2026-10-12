@@ -70,7 +70,16 @@ export const inputParts = (
     return { parameters };
   }
   for (const [name, schema] of Object.entries((rest.properties ?? {}) as Json)) {
-    parameters.push({ name, in: "query", required: requiredOf(rest).includes(name), schema });
+    const required = requiredOf(rest).includes(name);
+    // An array field goes out as one key per item, which the fetch handler gathers back in order.
+    const list = resolved(schema as Json, definitions).type === "array";
+    parameters.push({
+      name,
+      in: "query",
+      required,
+      ...(list ? { style: "form", explode: true } : {}),
+      schema,
+    });
   }
   return { parameters };
 };

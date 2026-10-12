@@ -4,8 +4,15 @@ import { newRequestId, requestIdOf, withRequestId } from "../call/request-id.ts"
 import type { AnyContract } from "../contract/contract.ts";
 import type { Approval } from "../gates/approval.ts";
 import type { Caller, Incoming, Refused } from "./caller.ts";
-import type { Composition } from "./composition.ts";
-import { decodeInput, type InputInvalid, type InputSource } from "./input.ts";
+import { type AnyComposition, builtContext } from "./composition.ts";
+import { CompositionClosed } from "./composition-closed.ts";
+import {
+  decodeInput,
+  type InputFault,
+  type InputInvalid,
+  type InputSource,
+  invalidFor,
+} from "./input.ts";
 import { internalErrorView, safeViewOf, tagOf, type View } from "./views.ts";
 
 export type AnyFailure = NonNullable<unknown> | null | undefined;
@@ -27,7 +34,11 @@ export type ServicesOf<Cap extends Mountable> = Effect.Services<ReturnType<Cap["
 
 export type Outcome<Value, Failure> =
   | Readonly<{ ok: true; value: Value }>
-  | Readonly<{ ok: false; error: Failure | Refused | InputInvalid | undefined; view: View }>;
+  | Readonly<{
+      ok: false;
+      error: Failure | Refused | InputInvalid | CompositionClosed | undefined;
+      view: View;
+    }>;
 
 export type RawInput = Readonly<{ value: unknown; source: InputSource }>;
 
@@ -35,7 +46,7 @@ export type ApprovalOption = Layer.Layer<Approval> | "fromCaller";
 
 export type InvokeOptions<A> = Readonly<{
   incoming: Incoming;
-  input: Effect.Effect<RawInput, InputInvalid | Refused>;
+  input: Effect.Effect<RawInput, InputFault | Refused>;
   channel: string;
   caller: Caller<never, A>;
   resolved?: Context.Context<never>;
@@ -47,18 +58,17 @@ export type InvokeOptions<A> = Readonly<{
 
 const internalError = { ok: false as const, error: undefined, view: internalErrorView };
 
-export const logDefect = <A, C>(
-  app: Composition<A, C>,
+export const logDefect = (
+  app: AnyComposition,
   message: string,
   cause: Cause.Cause<unknown>,
 ): Effect.Effect<void> =>
-  Effect.exit(app.runtime.contextEffect).pipe(
-    Effect.flatMap((built) =>
-      Exit.isSuccess(built)
-        ? Effect.logError(message, cause).pipe(Effect.provideContext(built.value))
-        : Effect.logError(message, cause),
-    ),
-  );
+  Effect.suspend(() => {
+    const built = builtContext(app);
+    return built === undefined
+      ? Effect.logError(message, cause)
+      : Effect.logError(message, cause).pipe(Effect.provideContext(built));
+  });
 
 const withApproval = (
   run: Effect.Effect<unknown, AnyFailure>,
@@ -76,23 +86,44 @@ const withApproval = (
   return run.pipe(Effect.provide(approval), Effect.provideContext(resolved));
 };
 
-export const invoke = <A, C>(
-  app: Composition<A, C>,
+export const layerFailure = (
+  views: Readonly<Record<string, unknown>>,
+  cause: Cause.Cause<unknown>,
+): Effect.Effect<Readonly<{ ok: false; error: unknown; view: View }>> =>
+  Effect.gen(function* layerFailureView() {
+    yield* Effect.logError("The app layer did not build", cause);
+    const failure = Cause.findErrorOption(cause);
+    // A typed layer error, such as a database that is down, answers its view; a dying layer stays a 500.
+    if (Option.isNone(failure)) return internalError;
+    return {
+      ok: false as const,
+      error: failure.value,
+      view: yield* safeViewOf(views, failure.value, undefined),
+    };
+  });
+
+export const closedFailure = (
+  views: Readonly<Record<string, unknown>>,
+): Effect.Effect<Readonly<{ ok: false; error: CompositionClosed; view: View }>> =>
+  Effect.gen(function* closedView() {
+    const error = new CompositionClosed();
+    return { ok: false as const, error, view: yield* safeViewOf(views, error, undefined) };
+  });
+
+export const invoke = <A>(
+  appContext: Context.Context<A>,
   capability: Mountable,
   options: InvokeOptions<A>,
 ): Effect.Effect<Outcome<unknown, unknown>> =>
   Effect.gen(function* invokeCapability() {
-    const built = yield* Effect.exit(app.runtime.contextEffect);
-    if (Exit.isFailure(built)) {
-      yield* Effect.logError("The app layer did not build", built.cause);
-      return internalError;
-    }
-    const appContext = built.value;
+    const name = capability.contract.name;
     let callerContext: Context.Context<never> | undefined;
     const program = Effect.gen(function* gatedCall() {
       const resolved = options.resolved ?? (yield* options.caller(options.incoming));
       callerContext = resolved;
-      const raw = yield* options.input;
+      const raw = yield* options.input.pipe(
+        Effect.mapError((error) => (error._tag === "InputFault" ? invalidFor(name)(error) : error)),
+      );
       const input = yield* decodeInput(capability.contract, raw.value, raw.source);
       // The mount check proved at compile time that the app, the caller and the adapter provide every service.
       const run = capability.handler as unknown as Runnable;

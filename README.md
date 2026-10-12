@@ -40,7 +40,7 @@ Root tools run once over the whole repo. Biome and ESLint warnings fail the chec
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.16.0`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.16.1`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
@@ -140,12 +140,12 @@ Four packages from this repo are on the public npm registry, under the `@house-r
 
 | Package | What it is | Version |
 | --- | --- | --- |
-| [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript. | `0.16.0` |
-| [`@house-rules/capability`](packages/capability/README.md) | Capabilities, gates, units of work, delivery | `0.13.1` |
+| [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript. | `0.16.1` |
+| [`@house-rules/capability`](packages/capability/README.md) | Capabilities, gates, units of work, delivery | `0.14.0` |
 | [`@house-rules/migrations`](packages/migrations/README.md) | Module-owned SQL migrations | `0.2.1` |
-| [`@house-rules/call-audit`](packages/call-audit/README.md) | One audit line or row per capability call | `0.2.1` |
+| [`@house-rules/call-audit`](packages/call-audit/README.md) | One audit line or row per capability call | `0.3.0` |
 
-1. [ ] Pin each one to an exact version, like every other dependency: `"@house-rules/capability": "0.13.1"`. `house-rules-pins` fails `^` and `~`.
+1. [ ] Pin each one to an exact version, like every other dependency: `"@house-rules/capability": "0.14.0"`. `house-rules-pins` fails `^` and `~`.
 2. [ ] Pin `effect` to the version their `peerDependencies` name, now `4.0.0-rc.117`. `call-audit` also peers on the exact `capability` version it was built with.
 3. [ ] If your `pnpm-workspace.yaml` sets `minimumReleaseAge`, a version younger than that fails the install. Wait, or add that exact version to `minimumReleaseAgeExclude`.
 
@@ -164,7 +164,7 @@ The layout rules accept the built contract entry, `dist/contract.js`, wherever t
 
 #### Publishing
 
-`.github/workflows/publish.yml` publishes. Every run starts with the `verify` job, which has `contents: read` only: no token and no OIDC. It runs `pnpm check`, `pnpm test`, `pnpm build`, `pnpm run packed-consumer`, and a `pnpm publish --dry-run`. Pull requests that touch a package stop there. Pushing a tag such as `@house-rules/capability@0.13.1`, or running the workflow on `main` with `publish` ticked, then runs the `publish` job, the only one with `id-token: write` and `NPM_TOKEN`. There `pnpm publish -r --access public --provenance` publishes every public package whose version is not on npm yet. To release, bump the version in the package's `package.json`, and every `workspace:` pin on it, in one pull request.
+`.github/workflows/publish.yml` publishes. Every run starts with the `verify` job, which has `contents: read` only: no token and no OIDC. It runs `pnpm check`, `pnpm test`, `pnpm build`, `pnpm run packed-consumer`, and a `pnpm publish --dry-run`. Pull requests that touch a package stop there. Pushing a tag such as `@house-rules/capability@0.14.0`, or running the workflow on `main` with `publish` ticked, then runs the `publish` job, the only one with `id-token: write` and `NPM_TOKEN`. There `pnpm publish -r --access public --provenance` publishes every public package whose version is not on npm yet. To release, bump the version in the package's `package.json`, and every `workspace:` pin on it, in one pull request.
 
 The workflow reads `NPM_TOKEN`, an npm granular access token with publish rights on the `@house-rules` scope. It lives only as a GitHub Actions repository secret on this repo. Never print it, commit it, or put it in `.env.schema` or `.env.local`. Provenance needs no token: the `publish` job's `id-token: write` permission lets npm sign each package with this workflow's identity, and only the `publish` job has it. `tests/published-packages.test.mjs` parses the workflow and fails if a job a pull request can trigger gets that permission or reads the secret.
 
@@ -175,7 +175,7 @@ An app outside this repo installs the rules from npm at an exact version:
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "0.16.0"
+    "@house-rules/rules": "0.16.1"
   }
 }
 ```
@@ -215,7 +215,7 @@ An old pin keeps working until you move it. The old commits are in this repo's h
 ```json
 {
   "dependencies": {
-    "@house-rules/capability": "0.13.1",
+    "@house-rules/capability": "0.14.0",
     "effect": "4.0.0-rc.117"
   }
 }

@@ -178,7 +178,7 @@ importers:
         specifier: 8.0.3
         version: 8.0.3(supports-color@7.2.0)
       '@house-rules/rules':
-        specifier: workspace:0.16.0
+        specifier: workspace:0.16.1
         version: link:packages/rules
       '@swc/core':
         specifier: 1.16.2
@@ -211,7 +211,7 @@ importers:
         specifier: workspace:0.0.0
         version: link:../../packages/bookings
       '@house-rules/capability':
-        specifier: workspace:0.13.1
+        specifier: workspace:0.14.0
         version: link:../../packages/capability
       effect:
         specifier: 4.0.0-rc.117
@@ -233,7 +233,7 @@ importers:
   packages/bookings:
     dependencies:
       '@house-rules/capability':
-        specifier: workspace:0.13.1
+        specifier: workspace:0.14.0
         version: link:../capability
       effect:
         specifier: 4.0.0-rc.117
@@ -270,7 +270,7 @@ importers:
         specifier: 4.0.0-rc.117
         version: 4.0.0-rc.117(effect@4.0.0-rc.117)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)))
       '@house-rules/capability':
-        specifier: workspace:0.13.1
+        specifier: workspace:0.14.0
         version: link:../capability
       '@house-rules/migrations':
         specifier: workspace:0.2.1
@@ -368,7 +368,7 @@ importers:
         version: 7.3.5(@types/node@24.19.1)(yaml@2.9.1)
     devDependencies:
       '@house-rules/rules':
-        specifier: workspace:0.16.0
+        specifier: workspace:0.16.1
         version: link:../packages/rules
       '@types/node':
         specifier: 24.19.1

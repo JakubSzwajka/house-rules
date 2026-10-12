@@ -33,7 +33,7 @@ export {
   failureCodeHeader,
   type Method,
 } from "./contract/endpoint.ts";
-export { InputInvalid } from "./delivery/input.ts";
+export { InputInvalid, type InputIssue } from "./delivery/input.ts";
 export { Refused } from "./delivery/caller.ts";
 export { ApprovalDenied, Forbidden } from "./gates/gate-errors.ts";
 export type { Permission, PermissionDeclaration } from "./gates/permission.ts";

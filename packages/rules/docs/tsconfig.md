@@ -91,12 +91,12 @@ For a Next.js app's `tsconfig.json`. It extends `web.json` and adds what Next ne
 | Option | Value | Why |
 | --- | --- | --- |
 | `jsx` | `"react-jsx"` | Next 16 requires the React automatic runtime. |
-| `allowJs` | `true` | Next suggests it, so it can compile `.js` files in the app. It is not required. |
+| `allowJs` | `false` | Next only suggests `true`, and writes it only when the option is missing. Off keeps `.js` files out of the program. |
 | `esModuleInterop` | `true` | Next requires it for SWC. |
 | `resolveJsonModule` | `true` | Next requires it to match its bundler. |
 | `plugins` | `[{ "name": "next" }]` | Next's editor plugin. |
 
-Every strict flag and `web.json`'s libs and resolution stay. `allowJs` is no exemption from them: every `.ts` and `.tsx` file is checked as strictly as before. It does let `.js` files into the program unchecked, because `checkJs` stays off. A function from a `.js` file comes back as `any`, and TypeScript accepts that `any` anywhere, even as a `string`. Keep app code in TypeScript, and treat an import from a `.js` file as untyped. Next 16.3.5 reads these options from the app's own `tsconfig.json`, and when that file has `extends`, Next leaves it alone and writes nothing back (`writeConfigurationDefaults` in `next/dist/lib/typescript`). So the app does not repeat them. Before, an app kept them in its own file because `next build` wrote them there.
+Every strict flag and `web.json`'s libs and resolution stay. `allowJs` is `false` on purpose. With `true`, `.js` files join the program unchecked, because `checkJs` stays off, so a function from one comes back as `any`, which TypeScript accepts anywhere, even as a `string`. With `false`, importing a `.js` file is a compile error (TS7016) until it has types. Keep app code in TypeScript. Next 16.3.5 reads these options from the app's own `tsconfig.json`, and when that file has `extends`, Next leaves it alone and writes nothing back (`writeConfigurationDefaults` in `next/dist/lib/typescript`). So the app does not repeat them. Before, an app kept them in its own file because `next build` wrote them there.
 
 The app still keeps `include`, `exclude` and `paths`: TypeScript resolves those relative to the file that declares them, so a preset in `node_modules` cannot hold them.
 
