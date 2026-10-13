@@ -119,7 +119,7 @@ describe("publish report and recovery inputs", () => {
     );
   });
 
-  it("loads only the five public workspace manifests, without the summary", () => {
+  it("loads only the six public workspace manifests, without the summary", () => {
     const files = [];
     const packages = workspacePackages((file) => {
       files.push(file);
@@ -128,17 +128,44 @@ describe("publish report and recovery inputs", () => {
     });
     assert.deepEqual(
       files,
-      ["rules", "capability", "migrations", "call-audit", "node-host"].map(
+      ["rules", "capability", "migrations", "call-audit", "comments", "node-host"].map(
         (folder) => `packages/${folder}/package.json`,
       ),
     );
-    assert.equal(packages.length, 5);
+    assert.equal(packages.length, 6);
     assert.throws(() => workspacePackages(() => JSON.stringify({ name: "@other/app" })));
     assert.throws(() =>
       workspacePackages((file) =>
         JSON.stringify({ name: `@house-rules/${file.split("/")[1]}`, private: true }),
       ),
     );
+  });
+
+  it("skips absent historical manifests but refuses every other manifest failure", () => {
+    const historical = (file) => {
+      if (file === "packages/comments/package.json")
+        throw Object.assign(new Error("absent historical manifest"), { code: "ENOENT" });
+      const folder = file.split("/")[1];
+      return JSON.stringify({ name: `@house-rules/${folder}`, version: "1.0.0" });
+    };
+    const packages = workspacePackages(historical);
+    assert.equal(packages.length, 5);
+    assert.ok(!packages.some(({ name }) => name === "@house-rules/comments"));
+    for (const source of [
+      "not json",
+      JSON.stringify({ name: "@house-rules/rules", version: "latest" }),
+    ])
+      assert.throws(() => workspacePackages(() => source));
+    for (const code of ["EACCES", "EISDIR"]) {
+      const denied = Object.assign(new Error(code), { code });
+      assert.throws(
+        () =>
+          workspacePackages(() => {
+            throw denied;
+          }),
+        (error) => error === denied,
+      );
+    }
   });
 
   it("queries npm for an exact version on the public registry", () => {
@@ -148,7 +175,7 @@ describe("publish report and recovery inputs", () => {
         assert.equal(command, "npm");
         assert.deepEqual(args, [
           "view",
-          "@house-rules/capability@0.16.0",
+          "@house-rules/capability@0.17.0",
           "--json",
           "--registry=https://registry.npmjs.org",
         ]);

@@ -2,7 +2,7 @@
 
 ## What it does
 
-It turns one use-case into a capability: a contract (name, input, output, failure, permission) plus one Effect handler. `implement` wraps the handler in gates: `CallWatch` around everything, then `Grant`, then `Approval` when the contract asks for it, then `UnitOfWork.atomic` when the contract is transactional. `toTool` turns a contract into an MCP tool. Version 0.16.0 peers on exact `effect` 4.0.3. The full guide is `README.md` in this package.
+It turns one use-case into a capability: a contract (name, input, output, failure, permission) plus one Effect handler. `implement` wraps the handler in gates: `CallWatch` around everything, then `Grant`, then `Approval` when the contract asks for it, then `UnitOfWork.atomic` when the contract is transactional. `toTool` turns a contract into an MCP tool. Version 0.17.0 peers on exact `effect` 4.0.3. The full guide is `README.md` in this package.
 
 ## How an app mounts it
 

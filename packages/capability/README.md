@@ -385,7 +385,7 @@ Install it from npm at an exact version:
 ```json
 {
   "dependencies": {
-    "@house-rules/capability": "0.16.0",
+    "@house-rules/capability": "0.17.0",
     "effect": "4.0.3"
   }
 }
@@ -621,6 +621,12 @@ const booking = yield* client.show_booking({ id }); // Effect<Booking, HttpFailu
 - **The client checks codes.** It fails with `HttpFailure { code, status, body }`. `code` is typed as the endpoint's declared codes plus `Unknown`. A 4xx whose header names a declared code gets that code. Anything else is `Unknown`: no header, a code the endpoint does not declare, any 5xx, or an output that does not decode. `status` and `body` still say what the view sent, such as a 401 `session_invalid`. A network error stays an `HttpClientError`. The client never decodes the real error, because its fields may hold what the view hides, such as a defect cause or a permission name.
 - **Cookies and CSRF.** `FetchHttpClient` uses `fetch`, which sends same-origin cookies by default. Set `FetchHttpClient.RequestInit` for anything else. The browser adds `Origin` to every POST, PUT, PATCH and DELETE, and to cross-origin requests, so the CSRF check passes from the app's own origin and refuses another site's write with a 403. Script cannot set `Origin`, so the client never does.
 - **OpenAPI.** `toOpenApi(routes, { title, version, prefix, views, security })` returns an OpenAPI 3.1 document. Inputs and outputs come from the contracts through Effect's JSON Schema, with shared, named schemas under `components.schemas`. A named input is followed before it is split. A GET Struct input becomes path and query parameters, an array field a `style: form`, `explode: true` parameter, and a GET Union input becomes one exploded `input` query object, required when every member requires a field. A write gets a JSON body without the path fields. A failure goes under the status its view always answers: a `problemView(404, "not_found", message)` view, or a default view, says it. A view that picks its status per error goes under `default`, as do refusals and the 500. The document names no internal tag. A response lists the `x-failure-code` header only for codes the endpoint declares: under the status of the `problemView` that exposes it, or under `default`. The `operationId` is the contract's name; a contract on two endpoints gets its method and path added, and a clash fails the build. `security: { schemes, require? }` adds the schemes; a `"public"` contract drops them. Effect's `OpenApi.fromApi` needs an `HttpApi`, which wants the HTTP status on the error schema and four input schemas, so House Rules writes the document itself. The tests check its shape; no OpenAPI 3.1 validator runs on it yet.
+
+## Upgrading to 0.17.0
+
+This release is prepared here; merge first, publish later. Pin capability to 0.17.0 and call-audit to 0.5.1 together. Effect stays at 4.0.3. `defineModule`, `Actor`, `ActorId` and `Viewer` are now public exports. Existing capability and delivery APIs keep their behavior; use these exports when declaring root modules and passing request identity. `ActorId` is branded, so build it with `ActorId.make(id)` rather than assigning an arbitrary string. An app with its own Viewer tag can keep it or move its providers and use-cases to the shared tag together.
+
+Comments 0.1.0 is the first public support module built on those APIs. It requires a host port, target kinds and app-owned deletion hooks; it adds no default identity or target access. Package boundaries and layout stay unchanged.
 
 ## Upgrading to 0.16.0
 

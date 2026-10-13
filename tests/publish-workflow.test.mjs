@@ -15,6 +15,10 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 describe("publish workflow", () => {
   const workflow = () => parseWorkflow(read(".github/workflows/publish.yml"));
 
+  it("verifies changes to the packed comments helper", () => {
+    assert.ok(workflow().on.pull_request.paths.includes("scripts/packed-comments.mjs"));
+  });
+
   it("splits a read-only verify job from a gated publish job", () => {
     assertPublishWorkflow(workflow());
   });

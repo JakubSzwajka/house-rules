@@ -137,21 +137,22 @@ Start from the template, or copy these into an existing pnpm workspace:
 
 ### Installing
 
-The publish workflow ships five public packages under the `@house-rules` scope:
+The publish workflow includes six public packages under the `@house-rules` scope. These are the release-ready workspace versions; capability 0.17.0, comments 0.1.0 and call-audit 0.5.1 are prepared here, not yet published:
 
 | Package | What it is | Version |
 | --- | --- | --- |
 | [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript. | `0.16.3` |
-| [`@house-rules/capability`](packages/capability/README.md) | Capabilities, gates, units of work, delivery | `0.16.0` |
+| [`@house-rules/capability`](packages/capability/README.md) | Capabilities, gates, units of work, delivery | `0.17.0` |
 | [`@house-rules/migrations`](packages/migrations/README.md) | Module-owned SQL migrations | `0.3.0` |
-| [`@house-rules/call-audit`](packages/call-audit/README.md) | One audit line or row per capability call | `0.5.0` |
+| [`@house-rules/call-audit`](packages/call-audit/README.md) | One audit line or row per capability call | `0.5.1` |
+| [`@house-rules/comments`](packages/comments/README.md) | Flat comments with host-owned target access | `0.1.0` |
 | [`@house-rules/node-host`](packages/node-host/README.md) | Host for a Web fetch handler on a Node socket | `0.1.0` |
 
-1. [ ] Pin each one to an exact version, like every other dependency: `"@house-rules/capability": "0.16.0"`. `house-rules-pins` fails `^` and `~`.
-2. [ ] Pin `effect` to the version their `peerDependencies` name, now `4.0.3`. If the app installs `@effect/platform-node`, also declare `@effect/platform-node-shared` as an exact direct dependency at that same version. `call-audit` also peers on the exact `capability` version it was built with.
-3. [ ] If your `pnpm-workspace.yaml` sets `minimumReleaseAge`, a version younger than that fails the install. Wait, or add that exact version to `minimumReleaseAgeExclude`.
+1. [ ] Pin each one to an exact version, like every other dependency: `"@house-rules/capability": "0.17.0"`. `house-rules-pins` fails `^` and `~`.
+2. [ ] Pin `effect` to the version their `peerDependencies` name, now `4.0.3`. If the app installs `@effect/platform-node`, also declare `@effect/platform-node-shared` as an exact direct dependency at that same version. `call-audit` and `comments` also peer on the exact `capability` version they were built with.
+3. [ ] If your `pnpm-workspace.yaml` sets `minimumReleaseAge`, a version younger than that fails the install. This repo requires 24 hours after publication. Wait; a release-age exception needs separate owner approval.
 
-`capability`, `migrations`, `call-audit`, and `node-host` ship built JavaScript and declarations in `dist/`. Plain `node` loads them, any bundler takes them as is, and `tsc` reads their `.d.ts` files. An app needs no `transpilePackages`, no type-stripping loader, and no `allowImportingTsExtensions` for them. In this repo they stay source: `exports` points at `src/`, and pnpm swaps in `publishConfig.exports`, which points at `dist/`, only when it packs. `pnpm run packed-consumer` packs all five and installs them with `@effect/platform-node` and an exact direct `@effect/platform-node-shared` pin into a fresh app with no lockfile. It checks the resolved shared Node package, runs the Node Host on a real socket, Node services and a transactional capability, type-checks with the Effect and web presets, and runs the layout rules. CI runs it on every pull request.
+`capability`, `migrations`, `call-audit`, `comments`, and `node-host` ship built JavaScript and declarations in `dist/`. Plain `node` loads them, any bundler takes them as is, and `tsc` reads their `.d.ts` files. An app needs no `transpilePackages`, no type-stripping loader, and no `allowImportingTsExtensions` for them. In this repo they stay source: `exports` points at `src/`, and pnpm swaps in `publishConfig.exports`, which points at `dist/`, only when it packs. `pnpm run packed-consumer` packs all six and installs them with `@effect/platform-node` and an exact direct `@effect/platform-node-shared` pin into a fresh app with no lockfile. It checks the resolved shared Node package, runs the Node Host on a real socket, Node services, a transactional capability, and memory comments use-cases with Actor/Viewer and denied access, type-checks with the Effect and web presets, and runs the layout and installed-package migration checks. CI runs it on every pull request.
 
 #### Upgrading from a Git SHA pin
 
@@ -166,7 +167,7 @@ The layout rules accept the built contract entry, `dist/contract.js`, wherever t
 
 #### Publishing
 
-`.github/workflows/publish.yml` publishes. Every run starts with the `verify` job, which has `contents: read` only: no token and no OIDC. It runs `pnpm check`, `pnpm test`, `pnpm build`, `pnpm run packed-consumer`, and a `pnpm publish --dry-run`. Pull requests that touch a package stop there. Pushing a tag such as `@house-rules/capability@0.16.0`, or running the workflow on `main` with `publish` ticked, then runs the `publish` job, the only one with `id-token: write` and `NPM_TOKEN`. There `pnpm publish -r --access public --provenance --report-summary` publishes every public package whose version is not on npm yet. After success, the job creates and pushes one `@house-rules/<pkg>@<version>` tag for each package in that report. Only this job has `contents: write`. Its pushes use `GITHUB_TOKEN`, so they do not start another publish run. To release, bump the version in the package's `package.json`, and every `workspace:` pin on it, in one pull request.
+`.github/workflows/publish.yml` publishes. Every run starts with the `verify` job, which has `contents: read` only: no token and no OIDC. It runs `pnpm check`, `pnpm test`, `pnpm build`, `pnpm run packed-consumer`, and a `pnpm publish --dry-run`. Pull requests that touch a package stop there. Pushing a tag such as `@house-rules/capability@0.17.0`, or running the workflow on `main` with `publish` ticked, then runs the `publish` job, the only one with `id-token: write` and `NPM_TOKEN`. There `pnpm publish -r --access public --provenance --report-summary` publishes every public package whose version is not on npm yet. After success, the job creates and pushes one `@house-rules/<pkg>@<version>` tag for each package in that report. Only this job has `contents: write`. Its pushes use `GITHUB_TOKEN`, so they do not start another publish run. To release, bump the version in the package's `package.json`, and every `workspace:` pin on it, in one pull request.
 
 The workflow reads `NPM_TOKEN`, an npm granular access token with publish rights on the `@house-rules` scope. It lives only as a GitHub Actions repository secret on this repo. Never print it, commit it, or put it in `.env.schema` or `.env.local`. Provenance needs no token: the `publish` job's `id-token: write` permission lets npm sign each package with this workflow's identity, and only the `publish` job has it. `tests/published-packages.test.mjs` parses the workflow and fails if a job a pull request can trigger gets that permission or reads the secret.
 
@@ -217,7 +218,7 @@ An old pin keeps working until you move it. The old commits are in this repo's h
 ```json
 {
   "dependencies": {
-    "@house-rules/capability": "0.16.0",
+    "@house-rules/capability": "0.17.0",
     "effect": "4.0.3"
   }
 }

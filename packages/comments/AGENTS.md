@@ -2,7 +2,7 @@
 
 ## What it does
 
-A private support module for flat, plain-text comments on an app's targets. `Comments` uses `defineModule`, captures storage and the host port, and takes an explicit Actor on user methods. It ships four browser-safe contracts at `@house-rules/comments/contract`. It is not published yet.
+A public support module for flat, plain-text comments on an app's targets. `Comments` uses `defineModule`, captures storage and the host port, and takes an explicit Actor on user methods. It ships four browser-safe contracts at `@house-rules/comments/contract`. Version 0.1.0 is ready for its first npm release, not yet published. It peers on exact capability 0.17.0 and Effect 4.0.3, and ships built JavaScript and declarations in `dist/`.
 
 ## How an app mounts it
 
@@ -20,8 +20,12 @@ A private support module for flat, plain-text comments on an app's targets. `Com
 3. [ ] Add the module to the root `migrations.json`:
 
    ```json
-   { "workspace": "packages/comments" }
+   { "package": "@house-rules/comments" }
    ```
+
+   Use `{ "workspace": "packages/comments" }` only for this repo's source workspace.
+
+   On rules 0.16.3, a consumer contract that imports this package needs `trustedContractPackages: ["@house-rules/comments"]` in its existing `layout(...)` options. Only `/contract` is trusted; the packed-consumer check verifies its transitive browser safety.
 
 4. [ ] Use `implement(contract, handler)` in thin use-cases. Yield `Viewer` and pass its Actor to `Comments`. Keep the app's Grant at the request boundary.
 5. [ ] Call `Comments.removeTarget(ref)` when the app deletes a target, in the same unit. Call `Comments.erase(authorId)` when it deletes a user.

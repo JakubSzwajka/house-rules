@@ -1,7 +1,8 @@
 {
   "name": "@house-rules/comments",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Flat plain-text comments with explicit actors, host-owned target access and module-owned storage.",
+  "license": "MIT",
   "type": "module",
   "files": [
     "dist",
@@ -13,15 +14,30 @@
     ".": "./src/index.ts",
     "./contract": "./src/contract.ts"
   },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./contract": {
+        "types": "./dist/contract.d.ts",
+        "default": "./dist/contract.js"
+      }
+    }
+  },
   "houseRules": {
     "migrations": "migrations"
   },
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "prepack": "pnpm run build",
     "typecheck": "tsc --project tsconfig.json",
     "test": "varlock run --path ../../ -- vitest run"
   },
-  "dependencies": {
-    "@house-rules/capability": "workspace:0.16.0",
+  "peerDependencies": {
+    "@house-rules/capability": "0.17.0",
     "effect": "4.0.3"
   },
   "devDependencies": {
@@ -29,8 +45,19 @@
     "@effect/platform-node-shared": "4.0.3",
     "@effect/sql-pg": "4.0.3",
     "@effect/vitest": "4.0.3",
+    "@house-rules/capability": "workspace:0.17.0",
     "@house-rules/migrations": "workspace:0.3.0",
+    "effect": "4.0.3",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JakubSzwajka/house-rules.git",
+    "directory": "packages/comments"
+  },
+  "bugs": {
+    "url": "https://github.com/JakubSzwajka/house-rules/issues"
+  },
+  "homepage": "https://github.com/JakubSzwajka/house-rules"
 }

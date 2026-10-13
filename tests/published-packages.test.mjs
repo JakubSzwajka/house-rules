@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { assertPackedComments } from "../scripts/packed-comments.mjs";
 
-const BUILT = ["capability", "migrations", "call-audit", "node-host"];
+const BUILT = ["capability", "migrations", "call-audit", "comments", "node-host"];
 const PUBLISHED = [...BUILT, "rules"];
 const DOCS = new Set(["AGENTS.md", "README.md"]);
 
@@ -32,7 +33,7 @@ describe("published packages", () => {
       assert.ok(existsSync(new URL(`../packages/${folder}/tsconfig.build.json`, import.meta.url)));
       assert.equal(pkg.scripts.build, "tsc --project tsconfig.build.json");
       assert.equal(pkg.scripts.prepack, "pnpm run build");
-      const extra = folder === "call-audit" ? ["migrations"] : [];
+      const extra = ["call-audit", "comments"].includes(folder) ? ["migrations"] : [];
       assert.deepEqual(
         pkg.files.filter((file) => !DOCS.has(file)),
         ["dist", ...extra],
@@ -45,11 +46,17 @@ describe("published packages", () => {
     });
   }
 
-  it("call-audit peers on the capability version this repo ships", () => {
-    assert.equal(
-      manifest("call-audit").peerDependencies["@house-rules/capability"],
-      manifest("capability").version,
-    );
+  it("comments and call-audit peer on capability 0.17.0 and Effect 4.0.3", () => {
+    assert.equal(manifest("capability").version, "0.17.0");
+    assert.equal(manifest("comments").version, "0.1.0");
+    assert.equal(manifest("call-audit").version, "0.5.1");
+    for (const folder of ["comments", "call-audit"]) {
+      assert.deepEqual(manifest(folder).peerDependencies, {
+        "@house-rules/capability": "0.17.0",
+        effect: "4.0.3",
+      });
+      assert.equal(manifest(folder).houseRules.migrations, "migrations");
+    }
   });
 
   it("Node platform consumers pin the shared package to the same Effect version", () => {
@@ -73,6 +80,23 @@ describe("published packages", () => {
       assert.equal(dependencies["@effect/platform-node"], effect, path);
       assert.equal(dependencies["@effect/platform-node-shared"], effect, path);
     }
+  });
+
+  it("packed comments helper failures escape to the consumer command", () => {
+    const failure = new Error("comments process failed");
+    assert.throws(
+      () =>
+        assertPackedComments("/unused", {
+          run: () => {
+            throw failure;
+          },
+        }),
+      (error) => error === failure,
+    );
+    assert.match(
+      read("scripts/packed-consumer.mjs"),
+      /assertPackedComments\(app, \{ run, write, failure \}\);/u,
+    );
   });
 
   it("CI runs the packed consumer", () => {
