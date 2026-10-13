@@ -9,7 +9,7 @@ Node `>=24.21.0` only. The pins and migrations bins use `fs.globSync`, with no f
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "0.16.2"
+    "@house-rules/rules": "0.16.3"
   }
 }
 ```
@@ -219,5 +219,9 @@ pnpm run pack:check # Verify tarball
    0.16.1 tightens two Next host defaults: `main.ts` and `index.ts` are no longer host entry files, and `tsconfig/next.json` sets `allowJs: false`, so an app that imports a `.js` file gives it types or converts it to TypeScript.
    0.16.2 adds stable Effect import paths: the SQL fence covers `effect/sql`, the browser allowlist covers `effect/http`, and `no-hand-rolled-surface` covers `effect/ai`, `effect/rpc` and `effect/http-api`. The RC paths stay checked too.
 4. Merge lockfile and config changes together.
+
+### Upgrading to 0.16.3
+
+This is a docs-only update: a plain Node app mounts `@house-rules/node-host` in `src/main.ts`; `src/server/` is for background loops. No rule or preset changes.
 
 The repo's publish workflow, not a person, publishes a new version to npm.

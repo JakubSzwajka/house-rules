@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@effect/platform-node": "4.0.3",
+    "@effect/platform-node-shared": "4.0.3",
     "@effect/sql-pg": "4.0.3",
     "@effect/vitest": "4.0.3",
     "@house-rules/capability": "workspace:0.15.0",

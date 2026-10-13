@@ -30,6 +30,17 @@ describe("tags for published packages", () => {
     ]);
   });
 
+  it("accepts the Node Host in a successful report", () => {
+    const { git } = fakeGit();
+    assert.deepEqual(
+      tagPublished(
+        { publishedPackages: [{ name: "@house-rules/node-host", version: "0.1.0" }] },
+        git,
+      ),
+      ["@house-rules/node-host@0.1.0"],
+    );
+  });
+
   it("does nothing when no package was published", () => {
     const { git, calls } = fakeGit();
     assert.deepEqual(tagPublished({ publishedPackages: [] }, git), []);
