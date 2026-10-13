@@ -6,12 +6,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const runGit = (args) => execFileSync("git", args, { encoding: "utf8" });
-const folders = ["rules", "capability", "migrations", "call-audit", "node-host"];
+const folders = ["rules", "capability", "migrations", "call-audit", "comments", "node-host"];
 
 function publishedTags(summary) {
   assert.ok(Array.isArray(summary.publishedPackages), "publish summary needs publishedPackages");
   const tags = summary.publishedPackages.map(({ name, version }) => {
-    assert.match(name, /^@house-rules\/(?:rules|capability|migrations|call-audit|node-host)$/u);
+    assert.match(
+      name,
+      /^@house-rules\/(?:rules|capability|migrations|call-audit|comments|node-host)$/u,
+    );
     assert.match(version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u);
     return `${name}@${version}`;
   });
@@ -140,11 +143,20 @@ export async function recoverPublished(
 }
 
 export function workspacePackages(read = readFileSync) {
-  return folders.map((folder) => {
-    const manifest = JSON.parse(read(`packages/${folder}/package.json`, "utf8"));
+  return folders.flatMap((folder) => {
+    let source;
+    try {
+      source = read(`packages/${folder}/package.json`, "utf8");
+    } catch (error) {
+      // Historical release commits can predate a package; only an absent manifest is skipped.
+      if (error.code === "ENOENT") return [];
+      throw error;
+    }
+    const manifest = JSON.parse(source);
     assert.equal(manifest.name, `@house-rules/${folder}`);
     assert.notEqual(manifest.private, true, "cannot recover a private package");
-    return { name: manifest.name, version: manifest.version };
+    assert.match(manifest.version ?? "", /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u);
+    return [{ name: manifest.name, version: manifest.version }];
   });
 }
 

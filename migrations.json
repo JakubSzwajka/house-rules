@@ -1,3 +1,7 @@
 {
-  "modules": [{ "workspace": "packages/call-audit" }, { "workspace": "packages/bookings" }]
+  "modules": [
+    { "workspace": "packages/call-audit" },
+    { "workspace": "packages/bookings" },
+    { "workspace": "packages/comments" }
+  ]
 }

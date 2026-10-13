@@ -1,6 +1,6 @@
 # @house-rules/call-audit
 
-Version 0.5.0 peers on exact `effect` 4.0.3 and `@house-rules/capability` 0.16.0. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
+Version 0.5.1 peers on exact `effect` 4.0.3 and `@house-rules/capability` 0.17.0. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
 
 An audit trail for every capability call. It plugs into the `CallWatch` hook of `@house-rules/capability`, so it sees calls from every surface, `Forbidden` and `ApprovalDenied` included. An `AuditPolicy` decides which calls it keeps and how long their rows live. `AGENTS.md` in this package is the short mounting guide.
 

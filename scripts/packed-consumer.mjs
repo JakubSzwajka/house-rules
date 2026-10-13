@@ -6,9 +6,22 @@ import os from "node:os";
 import path from "node:path";
 import { assertCleanTarball, assertTarballRulesAreLive } from "./tarball-content.mjs";
 import { assertNextHost } from "./packed-next-host.mjs";
+import {
+  assertContractRuleIsLive,
+  assertFrameworkContents,
+  assertPackedComments,
+  commentsConsumerFiles,
+} from "./packed-comments.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
-const PUBLISHED_IN_BUILD_ORDER = ["migrations", "capability", "call-audit", "node-host", "rules"];
+const PUBLISHED_IN_BUILD_ORDER = [
+  "migrations",
+  "capability",
+  "call-audit",
+  "comments",
+  "node-host",
+  "rules",
+];
 const ALLOWED_TOP = new Set(["package.json", "README.md", "AGENTS.md", "LICENSE"]);
 
 const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
@@ -61,6 +74,7 @@ function checkTarball(folder, tarball) {
     );
   }
   assertCleanTarball(source.name, tarball, root);
+  assertFrameworkContents(source, packed, files);
   if (source.publishConfig?.exports === undefined) return;
   assert.deepEqual(packed.exports, source.publishConfig.exports, `${source.name} exports`);
   for (const target of targets(source.publishConfig.exports)) {
@@ -161,6 +175,7 @@ try {
       "}).pipe(Effect.provide(Layer.merge(NodeServices.layer, capability.memoryUnitOfWork))));",
       "",
     ].join("\n"),
+    ...commentsConsumerFiles,
     "host.mjs": [
       'import assert from "node:assert/strict";',
       'import { serve } from "@house-rules/node-host";',
@@ -174,7 +189,7 @@ try {
     "tsconfig.json": {
       extends: "@house-rules/rules/tsconfig/effect.json",
       compilerOptions: { allowImportingTsExtensions: true },
-      include: ["run.ts", "apps/**/*.ts", "packages/**/*.ts"],
+      include: ["run.ts", "comments.ts", "apps/**/*.ts", "packages/**/*.ts"],
     },
     "tsconfig.web.json": {
       extends: "@house-rules/rules/tsconfig/web.json",
@@ -182,7 +197,7 @@ try {
       include: ["packages/catalogue/src/contract.ts"],
     },
     ".dependency-cruiser.cjs":
-      'module.exports = require("@house-rules/rules/dependency-cruiser").layout({ scope: "@consumer/" });\n',
+      'module.exports = require("@house-rules/rules/dependency-cruiser").layout({ scope: "@consumer/", trustedContractPackages: ["@house-rules/comments"] });\n',
     "packages/catalogue/package.json": {
       name: "@consumer/catalogue",
       version: "0.0.0",
@@ -211,7 +226,7 @@ try {
       "",
     ].join("\n"),
     "packages/catalogue/src/contract.ts":
-      'export { showItemContract } from "./item/show-item.ts";\n',
+      'export { showItemContract } from "./item/show-item.ts";\nexport { addComment, listComments, Comment, CommentPage } from "@house-rules/comments/contract";\n',
     "packages/catalogue/src/index.ts": 'export { showItemContract } from "./contract.ts";\n',
     "apps/web/package.json": {
       name: "@consumer/web",
@@ -255,6 +270,7 @@ try {
   );
   run(process.execPath, ["--no-experimental-strip-types", "host.mjs"], app);
   run(process.execPath, ["--no-experimental-strip-types", "run.mjs"], app);
+  assertPackedComments(app, { run, write, failure });
   const tsc = path.join(root, "node_modules/.bin/tsc");
   run(tsc, ["--project", "tsconfig.json"], app);
   run(tsc, ["--project", "tsconfig.web.json"], app);
@@ -265,7 +281,7 @@ try {
   );
   run(process.execPath, ["node_modules/@house-rules/rules/bin/layout.mjs"], app);
 
-  assertContractRuleIsLive(app);
+  assertContractRuleIsLive(app, { write, failure });
   assertNextHost(app, tsc, { run, write, readJson, failure });
   assertTarballRulesAreLive(work, root);
   console.log("packed consumer: tarballs, plain node, tsc, layout rules and the Next host pass");
@@ -281,20 +297,4 @@ function failure(command, args, cwd) {
     return `${error.stdout}${error.stderr}`;
   }
   return "";
-}
-
-function assertContractRuleIsLive(app) {
-  // A clean run proves nothing unless the same rule still refuses the server entry.
-  write(app, {
-    "packages/catalogue/src/contract.ts":
-      'export { showItemContract } from "./item/show-item.ts";\nexport { implement } from "@house-rules/capability";\n',
-  });
-  assert.match(
-    failure(
-      path.join(app, "node_modules/.bin/depcruise"),
-      ["--config", ".dependency-cruiser.cjs", "--output-type", "err", "apps", "packages"],
-      app,
-    ),
-    /contract-entry-is-browser-safe: packages\/catalogue\/src\/contract\.ts → node_modules\/@house-rules\/capability\/dist\/index\.js/u,
-  );
 }

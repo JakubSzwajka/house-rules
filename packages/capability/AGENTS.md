@@ -2,7 +2,7 @@
 
 ## What it does
 
-It turns one use-case into a capability: a contract (name, input, output, failure, permission) plus one Effect handler. `implement` wraps the handler in gates: `CallWatch` around everything, then `Grant`, then `Approval` when the contract asks for it, then `UnitOfWork.atomic` when the contract is transactional. `toTool` turns a contract into an MCP tool. Version 0.16.0 peers on exact `effect` 4.0.3. The full guide is `README.md` in this package.
+It turns one use-case into a capability: a contract (name, input, output, failure, permission) plus one Effect handler. `implement` wraps the handler in gates: `CallWatch` around everything, then `Grant`, then `Approval` when the contract asks for it, then `UnitOfWork.atomic` when the contract is transactional. `toTool` turns a contract into an MCP tool. Version 0.17.0 peers on exact `effect` 4.0.3. The full guide is `README.md` in this package.
 
 ## How an app mounts it
 
@@ -60,6 +60,16 @@ Hooks the app wires itself when it does not use delivery:
 1. [ ] Set the channel in each runner that is not MCP: `Effect.provideService(CallChannel, "web")`. MCP calls get `"mcp"` or `"mcp:<client>"` on their own.
 2. [ ] At the edge, take the request id: `requestIdOf(headers.get(requestIdHeader))`, else `yield* newRequestId`. Forward it, echo it on the response, and run the request inside `withRequestId(id)`. That sets `CallRequestId` and annotates every log line with `requestId`.
 3. [ ] Build MCP tools only with `toTool(capability.contract, ...)`, and run `capability.handler` in the tool handler.
+
+## Root modules and request identity
+
+Declare a package's root service in `facade.ts` with `defineModule<Self, Shape>()(id, { make })`, imported from this package's root entry. It returns a `Context.Service` class with `id`, `make` and `layer`. The id is the stable service key. Every Shape member is a method returning `Effect<Success, Failure, never>`. Construction captures long-lived ports; unmet requirements and acquisition errors stay in the Layer type. It cannot require `Viewer`.
+
+An Effect `make` gives a Layer value. A function `make: (options: O) => Effect` gives `layer(options)`. Presets are plain data, such as `Comments.layer(Comments.presets.default)`. Adapter statics such as `layerPostgres`, `layerMemory` and `fromRecords` stay in the class body; compose the generated layer with `Layer.provide`. The constructor adds no adapter choice.
+
+Effect builds lazily and memoizes within one build. Two `Layer.build` runs build twice; ids do not create singletons. Scoped resources close with the build scope. This constructor covers root modules only, with no private nesting, registry, discovery or Entity constructor.
+
+`Actor` is `Schema.Struct({ id: ActorId })`; `ActorId` is a branded non-empty string. `yield* Viewer` returns the Actor directly. Delivery provides Viewer per request, and use-cases pass the Actor into module methods. Modules never capture Viewer during construction. Writes still require the use-case's open unit of work; defineModule opens none.
 
 ## Contract options
 

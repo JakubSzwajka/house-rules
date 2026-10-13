@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 
-export const capability = { name: "@house-rules/capability", version: "0.16.0" };
+export const capability = { name: "@house-rules/capability", version: "0.17.0" };
+export const comments = { name: "@house-rules/comments", version: "0.1.0" };
+export const callAudit = { name: "@house-rules/call-audit", version: "0.5.1" };
 export const migrations = { name: "@house-rules/migrations", version: "0.3.0" };
 export const head = "a".repeat(40);
 export const fixture = JSON.parse(

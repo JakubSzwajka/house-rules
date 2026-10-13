@@ -1,6 +1,6 @@
 name: Publish packages
 
-# Publishes the public @house-rules packages to npm: rules, capability, migrations, call-audit, node-host.
+# Publishes the public @house-rules packages to npm: rules, capability, migrations, call-audit, comments, node-host.
 # `pnpm publish -r` skips private packages and every version already on the registry, so one run
 # publishes exactly the packages whose version was bumped.
 # Two jobs. `verify` runs on every trigger with `contents: read` only: no token, no OIDC. It checks,
@@ -18,6 +18,7 @@ on:
     paths:
       - "packages/**"
       - "scripts/packed-consumer.mjs"
+      - "scripts/packed-comments.mjs"
       - "scripts/packed-next-host.mjs"
       - "scripts/tag-published.mjs"
       - "tests/publish-workflow*.mjs"

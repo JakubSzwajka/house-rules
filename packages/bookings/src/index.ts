@@ -5,4 +5,4 @@ export { type BookingPermission, BookingPermissions } from "./booking/permission
 export { showBookingContract } from "./booking/show-booking.js";
 export { BookingStore } from "./storage.js";
 export { BookingStoreUnavailable } from "./booking/store-unavailable.js";
-export { Booking, BookingAlreadyExists, BookingNotFound } from "./booking/booking.js";
+export { Booking, BookingAlreadyExists, BookingNotFound, NewBooking } from "./booking/booking.js";

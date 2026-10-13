@@ -1,3 +1,14 @@
+export { Actor, ActorId } from "./actor/actor.ts";
+export { Viewer } from "./actor/viewer.ts";
+export {
+  defineModule,
+  type ModuleClass,
+  type ModuleDeclaration,
+  type ModuleLayer,
+  type ModuleMethod,
+  type ModuleShape,
+  type NoViewer,
+} from "./module/define-module.ts";
 export { Approval, type ApprovalService } from "./gates/approval.ts";
 export {
   CallChannel,

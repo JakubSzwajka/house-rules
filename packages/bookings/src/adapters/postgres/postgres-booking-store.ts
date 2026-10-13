@@ -16,14 +16,15 @@ export const postgresBookingStore: Layer.Layer<BookingStore, never, SqlClient> =
     const findOne = SqlSchema.findOneOption({
       Request: Schema.String,
       Result: Booking,
-      execute: (id) => sql`select id, guest_name as "guestName" from booking where id = ${id}`,
+      execute: (id) =>
+        sql`select id, guest_name as "guestName", owner_id as "ownerId" from booking where id = ${id}`,
     });
     // Returns the id when the row was written, and no row when the id is taken.
     const insertOne = SqlSchema.findAll({
       Request: Booking,
       Result: Schema.Struct({ id: Schema.String }),
-      execute: ({ id, guestName }) =>
-        sql`insert into booking (id, guest_name) values (${id}, ${guestName})
+      execute: ({ id, guestName, ownerId }) =>
+        sql`insert into booking (id, guest_name, owner_id) values (${id}, ${guestName}, ${ownerId})
           on conflict (id) do nothing returning id`,
     });
     return BookingStore.of({

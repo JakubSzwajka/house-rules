@@ -10,7 +10,7 @@ import { Context, Effect, Layer } from "effect";
 import { bookingRoutes } from "../delivery/http/routes.js";
 import { bookingViews } from "../composition/views.js";
 
-const bookings = Bookings.fromRecords([{ id: "b-1", guestName: "Ada" }]);
+const bookings = Bookings.fromRecords([{ id: "b-1", guestName: "Ada", ownerId: "actor-a" }]);
 const reader = Grant.layerFromPermissions([BookingPermissions.read]);
 const brokenStore = Layer.succeed(BookingStore, {
   find: () =>
@@ -44,7 +44,7 @@ const get = (api: (request: Request) => Promise<Response>, id: string) =>
     ),
   );
 
-it.effect("answers 200 with the booking", () =>
+it.effect("answers 200 for a visitor without revealing the ownerId", () =>
   Effect.gen(function* answersOk() {
     expect(yield* get(open.api, "b-1")).toEqual({
       status: 200,
