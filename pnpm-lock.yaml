@@ -211,7 +211,7 @@ importers:
         specifier: workspace:0.0.0
         version: link:../../packages/bookings
       '@house-rules/capability':
-        specifier: workspace:0.15.0
+        specifier: workspace:0.16.0
         version: link:../../packages/capability
       '@house-rules/node-host':
         specifier: workspace:0.1.0
@@ -236,7 +236,7 @@ importers:
   packages/bookings:
     dependencies:
       '@house-rules/capability':
-        specifier: workspace:0.15.0
+        specifier: workspace:0.16.0
         version: link:../capability
       effect:
         specifier: 4.0.3
@@ -279,7 +279,7 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(yaml@2.9.1)))
       '@house-rules/capability':
-        specifier: workspace:0.15.0
+        specifier: workspace:0.16.0
         version: link:../capability
       '@house-rules/migrations':
         specifier: workspace:0.3.0

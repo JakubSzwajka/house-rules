@@ -1,6 +1,7 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { Context, Effect, Layer } from "effect";
 import {
+  type Admitted,
   call,
   composition,
   type Forbidden,
@@ -96,6 +97,22 @@ it("a service that neither the app, the caller nor the adapter provides is a typ
   );
   handlers.push(noBookings);
   expect(noBookings._tag).toBe("Composition");
+});
+
+it("call() cannot take caller and admitted together", () => {
+  const together = (admitted: Admitted) =>
+    call(viewed, showBooking, { id: "b-1" }, incoming, {
+      admitted,
+      // @ts-expect-error A resolved caller and a caller cannot both be supplied.
+      caller: bearerCallerFor(work),
+    });
+  expect(typeof together).toBe("function");
+});
+
+it("Admitted cannot be constructed by app code", () => {
+  // @ts-expect-error The private brand cannot be supplied by consumers.
+  const forged: Admitted = {};
+  expect(forged).toEqual({});
 });
 
 it("views see the error and the caller with their own types", () => {

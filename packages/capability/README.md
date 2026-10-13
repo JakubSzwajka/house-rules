@@ -341,7 +341,7 @@ Install it from npm at an exact version:
 ```json
 {
   "dependencies": {
-    "@house-rules/capability": "0.15.0",
+    "@house-rules/capability": "0.16.0",
     "effect": "4.0.3"
   }
 }
@@ -456,6 +456,31 @@ const result = await call(app, showBooking, { id }, { headers: await headers(), 
 | `CompositionClosed` | 503 `unavailable`, `The app is shutting down.` |
 | `NoOpenUnit`, a defect, no view | 500 `internal_error` |
 
+### Admit before parsing
+
+A custom delivery may need to refuse a read token's write before it parses its own query dialect or body. `admit(app, incoming, { caller?, channel? })` runs only the caller, with the app's services and request tracing, and returns `Promise<Outcome<Admitted, Refused | E>>`. The composition's caller is the default; the channel defaults to `"web"`.
+
+```ts
+import { Approval, admit, call } from "@house-rules/capability";
+
+async function handle(request: Request) {
+  const incoming = { headers: request.headers, url: request.url };
+  const auth = await admit(app, incoming, { caller: bearerWrite, channel: "api" });
+  if (!auth.ok) {
+    return Response.json(auth.view.body, { status: auth.view.status, headers: auth.view.headers });
+  }
+  const input = await request.json();
+  return call(app, updateBooking, input, incoming, {
+    admitted: auth.value,
+    approval: Approval.denyAll,
+  });
+}
+```
+
+`Admitted` is opaque. App code cannot construct it or read its context. `Admitted` has no expiry and holds the resolved caller for the composition's lifetime, so delivery must use it for one request only and never cache it, since a cached value would outlive token revocation. Pass the same value to one or more `call()`s on the composition that issued it. Each skips the caller and keeps the admission's request id, including a generated id when no safe header was supplied. It also keeps the admitted channel unless `call` sets its own `channel`. `caller` and `admitted` cannot be combined. Supplying both at runtime, or using a value from another composition, returns the fixed 500 `internal_error`, logged with that id, without running a caller or capability.
+
+`admit` maps `Refused` through the composition's views over the defaults, preserving the refusal's status, code and message in the default view. Layer failures and a closed composition use the same views as `call`; a caller defect returns the fixed internal error and is logged. No hand-run Effect or provided `CallRequestId` is needed. Only caller resolution is reused: input decoding and capability gates still run on each `call`. An explicit `approval` still wins; `"fromCaller"` reads `Approval` in the resolved context, or falls back to `call`'s default when absent.
+
 ### Input errors
 
 `InputInvalid` has four fields. An app view can word its own message from them:
@@ -553,6 +578,10 @@ const booking = yield* client.show_booking({ id }); // Effect<Booking, HttpFailu
 - **Cookies and CSRF.** `FetchHttpClient` uses `fetch`, which sends same-origin cookies by default. Set `FetchHttpClient.RequestInit` for anything else. The browser adds `Origin` to every POST, PUT, PATCH and DELETE, and to cross-origin requests, so the CSRF check passes from the app's own origin and refuses another site's write with a 403. Script cannot set `Origin`, so the client never does.
 - **OpenAPI.** `toOpenApi(routes, { title, version, prefix, views, security })` returns an OpenAPI 3.1 document. Inputs and outputs come from the contracts through Effect's JSON Schema, with shared, named schemas under `components.schemas`. A named input is followed before it is split. A GET Struct input becomes path and query parameters, an array field a `style: form`, `explode: true` parameter, and a GET Union input becomes one exploded `input` query object, required when every member requires a field. A write gets a JSON body without the path fields. A failure goes under the status its view always answers: a `problemView(404, "not_found", message)` view, or a default view, says it. A view that picks its status per error goes under `default`, as do refusals and the 500. The document names no internal tag. A response lists the `x-failure-code` header only for codes the endpoint declares: under the status of the `problemView` that exposes it, or under `default`. The `operationId` is the contract's name; a contract on two endpoints gets its method and path added, and a clash fails the build. `security: { schemes, require? }` adds the schemes; a `"public"` contract drops them. Effect's `OpenApi.fromApi` needs an `HttpApi`, which wants the HTTP status on the error schema and four input schemas, so House Rules writes the document itself. The tests check its shape; no OpenAPI 3.1 validator runs on it yet.
 
+## Upgrading to 0.16.0
+
+Pin capability to 0.16.0 and call-audit to 0.5.0, whose exact capability peer moves with it. Effect stays at 4.0.3. Existing `call`, HTTP and MCP callers keep their behavior. For a delivery that resolves its caller by hand, replace that runtime code with `admit`, return `auth.view` on failure, and pass `{ admitted: auth.value }` to later calls instead of supplying a caller that returns the saved context.
+
 ## Upgrading to 0.15.0
 
 Pin `effect`, `@effect/platform-node`, `@effect/platform-node-shared`, `@effect/sql-pg` and `@effect/vitest` to 4.0.3. Apps that install `@effect/platform-node` declare the shared package directly too. The Effect peer is exact. Move migrations to 0.3.0, call-audit to 0.4.0 and rules to 0.16.2 in the same change. Remove the old RC release-age exceptions. Add an exact-version exception only for a release under a day old.
@@ -596,7 +625,7 @@ It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Appr
 
 ## Exports
 
-Delivery: `composition`, `once`, `call`, `toFetchHandler`, `route`, `toMcpHandler`, `tool`, `decodeInput`, `defaultViews`, `defaultMaxBodyBytes`, `problem`, `problemView`, `toOpenApi`, the `Refused` and `InputInvalid` errors, and the types `Composition`, `Caller`, `Incoming`, `View`, `ViewFn`, `ViewTable`, `CallerContext`, `DefaultViewTag`, `ViewsCheck`, `MountCheck`, `ServicesCheck`, `Mountable`, `Outcome`, `ApprovalOption`, `CallOptions`, `Route`, `RouteOptions`, `CsrfOptOut`, `Method`, `FetchHandler`, `FetchHandlerOptions`, `McpTool`, `McpToolOptions`, `McpHandlerOptions`, `InputSource`, `InputIssue`, `ProblemViewOptions`, `StaticStatus`, `OpenApiDocument`, `OpenApiOptions`, `OpenApiSecurity`, and `OpenApiSecurityScheme`.
+Delivery: `composition`, `once`, `admit`, `call`, `toFetchHandler`, `route`, `toMcpHandler`, `tool`, `decodeInput`, `defaultViews`, `defaultMaxBodyBytes`, `problem`, `problemView`, `toOpenApi`, the `Refused` and `InputInvalid` errors, and the types `Composition`, `Caller`, `Incoming`, `View`, `ViewFn`, `ViewTable`, `CallerContext`, `DefaultViewTag`, `ViewsCheck`, `MountCheck`, `ServicesCheck`, `Mountable`, `Outcome`, `ApprovalOption`, `Admitted`, `AdmitOptions`, `CallOptions`, `Route`, `RouteOptions`, `CsrfOptOut`, `Method`, `FetchHandler`, `FetchHandlerOptions`, `McpTool`, `McpToolOptions`, `McpHandlerOptions`, `InputSource`, `InputIssue`, `ProblemViewOptions`, `StaticStatus`, `OpenApiDocument`, `OpenApiOptions`, `OpenApiSecurity`, and `OpenApiSecurityScheme`.
 
 Client, also from `@house-rules/capability/contract`: `endpoint`, `toHttpClient`, `failureCodeHeader`, the `HttpFailure` error, and the types `Endpoint`, `EndpointOptions`, `EndpointShape`, `HttpClientOf`, `HttpClientOptions`, `ClientCall`, `ClientFailureCode` and `HttpFailureOf`. The contract entry also exports `defineContract`, `failureSchemaOf`, `NoInput`, the `Forbidden`, `ApprovalDenied`, `UnitOfWorkFailed`, `InputInvalid` and `Refused` errors, the `InputIssue` type, and the contract and permission types.
 

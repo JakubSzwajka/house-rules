@@ -148,7 +148,7 @@ describe("publish report and recovery inputs", () => {
         assert.equal(command, "npm");
         assert.deepEqual(args, [
           "view",
-          "@house-rules/capability@0.15.0",
+          "@house-rules/capability@0.16.0",
           "--json",
           "--registry=https://registry.npmjs.org",
         ]);

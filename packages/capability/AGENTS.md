@@ -2,7 +2,7 @@
 
 ## What it does
 
-It turns one use-case into a capability: a contract (name, input, output, failure, permission) plus one Effect handler. `implement` wraps the handler in gates: `CallWatch` around everything, then `Grant`, then `Approval` when the contract asks for it, then `UnitOfWork.atomic` when the contract is transactional. `toTool` turns a contract into an MCP tool. Version 0.15.0 peers on exact `effect` 4.0.3. The full guide is `README.md` in this package.
+It turns one use-case into a capability: a contract (name, input, output, failure, permission) plus one Effect handler. `implement` wraps the handler in gates: `CallWatch` around everything, then `Grant`, then `Approval` when the contract asks for it, then `UnitOfWork.atomic` when the contract is transactional. `toTool` turns a contract into an MCP tool. Version 0.16.0 peers on exact `effect` 4.0.3. The full guide is `README.md` in this package.
 
 ## How an app mounts it
 
@@ -28,7 +28,9 @@ const result = await call(app, showBooking, { id }, { headers, url }); // React 
 
 | Delivery option | Effect |
 | --- | --- |
-| `caller` | Per adapter. Turns `{ headers, url }` into `Context<Viewer \| Grant ...>` or `Refused`. |
+| `caller` | Per adapter, `call` or `admit`. Turns `{ headers, url }` into `Context<Viewer \| Grant ...>` or `Refused`. Defaults to `app.caller`. |
+| `admitted` | `call` only. Reuses the opaque value from `admit` on this composition, without running a caller. Cannot be combined with `caller`. Keeps the admission request id and channel. |
+| `channel` | `admit` defaults to `"web"` and sets it inside the caller. `call` sets it inside the capability, using its own option, else the admitted channel, else `"web"`. |
 | `views` | Failure tag to `(error, caller) => { status, body, headers?, code? }`. Defaults cover `Refused`, `InputInvalid`, `Forbidden`, `ApprovalDenied`, `UnitOfWorkFailed`, `NoOpenUnit`, `CompositionClosed`. The composition's table also needs a view for each tag the layer can fail with, such as `DbUnavailable`. `InputInvalid` carries `capabilityName`, `field`, `issue` (`unexpected`, `missing`, `invalid`, `repeated`) and `message`, so a view can word a message per capability and field. |
 | `approval` | Defaults: `denyAll` on HTTP, `elicitationApproval` on MCP, `allowAll` for `call`. It beats an `Approval` the caller returns, unless set to `"fromCaller"`. |
 | `origins` | The app's origins for the CSRF check, each a plain `http(s)` origin; anything else, `"null"` too, throws at mount. Default: the request URL's origin. |
@@ -36,6 +38,22 @@ const result = await call(app, showBooking, { id }, { headers, url }); // React 
 | `route(cap, "GET /x/:id", { status, csrf })` | Default `POST /<name>`. `csrf: { skip: true, reason }` opts one route out. `route(cap, endpoint)` takes method, path and status from an endpoint the SPA client shares. |
 
 A single-page app imports only `@house-rules/capability/contract` and packages' `/contract` entries: `toHttpClient(endpoints, { prefix })` gives Effect calls that need `HttpClient` and fail with `HttpFailure { code, status, body }`; `toOpenApi(routes, { title, version, views })` describes the routes. Use `problemView(status, code, message)` so OpenAPI knows a view's status. A client sees a failure code only when the view opts in (`problemView(..., { exposeCode: true })`) and the endpoint declares it (`endpoint(contract, at, { codes: [...] })`); anything else is `Unknown`. The opt-in gates only the `x-failure-code` header; the view's body goes out as its author wrote it.
+
+### Admit before parsing
+
+When a delivery must refuse a token before parsing its own input, run `admit` first:
+
+```ts
+async function handle(request: Request) {
+  const incoming = { headers: request.headers, url: request.url };
+  const auth = await admit(app, incoming, { caller: bearerWrite, channel: "api" });
+  if (!auth.ok) return Response.json(auth.view.body, { status: auth.view.status, headers: auth.view.headers });
+  const input = await request.json();
+  return call(app, updateBooking, input, incoming, { admitted: auth.value, approval: Approval.denyAll });
+}
+```
+
+`admit` returns `Outcome<Admitted, Refused | E>`, where `E` is the app layer error. It runs in the app runtime, sets `CallRequestId` and the log annotation from a safe `x-request-id` or a fresh id, and maps refusals through the app's views. `Admitted` has no expiry and holds the resolved caller for the composition's lifetime, so delivery must use it for one request only and never cache it, since a cached value would outlive token revocation. The same value may run several capabilities on this app. `call()` uses the admitted channel unless its own `channel` option is set. Another composition, or a call that also supplies `caller`, rejects it with a logged `internal_error` without running a caller or capability. Capability gates still run on every call; `approval: "fromCaller"` reads the resolved context. Layer failure, shutdown and defects answer the same views as `call`.
 
 Hooks the app wires itself when it does not use delivery:
 
