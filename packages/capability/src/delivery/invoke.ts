@@ -56,7 +56,7 @@ export type InvokeOptions<A> = Readonly<{
   encodeOutput?: boolean;
 }>;
 
-const internalError = { ok: false as const, error: undefined, view: internalErrorView };
+export const internalError = { ok: false as const, error: undefined, view: internalErrorView };
 
 export const logDefect = (
   app: AnyComposition,

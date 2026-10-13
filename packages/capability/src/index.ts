@@ -88,6 +88,7 @@ export {
 } from "./unit-of-work/unit-of-work.ts";
 export { memoryUnitOfWork } from "./adapters/memory-unit-of-work.ts";
 export { sqlUnitOfWork } from "./adapters/sql-unit-of-work.ts";
+export { admit, type Admitted, type AdmitOptions } from "./delivery/admit.ts";
 export { call, type CallOptions } from "./delivery/call.ts";
 export { type Caller, type Incoming, Refused } from "./delivery/caller.ts";
 export { type Composition, composition, once } from "./delivery/composition.ts";
