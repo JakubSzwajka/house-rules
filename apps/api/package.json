@@ -10,6 +10,7 @@
   "dependencies": {
     "@hosti/bookings": "workspace:0.0.0",
     "@house-rules/capability": "workspace:0.16.0",
+    "@house-rules/comments": "workspace:0.0.0",
     "@house-rules/node-host": "workspace:0.1.0",
     "effect": "4.0.3"
   },

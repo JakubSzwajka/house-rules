@@ -5,6 +5,7 @@ import { Effect } from "effect";
 export const showBooking = implement(showBookingContract, ({ id }) =>
   Effect.gen(function* showBookingHandler() {
     const bookings = yield* Bookings;
-    return yield* bookings.get(id);
+    const booking = yield* bookings.get(id);
+    return { id: booking.id, guestName: booking.guestName };
   }),
 );

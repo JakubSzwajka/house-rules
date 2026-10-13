@@ -4,7 +4,7 @@ import { Forbidden, Grant } from "@house-rules/capability";
 import { Effect, Layer } from "effect";
 import { showBooking } from "../show-booking.js";
 
-const bookings = Bookings.fromRecords([{ id: "b-1", guestName: "Ada" }]);
+const bookings = Bookings.fromRecords([{ id: "b-1", guestName: "Ada", ownerId: "actor-a" }]);
 
 it.layer(Layer.merge(bookings, Grant.layerFromPermissions([BookingPermissions.read])))(
   "showBooking",

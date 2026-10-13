@@ -14,21 +14,65 @@ service             Bookings (a module's interface)     rules, checks of one obj
 
 A module is a deep piece of behavior: an interface plus a private implementation. Its service, a `Context.Service` class, is that interface. A capability is one action offered on top of the service; the module knows nothing about it. The contract declares its permission, and `implement` checks it before the handler runs. Checks of one object, such as whether this user owns this trip, stay inside the service. The `readOnly` and `destructive` flags tell an adapter a read from a write.
 
+## Root modules and Actor
+
+A package's root module uses `defineModule` from the root entry, not the browser contract entry. It declares one stable service id and the methods callers may use. It is still an ordinary `Context.Service` class.
+
+```ts
+import { type Actor, defineModule } from "@house-rules/capability";
+import { Effect } from "effect";
+
+class Greetings extends defineModule<
+  Greetings,
+  { readonly greet: (actor: Actor) => Effect.Effect<string> }
+>()("app/Greetings", {
+  make: (options: { readonly prefix: string }) =>
+    Effect.succeed({
+      greet: (actor: Actor) => Effect.succeed(options.prefix + actor.id),
+    }),
+}) {
+  static readonly presets = { default: { prefix: "Hello " } };
+}
+
+const greetings = Greetings.layer(Greetings.presets.default);
+```
+
+`Greetings.id` equals its service key. An Effect `make` gives a Layer value; a function `make(options)` gives `layer(options)`. Presets stay plain data. Adapter statics such as `layerPostgres`, `layerMemory` and `fromRecords` belong in the class body, composed with `Layer.provide`.
+
+Every declared method returns `Effect<Success, Failure, never>`. Construction captures long-lived dependencies once within a Layer build. For example, Bookings captures BookingStore; `Bookings.layer` still requires that port until the root provides an adapter. Acquisition failures remain in the Layer's error type. Scope requirements are handled by Effect's Layer scope. Construction is lazy, including options functions, and scoped finalizers run when that scope closes. Two `Layer.build` runs build twice. There is no singleton, global registry, private nesting or Entity constructor.
+
+`Actor` is a schema with one field, `id: ActorId`, a branded non-empty string. `Viewer` holds the Actor for one request; yielding it returns the Actor directly:
+
+```ts
+import { Actor, ActorId, Viewer } from "@house-rules/capability";
+
+const actor = Actor.make({ id: ActorId.make("user-1") });
+const request = Effect.gen(function* () {
+  const viewer = yield* Viewer;
+  const greetings = yield* Greetings;
+  return yield* greetings.greet(viewer);
+}).pipe(Effect.provideService(Viewer, actor));
+```
+
+Delivery provides Viewer per request, and a use-case passes its Actor into module methods. The constructor rejects a make Effect that requires Viewer, in either form. A module never stores request identity at build time, and its writes still require the use-case's open unit of work.
+
+The template's Bookings module uses `create(actor, input: NewBooking)` to store the actor's id as ownerId. `relation(actor, id)` answers `"owner"` or `"none"` from that stored fact, in the domain rather than the storage port. Migration 0002 adds nullable owner_id; unchanged legacy rows have no owner and answer `"none"` for everyone. Public `get` remains visitor-readable. Its HTTP contract returns only id and guestName, never ownerId.
+
 ## Usage
 
 ```ts
 import { expect, it } from "@effect/vitest";
-import { Context, Effect, Layer, Schema } from "effect";
-import { defineContract, implement } from "@house-rules/capability";
+import { Effect, Schema } from "effect";
+import { defineContract, defineModule, implement } from "@house-rules/capability";
 
-class Greetings extends Context.Service<
+class Greetings extends defineModule<
   Greetings,
   { readonly greet: (name: string) => Effect.Effect<string> }
->()("app/Greetings") {
-  static readonly layer = Layer.succeed(this, {
+>()("app/Greetings", {
+  make: Effect.succeed({
     greet: (name: string) => Effect.succeed(`Hello, ${name}`),
-  });
-}
+  }),
+}) {}
 
 class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {}) {}
 
@@ -621,9 +665,11 @@ A Union input is new and changes nothing for a Struct input's types.
 
 ## Limits
 
-It has `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, the `CallWatch` hook with its call facts, the `UnitOfWork` slot with its SQL and memory adapters, and `definePolicy` with its `withStates`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities and no CLI command from a contract. The typed SPA client and OpenAPI come from House Rules' own projection, not Effect's `HttpApi`. Delivery has no streaming, file upload or rate limit, and plain HTTP has no confirm flow for a write that needs approval. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job; the delivery adapters do it for you.
+It has root-module declarations through `defineModule`, request identity through `Actor`, `ActorId` and `Viewer`, `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, the `CallWatch` hook with its call facts, the `UnitOfWork` slot with its SQL and memory adapters, and `definePolicy` with its `withStates`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities and no CLI command from a contract. The typed SPA client and OpenAPI come from House Rules' own projection, not Effect's `HttpApi`. Delivery has no streaming, file upload or rate limit, and plain HTTP has no confirm flow for a write that needs approval. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job; the delivery adapters do it for you.
 
 ## Exports
+
+Root modules and identity, only from `@house-rules/capability`: `defineModule`, `Actor`, `ActorId`, `Viewer`, and the types `ModuleClass`, `ModuleDeclaration`, `ModuleLayer`, `ModuleMethod`, `ModuleShape` and `NoViewer`.
 
 Delivery: `composition`, `once`, `admit`, `call`, `toFetchHandler`, `route`, `toMcpHandler`, `tool`, `decodeInput`, `defaultViews`, `defaultMaxBodyBytes`, `problem`, `problemView`, `toOpenApi`, the `Refused` and `InputInvalid` errors, and the types `Composition`, `Caller`, `Incoming`, `View`, `ViewFn`, `ViewTable`, `CallerContext`, `DefaultViewTag`, `ViewsCheck`, `MountCheck`, `ServicesCheck`, `Mountable`, `Outcome`, `ApprovalOption`, `Admitted`, `AdmitOptions`, `CallOptions`, `Route`, `RouteOptions`, `CsrfOptOut`, `Method`, `FetchHandler`, `FetchHandlerOptions`, `McpTool`, `McpToolOptions`, `McpHandlerOptions`, `InputSource`, `InputIssue`, `ProblemViewOptions`, `StaticStatus`, `OpenApiDocument`, `OpenApiOptions`, `OpenApiSecurity`, and `OpenApiSecurityScheme`.
 

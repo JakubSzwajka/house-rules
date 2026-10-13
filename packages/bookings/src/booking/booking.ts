@@ -1,8 +1,15 @@
 import { Schema } from "effect";
 
-export const Booking = Schema.Struct({
+export const NewBooking = Schema.Struct({
   id: Schema.String,
   guestName: Schema.String,
+});
+
+export type NewBooking = typeof NewBooking.Type;
+
+export const Booking = Schema.Struct({
+  ...NewBooking.fields,
+  ownerId: Schema.NullOr(Schema.String),
 });
 
 export type Booking = typeof Booking.Type;
