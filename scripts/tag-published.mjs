@@ -6,12 +6,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const runGit = (args) => execFileSync("git", args, { encoding: "utf8" });
-const folders = ["rules", "capability", "migrations", "call-audit"];
+const folders = ["rules", "capability", "migrations", "call-audit", "node-host"];
 
 function publishedTags(summary) {
   assert.ok(Array.isArray(summary.publishedPackages), "publish summary needs publishedPackages");
   const tags = summary.publishedPackages.map(({ name, version }) => {
-    assert.match(name, /^@house-rules\/(?:rules|capability|migrations|call-audit)$/u);
+    assert.match(name, /^@house-rules\/(?:rules|capability|migrations|call-audit|node-host)$/u);
     assert.match(version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u);
     return `${name}@${version}`;
   });

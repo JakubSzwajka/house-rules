@@ -171,7 +171,8 @@ apps/<app>/src/
   composition/   app = composition({ layer, caller, views }); callers; views
   use-cases/     capabilities
   delivery/      routes, MCP, pages (Next.js keeps src/app/ as its delivery folder)
-  server/        host entry for a plain Node app, background loops
+  server/        background loops
+  main.ts        Node Host call, an appEntryFiles entry
 
   delivery ──> composition <── server          composition ──> packages only
   tests    ──> composition                     use-cases ─X─> composition
@@ -180,6 +181,8 @@ apps/<app>/src/
 - `composition-imports-packages-only`: the composition imports packages and installed modules only, never another app file. It cannot reach a route, a server loop or a use-case, so wiring never depends on what it wires. Its own tests follow the rule too; a test that needs a use-case and the composition sits in `src/tests/` or `use-cases/tests/`.
 - `use-cases-do-not-import-composition`: a use-case yields services and never picks their layers. Its test may import `composition/`, so use-case tests share the app's layers instead of copying them.
 - Delivery, server and every test may import `composition/`. `app-code-in-layers` counts `composition/` as a layer.
+
+A plain Node app calls `serve` from `@house-rules/node-host` in `src/main.ts`, an `appEntryFiles` entry. It joins the delivery fetch handler and the composition, with `onClose: () => api.dispose().then(() => app.dispose())`. `src/server/` holds background loops, not the Host call. The Node Host uses the strict TypeScript preset; Effect apps keep `nodeBuiltinImport: error`. A Next app already has a Host and does not need the Node Host package.
 
 `layers.composition` renames the folder. `tests/fixtures/dependency-cruiser/node-app/` is a plain Node app with a composition folder and no host, and it passes with no option.
 

@@ -119,7 +119,7 @@ describe("publish report and recovery inputs", () => {
     );
   });
 
-  it("loads only the four public workspace manifests, without the summary", () => {
+  it("loads only the five public workspace manifests, without the summary", () => {
     const files = [];
     const packages = workspacePackages((file) => {
       files.push(file);
@@ -128,11 +128,11 @@ describe("publish report and recovery inputs", () => {
     });
     assert.deepEqual(
       files,
-      ["rules", "capability", "migrations", "call-audit"].map(
+      ["rules", "capability", "migrations", "call-audit", "node-host"].map(
         (folder) => `packages/${folder}/package.json`,
       ),
     );
-    assert.equal(packages.length, 4);
+    assert.equal(packages.length, 5);
     assert.throws(() => workspacePackages(() => JSON.stringify({ name: "@other/app" })));
     assert.throws(() =>
       workspacePackages((file) =>

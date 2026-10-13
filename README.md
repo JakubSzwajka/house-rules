@@ -17,6 +17,7 @@ It is a GitHub template. Create a repo from it with `gh repo create my-app --pri
 ├── packages/call-audit/    @house-rules/call-audit: an audit trail of capability calls, as log lines or table rows
 ├── packages/capability/    @house-rules/capability: contracts, handlers, delivery, a typed HTTP client and OpenAPI
 ├── packages/migrations/    @house-rules/migrations: runs the migrations of every listed module
+├── packages/node-host/     @house-rules/node-host: streams a Web fetch handler on a Node socket
 ├── packages/rules/         @house-rules/rules: the house rules, presets, and bins
 ├── site/                   @house-rules/site: the docs site (Astro + Starlight)
 ├── skills/                 agent skills, one folder each
@@ -40,7 +41,7 @@ Root tools run once over the whole repo. Biome and ESLint warnings fail the chec
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.16.2`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.16.3`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
@@ -59,7 +60,7 @@ Two tools do not speak TypeScript 7 yet:
 - Dependency Cruiser parses with SWC, so this repo pins `@swc/core`. Each run prints a `missing-typescript-transpiler` warning. That warning is expected.
 - `@typescript-eslint/parser` needs TypeScript below 6.1. `packageExtensions` gives it 6.0.3. Drop that entry when the parser accepts 7.
 
-Effect is pinned to stable 4.0.3. `effect`, `@effect/platform-node`, `@effect/sql-pg` and `@effect/vitest` move together; the lockfile also resolves `@effect/platform-node-shared` to 4.0.3. These releases are over a day old, so no release-age exception is needed. `@effect/tsgo` stays at 0.45.0 with TypeScript 7.0.2. Its patch and Effect diagnostics are tested on stable Effect. `pnpm vendor:agent-sources` clones the matching source into `.agent_sources/` for agents to read.
+Effect is pinned to stable 4.0.3. `effect`, `@effect/platform-node`, `@effect/platform-node-shared`, `@effect/sql-pg` and `@effect/vitest` move together. Workspaces that install `@effect/platform-node` also pin `@effect/platform-node-shared` directly to 4.0.3. These releases are over a day old, so no release-age exception is needed. `@effect/tsgo` stays at 0.45.0 with TypeScript 7.0.2. Its patch and Effect diagnostics are tested on stable Effect. `pnpm vendor:agent-sources` clones the matching source into `.agent_sources/` for agents to read.
 
 Turborepo is pinned to 2.11.2, because 2.11.3 was under a day old when this was set up.
 
@@ -136,20 +137,21 @@ Start from the template, or copy these into an existing pnpm workspace:
 
 ### Installing
 
-Four packages from this repo are on the public npm registry, under the `@house-rules` scope:
+The publish workflow ships five public packages under the `@house-rules` scope:
 
 | Package | What it is | Version |
 | --- | --- | --- |
-| [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript. | `0.16.2` |
+| [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript. | `0.16.3` |
 | [`@house-rules/capability`](packages/capability/README.md) | Capabilities, gates, units of work, delivery | `0.15.0` |
 | [`@house-rules/migrations`](packages/migrations/README.md) | Module-owned SQL migrations | `0.3.0` |
 | [`@house-rules/call-audit`](packages/call-audit/README.md) | One audit line or row per capability call | `0.4.0` |
+| [`@house-rules/node-host`](packages/node-host/README.md) | Host for a Web fetch handler on a Node socket | `0.1.0` |
 
 1. [ ] Pin each one to an exact version, like every other dependency: `"@house-rules/capability": "0.15.0"`. `house-rules-pins` fails `^` and `~`.
-2. [ ] Pin `effect` to the version their `peerDependencies` name, now `4.0.3`. `call-audit` also peers on the exact `capability` version it was built with.
+2. [ ] Pin `effect` to the version their `peerDependencies` name, now `4.0.3`. If the app installs `@effect/platform-node`, also declare `@effect/platform-node-shared` as an exact direct dependency at that same version. `call-audit` also peers on the exact `capability` version it was built with.
 3. [ ] If your `pnpm-workspace.yaml` sets `minimumReleaseAge`, a version younger than that fails the install. Wait, or add that exact version to `minimumReleaseAgeExclude`.
 
-`capability`, `migrations`, and `call-audit` ship built JavaScript and declarations in `dist/`. Plain `node` loads them, any bundler takes them as is, and `tsc` reads their `.d.ts` files. An app needs no `transpilePackages`, no type-stripping loader, and no `allowImportingTsExtensions` for them. In this repo they stay source: `exports` points at `src/`, and pnpm swaps in `publishConfig.exports`, which points at `dist/`, only when it packs. `pnpm run packed-consumer` packs all four and installs them with `@effect/platform-node` into a fresh app with no lockfile. It checks the resolved shared Node package, runs Node services and a transactional capability, type-checks with the Effect and web presets, and runs the layout rules. CI runs it on every pull request.
+`capability`, `migrations`, `call-audit`, and `node-host` ship built JavaScript and declarations in `dist/`. Plain `node` loads them, any bundler takes them as is, and `tsc` reads their `.d.ts` files. An app needs no `transpilePackages`, no type-stripping loader, and no `allowImportingTsExtensions` for them. In this repo they stay source: `exports` points at `src/`, and pnpm swaps in `publishConfig.exports`, which points at `dist/`, only when it packs. `pnpm run packed-consumer` packs all five and installs them with `@effect/platform-node` and an exact direct `@effect/platform-node-shared` pin into a fresh app with no lockfile. It checks the resolved shared Node package, runs the Node Host on a real socket, Node services and a transactional capability, type-checks with the Effect and web presets, and runs the layout rules. CI runs it on every pull request.
 
 #### Upgrading from a Git SHA pin
 
@@ -175,7 +177,7 @@ An app outside this repo installs the rules from npm at an exact version:
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "0.16.2"
+    "@house-rules/rules": "0.16.3"
   }
 }
 ```
@@ -222,6 +224,10 @@ An old pin keeps working until you move it. The old commits are in this repo's h
 ```
 
 Its README lists the install steps, the permission and approval gates, and what it does not do yet.
+
+### Host a Node app
+
+A Host listens for HTTP and runs a fetch handler. Node apps use `serve` from `@house-rules/node-host` in `src/main.ts`, never `node:http`. The reference API reads `PORT` through Effect Config, defaulting to 3000, and closes its fetch handler before its composition on SIGTERM or SIGINT. Importing its entry in a test does not start a listener. The Host streams bodies and drains for up to five seconds before disposal. Behind a TLS proxy, set optional `APP_ORIGIN` to the public origin, such as `https://public.example`, so cookie writes do not fail with 403 `cross_origin`. Set explicit `origins` for local and internal apps too, and restrict Host at their proxy or listener to guard against DNS rebinding. See [the Node Host README](packages/node-host/README.md) for the options. A Next app already has a Host and needs no Node Host package.
 
 ### Add an app
 

@@ -347,7 +347,7 @@ Install it from npm at an exact version:
 }
 ```
 
-1. [ ] Pin `effect` to the same exact version this package names in `peerDependencies`. It is an exact peer, and the handler types come from that copy of `effect`.
+1. [ ] Pin `effect` to the same exact version this package names in `peerDependencies`. It is an exact peer, and the handler types come from that copy of `effect`. If the app installs `@effect/platform-node`, also declare `@effect/platform-node-shared` as an exact direct dependency at the same version, now `4.0.3`.
 2. [ ] Stable 4.0.3 needs no release-age exception. For a future version under a day old, wait or get approval for an exact-version `minimumReleaseAgeExclude` entry. Remove the old RC entries.
 3. [ ] The package ships built JavaScript and `.d.ts` files in `dist/`. Plain `node` loads it, and a bundler such as Next's needs no `transpilePackages` entry for it. Browser code imports `@house-rules/capability/contract`.
 4. [ ] Use TypeScript 7 or 6 with `module` and `moduleResolution` set to `NodeNext`, or `Bundler` for UI code, and `skipLibCheck: true`. It is tested with TypeScript 7.0.2. Or extend `@house-rules/rules/tsconfig/effect.json`, installed as [the root README](../../README.md#using-the-rules-in-another-app) shows. Its Effect diagnostics run only after `pnpm exec effect-tsgo patch` from `@effect/tsgo`, as this repo's `prepare` script does.
@@ -388,10 +388,10 @@ The house plugin's `no-hand-rolled-surface` rule fails on `Tool.make` outside th
 
 ## Delivery
 
-Delivery mounts capabilities on a host. The seam is the Web fetch standard: the host hands over a `Request` and gets a `Response`. Next route files, `node:http`, Bun, Hono and Workers all speak it. React server code skips HTTP and calls the capability in-process with `call`.
+Delivery mounts capabilities on a host. The seam is the Web fetch standard: the host hands over a `Request` and gets a `Response`. Next route files, the House Rules Node Host, Bun, Hono and Workers all speak it. For Node apps, install `@house-rules/node-host` and call `serve(api, { port, onClose: () => api.dispose().then(() => app.dispose()), handleSignals: true })` in `src/main.ts`, an `appEntryFiles` entry. `src/server/` holds background loops, not the Host call. Its guide is `packages/node-host/README.md` in the House Rules repo. It streams the fetch handler without an app import of `node:http`. A Next app already has a Host and does not need it. React server code skips HTTP and calls the capability in-process with `call`.
 
 ```text
- host: Next route | node:http | Bun | Worker           React server component
+ host: Next route | Node Host | Bun | Worker           React server component
         | Request                                       | headers(), input
         v                                               v
  toFetchHandler / toMcpHandler                        call(app, capability, input, incoming)
@@ -507,7 +507,7 @@ The same check reports `wrongViews` and `missingServices`.
 
 ### CSRF
 
-A browser sends cookies with a cross-site write by itself, whoever the caller is. So `toFetchHandler` checks every write (POST, PUT, PATCH, DELETE) that carries a `Cookie` header, even an empty one, and even one that also has a bearer token. A write whose `Origin` does not match the app's origin is a 403 `cross_origin` before the app layer builds or the caller runs. Without `Origin`, the `Referer`'s origin decides; with neither, the write is refused. An opaque source, `Origin: null` or a `data:` Referer, is always refused. The app's origin is the request URL's origin, or the `origins` list you pass to `toFetchHandler`. Set `origins` when a proxy changes the host. Each entry must be a plain `http(s)` origin, such as `https://app.example`, with no path; anything else, `"null"` included, throws when the handler is built. A write with no `Cookie` is not checked: no session rides along cross-site. A route opts out only with a written reason:
+A browser sends cookies with a cross-site write by itself, whoever the caller is. So `toFetchHandler` checks every write (POST, PUT, PATCH, DELETE) that carries a `Cookie` header, even an empty one, and even one that also has a bearer token. A write whose `Origin` does not match the app's origin is a 403 `cross_origin` before the app layer builds or the caller runs. Without `Origin`, the `Referer`'s origin decides; with neither, the write is refused. An opaque source, `Origin: null` or a `data:` Referer, is always refused. The app's origin is the request URL's origin, or the `origins` list you pass to `toFetchHandler`. Set `origins` when a proxy changes the host or scheme. Set it for local and internal apps too, and restrict Host at their proxy or listener to guard against DNS rebinding. Each entry must be a plain `http(s)` origin, such as `https://app.example`, with no path; anything else, `"null"` included, throws when the handler is built. A write with no `Cookie` is not checked: no session rides along cross-site. A route opts out only with a written reason:
 
 ```ts
 route(stripeWebhook, "POST /hooks/stripe", {
@@ -555,7 +555,7 @@ const booking = yield* client.show_booking({ id }); // Effect<Booking, HttpFailu
 
 ## Upgrading to 0.15.0
 
-Pin `effect`, `@effect/platform-node`, `@effect/sql-pg` and `@effect/vitest` to 4.0.3. The Effect peer is exact. Move migrations to 0.3.0, call-audit to 0.4.0 and rules to 0.16.2 in the same change. Remove the old RC release-age exceptions. Add an exact-version exception only for a release under a day old.
+Pin `effect`, `@effect/platform-node`, `@effect/platform-node-shared`, `@effect/sql-pg` and `@effect/vitest` to 4.0.3. Apps that install `@effect/platform-node` declare the shared package directly too. The Effect peer is exact. Move migrations to 0.3.0, call-audit to 0.4.0 and rules to 0.16.2 in the same change. Remove the old RC release-age exceptions. Add an exact-version exception only for a release under a day old.
 
 Stable Effect drops the `unstable/` import prefix. Use `effect/ai`, `effect/http`, `effect/http-api`, `effect/rpc` and `effect/sql`. `Encoding.encodeHex` is now `Hex.encode` from `effect/encoding`. `Schema.Int` advertises safe-integer bounds in JSON Schema, so exact OpenAPI assertions include its `minimum` and `maximum`.
 

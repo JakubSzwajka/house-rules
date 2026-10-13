@@ -1,0 +1,47 @@
+{
+  "name": "@house-rules/node-host",
+  "version": "0.1.0",
+  "description": "A streaming Node HTTP host for a Web fetch handler.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.21.0"
+  },
+  "files": [
+    "dist",
+    "AGENTS.md",
+    "README.md"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JakubSzwajka/house-rules.git",
+    "directory": "packages/node-host"
+  },
+  "bugs": {
+    "url": "https://github.com/JakubSzwajka/house-rules/issues"
+  },
+  "homepage": "https://github.com/JakubSzwajka/house-rules"
+}

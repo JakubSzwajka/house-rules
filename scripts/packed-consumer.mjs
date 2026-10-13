@@ -8,7 +8,7 @@ import { assertCleanTarball, assertTarballRulesAreLive } from "./tarball-content
 import { assertNextHost } from "./packed-next-host.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
-const PUBLISHED_IN_BUILD_ORDER = ["migrations", "capability", "call-audit", "rules"];
+const PUBLISHED_IN_BUILD_ORDER = ["migrations", "capability", "call-audit", "node-host", "rules"];
 const ALLOWED_TOP = new Set(["package.json", "README.md", "AGENTS.md", "LICENSE"]);
 
 const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
@@ -107,6 +107,7 @@ try {
         ),
         effect,
         "@effect/platform-node": platformNode,
+        "@effect/platform-node-shared": effect,
       },
       devDependencies: {
         "@swc/core": pins["@swc/core"],
@@ -137,6 +138,16 @@ try {
       '  assert.equal(yield* write.handler({}), "stable");',
       '  yield* Effect.log("cold install: packed entries, Node services and transactional handler run");',
       "}).pipe(Effect.provide(Layer.merge(NodeServices.layer, capability.memoryUnitOfWork))));",
+      "",
+    ].join("\n"),
+    "host.mjs": [
+      'import assert from "node:assert/strict";',
+      'import { serve } from "@house-rules/node-host";',
+      'const host = await serve(async () => new Response("packed host"), { port: 0, hostname: "127.0.0.1" });',
+      "try {",
+      '  assert.equal(await (await fetch(host.url)).text(), "packed host");',
+      "} finally { await host.close(); }",
+      'console.log("cold install: packed Node host serves a real socket");',
       "",
     ].join("\n"),
     "tsconfig.json": {
@@ -192,9 +203,12 @@ try {
       'import { implement } from "@house-rules/capability";',
       'import { showItemContract } from "@consumer/catalogue";',
       'import { NodeServices } from "@effect/platform-node";',
+      'import { serve } from "@house-rules/node-host";',
       'import { Effect, FileSystem } from "effect";',
       "",
       'export const nodeProbe = FileSystem.FileSystem.use((fs) => fs.exists("package.json")).pipe(Effect.provide(NodeServices.layer));',
+      "",
+      'export const startHost = () => serve(() => Promise.resolve(new Response("typed host")), { port: 0 });',
       "",
       "export const showItem = implement(showItemContract, ({ id }) =>",
       '  Effect.succeed({ id, title: "A title" }),',
@@ -212,15 +226,13 @@ try {
     ["install", "--no-audit", "--no-fund", "--ignore-scripts", "--package-lock=false"],
     app,
   );
+  run("npm", ["ls", "effect", "@effect/platform-node", "@effect/platform-node-shared"], app);
   const shared = readJson(path.join(app, "node_modules/@effect/platform-node-shared/package.json"));
-  assert.equal(
-    shared.version,
-    platformNode,
-    "cold install resolves the matching Node shared package",
-  );
+  assert.equal(shared.version, effect, "cold install resolves the matching Node shared package");
   console.log(
     `cold install pair: effect ${effect}, platform-node/shared ${platformNode}; no input lockfile`,
   );
+  run(process.execPath, ["--no-experimental-strip-types", "host.mjs"], app);
   run(process.execPath, ["--no-experimental-strip-types", "run.mjs"], app);
   const tsc = path.join(root, "node_modules/.bin/tsc");
   run(tsc, ["--project", "tsconfig.json"], app);

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-const BUILT = ["capability", "migrations", "call-audit"];
+const BUILT = ["capability", "migrations", "call-audit", "node-host"];
 const PUBLISHED = [...BUILT, "rules"];
 const DOCS = new Set(["AGENTS.md", "README.md"]);
 
@@ -50,6 +50,29 @@ describe("published packages", () => {
       manifest("call-audit").peerDependencies["@house-rules/capability"],
       manifest("capability").version,
     );
+  });
+
+  it("Node platform consumers pin the shared package to the same Effect version", () => {
+    const repoEffect = manifest("capability").peerDependencies.effect;
+    const paths = globSync(
+      ["apps/*/package.json", "packages/*/package.json", "site/package.json"],
+      {
+        cwd: new URL("../", import.meta.url),
+      },
+    );
+    for (const path of paths) {
+      const pkg = JSON.parse(read(path));
+      const dependencies = {
+        ...pkg.peerDependencies,
+        ...pkg.optionalDependencies,
+        ...pkg.devDependencies,
+        ...pkg.dependencies,
+      };
+      if (!Object.hasOwn(dependencies, "@effect/platform-node")) continue;
+      const effect = dependencies.effect ?? repoEffect;
+      assert.equal(dependencies["@effect/platform-node"], effect, path);
+      assert.equal(dependencies["@effect/platform-node-shared"], effect, path);
+    }
   });
 
   it("CI runs the packed consumer", () => {
