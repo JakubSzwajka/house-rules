@@ -20,8 +20,8 @@ This repo is a pnpm workspace run by Turborepo. Use pnpm, at the version `packag
 | `pnpm format` | Apply Biome formatting only. |
 | `docker compose up -d` | Start the local Postgres that database tests need. Each test file creates and drops its own database on it, through `TEST_DATABASE_ADMIN_URL` in `.env.schema`. CI runs the same server as a service. |
 | `pnpm acceptance` | Clone the committed HEAD into a temp dir and run `pnpm install --frozen-lockfile`, `check`, and `test` there. |
-| `pnpm build` | Build `dist/` in `packages/domain`, `packages/application`, `packages/migrations`, `packages/call-audit`, `packages/comments`, and `packages/node-host` through Turborepo. Only packing needs it: in this repo every package and app reads `src/`. |
-| `pnpm run packed-consumer` | Pack the seven public packages as `pnpm publish` would, install them plus `@effect/platform-node` and its exactly pinned `@effect/platform-node-shared` with npm into a fresh temp app with no lockfile, check the shared Node version, and run plain `node`, `tsc`, and the layout rules there. Needs the npm registry. CI runs it on every pull request. |
+| `pnpm build` | Build `dist/` in `packages/domain`, `packages/application`, `packages/auth-jwt`, `packages/identity`, `packages/party`, `packages/migrations`, `packages/call-audit`, `packages/comments`, and `packages/node-host` through Turborepo. Only packing needs it: in this repo every package and app reads `src/`. |
+| `pnpm run packed-consumer` | Pack the ten public packages as `pnpm publish` would, install them plus `@effect/platform-node` and its exactly pinned `@effect/platform-node-shared` with npm into a fresh temp app with no lockfile, check the shared Node version, and run plain `node`, `tsc`, and the layout rules there. Needs the npm registry. CI runs it on every pull request. |
 | `pnpm vendor:agent-sources` | Shallow-clone the Effect source at the pinned version into `.agent_sources/`. Not part of `check`. |
 | `pnpm --filter <package> add <dep>` | Add a dependency to one workspace package. `saveExact` writes an exact pin. |
 | `pnpm --filter @house-rules/site generate` | Rewrite the docs site's generated rule and skill pages. `build` and `dev` run it first. |
@@ -40,14 +40,16 @@ The framework has four parts. `CONTEXT.md` defines each word.
 | --- | --- | --- |
 | Kits | `@house-rules/domain`, `@house-rules/application` | define domain modules; build the application layer on them |
 | Wiring | `@house-rules/migrations`, `@house-rules/node-host`, `@house-rules/rules` (dev only) | run every module's SQL; serve the app on Node; check the rules |
-| Additions | `@house-rules/comments` (a domain addition), `@house-rules/call-audit` (a plug-in) | reusable modules and cartridges an app mounts |
+| Additions | `@house-rules/comments`, `@house-rules/party` and `@house-rules/identity` (domain additions), `@house-rules/call-audit` and `@house-rules/auth-jwt` (plug-ins) | reusable modules and cartridges an app mounts |
 | The app | `apps/<name>` | its own modules, use-cases, delivery and one composition root |
 
 Slots are the seams an app fills. The composition root fills each one, except the per-request values delivery provides.
 
 | Slot | Defined in | Filled by |
 | --- | --- | --- |
-| `Caller`, which sets `CurrentActor` | application | the app |
+| `Caller`, which sets `CurrentActor` | application | `@house-rules/identity` or the app |
+| `Authenticator` | application | `@house-rules/auth-jwt`, or nothing |
+| `ActorResolver`, `FirstSignIn` | identity | an `Identity` layer or `Identity.subject`; `Identity.refuse` or the app's composition root |
 | `Grant` | application | a permission list |
 | `Approval` | application | MCP elicitation; the click in the app |
 | `CallWatch` | application | call-audit, or nothing |
@@ -70,8 +72,8 @@ Authorization has three steps. `Grant` is action-level: may this caller run this
 - The domain kit, `@house-rules/domain` in `packages/domain`, holds what a package needs to define its domain module: `defineModule`, `Actor`, `ActorId`, `Permission`, `definePolicy`, the `UnitOfWork` slot with its `memoryUnitOfWork` adapter, and the per-request marker `PerRequest`. It imports no house-rules package and never names `CurrentActor`.
 - The application kit, `@house-rules/application` in `packages/application`, holds what an app needs to build its application layer on those modules: `defineContract`, `implement`, `toTool`, `CurrentActor`, the `Caller`, the `Grant`, `Approval`, and `CallWatch` slots, the `sqlUnitOfWork` adapter, the delivery adapters `composition`, `toFetchHandler`, `toMcpHandler` and `call`, and the types. It depends on the domain kit; the domain kit never imports it. An app writes its own capabilities in its own code, as its use-cases, and imports the kits by name. A capability handler is an Effect: it yields services and lets typed errors flow.
 - Import each name from the kit that owns it. There are no re-exports or aliases between the kits. `@house-rules/capability` is retired: it stays at 0.16.0 on npm, and nothing here imports it.
-- Every framework package an app mounts, now `@house-rules/domain`, `@house-rules/application`, `@house-rules/call-audit`, the support module `@house-rules/comments`, `@house-rules/migrations`, and `@house-rules/node-host`, has an `AGENTS.md` in its root and lists it in its `package.json` `files`, so it ships into the app's `node_modules`. It says what the package does, how an app mounts it (the layer line, the `migrations.json` line, the hooks the app must wire), its options and presets, and its fixed rules. Keep it short. `tests/framework-agents.test.mjs` checks it.
-- Seven packages are public and configured for npm release: `@house-rules/rules`, `domain`, `application`, `migrations`, `call-audit`, `comments`, and `node-host`. Domain 0.1.0, application 0.1.0 and comments 0.1.0 are prepared for their first release; merge first, publish later. They have no `private` field, and `.github/workflows/publish.yml` publishes them; nobody publishes by hand. The six TypeScript ones build to `dist/` with `tsconfig.build.json`. Their `exports` stays on `src/`, so this repo reads source, and `publishConfig.exports` points at `dist/` for the published manifest. `files` lists only `dist/`, docs, and the `migrations/` folders for call-audit and comments. `pnpm run packed-consumer` proves the tarballs work, and CI runs it. A release bumps the version and every `workspace:` pin on it together. After a successful publish, the job tags only the packages in `pnpm-publish-summary.json` and pushes through `GITHUB_TOKEN`, so its tag pushes cannot start another workflow.
+- Every framework package an app mounts, now `@house-rules/domain`, `@house-rules/application`, `@house-rules/auth-jwt`, `@house-rules/identity`, `@house-rules/party`, `@house-rules/call-audit`, the support module `@house-rules/comments`, `@house-rules/migrations`, and `@house-rules/node-host`, has an `AGENTS.md` in its root and lists it in its `package.json` `files`, so it ships into the app's `node_modules`. It says what the package does, how an app mounts it (the layer line, the `migrations.json` line, the hooks the app must wire), its options and presets, and its fixed rules. Keep it short. `tests/framework-agents.test.mjs` checks it.
+- Ten packages are public and configured for npm release: `@house-rules/rules`, `domain`, `application`, `auth-jwt`, `identity`, `party`, `migrations`, `call-audit`, `comments`, and `node-host`. Auth-jwt 0.1.0, identity 0.1.0 and party 0.1.0 are prepared for their first release, and application 0.2.0, comments 0.2.0 and call-audit 0.7.0 for their next; merge first, publish later. They have no `private` field, and `.github/workflows/publish.yml` publishes them; nobody publishes by hand. The nine TypeScript ones build to `dist/` with `tsconfig.build.json`. Their `exports` stays on `src/`, so this repo reads source, and `publishConfig.exports` points at `dist/` for the published manifest. `files` lists only `dist/`, docs, and the `migrations/` folders for call-audit, comments, identity and party. `pnpm run packed-consumer` proves the tarballs work, and CI runs it. A release bumps the version and every `workspace:` pin on it together. After a successful publish, the job tags only the packages in `pnpm-publish-summary.json` and pushes through `GITHUB_TOKEN`, so its tag pushes cannot start another workflow.
 - `packages/rules` is the exception. It is the plain-JavaScript house plugin, with many entries in `exports`, no `tsconfig.json`, and a `typecheck` script that runs `node --check` over each source file. The layout rules, the `comment-discipline` rule, and Biome on its test fixtures skip it. Its tests run in `pnpm test`.
 
 ## Layers inside an app
@@ -89,6 +91,14 @@ Authorization has three steps. `Grant` is action-level: may this caller run this
 - Never name a file or folder `utils`, `helpers`, or `misc`. Name it after what it owns.
 - No import cycles. No deep package imports. Production code never imports tests.
 - A test file sits directly in a `tests/` folder inside the folder it tests, such as `src/use-cases/tests/show-booking.test.ts`. A package's own tests import its `src/index.ts`. Only tests under `src/adapters/` import an adapter directly.
+
+## Web delivery
+
+Delivery is how the outside world reaches the use-cases. Each mechanism gets one folder: `delivery/http`, `delivery/mcp`, `delivery/web`.
+
+- A web page is `delivery/web`. It imports only browser-safe entries, such as `@house-rules/application/contract` and a package's `./contract`, and the app's API list in `delivery/http`.
+- Option A, the default: one service. The build writes the page to a folder, such as `dist/web`, and `src/main.ts` puts `staticFiles` from `@house-rules/node-host` before the API handler, with `exclude` naming every path the API owns. Page and API share one origin, and the client has no `baseUrl`. `examples/booking-platform/apps/api/src/main.ts` does this.
+- Option B, allowed: a separate web app or a CDN serves the page. The API mounts with `cors: { origins: [...] }` on `toFetchHandler`, and the client sets `baseUrl` to the API's origin. CORS is not access control; the caller and the gates still guard every call.
 
 ## Inside a package
 

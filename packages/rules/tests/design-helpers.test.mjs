@@ -7,7 +7,7 @@ import { scanCssValue } from "../src/css-values.mjs";
 import { customPropertyDefinitions, readTokens } from "../src/design-tokens.mjs";
 import { compileGlob, matchesAnyGlob } from "../src/file-globs.mjs";
 import { findColorLiterals } from "../src/design-no-raw-color-literal.mjs";
-import { HOSTI, HOSTI_TOKENS, removeDirectory, temporaryDirectory } from "./design-helpers.mjs";
+import { ACME, ACME_TOKENS, removeDirectory, temporaryDirectory } from "./design-helpers.mjs";
 
 test("custom-property definitions are read in source order, skipping comments and nested values", () => {
   const css = `/* --commented: red; */
@@ -68,7 +68,7 @@ test("the token cache refreshes when a token file's mtime or size changes", () =
 
 test("a missing token file is a configuration error", () => {
   assert.throws(
-    () => readTokens(HOSTI, ["missing.css"]),
+    () => readTokens(ACME, ["missing.css"]),
     /token file ".*missing\.css" does not exist/,
   );
 });
@@ -90,7 +90,7 @@ test("colours parse to sRGB and the nearest token uses OKLab distance", () => {
   assert.equal(parseColor("lab(50% 10 10)"), null);
   assert.equal(parseColor("var(--ink)"), null);
 
-  const palette = readTokens(HOSTI, [HOSTI_TOKENS]).palette;
+  const palette = readTokens(ACME, [ACME_TOKENS]).palette;
   assert.equal(nearestToken(parseColor("#e8f4f5"), palette).name, "--paper");
   assert.equal(nearestToken(parseColor("#c5cdcf"), palette).name, "--line");
   assert.equal(nearestToken(parseColor("#1b2123"), palette).name, "--ink");

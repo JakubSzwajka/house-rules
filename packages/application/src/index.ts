@@ -78,14 +78,11 @@ export { call, type CallOptions } from "./delivery/call.ts";
 export { type Caller, type Incoming, Refused } from "./delivery/caller.ts";
 export { type Composition, composition, once } from "./delivery/composition.ts";
 export { CompositionClosed } from "./delivery/composition-closed.ts";
+export { type CorsOptions, defaultCorsMaxAge } from "./delivery/cors.ts";
 export {
-  type CsrfOptOut,
   defaultMaxBodyBytes,
   type FetchHandler,
   type FetchHandlerOptions,
-  type Route,
-  type RouteOptions,
-  route,
   toFetchHandler,
 } from "./delivery/fetch-handler.ts";
 export { decodeInput, InputInvalid, type InputIssue, type InputSource } from "./delivery/input.ts";
@@ -98,6 +95,7 @@ export {
   toMcpHandler,
 } from "./delivery/mcp-handler.ts";
 export type { MountCheck, ServicesCheck } from "./delivery/mount-check.ts";
+export { type CsrfOptOut, type Route, type RouteOptions, route } from "./delivery/route.ts";
 export {
   type CallerContext,
   type DefaultViewTag,
@@ -113,3 +111,29 @@ export {
   type ViewsCheck,
   type ViewTable,
 } from "./delivery/views.ts";
+export {
+  Authenticator,
+  type AuthenticatorService,
+  type VerifyOptions,
+} from "./auth/authenticator.ts";
+export { Principal } from "./auth/principal.ts";
+export {
+  type ChallengeError,
+  type ProtectedResource,
+  type ProtectedResourceMetadata,
+  type ProtectedResourceOptions,
+  protectedResource,
+  protectedResourceMetadataPath,
+} from "./auth/protected-resource.ts";
+export { TokenRejected, type TokenRejectedReason } from "./auth/token-rejected.ts";
+export { type TokenSource, tokenFrom } from "./auth/token-source.ts";
+export { type Api, type ApiEndpoints, type ApiOptions, defineApi } from "./contract/api.ts";
+export {
+  type CallEntry,
+  type PromiseCall,
+  type PromiseClientOf,
+  type PromiseClientOptions,
+  type PromiseFailureOf,
+  toPromiseClient,
+} from "./client/promise-client.ts";
+export { type CapabilitiesOf, mount } from "./delivery/mount-api.ts";

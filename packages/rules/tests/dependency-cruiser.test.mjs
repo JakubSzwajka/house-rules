@@ -42,12 +42,12 @@ const ALSO_FIRES = {
 };
 
 // Refresh after an intentional rule change:
-// node -e 'console.log(JSON.stringify(require("./src/dependency-cruiser.cjs").layout({ scope: "@hosti/" }), null, 2))' > tests/fixtures/dependency-cruiser/layout-hosti.snapshot.json
+// node -e 'console.log(JSON.stringify(require("./src/dependency-cruiser.cjs").layout({ scope: "@acme/" }), null, 2))' > tests/fixtures/dependency-cruiser/layout-acme.snapshot.json
 test("layout() with drunk-cat-stack's scope matches the snapshot", async () => {
   const snapshot = JSON.parse(
-    await readFile(path.join(FIXTURES, "layout-hosti.snapshot.json"), "utf8"),
+    await readFile(path.join(FIXTURES, "layout-acme.snapshot.json"), "utf8"),
   );
-  const config = layout({ scope: "@hosti/" });
+  const config = layout({ scope: "@acme/" });
   assert.deepEqual(config, snapshot);
   assert.deepEqual(
     config.forbidden.map(({ name, severity }) => [name, severity]),

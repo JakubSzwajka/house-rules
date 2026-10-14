@@ -37,3 +37,12 @@ export { InputInvalid, type InputIssue } from "./delivery/input.ts";
 export { Refused } from "./delivery/caller.ts";
 export { ApprovalDenied, Forbidden } from "./gates/gate-errors.ts";
 export type { PermissionDeclaration } from "./gates/permission.ts";
+export { type Api, type ApiEndpoints, type ApiOptions, defineApi } from "./contract/api.ts";
+export {
+  type CallEntry,
+  type PromiseCall,
+  type PromiseClientOf,
+  type PromiseClientOptions,
+  type PromiseFailureOf,
+  toPromiseClient,
+} from "./client/promise-client.ts";

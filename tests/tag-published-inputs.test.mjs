@@ -119,7 +119,7 @@ describe("publish report and recovery inputs", () => {
     );
   });
 
-  it("loads the seven public workspace manifests and the retired capability one, without the summary", () => {
+  it("loads the ten public workspace manifests and the retired capability one, without the summary", () => {
     const files = [];
     const packages = workspacePackages((file) => {
       files.push(file);
@@ -132,6 +132,9 @@ describe("publish report and recovery inputs", () => {
         "rules",
         "domain",
         "application",
+        "auth-jwt",
+        "identity",
+        "party",
         "migrations",
         "call-audit",
         "comments",
@@ -139,7 +142,7 @@ describe("publish report and recovery inputs", () => {
         "capability",
       ].map((folder) => `packages/${folder}/package.json`),
     );
-    assert.equal(packages.length, 8);
+    assert.equal(packages.length, 11);
     assert.throws(() => workspacePackages(() => JSON.stringify({ name: "@other/app" })));
     assert.throws(() =>
       workspacePackages((file) =>
@@ -165,11 +168,27 @@ describe("publish report and recovery inputs", () => {
     ]);
   });
 
-  it("reads a new release commit that has domain and application and lacks capability", () => {
+  it("reads a kits release commit that lacks capability, auth and party", () => {
+    const kits = [
+      "rules",
+      "domain",
+      "application",
+      "migrations",
+      "call-audit",
+      "comments",
+      "node-host",
+    ];
+    assert.deepEqual(names(workspacePackages(checkout(kits))), kits);
+  });
+
+  it("reads a new release commit that has auth and party and lacks capability", () => {
     const current = [
       "rules",
       "domain",
       "application",
+      "auth-jwt",
+      "identity",
+      "party",
       "migrations",
       "call-audit",
       "comments",
@@ -186,7 +205,7 @@ describe("publish report and recovery inputs", () => {
       return JSON.stringify({ name: `@house-rules/${folder}`, version: "1.0.0" });
     };
     const packages = workspacePackages(historical);
-    assert.equal(packages.length, 7);
+    assert.equal(packages.length, 10);
     assert.ok(!packages.some(({ name }) => name === "@house-rules/comments"));
     for (const source of [
       "not json",
@@ -212,7 +231,7 @@ describe("publish report and recovery inputs", () => {
         assert.equal(command, "npm");
         assert.deepEqual(args, [
           "view",
-          "@house-rules/application@0.1.0",
+          "@house-rules/application@0.2.0",
           "--json",
           "--registry=https://registry.npmjs.org",
         ]);

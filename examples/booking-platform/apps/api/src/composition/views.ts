@@ -5,12 +5,15 @@ import type {
   BookingStoreUnavailable,
 } from "@example/bookings";
 import { problemView } from "@house-rules/application";
+import type { AuthJwtConfigInvalid } from "@house-rules/auth-jwt";
 import type {
   CommentInputInvalid,
   CommentStoreUnavailable,
   CommentTargetNotFound,
   CommentTargetsUnavailable,
 } from "@house-rules/comments";
+import type { PersonNotFound, PersonStoreUnavailable } from "@house-rules/party";
+import type { DevSignInOff } from "@example/dev-sign-in";
 import type { SqlError } from "effect/sql/SqlError";
 
 export const commentViews = {
@@ -18,11 +21,13 @@ export const commentViews = {
     400,
     "invalid_input",
     (_error: CommentInputInvalid) => "Invalid comment input.",
+    { exposeCode: true },
   ),
   CommentTargetNotFound: problemView(
     404,
     "not_found",
     (_error: CommentTargetNotFound) => "Comment target was not found.",
+    { exposeCode: true },
   ),
   CommentStoreUnavailable: problemView(
     503,
@@ -36,8 +41,33 @@ export const commentViews = {
   ),
 };
 
+export const personViews = {
+  PersonNotFound: problemView(
+    404,
+    "not_found",
+    (_error: PersonNotFound) => "That person was not found.",
+    { exposeCode: true },
+  ),
+  PersonStoreUnavailable: problemView(
+    503,
+    "unavailable",
+    (_error: PersonStoreUnavailable) => "People are unavailable right now.",
+  ),
+};
+
+export const devSignInViews = {
+  DevSignInOff: problemView(
+    404,
+    "not_found",
+    (_error: DevSignInOff) => "Dev sign-in is off on this server.",
+    { exposeCode: true },
+  ),
+};
+
 export const bookingViews = {
   ...commentViews,
+  ...personViews,
+  ...devSignInViews,
   BookingNotFound: problemView(
     404,
     "not_found",
@@ -48,6 +78,7 @@ export const bookingViews = {
     409,
     "conflict",
     (error: BookingAlreadyExists) => `Booking ${error.id} already exists.`,
+    { exposeCode: true },
   ),
   BookingAlreadyCancelled: problemView(
     409,
@@ -58,6 +89,11 @@ export const bookingViews = {
     503,
     "unavailable",
     (_error: BookingStoreUnavailable) => "Bookings are unavailable right now.",
+  ),
+  AuthJwtConfigInvalid: problemView(
+    503,
+    "unavailable",
+    (_error: AuthJwtConfigInvalid) => "Sign-in is not set up correctly on this server.",
   ),
   SqlError: problemView(503, "unavailable", (_error: SqlError) => "The database is unavailable."),
 };

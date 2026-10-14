@@ -1,13 +1,13 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { api, handler, openApi } from "../main.js";
+import { handler, openApi, web } from "../main.js";
 import { app } from "../composition/index.js";
 
 afterAll(() => handler.dispose().then(app.dispose));
 
 const get = (path: string, headers: Record<string, string> = {}) =>
   Effect.promise(() =>
-    api(new Request(`https://hosti.example${path}`, { headers }) as Request),
+    web(new Request(`https://booking.example${path}`, { headers }) as Request),
   ).pipe(
     Effect.flatMap((response) =>
       Effect.promise((): Promise<unknown> => response.json()).pipe(
@@ -40,6 +40,16 @@ it.effect("an unknown query key is a 400 that names it", () =>
     const r = yield* get("/api/bookings/b-1?admin=true");
     expect(r.status).toBe(400);
     expect(r.body).toMatchObject({ error: { code: "invalid_input", field: "admin" } });
+  }),
+);
+
+it.effect("with no built page and no WEB_ROOT, the handler serves the API only", () =>
+  Effect.gen(function* apiOnly() {
+    const response = yield* Effect.promise(() =>
+      handler(new Request("https://booking.example/", { headers: { accept: "text/html" } })),
+    );
+    expect(response.status).toBe(404);
+    expect(response.headers.get("content-type") ?? "").not.toContain("text/html");
   }),
 );
 

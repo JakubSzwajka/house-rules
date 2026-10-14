@@ -1,44 +1,80 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { toFetchHandler, toOpenApi } from "@house-rules/application";
 import { Migrations } from "@house-rules/migrations";
-import { serve } from "@house-rules/node-host";
-import { Config, Effect, Layer, Option } from "effect";
+import { serve, staticFiles } from "@house-rules/node-host";
+import { Config, Effect, FileSystem, Layer, Option } from "effect";
 import { databaseUrl, postgresClient } from "./composition/app-layer.js";
+import { visitorCaller } from "./composition/callers.js";
 import { app } from "./composition/index.js";
-import { bookingRoutes } from "./delivery/http/routes.js";
-import { mcpAuthConfig, mcpPath } from "./delivery/mcp/config.js";
-import { metadataHandler, metadataPaths } from "./delivery/mcp/metadata.js";
+import { callNotes } from "./composition/request-log.js";
+import { signInConfig } from "./composition/sign-in.js";
+import { logRequests } from "./delivery/http/access-log.js";
+import { devApi } from "./delivery/http/api.js";
+import { devRoutes, memberRoutes, visitorRoutes } from "./delivery/http/routes.js";
+import { mcpPath, mcpResource } from "./delivery/mcp/config.js";
 import { mcpRoute } from "./delivery/mcp/route.js";
 
 const publicOrigin = await Effect.runPromise(
   Config.String("APP_ORIGIN").pipe(Config.withDefault("")),
 );
-const mcpAuth = await Effect.runPromise(mcpAuthConfig);
+const signIn = await Effect.runPromise(signInConfig);
+const resource = await Effect.runPromise(mcpResource);
+const origins = publicOrigin === "" ? {} : { origins: [publicOrigin] };
 
-export const api = toFetchHandler(app, {
-  prefix: "/api",
-  routes: bookingRoutes,
-  ...(publicOrigin === "" ? {} : { origins: [publicOrigin] }),
-});
-
-export const mcp = mcpRoute(app, mcpAuth);
-
-const metadata = metadataHandler(mcpAuth);
-
-export const handler = Object.assign(
-  (request: Request): Promise<Response> => {
-    const path = new URL(request.url).pathname;
-    if (path === mcpPath) return mcp(request);
-    if (metadataPaths.includes(path)) return metadata(request);
-    return api(request);
-  },
-  { dispose: () => Promise.all([mcp.dispose(), api.dispose()]).then(() => undefined) },
+const builtPage = new URL("./web", import.meta.url).pathname;
+const webRoot = await Effect.runPromise(
+  Effect.gen(function* findPage() {
+    const configured = yield* Config.String("WEB_ROOT").pipe(Config.withDefault(""));
+    if (configured !== "") return Option.some(configured);
+    const exists = yield* (yield* FileSystem.FileSystem).exists(builtPage);
+    return exists ? Option.some(builtPage) : Option.none<string>();
+  }).pipe(Effect.provide(NodeServices.layer)),
 );
 
-export const openApi = toOpenApi(bookingRoutes, {
-  title: "Hosti API",
+const page = Option.map(webRoot, (root) =>
+  staticFiles({ root, exclude: ["/api", mcpPath, "/.well-known"] }),
+);
+
+export const web =
+  signIn.kind === "visitor"
+    ? toFetchHandler(app, { routes: visitorRoutes, caller: visitorCaller, ...origins })
+    : toFetchHandler(app, { routes: memberRoutes, ...origins });
+
+export const devSignIn = toFetchHandler(app, {
+  routes: devRoutes,
+  caller: visitorCaller,
+  ...origins,
+});
+
+export const mcp = mcpRoute(app, resource);
+
+const devPrefix = `${devApi.prefix}/`;
+
+const apiHandler = (request: Request): Promise<Response> => {
+  const path = new URL(request.url).pathname;
+  if (path === mcpPath) return mcp(request);
+  if (resource.paths.includes(path)) return resource.handler(request);
+  if (path.startsWith(devPrefix)) return devSignIn(request);
+  return web(request);
+};
+
+export const handler = Object.assign(
+  Option.match(page, {
+    onNone: () => apiHandler,
+    onSome:
+      (site) =>
+      (request: Request): Promise<Response> =>
+        site(request).then((response) => response ?? apiHandler(request)),
+  }),
+  {
+    dispose: () =>
+      Promise.all([mcp.dispose(), web.dispose(), devSignIn.dispose()]).then(() => undefined),
+  },
+);
+
+export const openApi = toOpenApi(memberRoutes, {
+  title: "Booking example API",
   version: "0.0.0",
-  prefix: "/api",
   views: app.views,
 });
 
@@ -55,8 +91,15 @@ if (import.meta.main) {
         );
       }
       const port = yield* Config.Number("PORT").pipe(Config.withDefault(3000));
+      const served = Option.match(webRoot, {
+        onNone: () => "API only",
+        onSome: (root) => `page from ${root}`,
+      });
+      yield* Effect.logInfo(`API on http://localhost:${port}, sign-in: ${signIn.kind}, ${served}`);
+      const logged = logRequests(handler, callNotes);
+      const run = Effect.runPromiseWith(yield* Effect.context<never>());
       return yield* Effect.promise(() =>
-        serve(handler, {
+        serve((request) => run(logged(request)), {
           port,
           onClose: () => handler.dispose().then(() => app.dispose()),
           handleSignals: true,

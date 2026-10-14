@@ -3,7 +3,18 @@ import { existsSync, globSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { assertPackedComments } from "../scripts/packed-comments.mjs";
 
-const BUILT = ["domain", "application", "migrations", "call-audit", "comments", "node-host"];
+const BUILT = [
+  "domain",
+  "application",
+  "auth-jwt",
+  "identity",
+  "party",
+  "migrations",
+  "call-audit",
+  "comments",
+  "node-host",
+];
+const WITH_MIGRATIONS = ["call-audit", "comments", "identity", "party"];
 const PUBLISHED = [...BUILT, "rules"];
 const DOCS = new Set(["AGENTS.md", "README.md"]);
 
@@ -33,7 +44,7 @@ describe("published packages", () => {
       assert.ok(existsSync(new URL(`../packages/${folder}/tsconfig.build.json`, import.meta.url)));
       assert.equal(pkg.scripts.build, "tsc --project tsconfig.build.json");
       assert.equal(pkg.scripts.prepack, "pnpm run build");
-      const extra = ["call-audit", "comments"].includes(folder) ? ["migrations"] : [];
+      const extra = WITH_MIGRATIONS.includes(folder) ? ["migrations"] : [];
       assert.deepEqual(
         pkg.files.filter((file) => !DOCS.has(file)),
         ["dist", ...extra],
@@ -47,25 +58,27 @@ describe("published packages", () => {
   }
 
   it("the kits and the additions peer on exact kit versions and Effect 4.0.3", () => {
+    const kits = { "@house-rules/application": "0.2.0", "@house-rules/domain": "0.1.0" };
     assert.equal(manifest("domain").version, "0.1.0");
-    assert.equal(manifest("application").version, "0.1.0");
-    assert.equal(manifest("comments").version, "0.1.0");
-    assert.equal(manifest("call-audit").version, "0.6.0");
+    assert.equal(manifest("application").version, "0.2.0");
+    assert.equal(manifest("comments").version, "0.2.0");
+    assert.equal(manifest("call-audit").version, "0.7.0");
+    for (const folder of ["auth-jwt", "identity", "party"]) {
+      assert.equal(manifest(folder).version, "0.1.0");
+    }
     assert.deepEqual(manifest("domain").peerDependencies, { effect: "4.0.3" });
     assert.deepEqual(manifest("application").peerDependencies, {
       "@house-rules/domain": "0.1.0",
       effect: "4.0.3",
     });
-    assert.deepEqual(manifest("comments").peerDependencies, {
-      "@house-rules/application": "0.1.0",
-      "@house-rules/domain": "0.1.0",
-      effect: "4.0.3",
-    });
+    for (const folder of ["comments", "auth-jwt", "identity", "party"]) {
+      assert.deepEqual(manifest(folder).peerDependencies, { ...kits, effect: "4.0.3" }, folder);
+    }
     assert.deepEqual(manifest("call-audit").peerDependencies, {
-      "@house-rules/application": "0.1.0",
+      "@house-rules/application": "0.2.0",
       effect: "4.0.3",
     });
-    for (const folder of ["comments", "call-audit"]) {
+    for (const folder of WITH_MIGRATIONS) {
       assert.equal(manifest(folder).houseRules.migrations, "migrations");
     }
   });

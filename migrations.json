@@ -2,6 +2,8 @@
   "modules": [
     { "workspace": "packages/call-audit" },
     { "workspace": "examples/booking-platform/packages/bookings" },
-    { "workspace": "packages/comments" }
+    { "workspace": "packages/comments" },
+    { "workspace": "packages/identity" },
+    { "workspace": "packages/party" }
   ]
 }

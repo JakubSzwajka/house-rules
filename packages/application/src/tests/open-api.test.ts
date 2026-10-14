@@ -44,7 +44,7 @@ const views = {
 };
 
 const document = toOpenApi([...routes, endpoint(reserve, "POST /reservations", { status: 201 })], {
-  title: "Hosti",
+  title: "Booking example",
   version: "1.0.0",
   prefix: "/api",
   views,
@@ -68,7 +68,7 @@ const refsIn = (value: unknown): Array<string> =>
 
 it("names the version, the info and the mounted paths with the prefix", () => {
   expect(document.openapi).toBe("3.1.0");
-  expect(document.info).toEqual({ title: "Hosti", version: "1.0.0" });
+  expect(document.info).toEqual({ title: "Booking example", version: "1.0.0" });
   expect(Object.keys(document.paths).sort()).toEqual([
     "/api/bookings",
     "/api/bookings/{id}",

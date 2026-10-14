@@ -1,6 +1,6 @@
 # @house-rules/call-audit: notes for agents
 
-Version 0.6.0 peers on exact `effect` 4.0.3 and `@house-rules/application` 0.1.0, which replaces the retired capability package. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
+Version 0.7.0 peers on exact `effect` 4.0.3 and `@house-rules/application` 0.2.0, which replaces the retired capability package. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
 
 ## What it does
 

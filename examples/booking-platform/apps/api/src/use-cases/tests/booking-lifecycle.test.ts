@@ -21,11 +21,11 @@ const callerFor =
         Context.add(Grant, Grant.fromPermissions(permissions)),
       ),
     );
-const incoming = { headers: new Headers(), url: "https://hosti.example" };
+const incoming = { headers: new Headers(), url: "https://booking.example" };
 
 const fresh = Effect.acquireRelease(
   Effect.sync(() =>
-    composition({ layer: memoryAppLayer, caller: callerFor(actorA), views: bookingViews }),
+    composition({ layer: memoryAppLayer(), caller: callerFor(actorA), views: bookingViews }),
   ),
   (app) => Effect.promise(() => app.dispose()),
 );

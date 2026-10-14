@@ -1,8 +1,8 @@
 import test from "node:test";
-import { HOSTI_TOKENS, LANDING_TOKENS, cssRuleTester, rule } from "./design-helpers.mjs";
+import { ACME_TOKENS, LANDING_TOKENS, cssRuleTester, rule } from "./design-helpers.mjs";
 
 const RULE = rule("design-no-unknown-token");
-const tokens = { tokenFiles: [HOSTI_TOKENS] };
+const tokens = { tokenFiles: [ACME_TOKENS] };
 
 function unknown(name) {
   return { message: `var(${name}) has no definition in the token files or in this file.` };
@@ -18,7 +18,7 @@ test("design-no-unknown-token", () => {
       {
         name: "a token from any of several token files",
         code: "a { color: var(--pop); }",
-        options: [{ tokenFiles: [LANDING_TOKENS, HOSTI_TOKENS] }],
+        options: [{ tokenFiles: [LANDING_TOKENS, ACME_TOKENS] }],
       },
       {
         name: "same-file definitions resolve, even after the use",
@@ -37,7 +37,7 @@ test("design-no-unknown-token", () => {
     ],
     invalid: [
       {
-        name: "Hosti landing: --bar is set from JavaScript and defined nowhere",
+        name: "Acme landing: --bar is set from JavaScript and defined nowhere",
         code: ".chart-bars i {\n  height: var(--bar);\n}",
         options: [tokens],
         errors: [{ ...unknown("--bar"), line: 2, column: 15, endLine: 2, endColumn: 20 }],

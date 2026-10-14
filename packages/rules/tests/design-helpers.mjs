@@ -6,12 +6,12 @@ import tsParser from "@typescript-eslint/parser";
 import { ESLint, RuleTester } from "eslint";
 import plugin from "../src/index.mjs";
 
-export const HOSTI = path.resolve(import.meta.dirname, "fixtures/hosti");
-export const HOSTI_TOKENS = path.join(HOSTI, "apps/web/src/styles/hosti.css");
-export const LANDING_TOKENS = path.join(HOSTI, "landing/styles/tokens.css");
+export const ACME = path.resolve(import.meta.dirname, "fixtures/acme");
+export const ACME_TOKENS = path.join(ACME, "apps/web/src/styles/acme.css");
+export const LANDING_TOKENS = path.join(ACME, "landing/styles/tokens.css");
 
-// The scale-value configuration the Hosti probe proposed.
-export const HOSTI_SCALES = [
+// The scale-value configuration the Acme probe proposed.
+export const ACME_SCALES = [
   {
     property: "^border(-(top|bottom|start|end)-(left|right|start|end))?-radius$",
     allowed: ["2px", "3px", "4px", "5px", "6px", "8px", "10px", "12px", "999px"],

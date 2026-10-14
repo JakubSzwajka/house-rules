@@ -6,13 +6,13 @@ import css from "@eslint/css";
 import tsParser from "@typescript-eslint/parser";
 import plugin from "../src/index.mjs";
 import design, { design as namedDesign } from "../src/design.mjs";
-import { HOSTI, HOSTI_SCALES, countByRule, lintWith } from "./design-helpers.mjs";
+import { ACME, ACME_SCALES, countByRule, lintWith } from "./design-helpers.mjs";
 
-const HOSTI_APP = {
-  tokenFiles: ["apps/web/src/styles/hosti.css"],
+const ACME_APP = {
+  tokenFiles: ["apps/web/src/styles/acme.css"],
   css: { files: ["apps/**/*.css"] },
   source: { files: ["apps/**/*.{ts,tsx}"] },
-  rules: { "design-scale-value": HOSTI_SCALES },
+  rules: { "design-scale-value": ACME_SCALES },
 };
 
 async function packagesLoadedBy(entry) {
@@ -108,8 +108,8 @@ test("the package root registers the design rules without loading @eslint/css", 
   assert.equal((await packagesLoadedBy("design.mjs")).packages.has("@eslint/markdown"), false);
 });
 
-test("Hosti parity: the app styles and sources report the probe's real cases", async () => {
-  const findings = await lintWith(HOSTI, design(HOSTI_APP), ["apps"]);
+test("Acme parity: the app styles and sources report the probe's real cases", async () => {
+  const findings = await lintWith(ACME, design(ACME_APP), ["apps"]);
   assert.deepEqual(countByRule(findings), {
     "design-no-raw-color": 9,
     "design-no-raw-color-literal": 3,
@@ -122,28 +122,28 @@ test("Hosti parity: the app styles and sources report the probe's real cases", a
     'apps/web/src/server/serving/respond.ts:10:40 design-no-raw-color-literal Raw colour "#1c1917" in a string. Use a design token, such as var(--name) or a theme constant.',
     'apps/web/src/server/serving/respond.ts:10:61 design-no-raw-color-literal Raw colour "#fafaf9" in a string. Use a design token, such as var(--name) or a theme constant.',
     'apps/web/src/server/serving/respond.ts:11:26 design-no-raw-color-literal Raw colour "#f5f5f4" in a string. Use a design token, such as var(--name) or a theme constant.',
+    'apps/web/src/styles/acme.css:29:56 design-no-raw-color Raw colour "rgba(43, 49, 51, 0.08)". Use a design token; the nearest is var(--ink).',
+    'apps/web/src/styles/acme.css:38:15 design-no-raw-color Raw colour "#bfe0e3". Use a design token; the nearest is var(--line-soft).',
+    'apps/web/src/styles/acme.css:43:20 design-no-raw-color Raw colour "#b3bbbd". Use a design token; the nearest is var(--line).',
+    'apps/web/src/styles/acme.css:50:15 design-no-raw-color Raw colour "#b3bbbd". Use a design token; the nearest is var(--line).',
+    'apps/web/src/styles/acme.css:55:15 design-no-raw-color Raw colour "#98a2a4". Use a design token; the nearest is var(--line).',
     'apps/web/src/styles/grid.css:4:18 design-scale-value border-radius "2px 2px 0 0" has values off the scale: 0. Allowed: 2px, 3px, 4px, 5px, 6px, 8px, 10px, 12px, 999px.',
     'apps/web/src/styles/grid.css:5:15 design-no-raw-color Raw colour "#c5cdcf". Use a design token; the nearest is var(--line).',
     'apps/web/src/styles/grid.css:18:15 design-no-raw-color Raw colour "#fff". Use a design token; the nearest is var(--card).',
     'apps/web/src/styles/grid.css:32:42 design-no-raw-color Raw colour "rgba(248, 253, 255, 0)". Use a design token; the nearest is var(--card).',
     'apps/web/src/styles/grid.css:37:15 design-no-raw-color Raw colour "#e8f4f5". Use a design token; the nearest is var(--paper).',
-    'apps/web/src/styles/hosti.css:29:56 design-no-raw-color Raw colour "rgba(43, 49, 51, 0.08)". Use a design token; the nearest is var(--ink).',
-    'apps/web/src/styles/hosti.css:38:15 design-no-raw-color Raw colour "#bfe0e3". Use a design token; the nearest is var(--line-soft).',
-    'apps/web/src/styles/hosti.css:43:20 design-no-raw-color Raw colour "#b3bbbd". Use a design token; the nearest is var(--line).',
-    'apps/web/src/styles/hosti.css:50:15 design-no-raw-color Raw colour "#b3bbbd". Use a design token; the nearest is var(--line).',
-    'apps/web/src/styles/hosti.css:55:15 design-no-raw-color Raw colour "#98a2a4". Use a design token; the nearest is var(--line).',
   ]);
 });
 
-test("Hosti parity: landing custom-property colours, an undefined --bar, and a hand-timed transition", async () => {
+test("Acme parity: landing custom-property colours, an undefined --bar, and a hand-timed transition", async () => {
   const findings = await lintWith(
-    HOSTI,
+    ACME,
     design({
       tokenFiles: ["landing/styles/tokens.css"],
       css: { files: ["landing/**/*.css"] },
       source: false,
       rules: {
-        "design-scale-value": HOSTI_SCALES,
+        "design-scale-value": ACME_SCALES,
         "design-no-raw-color": { suggestNearest: false },
       },
     }),

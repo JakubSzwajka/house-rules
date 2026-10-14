@@ -14,6 +14,8 @@ Only the publish job has `contents: write`, needed to push those tags. Its check
 
 ### Kits release preparation
 
+This section records the earlier kits release preparation, kept as history. The current plan is under "Party and auth release preparation" below, which lists ten public packages.
+
 Merge first, publish later. This change splits `@house-rules/capability` into two kits and prepares seven public packages:
 
 | Package | Version | Why |
@@ -32,17 +34,38 @@ Before a later approved publish, confirm the `NPM_TOKEN` owner can create `@hous
 
 Consumers must wait 24 hours after a future publication under this repo's release-age policy. No `minimumReleaseAgeExclude` entry is added; any exception needs separate owner approval.
 
+### Party and auth release preparation
+
+Merge first, publish later. This change adds sign-in and people as three new public packages, moves every exact peer on the application kit to its new version, and adds static files to the Node Host:
+
+| Package | Version | Why |
+| --- | --- | --- |
+| `@house-rules/auth-jwt` | 0.1.0 | new: first release; fills `Authenticator`; depends on `jose` 6.2.12 |
+| `@house-rules/identity` | 0.1.0 | new: first release; identity bindings, `ActorResolver`, `FirstSignIn`, `Identity.caller` |
+| `@house-rules/party` | 0.1.0 | new: first release; Person records keyed by `ActorId` |
+| `@house-rules/application` | 0.2.0 | new public API: `Principal`, `Authenticator`, `TokenRejected`, `tokenFrom`, `protectedResource`; 0.1.0 is on npm |
+| `@house-rules/comments` | 0.2.0 | exact peer on application 0.2.0 instead of 0.1.0 |
+| `@house-rules/call-audit` | 0.7.0 | exact peer on application 0.2.0 instead of 0.1.0 |
+| `@house-rules/domain` | 0.1.0 | unchanged |
+| `@house-rules/rules` | 0.18.0 | unchanged |
+| `@house-rules/migrations` | 0.3.0 | unchanged |
+| `@house-rules/node-host` | 0.2.0 | new public API: `staticFiles` serves a built single-page app from the API's own service; 0.1.0 is on npm |
+
+The three new packages peer on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Identity and party ship their SQL migrations; an app lists each in `migrations.json`.
+
+Before a later approved publish, confirm the `NPM_TOKEN` owner can create `@house-rules/auth-jwt`, `@house-rules/identity` and `@house-rules/party` in the scope. A token limited to existing packages will not cover these first releases. The same OIDC, provenance and release-age notes as the kits release apply. Do not manually publish or create a trigger tag to merge this work.
+
 ### If tagging failed
 
 A workflow rerun may publish nothing, leaving an empty summary. Normal tagging then does nothing. A missing summary is an error: the tagging step fails the job and prints a recovery hint. Do not bump versions or republish to fix tags.
 
 1. [ ] In a clean checkout, fetch tags and check out the exact release commit from the failed run, not today's `main`. Confirm `git rev-parse HEAD` matches that run. Use the fixed recovery script from a newer checkout if the release commit lacks it.
-2. [ ] Run `node /path/to/fixed/scripts/tag-published.mjs --recover --dry-run` from that release checkout. It reads the seven known public workspace versions, plus the retired `capability` package, which only recovery reads, queries npm for each exact version and fetches `dist.attestations.url`. It decodes the DSSE payload's SLSA provenance and reads `predicate.buildDefinition.resolvedDependencies[].digest.gitCommit`. The workflow repository and source URI must name `JakubSzwajka/house-rules`; the source commit must equal HEAD for a package to qualify. `gitHead` is not used. The dry run prints matching packages and commits, checks local tag conflicts and makes no Git writes.
+2. [ ] Run `node /path/to/fixed/scripts/tag-published.mjs --recover --dry-run` from that release checkout. It reads the ten known public workspace versions, plus the retired `capability` package, which only recovery reads, queries npm for each exact version and fetches `dist.attestations.url`. It decodes the DSSE payload's SLSA provenance and reads `predicate.buildDefinition.resolvedDependencies[].digest.gitCommit`. The workflow repository and source URI must name `JakubSzwajka/house-rules`; the source commit must equal HEAD for a package to qualify. `gitHead` is not used. The dry run prints matching packages and commits, checks local tag conflicts and makes no Git writes.
 3. [ ] With approval to push the release tags and an authenticated `origin`, rerun without `--dry-run`. Recovery pushes all matching tags atomically, including local tags left by a failed push. Check the tags on `origin`. It never moves a tag at another commit and also recovers packages that reached npm before a partial publish failure.
 
 Unpublished versions and versions sourced from another commit are skipped. Missing or unreadable attestations, a foreign repository, malformed provenance and registry failures other than 404 stop recovery before any tag is created. Recovery reads provenance served by npm; it does not verify bundle signatures itself.
 
-Historical checkouts may predate a known package. Recovery skips only an absent package manifest (ENOENT); an existing private manifest, invalid JSON or version, or any other read failure still stops it. This lets the current script recover release commits from before comments, domain or application existed, and commits that still have `packages/capability`. A publish summary that names `@house-rules/capability` still fails: only recovery accepts the retired name.
+Historical checkouts may predate a known package. Recovery skips only an absent package manifest (ENOENT); an existing private manifest, invalid JSON or version, or any other read failure still stops it. This lets the current script recover release commits from before comments, domain, application, auth-jwt, identity or party existed, and commits that still have `packages/capability`. A publish summary that names `@house-rules/capability` still fails: only recovery accepts the retired name.
 
 Recovery does not publish anything. A personal-token push can trigger the publish workflow; use `GITHUB_TOKEN` in CI if that must be avoided.
 

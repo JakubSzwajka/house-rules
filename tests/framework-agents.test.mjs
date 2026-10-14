@@ -6,6 +6,9 @@ import { describe, it } from "node:test";
 const FRAMEWORK_PACKAGES = [
   "domain",
   "application",
+  "auth-jwt",
+  "identity",
+  "party",
   "call-audit",
   "comments",
   "migrations",

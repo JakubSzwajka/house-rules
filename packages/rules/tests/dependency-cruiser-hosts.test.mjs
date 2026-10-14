@@ -151,12 +151,12 @@ test("layers.composition renames the composition folder", () => {
 });
 
 // Refresh after an intentional rule change:
-// node -e 'console.log(JSON.stringify(require("./src/dependency-cruiser.cjs").layout({ scope: "@hosti/", host: "next" }), null, 2))' > tests/fixtures/dependency-cruiser/layout-hosti-next.snapshot.json
+// node -e 'console.log(JSON.stringify(require("./src/dependency-cruiser.cjs").layout({ scope: "@acme/", host: "next" }), null, 2))' > tests/fixtures/dependency-cruiser/layout-acme-next.snapshot.json
 test("layout() with host: next matches its snapshot", async () => {
   const snapshot = JSON.parse(
-    await readFile(path.join(FIXTURES, "layout-hosti-next.snapshot.json"), "utf8"),
+    await readFile(path.join(FIXTURES, "layout-acme-next.snapshot.json"), "utf8"),
   );
-  assert.deepEqual(layout({ scope: "@hosti/", host: "next" }), snapshot);
+  assert.deepEqual(layout({ scope: "@acme/", host: "next" }), snapshot);
 });
 
 test("renaming layers.useCases moves the use-cases rules to the new folder", async () => {

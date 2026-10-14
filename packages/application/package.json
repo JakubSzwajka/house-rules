@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/application",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The application layer for Effect apps: contracts, capabilities, gates, composition, and HTTP and MCP delivery.",
   "license": "MIT",
   "type": "module",

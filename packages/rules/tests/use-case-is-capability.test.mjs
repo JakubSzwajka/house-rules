@@ -27,7 +27,7 @@ function lint(code, filename = USE_CASE, options) {
 }
 
 test("passes a use-case with one capability, one contract, and type exports", () => {
-  const code = `${IMPORTS}import type { Booking } from "@hosti/bookings";
+  const code = `${IMPORTS}import type { Booking } from "@acme/bookings";
 export type ShowBooking = typeof showBooking;
 export interface View { readonly id: string }
 export type { Booking };

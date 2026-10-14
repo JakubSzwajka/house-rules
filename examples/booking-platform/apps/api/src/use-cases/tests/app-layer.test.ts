@@ -18,7 +18,7 @@ it.layer(appLayer)("appLayer", (test) => {
   );
 });
 
-it.layer(memoryAppLayer)("call-audit on the CallWatch slot", (test) => {
+it.layer(memoryAppLayer())("call-audit on the CallWatch slot", (test) => {
   test.effect("records the actor's write with its target, and keeps no visitor read off MCP", () =>
     Effect.gen(function* records() {
       const actor = Actor.make({ id: ActorId.make("actor-a") });

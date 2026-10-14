@@ -1,5 +1,6 @@
 import { Effect, Schema } from "effect";
 import {
+  FetchHttpClient,
   HttpClient,
   type HttpClientError,
   HttpClientRequest,
@@ -12,6 +13,7 @@ import {
   pathParamNames,
   writeMethods,
 } from "../contract/endpoint.ts";
+import { onBaseOrigin, pathStaysOn, type RequestBase, requestBaseOf } from "./base-origin.ts";
 
 export type ClientFailureCode<Code extends string> = Code | "Unknown";
 
@@ -73,13 +75,21 @@ const bodyOf = (response: HttpClientResponse.HttpClientResponse) =>
         ),
   );
 
-const callOf = (shape: EndpointShape, options: HttpClientOptions) => {
+export type CallOptions = Readonly<{
+  prefix?: `/${string}`;
+  base: () => RequestBase | undefined;
+}>;
+
+export const callOf = (shape: EndpointShape, options: CallOptions) => {
   const { contract, method, path, status, codes } = shape;
   const params = pathParamNames(shape);
   const json = Schema.toCodecJson(contract.input) as unknown as Codec;
   const strings = Schema.toCodecStringTree(contract.input) as unknown as Codec;
   const output = Schema.toCodecJson(contract.output) as unknown as Codec;
   const write = writeMethods.has(method);
+  // Nothing went out: the same status 0 a network failure has.
+  const unsent = (reason: string) =>
+    new HttpFailure({ code: "Unknown", status: 0, body: `${contract.name}: ${reason}` });
   return (input: unknown) =>
     Effect.gen(function* callEndpoint() {
       const tree = yield* encodedRecord(strings, input);
@@ -87,9 +97,20 @@ const callOf = (shape: EndpointShape, options: HttpClientOptions) => {
         const param = params.find((name) => segment === `:${name}`);
         return param === undefined
           ? Effect.succeed(segment)
-          : Effect.map(oneString(contract.name, param, tree[param]), encodeURIComponent);
+          : Effect.flatMap(oneString(contract.name, param, tree[param]), (value) =>
+              // A URL parser folds `.` and `..` into the path above, and an empty value joins two slashes into `//host`.
+              value === "" || value === "." || value === ".."
+                ? Effect.fail(unsent(`${param} cannot be empty, "." or ".."`))
+                : Effect.succeed(encodeURIComponent(value)),
+            );
       });
-      const url = `${options.baseUrl ?? ""}${options.prefix ?? ""}${segments.join("/")}`;
+      const base = options.base();
+      if (base === undefined) {
+        return yield* unsent("no base origin: give baseUrl, or call from an http or https page");
+      }
+      // Absolute, so the transport has nothing left to resolve it against.
+      const target = `${options.prefix ?? ""}${segments.join("/")}`;
+      const url = `${base.href}${target}`;
       let request = HttpClientRequest.make(method)(url).pipe(
         HttpClientRequest.setHeader("accept", "application/json"),
       );
@@ -106,8 +127,19 @@ const callOf = (shape: EndpointShape, options: HttpClientOptions) => {
           }
         }
       }
+      // The last word before sending: a raw endpoint path such as `//host` or `/\t/host` cannot leave the base origin.
+      if (!pathStaysOn(target, base) || onBaseOrigin(url, base) === undefined) {
+        return yield* unsent(`${JSON.stringify(url)} is not on the base origin`);
+      }
+      const fetch = yield* FetchHttpClient.Fetch;
+      const manual: typeof globalThis.fetch = (input, init) =>
+        // The transport hands over its whole init, any FetchHttpClient.RequestInit merged in; only the redirect mode changes.
+        fetch(input, { ...init, redirect: "manual" });
       // The browser sends same-origin cookies and an Origin header on a write; the CSRF check reads it.
-      const response = yield* (yield* HttpClient.HttpClient).execute(request);
+      const response = yield* (yield* HttpClient.HttpClient).execute(request).pipe(
+        // fetch follows a redirect to any origin, body included; "manual" hands back the 3xx, which fails below.
+        Effect.provideService(FetchHttpClient.Fetch, manual),
+      );
       const body = yield* bodyOf(response);
       if (response.status === status) {
         return yield* Schema.decodeUnknownEffect(output)(body).pipe(
@@ -133,13 +165,17 @@ export const toHttpClient = <const Endpoints extends ReadonlyArray<EndpointShape
   endpoints: Endpoints,
   options: HttpClientOptions = {},
 ): HttpClientOf<Endpoints> => {
+  const base = requestBaseOf("toHttpClient", options.baseUrl);
   const client: Record<string, unknown> = {};
   for (const shape of endpoints) {
     if (Object.hasOwn(client, shape.contract.name)) {
       // Build time, not a call: two endpoints under one name would make one of them unreachable.
       throw new TypeError(`toHttpClient: ${shape.contract.name} is listed twice`);
     }
-    client[shape.contract.name] = callOf(shape, options);
+    client[shape.contract.name] = callOf(shape, {
+      ...(options.prefix === undefined ? {} : { prefix: options.prefix }),
+      base,
+    });
   }
   return client as HttpClientOf<Endpoints>;
 };

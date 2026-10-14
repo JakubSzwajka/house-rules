@@ -1,25 +1,18 @@
 import { afterAll, expect, it } from "@effect/vitest";
+import { AuthJwtTesting } from "@house-rules/auth-jwt";
 import { Effect } from "effect";
 import { app } from "../../../composition/index.js";
 import { handler } from "../../../main.js";
-import { metadataHandler } from "../metadata.js";
-import { mcpRoute } from "../route.js";
-import { appWithFakeVerifier, config } from "./fake-verifier.js";
 import { mcpInitialize, mcpSend } from "./mcp-client.js";
+import { bearer, issuer, resource, signedInApp } from "./signed-in.js";
 
-const faked = appWithFakeVerifier();
-const mcp = mcpRoute(faked, config);
-const unverified = mcpRoute(app, config);
-afterAll(() =>
-  Promise.all([mcp.dispose(), unverified.dispose(), handler.dispose()])
-    .then(() => faked.dispose())
-    .then(() => app.dispose()),
-);
+afterAll(() => handler.dispose().then(() => app.dispose()));
 
-const metadataUrl = "https://hosti.example/.well-known/oauth-protected-resource/mcp";
+const metadataUrl = "https://booking.example/.well-known/oauth-protected-resource/mcp";
 
-it.effect("no token is a 401 whose challenge names resource_metadata", () =>
+it.live("no token is a 401 whose challenge names resource_metadata", () =>
   Effect.gen(function* missingToken() {
+    const { mcp } = yield* signedInApp;
     for (const method of ["POST", "GET", "DELETE"]) {
       const answer = yield* mcpSend(mcp, {}, mcpInitialize, method);
       expect(answer.status).toBe(401);
@@ -31,62 +24,76 @@ it.effect("no token is a 401 whose challenge names resource_metadata", () =>
   }),
 );
 
-it.effect("an unknown token is a 401 invalid_token with the same challenge", () =>
-  Effect.gen(function* badToken() {
-    const answer = yield* mcpSend(mcp, { authorization: "Bearer tok-nobody" }, mcpInitialize);
-    expect(answer.status).toBe(401);
-    expect(answer.headers.get("www-authenticate")).toBe(
-      `Bearer error="invalid_token", resource_metadata="${metadataUrl}"`,
-    );
+it.live("a bad token, a web token and a foreign-signed token are 401 invalid_token", () =>
+  Effect.gen(function* badTokens() {
+    const { mcp, webToken } = yield* signedInApp;
+    const otherKeys = yield* AuthJwtTesting.keys;
+    const tokens = [
+      "not-a-jwt",
+      // Issued for no audience, so not for this resource.
+      yield* webToken("alice"),
+      yield* otherKeys.sign({ iss: issuer, sub: "alice", aud: "https://booking.example/mcp" }),
+    ];
+    for (const token of tokens) {
+      const answer = yield* mcpSend(mcp, bearer(token), mcpInitialize);
+      expect(answer.status).toBe(401);
+      expect(answer.headers.get("www-authenticate")).toBe(
+        `Bearer error="invalid_token", resource_metadata="${metadataUrl}"`,
+      );
+      expect(JSON.parse(answer.body)).toMatchObject({ error: { code: "token_invalid" } });
+    }
+  }),
+);
+
+it.live("a token issued for this resource opens a session", () =>
+  Effect.gen(function* goodToken() {
+    const { mcp, mcpToken } = yield* signedInApp;
+    const answer = yield* mcpSend(mcp, bearer(yield* mcpToken("alice")), mcpInitialize);
+    expect(answer.status).toBe(200);
   }),
 );
 
 it.effect("the metadata document names this resource and its authorization server", () =>
   Effect.gen(function* metadata() {
-    const serve = metadataHandler(config);
-    for (const path of [
+    expect(resource.paths).toEqual([
       "/.well-known/oauth-protected-resource",
       "/.well-known/oauth-protected-resource/mcp",
-    ]) {
+    ]);
+    for (const path of resource.paths) {
       const response = yield* Effect.promise(() =>
-        serve(new Request(`https://hosti.example${path}`) as Request),
+        resource.handler(new Request(`https://booking.example${path}`) as Request),
       );
       expect(response.status).toBe(200);
       expect(yield* Effect.promise(() => response.json())).toEqual({
-        resource: "https://hosti.example/mcp",
+        resource: "https://booking.example/mcp",
         authorization_servers: ["https://id.example"],
         bearer_methods_supported: ["header"],
-        resource_name: "Hosti",
+        resource_name: "Booking example",
       });
     }
   }),
 );
 
-it.effect(
-  "fails closed: with no real verifier, even a token the fake would accept is refused",
-  () =>
-    Effect.gen(function* noVerifier() {
-      const answer = yield* mcpSend(unverified, { authorization: "Bearer tok-a" }, mcpInitialize);
-      expect(answer.status).toBe(401);
-      expect(JSON.parse(answer.body)).toMatchObject({ error: { code: "token_invalid" } });
-    }),
-);
-
 it.effect("fails closed: the running app without auth config refuses MCP and its metadata", () =>
   Effect.gen(function* notConfigured() {
     for (const method of ["POST", "GET", "DELETE"]) {
-      const answer = yield* mcpSend(
-        handler,
-        { authorization: "Bearer tok-a" },
-        mcpInitialize,
-        method,
-      );
+      const answer = yield* mcpSend(handler, bearer("tok-a"), mcpInitialize, method);
       expect(answer.status).toBe(503);
+      expect(answer.headers.get("www-authenticate")).toBeNull();
       expect(JSON.parse(answer.body)).toMatchObject({ error: { code: "not_configured" } });
     }
-    const response = yield* Effect.promise(() =>
-      handler(new Request("https://hosti.example/.well-known/oauth-protected-resource") as Request),
-    );
-    expect(response.status).toBe(503);
+    for (const path of [
+      "/.well-known/oauth-protected-resource",
+      "/.well-known/oauth-protected-resource/mcp",
+    ]) {
+      const response = yield* Effect.promise(() =>
+        handler(new Request(`https://booking.example${path}`) as Request),
+      );
+      expect(response.status).toBe(503);
+      const post = yield* Effect.promise(() =>
+        handler(new Request(`https://booking.example${path}`, { method: "POST" }) as Request),
+      );
+      expect(post.status).toBe(405);
+    }
   }),
 );

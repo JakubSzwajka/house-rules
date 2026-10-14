@@ -1,16 +1,16 @@
-import { toMcpHandler } from "@house-rules/application";
+import { type ProtectedResource, toMcpHandler } from "@house-rules/application";
+import { agentCaller } from "../../composition/callers.js";
 import type { ApiComposition } from "../../composition/index.js";
-import { bearerCaller } from "./auth.js";
-import { type McpAuthConfig, mcpPath } from "./config.js";
+import { mcpPath } from "./config.js";
 import { mcpViews } from "./errors.js";
 import { mcpTools } from "./tools.js";
 
-export const mcpRoute = (app: ApiComposition, config: McpAuthConfig | undefined) =>
+export const mcpRoute = (app: ApiComposition, resource: ProtectedResource) =>
   toMcpHandler(app, {
     path: mcpPath,
-    name: "hosti",
+    name: "booking-example",
     version: "0.0.0",
-    caller: bearerCaller(config),
+    caller: agentCaller(resource),
     tools: mcpTools,
     views: mcpViews,
   });
