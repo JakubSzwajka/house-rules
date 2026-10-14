@@ -211,8 +211,8 @@ describe("house-rules-migrations", () => {
 
   it("passes a raw transaction in an adapter package, named by default or by --adapter-package", () => {
     const files = {
-      "packages/capability/package.json": '{ "name": "@house-rules/capability" }',
-      "packages/capability/src/adapters/sql-unit-of-work.ts":
+      "packages/application/package.json": '{ "name": "@house-rules/application" }',
+      "packages/application/src/adapters/sql-unit-of-work.ts":
         "export const atomic = (sql) => sql.withTransaction(work);\n",
       "packages/db/package.json": '{ "name": "@trippy/db" }',
       "packages/db/src/internal/tx.ts": "export const q = sql`begin`;\n",
@@ -224,6 +224,33 @@ describe("house-rules-migrations", () => {
     assert.equal(named.status, 0, named.stderr);
     const equals = run(files, { args: ["--adapter-package=@trippy/db"] });
     assert.equal(equals.status, 0, equals.stderr);
+  });
+
+  it("exempts the domain and application kits by default, and refuses the retired capability name", () => {
+    const opensUnit = [
+      "export const atomic = (effect) => Effect.gen(function* () {",
+      "  const unitOfWork = yield* UnitOfWork;",
+      "  return yield* unitOfWork.atomic(effect);",
+      "});",
+    ].join("\n");
+    const rawTransaction = "export const atomic = (sql) => sql.withTransaction(work);\n";
+    const kits = run({
+      "packages/domain/package.json": '{ "name": "@house-rules/domain" }',
+      "packages/domain/src/unit-of-work/unit-of-work.ts": opensUnit,
+      "packages/application/package.json": '{ "name": "@house-rules/application" }',
+      "packages/application/src/adapters/sql-unit-of-work.ts": rawTransaction,
+    });
+    assert.equal(kits.status, 0, kits.stderr);
+    const retired = run({
+      "packages/capability/package.json": '{ "name": "@house-rules/capability" }',
+      "packages/capability/src/unit-of-work/unit-of-work.ts": opensUnit,
+      "packages/capability/src/adapters/sql-unit-of-work.ts": rawTransaction,
+    });
+    assert.equal(retired.status, 1);
+    assert.deepEqual(problemLines(retired), [
+      "packages/capability/src/adapters/sql-unit-of-work.ts:1",
+      "packages/capability/src/unit-of-work/unit-of-work.ts:3",
+    ]);
   });
 
   it("fails an unknown argument", () => {

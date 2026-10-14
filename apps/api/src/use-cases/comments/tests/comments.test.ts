@@ -1,14 +1,7 @@
 import { Bookings } from "@hosti/bookings";
 import { expect, expectTypeOf, it } from "@effect/vitest";
-import {
-  Actor,
-  ActorId,
-  call,
-  composition,
-  Grant,
-  memoryUnitOfWork,
-  Viewer,
-} from "@house-rules/capability";
+import { Actor, ActorId, memoryUnitOfWork } from "@house-rules/domain";
+import { call, composition, Grant, CurrentActor } from "@house-rules/application";
 import { Comments, CommentInputInvalid, CommentTargets } from "@house-rules/comments";
 import { Context, Effect, Layer } from "effect";
 import { commentTargets } from "../../../composition/app-layer.js";
@@ -30,7 +23,7 @@ const world = Layer.merge(
 );
 const caller = (actor: Actor) => () =>
   Effect.succeed(
-    Context.make(Viewer, actor).pipe(
+    Context.make(CurrentActor, actor).pipe(
       Context.add(Grant, Grant.fromPermissions(["comments:read", "comments:write"])),
     ),
   );
@@ -107,7 +100,7 @@ it.effect("runs all four use-cases through composition and hides A's target from
       call(app, listComments, { target, page: { size: 20 } }, incoming, {
         caller: () =>
           Effect.succeed(
-            Context.make(Viewer, actorA).pipe(Context.add(Grant, Grant.fromPermissions([]))),
+            Context.make(CurrentActor, actorA).pipe(Context.add(Grant, Grant.fromPermissions([]))),
           ),
       }),
     );

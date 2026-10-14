@@ -1,7 +1,7 @@
 import { expect, it } from "@effect/vitest";
 import { Cause, Effect, Exit, Fiber, Layer, Result } from "effect";
 import { TestClock } from "effect/testing";
-import { Grant } from "@house-rules/capability";
+import { Grant } from "@house-rules/application";
 import { CallAudit, memoryAuditLog } from "../index.ts";
 import {
   ANA,
@@ -13,7 +13,7 @@ import {
   readGreeting,
   slowGreeting,
   stuckGreeting,
-  Viewer,
+  Requester,
   who,
 } from "./greeting-fixtures.ts";
 
@@ -73,7 +73,7 @@ it.effect("records Forbidden, and the handler never runs", () =>
         Effect.provide(
           Layer.mergeAll(
             CallAudit.layerMemory(log, { who }),
-            Layer.succeed(Viewer, ANA),
+            Layer.succeed(Requester, ANA),
             Grant.denyAll,
           ),
         ),

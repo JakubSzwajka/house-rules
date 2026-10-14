@@ -1,12 +1,6 @@
 import { expect, it } from "@effect/vitest";
-import {
-  Actor,
-  ActorId,
-  memoryUnitOfWork,
-  NoOpenUnit,
-  UnitOfWork,
-  Viewer,
-} from "@house-rules/capability";
+import { Actor, ActorId, memoryUnitOfWork, NoOpenUnit, UnitOfWork } from "@house-rules/domain";
+import { CurrentActor } from "@house-rules/application";
 import { Effect } from "effect";
 import { BookingAlreadyExists, Bookings } from "../index.js";
 
@@ -18,7 +12,7 @@ const records = [
 ];
 
 it.layer(Bookings.fromRecords(records))("Bookings", (test) => {
-  test.effect("returns a stored booking without needing a Viewer", () =>
+  test.effect("returns a stored booking without needing a CurrentActor", () =>
     Effect.gen(function* returnsStoredBooking() {
       const bookings = yield* Bookings;
       expect(yield* bookings.get("b-1")).toEqual(records[0]);
@@ -71,16 +65,16 @@ it.layer(Bookings.fromRecords(records))("Bookings", (test) => {
       }),
   );
 
-  test.effect("one built module serves two Viewers without keeping either identity", () =>
+  test.effect("one built module serves two actors without keeping either identity", () =>
     Effect.gen(function* requestIdentity() {
       const bookings = yield* Bookings;
       const request = (id: string) =>
         Effect.gen(function* () {
-          const actor = yield* Viewer;
+          const actor = yield* CurrentActor;
           return yield* UnitOfWork.atomic(bookings.create(actor, { id, guestName: "Guest" }));
         });
-      const a = yield* request("by-a").pipe(Effect.provideService(Viewer, actorA));
-      const b = yield* request("by-b").pipe(Effect.provideService(Viewer, actorB));
+      const a = yield* request("by-a").pipe(Effect.provideService(CurrentActor, actorA));
+      const b = yield* request("by-b").pipe(Effect.provideService(CurrentActor, actorB));
       expect(a.ownerId).toBe(actorA.id);
       expect(b.ownerId).toBe(actorB.id);
       expect(yield* bookings.relation(actorA, b.id)).toBe("none");

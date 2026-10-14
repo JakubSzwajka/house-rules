@@ -5,7 +5,7 @@ A Host listens on a socket and passes Web Requests to a fetch handler. `serve` i
 Install `@house-rules/node-host` at exact version `0.1.0`, on Node 24.21.0 or later. Call it in the app's `src/main.ts`, an `appEntryFiles` entry, where the entry joins delivery and composition. `src/server/` holds background loops, not the Host call:
 
 ```ts
-import { toFetchHandler } from "@house-rules/capability";
+import { toFetchHandler } from "@house-rules/application";
 import { serve } from "@house-rules/node-host";
 import { bookingRoutes } from "./delivery/http/routes.js";
 import { app } from "./composition/index.js";
@@ -39,7 +39,7 @@ const PUBLIC_ORIGIN = "https://public.example";
 const api = toFetchHandler(app, { routes: bookingRoutes, origins: [PUBLIC_ORIGIN] });
 ```
 
-See [the capability CSRF check](../capability/README.md#csrf). The reference API reads optional `APP_ORIGIN` through Effect Config and passes it as `origins` when set.
+See [the application kit's CSRF check](../application/README.md#csrf). The reference API reads optional `APP_ORIGIN` through Effect Config and passes it as `origins` when set.
 
 The Host has no allowed-host guard against DNS rebinding; local and internal apps must restrict Host at their proxy or listener and set explicit `origins` for cookie writes.
 

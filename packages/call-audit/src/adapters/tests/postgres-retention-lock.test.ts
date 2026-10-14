@@ -2,7 +2,7 @@ import { expect, layer } from "@effect/vitest";
 import { Effect, Exit, Fiber, Schedule } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
 import { AuditStore, CallAudit, postgresAuditStore } from "../../index.ts";
-import { allRows, asViewer, onWeb, renameTrip, seed, who } from "../../tests/audit-fixtures.ts";
+import { allRows, asRequester, onWeb, renameTrip, seed, who } from "../../tests/audit-fixtures.ts";
 import { migratedDatabase } from "./stores.ts";
 
 const lockKey = "hashtext('@house-rules/call-audit/retention')";
@@ -163,7 +163,9 @@ layer(migratedDatabase("audit_lock"), { excludeTestServices: true, timeout: "30 
     it.effect("layerPostgres mounts capture and erase in one layer", () =>
       Effect.gen(function* oneLayer() {
         yield* SqlClient.use((sql) => sql`delete from call_audit`);
-        yield* onWeb(renameTrip.handler({ tripId: "t-1", title: "x" })).pipe(asViewer("user_ana"));
+        yield* onWeb(renameTrip.handler({ tripId: "t-1", title: "x" })).pipe(
+          asRequester("user_ana"),
+        );
         expect(yield* allRows).toMatchObject([
           { capability: "rename_trip", viewerId: "user_ana", targetId: "t-1", channel: "web" },
         ]);

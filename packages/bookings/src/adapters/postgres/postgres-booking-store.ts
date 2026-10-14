@@ -1,4 +1,4 @@
-import { UnitOfWork } from "@house-rules/capability";
+import { UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
 import * as SqlSchema from "effect/sql/SqlSchema";

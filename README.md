@@ -14,8 +14,10 @@ It is a GitHub template. Create a repo from it with `gh repo create my-app --pri
 .
 ├── apps/api/               @hosti/api: delivery, server, use-cases
 ├── packages/bookings/      @hosti/bookings: one Effect module with a storage port and two adapters; src/index.ts, plus src/contract.ts for browsers
-├── packages/call-audit/    @house-rules/call-audit: an audit trail of capability calls, as log lines or table rows
-├── packages/capability/    @house-rules/capability: contracts, handlers, delivery, a typed HTTP client and OpenAPI
+├── packages/application/   @house-rules/application: the application kit: contracts, CurrentActor, gates, delivery, a typed HTTP client and OpenAPI
+├── packages/call-audit/    @house-rules/call-audit: a plug-in that audits capability calls, as log lines or table rows
+├── packages/comments/      @house-rules/comments: a domain addition for flat comments, with a host port for target access
+├── packages/domain/        @house-rules/domain: the domain kit: defineModule, Actor, permissions and policy, the unit of work
 ├── packages/migrations/    @house-rules/migrations: runs the migrations of every listed module
 ├── packages/node-host/     @house-rules/node-host: streams a Web fetch handler on a Node socket
 ├── packages/rules/         @house-rules/rules: the house rules, presets, and bins
@@ -41,7 +43,7 @@ Root tools run once over the whole repo. Biome and ESLint warnings fail the chec
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.16.3`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.17.0`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
@@ -91,7 +93,7 @@ These are what a reviewer checks. A green `pnpm check` says nothing about them.
 - A cartridge passes the pull-out test. Delete its package and its one `Layer.provide` line, and the rest still builds and passes. A reviewer runs the test in their head for each new cartridge.
 - A module opens no transaction. The use-case opens the unit of work (`transactional: true`, or `UnitOfWork.atomic` in its handler), and a module's write runs inside it. The migrations bin catches a raw `withTransaction` or `begin` outside an adapter package and a module that calls `UnitOfWork.atomic`; it cannot see a unit opened through an alias.
 - Domain code decides, the store answers. A module's port never decides a permission, a standing, or a limit.
-- Only the composition root, `src/composition/`, provides services and slots. Delivery provides only per-request values: the Viewer, the call channel, the request id, and a Grant or Approval it fills for this request.
+- Only the composition root, `src/composition/`, provides services and slots. Delivery provides only per-request values: the CurrentActor, the call channel, the request id, and a Grant or Approval it fills for this request.
 - One service per file, named after its job, with its Layer beside it as a static member. A storage port is the exception: its layers are the adapters under `src/adapters/`.
 - Modules are cut by life cycle, not by noun. A package holds one module around a consistency and access boundary. A thing with its own life gets its own module.
 - Packages may use other packages through their public entries. The package graph has no cycles or fixed levels, enforced by `no-package-cycles`. A package calls another package's service, never its tables or SQL.
@@ -137,22 +139,25 @@ Start from the template, or copy these into an existing pnpm workspace:
 
 ### Installing
 
-The publish workflow includes six public packages under the `@house-rules` scope. These are the release-ready workspace versions; capability 0.17.0, comments 0.1.0 and call-audit 0.5.1 are prepared here, not yet published:
+The publish workflow includes seven public packages under the `@house-rules` scope, in four parts: the kits, the wiring, the additions, and the app you write. These are the release-ready workspace versions; domain 0.1.0, application 0.1.0, rules 0.17.0, call-audit 0.6.0 and comments 0.1.0 are prepared here, not yet published:
 
-| Package | What it is | Version |
-| --- | --- | --- |
-| [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript. | `0.16.3` |
-| [`@house-rules/capability`](packages/capability/README.md) | Capabilities, gates, units of work, delivery | `0.17.0` |
-| [`@house-rules/migrations`](packages/migrations/README.md) | Module-owned SQL migrations | `0.3.0` |
-| [`@house-rules/call-audit`](packages/call-audit/README.md) | One audit line or row per capability call | `0.5.1` |
-| [`@house-rules/comments`](packages/comments/README.md) | Flat comments with host-owned target access | `0.1.0` |
-| [`@house-rules/node-host`](packages/node-host/README.md) | Host for a Web fetch handler on a Node socket | `0.1.0` |
+| Part | Package | What it is | Version |
+| --- | --- | --- | --- |
+| kit | [`@house-rules/domain`](packages/domain/README.md) | Define domain modules: `defineModule`, Actor, permissions and policy, the unit of work | `0.1.0` |
+| kit | [`@house-rules/application`](packages/application/README.md) | Build the application layer: contracts, CurrentActor, gates, composition, delivery | `0.1.0` |
+| wiring | [`@house-rules/migrations`](packages/migrations/README.md) | Run every module's SQL migrations | `0.3.0` |
+| wiring | [`@house-rules/node-host`](packages/node-host/README.md) | Host for a Web fetch handler on a Node socket | `0.1.0` |
+| wiring | [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript, dev only. | `0.17.0` |
+| addition | [`@house-rules/comments`](packages/comments/README.md) | A domain addition: flat comments with host-owned target access | `0.1.0` |
+| addition | [`@house-rules/call-audit`](packages/call-audit/README.md) | A plug-in: one audit line or row per capability call | `0.6.0` |
 
-1. [ ] Pin each one to an exact version, like every other dependency: `"@house-rules/capability": "0.17.0"`. `house-rules-pins` fails `^` and `~`.
-2. [ ] Pin `effect` to the version their `peerDependencies` name, now `4.0.3`. If the app installs `@effect/platform-node`, also declare `@effect/platform-node-shared` as an exact direct dependency at that same version. `call-audit` and `comments` also peer on the exact `capability` version they were built with.
+The two kits replace `@house-rules/capability`, which stays at 0.16.0 on npm and gets no new versions. Its [upgrade notes](packages/application/README.md#upgrading-from-house-rulescapability) say which kit each name moved to.
+
+1. [ ] Pin each one to an exact version, like every other dependency: `"@house-rules/application": "0.1.0"`. `house-rules-pins` fails `^` and `~`.
+2. [ ] Pin `effect` to the version their `peerDependencies` name, now `4.0.3`. If the app installs `@effect/platform-node`, also declare `@effect/platform-node-shared` as an exact direct dependency at that same version. `application` peers on the exact `domain` version, `call-audit` on the exact `application` version, and `comments` on both.
 3. [ ] If your `pnpm-workspace.yaml` sets `minimumReleaseAge`, a version younger than that fails the install. This repo requires 24 hours after publication. Wait; a release-age exception needs separate owner approval.
 
-`capability`, `migrations`, `call-audit`, `comments`, and `node-host` ship built JavaScript and declarations in `dist/`. Plain `node` loads them, any bundler takes them as is, and `tsc` reads their `.d.ts` files. An app needs no `transpilePackages`, no type-stripping loader, and no `allowImportingTsExtensions` for them. In this repo they stay source: `exports` points at `src/`, and pnpm swaps in `publishConfig.exports`, which points at `dist/`, only when it packs. `pnpm run packed-consumer` packs all six and installs them with `@effect/platform-node` and an exact direct `@effect/platform-node-shared` pin into a fresh app with no lockfile. It checks the resolved shared Node package, runs the Node Host on a real socket, Node services, a transactional capability, and memory comments use-cases with Actor/Viewer and denied access, type-checks with the Effect and web presets, and runs the layout and installed-package migration checks. CI runs it on every pull request.
+`domain`, `application`, `migrations`, `call-audit`, `comments`, and `node-host` ship built JavaScript and declarations in `dist/`. Plain `node` loads them, any bundler takes them as is, and `tsc` reads their `.d.ts` files. An app needs no `transpilePackages`, no type-stripping loader, and no `allowImportingTsExtensions` for them. In this repo they stay source: `exports` points at `src/`, and pnpm swaps in `publishConfig.exports`, which points at `dist/`, only when it packs. `pnpm run packed-consumer` packs all seven and installs them with `@effect/platform-node` and an exact direct `@effect/platform-node-shared` pin into a fresh app with no lockfile. It checks the resolved shared Node package, runs the Node Host on a real socket, the rules plugin, Node services, a transactional capability, and memory comments use-cases with Actor, CurrentActor and denied access. It type-checks a consumer that declares a module with `defineModule`, reads `CurrentActor` in a use-case and mounts comments, with the Effect and web presets. It checks that the comments, application and domain contract entries stay browser-safe, and runs the layout and installed-package migration checks. CI runs it on every pull request.
 
 #### Upgrading from a Git SHA pin
 
@@ -167,7 +172,7 @@ The layout rules accept the built contract entry, `dist/contract.js`, wherever t
 
 #### Publishing
 
-`.github/workflows/publish.yml` publishes. Every run starts with the `verify` job, which has `contents: read` only: no token and no OIDC. It runs `pnpm check`, `pnpm test`, `pnpm build`, `pnpm run packed-consumer`, and a `pnpm publish --dry-run`. Pull requests that touch a package stop there. Pushing a tag such as `@house-rules/capability@0.17.0`, or running the workflow on `main` with `publish` ticked, then runs the `publish` job, the only one with `id-token: write` and `NPM_TOKEN`. There `pnpm publish -r --access public --provenance --report-summary` publishes every public package whose version is not on npm yet. After success, the job creates and pushes one `@house-rules/<pkg>@<version>` tag for each package in that report. Only this job has `contents: write`. Its pushes use `GITHUB_TOKEN`, so they do not start another publish run. To release, bump the version in the package's `package.json`, and every `workspace:` pin on it, in one pull request.
+`.github/workflows/publish.yml` publishes. Every run starts with the `verify` job, which has `contents: read` only: no token and no OIDC. It runs `pnpm check`, `pnpm test`, `pnpm build`, `pnpm run packed-consumer`, and a `pnpm publish --dry-run`. Pull requests that touch a package stop there. Pushing a tag such as `@house-rules/application@0.1.0`, or running the workflow on `main` with `publish` ticked, then runs the `publish` job, the only one with `id-token: write` and `NPM_TOKEN`. There `pnpm publish -r --access public --provenance --report-summary` publishes every public package whose version is not on npm yet. After success, the job creates and pushes one `@house-rules/<pkg>@<version>` tag for each package in that report. Only this job has `contents: write`. Its pushes use `GITHUB_TOKEN`, so they do not start another publish run. To release, bump the version in the package's `package.json`, and every `workspace:` pin on it, in one pull request.
 
 The workflow reads `NPM_TOKEN`, an npm granular access token with publish rights on the `@house-rules` scope. It lives only as a GitHub Actions repository secret on this repo. Never print it, commit it, or put it in `.env.schema` or `.env.local`. Provenance needs no token: the `publish` job's `id-token: write` permission lets npm sign each package with this workflow's identity, and only the `publish` job has it. `tests/published-packages.test.mjs` parses the workflow and fails if a job a pull request can trigger gets that permission or reads the secret.
 
@@ -178,7 +183,7 @@ An app outside this repo installs the rules from npm at an exact version:
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "0.16.3"
+    "@house-rules/rules": "0.17.0"
   }
 }
 ```
@@ -211,20 +216,21 @@ The package used to be called `@jakubszwajka/house-rules`. Version 0.5.0 is the 
 
 An old pin keeps working until you move it. The old commits are in this repo's history, so a pin to one of them still resolves.
 
-### Using capabilities in another app
+### Using the kits in another app
 
-[`@house-rules/capability`](packages/capability/README.md) defines a capability: one named action with a contract and one handler. An app installs it the same way, and pins `effect` to the version the package names:
+[`@house-rules/domain`](packages/domain/README.md) defines a package's module: `defineModule`, the Actor, permissions and policy, and the unit of work. [`@house-rules/application`](packages/application/README.md) defines a capability, one named action with a contract and one handler, and delivers it over HTTP and MCP. An app installs both the same way, and pins `effect` to the version the packages name:
 
 ```json
 {
   "dependencies": {
-    "@house-rules/capability": "0.17.0",
+    "@house-rules/application": "0.1.0",
+    "@house-rules/domain": "0.1.0",
     "effect": "4.0.3"
   }
 }
 ```
 
-Its README lists the install steps, the permission and approval gates, and what it does not do yet.
+Their READMEs list the install steps, the permission and approval gates, and what they do not do yet.
 
 ### Host a Node app
 
@@ -247,7 +253,7 @@ Follow [`skills/write-a-docs-page/SKILL.md`](skills/write-a-docs-page/SKILL.md).
 
 ### Single-page apps
 
-A single-page app calls the HTTP routes through a typed client built from the same contracts. It must not bundle SQL, so it imports only contract entries: `@house-rules/capability/contract` and a package's `src/contract.ts`, such as `@hosti/bookings/contract`. `contract-entry-is-browser-safe` fails the check when a contract entry reaches an adapter, a facade, a `node:` module, a driver, an `effect` module off its allowlist, or an installed contract entry no one vouched for. In `apps/api`:
+A single-page app calls the HTTP routes through a typed client built from the same contracts. It must not bundle SQL, so it imports only contract entries: `@house-rules/application/contract`, `@house-rules/domain/contract` and a package's `src/contract.ts`, such as `@hosti/bookings/contract`. `contract-entry-is-browser-safe` fails the check when a contract entry reaches an adapter, a facade, a `node:` module, a driver, an `effect` module off its allowlist, or an installed contract entry no one vouched for. In `apps/api`:
 
 ```text
 @hosti/bookings/contract ──> showBookingContract (schemas, errors, permission)
@@ -257,7 +263,7 @@ delivery/http/endpoints.ts   endpoint(showBookingContract, "GET /bookings/:id")
   └─> main.ts                      toOpenApi(routes, { views })   -> OpenAPI 3.1
 ```
 
-The route and the client read one `endpoint`, so the path, the method and the status cannot drift. `src/tests/browser-bundle.test.ts` bundles the contract entries and the client with esbuild for the browser and fails on server code. It also bundles every `effect` module the rule trusts, because the rule cannot look inside `node_modules`. The [capability README](packages/capability/README.md#single-page-apps) covers failures, cookies, CSRF and OpenAPI.
+The route and the client read one `endpoint`, so the path, the method and the status cannot drift. `src/tests/browser-bundle.test.ts` bundles the contract entries and the client with esbuild for the browser and fails on server code. It also bundles every `effect` module the rule trusts, because the rule cannot look inside `node_modules`. The [application kit's README](packages/application/README.md#single-page-apps) covers failures, cookies, CSRF and OpenAPI.
 
 ### Let agents call a use-case
 
@@ -277,9 +283,9 @@ apps/api
   main.ts     ───> delivery routes + composition  (toFetchHandler)
 ```
 
-The package declares its root `Bookings` service with `defineModule` from `@house-rules/capability`. Its stable id is the service key; its make Effect captures BookingStore, never a request's Viewer. Effect owns lazy build, sharing within one build and scoped cleanup. Adapter statics stay on the class. An options make gives `layer(options)` with presets as plain data; there is no registry or private nesting. One module per package stays the rule.
+The package declares its root `Bookings` service with `defineModule` from `@house-rules/domain`. Its stable id is the service key; its make Effect captures BookingStore, never a request's CurrentActor. Effect owns lazy build, sharing within one build and scoped cleanup. Adapter statics stay on the class. An options make gives `layer(options)` with presets as plain data; there is no registry or private nesting. One module per package stays the rule.
 
-`Actor`, its branded `ActorId`, and `Viewer` come from the capability root entry. Delivery provides Viewer per request, a use-case yields the Actor directly, and module methods take it explicitly. `Bookings.create(actor, input)` stores ownerId. `Bookings.relation(actor, id)` decides `"owner"` or `"none"` from stored facts. New migration 0002 adds nullable owner_id; 0001 is unchanged, so legacy rows remain unowned and answer `"none"` for everyone. The visitor Grant and public reads stay as they were. The HTTP output omits ownerId.
+`Actor` and its branded `ActorId` come from the domain kit, and `CurrentActor` from the application kit. Delivery provides CurrentActor per request, a use-case yields the Actor directly, and module methods take it explicitly. `Bookings.create(actor, input)` stores ownerId. `Bookings.relation(actor, id)` decides `"owner"` or `"none"` from stored facts. New migration 0002 adds nullable owner_id; 0001 is unchanged, so legacy rows remain unowned and answer `"none"` for everyone. The visitor Grant and public reads stay as they were. The HTTP output omits ownerId.
 
 The package exports the `Booking` and `NewBooking` schemas, and typed `BookingNotFound`, `BookingAlreadyExists`, and `BookingStoreUnavailable` errors. The package also names its permission, `bookings:read`. `Bookings` talks only to its storage port, `BookingStore`. The package ships two adapters for it: a memory adapter (`memoryBookingStore`, behind `Bookings.fromRecords`) and a Postgres adapter in plain SQL (`postgresBookingStore`, with its migration in `packages/bookings/migrations/`). One shared suite in `src/adapters/tests/` runs every store case on both. `Bookings.create` is the write path: it runs inside an open unit of work and fails with `NoOpenUnit` without one, and the memory adapter registers an undo with `UnitOfWork.onRollback` so a rollback leaves no row. The `showBooking` use-case is a capability: a contract, `showBookingContract` in the module's contract entry, that names the id-and-guestName `NewBooking` schema as its output, `BookingNotFound` and `BookingStoreUnavailable` as its failures, and `bookings:read` as its permission, plus a handler that yields the service. The HTTP handler calls `showBooking.handler({ id })`, maps `BookingNotFound` to a 404, `BookingStoreUnavailable` to a 503, and `Forbidden` to a 403 once, so its error channel is `never`. It provides nothing. The composition root, `src/composition/`, provides `Bookings` and the `Grant` in `app-layer.ts`: the example has no sign-in, so every visitor holds `bookings:read`, and a Grant that is the same for every request belongs in the root. The entry point, `src/main.ts`, mounts the same use-case as a Web fetch handler with `toFetchHandler`. `src/composition/index.ts` wraps the root layer with `composition(...)` and the views table in `views.ts`, which maps `BookingNotFound` to 404 and `BookingStoreUnavailable` to 503, and `src/delivery/http/routes.ts` lists `route(showBooking, bookingEndpoints.showBooking)`, the endpoint the SPA client shares. Leave out a view and `tsc` fails. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
 

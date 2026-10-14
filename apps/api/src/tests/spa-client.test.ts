@@ -1,5 +1,5 @@
 import { afterAll, expect, it } from "@effect/vitest";
-import { HttpFailure } from "@house-rules/capability";
+import { HttpFailure } from "@house-rules/application";
 import { Effect, Layer, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 import { api } from "../main.js";

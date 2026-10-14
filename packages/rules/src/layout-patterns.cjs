@@ -65,7 +65,10 @@ const CONTRACT_ENTRY = "src/contract[.]ts";
 // the registry. node_modules is never followed, so it is trusted by name only. The framework's own is
 // checked as a workspace file in its repo, and its browser bundle is tested there.
 const INSTALLED_CONTRACT_ENTRY = `(?:${CONTRACT_ENTRY}|dist/contract[.](?:js|d[.]ts))`;
-const TRUSTED_CONTRACT_PACKAGES = Object.freeze(["@house-rules/capability"]);
+const TRUSTED_CONTRACT_PACKAGES = Object.freeze([
+  "@house-rules/application",
+  "@house-rules/domain",
+]);
 // The effect modules a contract entry may import: the root barrel, its stable top-level modules, and
 // http (unstable/http on RCs). Their import graphs are unseen here; apps/api's browser-bundle test bundles each one.
 const EFFECT_BROWSER_MODULES =
@@ -88,7 +91,7 @@ const REMOVED_OPTIONS = {
   adapterImportsSeverity:
     "layout(): adapterImportsSeverity was removed in 0.8.0. adapter-imports-only-in-adapters is always an error: move the import into an adapter, or name the package in adapterPackages.",
   serverEntryFiles:
-    'layout(): serverEntryFiles was removed in 0.16.0. Delivery no longer imports a server runtime. Move the app layer, its callers and its views into src/composition/ as composition({ layer, caller, views }) from @house-rules/capability; delivery may import src/composition/ and runs use-cases through toFetchHandler, toMcpHandler or call. Then delete the option. The upgrade note is in @house-rules/rules docs/dependency-cruiser.md, "Upgrading to 0.16.0".',
+    'layout(): serverEntryFiles was removed in 0.16.0. Delivery no longer imports a server runtime. Move the app layer, its callers and its views into src/composition/ as composition({ layer, caller, views }) from @house-rules/application; delivery may import src/composition/ and runs use-cases through toFetchHandler, toMcpHandler or call. Then delete the option. The upgrade note is in @house-rules/rules docs/dependency-cruiser.md, "Upgrading to 0.16.0".',
 };
 
 const unique = (values) => [...new Set(values)];

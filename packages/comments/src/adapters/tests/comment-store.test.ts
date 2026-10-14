@@ -1,5 +1,5 @@
 import { expect, layer } from "@effect/vitest";
-import { NoOpenUnit, UnitOfWork } from "@house-rules/capability";
+import { NoOpenUnit, UnitOfWork } from "@house-rules/domain";
 import { Effect, Schema } from "effect";
 import { type Comment, CommentStore } from "../../index.js";
 import { stores } from "./stores.js";

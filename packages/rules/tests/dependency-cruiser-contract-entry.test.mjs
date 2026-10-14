@@ -77,11 +77,15 @@ test("contract-entry-is-browser-safe refuses effect's adapter imports", () => {
   assert.equal(allowed(`${store}/unstable/process/index.js`), false);
   assert.equal(allowed(`${store}/internal/schema/schema.js`), false);
   assert.equal(allowed("node_modules/@acme/x/src/contract.ts"), false);
-  assert.equal(allowed("node_modules/@house-rules/capability/src/contract.ts"), true);
-  assert.equal(allowed("node_modules/@house-rules/capability/src/index.ts"), false);
+  assert.equal(allowed("node_modules/@house-rules/application/src/contract.ts"), true);
+  assert.equal(allowed("node_modules/@house-rules/application/src/index.ts"), false);
+  assert.equal(allowed("node_modules/@house-rules/domain/src/contract.ts"), true);
+  assert.equal(allowed("node_modules/@house-rules/domain/dist/contract.js"), true);
+  assert.equal(allowed("node_modules/@house-rules/domain/src/index.ts"), false);
+  assert.equal(allowed("node_modules/@house-rules/capability/src/contract.ts"), false);
   // Installed from the registry, the entry is its build in dist/.
   const built =
-    "node_modules/.pnpm/@house-rules+capability@0.13.1/node_modules/@house-rules/capability";
+    "node_modules/.pnpm/@house-rules+application@0.13.1/node_modules/@house-rules/application";
   assert.equal(allowed(`${built}/dist/contract.js`), true);
   assert.equal(allowed(`${built}/dist/contract.d.ts`), true);
   assert.equal(allowed(`${built}/dist/index.js`), false);

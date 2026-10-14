@@ -1,4 +1,4 @@
-import { type CallWatchService, unknownCallFacts } from "@house-rules/capability";
+import { type CallWatchService, unknownCallFacts } from "@house-rules/application";
 import { Cause, Clock, DateTime, Effect, Exit, Option } from "effect";
 import type { AuditStore } from "../storage.ts";
 import type { AuditEntry, AuditPolicy } from "../audit/audit.ts";
@@ -24,7 +24,7 @@ export const makeWatch = (
   around: (contract, _input, run, given) =>
     Effect.gen(function* auditedCall() {
       const facts = given ?? unknownCallFacts(contract);
-      // Snapshot before run: a handler may swap the Viewer, and a broken `who` becomes null.
+      // Snapshot before run: a handler may swap the caller in context, and a broken `who` becomes null.
       const viewerId = yield* who.pipe(Effect.catchCause(() => Effect.succeed(null)));
       const start = yield* Clock.currentTimeMillis;
       return yield* run.pipe(

@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { assertCleanTarball, assertTarballRulesAreLive } from "./tarball-content.mjs";
 import { assertNextHost } from "./packed-next-host.mjs";
+import { workspaceConsumerFiles } from "./packed-workspace.mjs";
 import {
   assertContractRuleIsLive,
   assertFrameworkContents,
@@ -16,7 +17,8 @@ import {
 const root = path.resolve(import.meta.dirname, "..");
 const PUBLISHED_IN_BUILD_ORDER = [
   "migrations",
-  "capability",
+  "domain",
+  "application",
   "call-audit",
   "comments",
   "node-host",
@@ -93,9 +95,7 @@ try {
       "pnpm",
       ["pack", "--pack-destination", packs],
       path.join(root, "packages", folder),
-      {
-        capture: true,
-      },
+      { capture: true },
     );
     const tarball = out.trim().split("\n").pop().trim();
     assert.match(tarball, /\.tgz$/u, `pnpm pack printed no tarball for ${folder}:\n${out}`);
@@ -104,7 +104,7 @@ try {
   }
 
   const pins = readJson(path.join(root, "package.json")).devDependencies;
-  const effect = readJson(path.join(root, "packages/capability/package.json")).peerDependencies
+  const effect = readJson(path.join(root, "packages/application/package.json")).peerDependencies
     .effect;
   const platformNode = readJson(path.join(root, "packages/migrations/package.json"))
     .devDependencies["@effect/platform-node"];
@@ -131,51 +131,63 @@ try {
     },
     "run.mjs": [
       'import assert from "node:assert/strict";',
-      'import * as capability from "@house-rules/capability";',
-      'import * as contract from "@house-rules/capability/contract";',
+      'import * as domain from "@house-rules/domain";',
+      'import * as domainContract from "@house-rules/domain/contract";',
+      'import * as application from "@house-rules/application";',
+      'import * as contract from "@house-rules/application/contract";',
       'import * as migrations from "@house-rules/migrations";',
       'import * as callAudit from "@house-rules/call-audit";',
       'import { NodeRuntime, NodeServices } from "@effect/platform-node";',
       'import { Context, Effect, FileSystem, Layer, Schema } from "effect";',
-      'assert.equal(typeof capability.implement, "function");',
+      'assert.equal(typeof application.implement, "function");',
       'assert.equal(typeof contract.defineContract, "function");',
-      "assert.equal(contract.defineContract, capability.defineContract);",
+      "assert.equal(contract.defineContract, application.defineContract);",
+      'assert.equal(typeof domain.defineModule, "function");',
+      "assert.equal(domainContract.ActorId, domain.ActorId);",
+      "assert.equal(domainContract.UnitOfWorkFailed, domain.UnitOfWorkFailed);",
       "assert.notEqual(migrations.Migrations, undefined);",
       "assert.notEqual(callAudit.CallAudit, undefined);",
       "let observedChannel;",
-      'const write = capability.implement(capability.defineContract("cold_write", {',
+      'const write = application.implement(application.defineContract("cold_write", {',
       '  description: "Check the installed unit of work and Node services.",',
-      "  input: capability.NoInput, output: Schema.String, failure: Schema.Never,",
+      "  input: application.NoInput, output: Schema.String, failure: Schema.Never,",
       '  permission: "public", transactional: true,',
       "}), () => Effect.gen(function* () {",
-      "  yield* capability.UnitOfWork.required;",
-      "  observedChannel = yield* capability.CallChannel;",
+      "  yield* domain.UnitOfWork.required;",
+      "  observedChannel = yield* application.CallChannel;",
       '  return "stable";',
       "}));",
-      "const app = capability.composition({",
-      "  layer: capability.memoryUnitOfWork,",
+      "const app = application.composition({",
+      "  layer: domain.memoryUnitOfWork,",
       "  caller: () => Effect.succeed(Context.empty()),",
       "});",
       'const incoming = { headers: new Headers(), url: "/" };',
       "try {",
-      "  const refused = await capability.admit(app, incoming, {",
-      '    caller: () => Effect.fail(new capability.Refused({ status: 401, code: "missing", message: "Sign in." })),',
+      "  const refused = await application.admit(app, incoming, {",
+      '    caller: () => Effect.fail(new application.Refused({ status: 401, code: "missing", message: "Sign in." })),',
       "  });",
       "  assert.equal(refused.ok, false);",
-      '  const admitted = await capability.admit(app, incoming, { channel: "api" });',
+      '  const admitted = await application.admit(app, incoming, { channel: "api" });',
       "  assert.equal(admitted.ok, true);",
       '  if (!admitted.ok) throw new Error("Expected admission to succeed.");',
-      '  assert.deepEqual(await capability.call(app, write, {}, incoming, { admitted: admitted.value }), { ok: true, value: "stable" });',
+      '  assert.deepEqual(await application.call(app, write, {}, incoming, { admitted: admitted.value }), { ok: true, value: "stable" });',
       '  assert.equal(observedChannel, "api");',
       "} finally { await app.dispose(); }",
       "NodeRuntime.runMain(Effect.gen(function* () {",
       '  assert.equal(yield* (yield* FileSystem.FileSystem).exists("package.json"), true);',
       '  assert.equal(yield* write.handler({}), "stable");',
       '  yield* Effect.log("cold install: packed admit refuses, admitted call succeeds, Node services and transactional handler run");',
-      "}).pipe(Effect.provide(Layer.merge(NodeServices.layer, capability.memoryUnitOfWork))));",
+      "}).pipe(Effect.provide(Layer.merge(NodeServices.layer, domain.memoryUnitOfWork))));",
       "",
     ].join("\n"),
     ...commentsConsumerFiles,
+    "rules.mjs": [
+      'import assert from "node:assert/strict";',
+      'import rules from "@house-rules/rules";',
+      'assert.equal(typeof rules.rules["use-case-is-capability"], "object");',
+      'console.log("cold install: packed rules plugin loads in plain node");',
+      "",
+    ].join("\n"),
     "host.mjs": [
       'import assert from "node:assert/strict";',
       'import { serve } from "@house-rules/node-host";',
@@ -198,59 +210,7 @@ try {
     },
     ".dependency-cruiser.cjs":
       'module.exports = require("@house-rules/rules/dependency-cruiser").layout({ scope: "@consumer/", trustedContractPackages: ["@house-rules/comments"] });\n',
-    "packages/catalogue/package.json": {
-      name: "@consumer/catalogue",
-      version: "0.0.0",
-      private: true,
-      type: "module",
-      exports: { ".": "./src/index.ts", "./contract": "./src/contract.ts" },
-    },
-    "packages/catalogue/src/item/show-item.ts": [
-      'import { defineContract } from "@house-rules/capability/contract";',
-      'import { Schema } from "effect";',
-      "",
-      'export class ItemNotFound extends Schema.TaggedError<ItemNotFound>()("ItemNotFound", {}) {}',
-      "",
-      'export const showItemContract = defineContract("show_item", {',
-      '  description: "Show one catalogue item.",',
-      "  input: Schema.Struct({ id: Schema.String }),",
-      "  output: Schema.Struct({ id: Schema.String, title: Schema.String }),",
-      "  failure: ItemNotFound,",
-      '  permission: "public",',
-      "  annotations: { readOnly: true },",
-      "});",
-      "",
-      "// The shipped declarations carry real types: a wrong option must fail.",
-      "// @ts-expect-error permission is required",
-      'defineContract("no_permission", { description: "x", input: Schema.Struct({}), output: Schema.String, failure: ItemNotFound });',
-      "",
-    ].join("\n"),
-    "packages/catalogue/src/contract.ts":
-      'export { showItemContract } from "./item/show-item.ts";\nexport { addComment, listComments, Comment, CommentPage } from "@house-rules/comments/contract";\n',
-    "packages/catalogue/src/index.ts": 'export { showItemContract } from "./contract.ts";\n',
-    "apps/web/package.json": {
-      name: "@consumer/web",
-      version: "0.0.0",
-      private: true,
-      type: "module",
-      dependencies: { "@consumer/catalogue": "0.0.0" },
-    },
-    "apps/web/src/main.ts": [
-      'import { implement } from "@house-rules/capability";',
-      'import { showItemContract } from "@consumer/catalogue";',
-      'import { NodeServices } from "@effect/platform-node";',
-      'import { serve } from "@house-rules/node-host";',
-      'import { Effect, FileSystem } from "effect";',
-      "",
-      'export const nodeProbe = FileSystem.FileSystem.use((fs) => fs.exists("package.json")).pipe(Effect.provide(NodeServices.layer));',
-      "",
-      'export const startHost = () => serve(() => Promise.resolve(new Response("typed host")), { port: 0 });',
-      "",
-      "export const showItem = implement(showItemContract, ({ id }) =>",
-      '  Effect.succeed({ id, title: "A title" }),',
-      ");",
-      "",
-    ].join("\n"),
+    ...workspaceConsumerFiles,
   });
 
   write(app, { "run.ts": readFileSync(path.join(app, "run.mjs"), "utf8") });
@@ -269,6 +229,7 @@ try {
     `cold install pair: effect ${effect}, platform-node/shared ${platformNode}; no input lockfile`,
   );
   run(process.execPath, ["--no-experimental-strip-types", "host.mjs"], app);
+  run(process.execPath, ["--no-experimental-strip-types", "rules.mjs"], app);
   run(process.execPath, ["--no-experimental-strip-types", "run.mjs"], app);
   assertPackedComments(app, { run, write, failure });
   const tsc = path.join(root, "node_modules/.bin/tsc");

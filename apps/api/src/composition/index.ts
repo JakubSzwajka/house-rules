@@ -1,4 +1,4 @@
-import { composition } from "@house-rules/capability";
+import { composition } from "@house-rules/application";
 import { Context, Effect } from "effect";
 import { appLayer } from "./app-layer.js";
 import { bookingViews } from "./views.js";

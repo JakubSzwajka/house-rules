@@ -1,5 +1,5 @@
 import { expect, layer } from "@effect/vitest";
-import { CallWatch, defineContract, implement } from "@house-rules/capability";
+import { CallWatch, defineContract, implement } from "@house-rules/application";
 import { DateTime, Effect, Layer, Schema } from "effect";
 import { type AuditEntry, type AuditRow, AuditStore, CallAudit } from "../../index.ts";
 import { who } from "../../tests/audit-fixtures.ts";

@@ -2,7 +2,7 @@ import { matchesAnyGlob } from "./file-globs.mjs";
 import { importOf, staticPropertyName, unwrapExpression } from "./import-bindings.mjs";
 import { ruleDocsUrl } from "./rule-docs.mjs";
 
-const CAPABILITY_MODULE = "@house-rules/capability";
+const CAPABILITY_MODULE = "@house-rules/application";
 const DEFAULT_INCLUDE = ["apps/*/src/use-cases/**/*.{ts,tsx,mts,cts}"];
 const DEFAULT_EXCLUDE = ["**/tests/**", "**/*.{test,spec}.{ts,tsx,mts,cts}"];
 
@@ -45,11 +45,11 @@ export const useCaseIsCapabilityRule = {
     docs: {
       url: ruleDocsUrl("use-case-is-capability"),
       description:
-        "Require every use-case file to export exactly one capability built with implement from @house-rules/capability, at most one contract, and no other values.",
+        "Require every use-case file to export exactly one capability built with implement from @house-rules/application, at most one contract, and no other values.",
     },
     messages: {
       missingCapability:
-        "A use-case file exports exactly one capability, `export const <name> = implement(contract, handler)`, with implement imported from @house-rules/capability. This file exports none.",
+        "A use-case file exports exactly one capability, `export const <name> = implement(contract, handler)`, with implement imported from @house-rules/application. This file exports none.",
       extraCapability:
         "A use-case file exports exactly one capability. Move `{{name}}` to its own use-case file.",
       extraContract:

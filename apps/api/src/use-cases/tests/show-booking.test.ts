@@ -1,6 +1,6 @@
 import { BookingPermissions, Bookings, showBookingContract } from "@hosti/bookings";
 import { expect, it } from "@effect/vitest";
-import { Forbidden, Grant } from "@house-rules/capability";
+import { Forbidden, Grant } from "@house-rules/application";
 import { Effect, Layer } from "effect";
 import { showBooking } from "../show-booking.js";
 

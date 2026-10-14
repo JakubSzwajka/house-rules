@@ -1,5 +1,5 @@
 import type { BookingNotFound, BookingStoreUnavailable } from "@hosti/bookings";
-import { problemView } from "@house-rules/capability";
+import { problemView } from "@house-rules/application";
 import type {
   CommentInputInvalid,
   CommentStoreUnavailable,

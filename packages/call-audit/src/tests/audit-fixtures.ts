@@ -1,4 +1,4 @@
-import { CallChannel, defineContract, implement, withRequestId } from "@house-rules/capability";
+import { CallChannel, defineContract, implement, withRequestId } from "@house-rules/application";
 import { Context, DateTime, Duration, Effect, Option, Schema } from "effect";
 import { McpSchema } from "effect/ai";
 import { AuditStore } from "../index.ts";
@@ -43,13 +43,15 @@ export const renameTrip = implement(
       : Effect.succeed(tripId),
 );
 
-export class Viewer extends Context.Service<Viewer, { readonly userId: string }>()("test/Viewer") {}
+export class Requester extends Context.Service<Requester, { readonly userId: string }>()(
+  "test/Requester",
+) {}
 
-export const who = Effect.serviceOption(Viewer).pipe(
+export const who = Effect.serviceOption(Requester).pipe(
   Effect.map((viewer) => (Option.isSome(viewer) ? viewer.value.userId : null)),
 );
 
-export const asViewer = (userId: string) => Effect.provideService(Viewer, { userId });
+export const asRequester = (userId: string) => Effect.provideService(Requester, { userId });
 
 export const onWeb = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   effect.pipe(Effect.provideService(CallChannel, "web"));

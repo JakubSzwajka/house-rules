@@ -1,5 +1,6 @@
 import { BookingPermissions, Bookings } from "@hosti/bookings";
-import { Grant, memoryUnitOfWork } from "@house-rules/capability";
+import { memoryUnitOfWork } from "@house-rules/domain";
+import { Grant } from "@house-rules/application";
 import { Comments, CommentTargets, CommentTargetsUnavailable } from "@house-rules/comments";
 import { Effect, Layer } from "effect";
 

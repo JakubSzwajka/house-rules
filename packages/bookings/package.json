@@ -12,7 +12,8 @@
     "test": "varlock run --path ../../ -- vitest run"
   },
   "dependencies": {
-    "@house-rules/capability": "workspace:0.17.0",
+    "@house-rules/application": "workspace:0.1.0",
+    "@house-rules/domain": "workspace:0.1.0",
     "effect": "4.0.3"
   },
   "devDependencies": {

@@ -1,10 +1,10 @@
 # @house-rules/call-audit: notes for agents
 
-Version 0.5.1 peers on exact `effect` 4.0.3 and `@house-rules/capability` 0.17.0. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
+Version 0.6.0 peers on exact `effect` 4.0.3 and `@house-rules/application` 0.1.0, which replaces the retired capability package. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
 
 ## What it does
 
-It records every capability call through the `CallWatch` hook of `@house-rules/capability`: who, which capability, outcome, duration, kind (read or write), target id, channel and request id. An `AuditPolicy` decides which calls it keeps and how long rows live. Retention runs inside the layer. `CallAudit.erase(viewerId)` deletes one viewer's rows. The full guide is `README.md` in this package.
+It records every capability call through the `CallWatch` hook of `@house-rules/application`: who, which capability, outcome, duration, kind (read or write), target id, channel and request id. An `AuditPolicy` decides which calls it keeps and how long rows live. Retention runs inside the layer. `CallAudit.erase(viewerId)` deletes one viewer's rows. The full guide is `README.md` in this package.
 
 ## How an app mounts it
 
@@ -16,7 +16,7 @@ It records every capability call through the `CallWatch` hook of `@house-rules/c
    );
    ```
 
-   It provides `CallWatch` and `AuditStore`. `who` is an Effect with no requirements that yields the caller id or `null`, such as `Effect.serviceOption(Viewer)` mapped to the user id.
+   It provides `CallWatch` and `AuditStore`. `who` is an Effect with no requirements that yields the caller id or `null`, such as `Effect.serviceOption(CurrentActor)` mapped to the actor id.
 
 2. [ ] One line in the root `migrations.json`, and the package in the root `package.json` dependencies:
 
@@ -24,7 +24,7 @@ It records every capability call through the `CallWatch` hook of `@house-rules/c
    { "package": "@house-rules/call-audit" }
    ```
 
-3. [ ] Set `CallChannel` to `"web"` in the web runner (see the capability package). Without it, web calls record `"unknown"`, and `agentAware` drops their reads.
+3. [ ] Set `CallChannel` to `"web"` in the web runner (see the application package). Without it, web calls record `"unknown"`, and `agentAware` drops their reads.
 4. [ ] Call `CallAudit.erase(viewerId)` where the app deletes a user. It needs `AuditStore`, which `layerPostgres` provides.
 
 Tests use `CallAudit.layer({ who, policy })` with `memoryAuditStore()`, or `CallAudit.layerMemory(memoryAuditLog(), { who })` to see raw entries.

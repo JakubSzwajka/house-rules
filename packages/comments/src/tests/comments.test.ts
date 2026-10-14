@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { Actor, ActorId, memoryUnitOfWork, NoOpenUnit, UnitOfWork } from "@house-rules/capability";
+import { Actor, ActorId, memoryUnitOfWork, NoOpenUnit, UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer } from "effect";
 import {
   Comments,

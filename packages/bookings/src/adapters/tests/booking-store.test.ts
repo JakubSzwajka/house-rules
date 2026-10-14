@@ -1,5 +1,5 @@
 import { expect, layer } from "@effect/vitest";
-import { Actor, ActorId, NoOpenUnit, UnitOfWork } from "@house-rules/capability";
+import { Actor, ActorId, NoOpenUnit, UnitOfWork } from "@house-rules/domain";
 import { Effect, Schema } from "effect";
 import { BookingAlreadyExists, BookingNotFound, Bookings, BookingStore } from "../../index.js";
 import { stores } from "./stores.js";

@@ -82,7 +82,7 @@ Endpoint.post("f", "/f");`;
 });
 
 test("passes toTool, Toolkit.make, other modules, and shadowed names", () => {
-  const code = `import { toTool } from "@house-rules/capability";
+  const code = `import { toTool } from "@house-rules/application";
 import { Toolkit } from "effect/unstable/ai";
 import { Tool } from "./local-tool";
 import type { Rpc } from "effect/unstable/rpc";
@@ -95,16 +95,25 @@ function inner(HttpApiEndpoint) {
   assert.deepEqual(lint(code), []);
 });
 
-test("allows packages/capability by default, and honours a custom allow list", () => {
+test("allows packages/application by default, and honours a custom allow list", () => {
   const code = 'import { Tool } from "effect/unstable/ai";\nTool.make("ping");';
-  assert.deepEqual(lint(code, "packages/capability/src/contract/to-tool.ts"), []);
+  assert.deepEqual(lint(code, "packages/application/src/contract/to-tool.ts"), []);
   assert.deepEqual(
     lint(code, "packages/surfaces/src/tool.ts", { allow: ["packages/surfaces/**"] }),
     [],
   );
-  assert.deepEqual(lint(code, "packages/capability/src/contract/to-tool.ts", { allow: [] }), [
+  assert.deepEqual(lint(code, "packages/application/src/contract/to-tool.ts", { allow: [] }), [
     ["Tool.make", 2],
   ]);
+});
+
+test("the default allow list is the application package only, and refuses the retired capability package", () => {
+  assert.deepEqual(plugin.rules["no-hand-rolled-surface"].meta.defaultOptions, [
+    { allow: ["packages/application/**"] },
+  ]);
+  const code = 'import { Tool } from "effect/unstable/ai";\nTool.make("ping");';
+  assert.deepEqual(lint(code, "packages/capability/src/contract/to-tool.ts"), [["Tool.make", 2]]);
+  assert.deepEqual(lint(code, "packages/domain/src/module/define-module.ts"), [["Tool.make", 2]]);
 });
 
 test("the message points at toTool", () => {

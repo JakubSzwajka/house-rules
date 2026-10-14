@@ -1,7 +1,7 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { PgClient } from "@effect/sql-pg";
 import { expect, layer } from "@effect/vitest";
-import { Actor, ActorId } from "@house-rules/capability";
+import { Actor, ActorId } from "@house-rules/domain";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { Effect, FileSystem, Layer, Path } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";

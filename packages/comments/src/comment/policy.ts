@@ -1,4 +1,4 @@
-import { definePolicy } from "@house-rules/capability";
+import { definePolicy } from "@house-rules/domain";
 import { CommentPermissions } from "./permissions.js";
 
 export const commentPolicy = definePolicy({

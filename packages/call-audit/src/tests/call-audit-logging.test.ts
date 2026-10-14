@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { withRequestId, Grant } from "@house-rules/capability";
+import { withRequestId, Grant } from "@house-rules/application";
 import { Effect, Exit, Layer, Logger, References, Result, Cause } from "effect";
 import { TestConsole } from "effect/testing";
 import { type AuditRow, CallAudit, memoryAuditLog, memoryAuditStore } from "../index.ts";
@@ -9,7 +9,7 @@ import {
   chattyGreeting,
   NameIsEmpty,
   readGreeting,
-  Viewer,
+  Requester,
   who,
 } from "./greeting-fixtures.ts";
 
@@ -21,7 +21,7 @@ const throwingLogger = Logger.layer([
 
 const withBrokenLogger = Layer.mergeAll(
   CallAudit.layerLog({ who }),
-  Layer.succeed(Viewer, ANA),
+  Layer.succeed(Requester, ANA),
   Grant.layerFromPermissions(["greetings:read"]),
   throwingLogger,
 );
@@ -69,7 +69,7 @@ it.effect("never keeps input values, in the entry or in the log line", () =>
         Effect.provide(
           Layer.mergeAll(
             CallAudit.layerLog({ who }),
-            Layer.succeed(Viewer, ANA),
+            Layer.succeed(Requester, ANA),
             Grant.layerFromPermissions(["greetings:read"]),
             capture,
           ),
@@ -99,7 +99,7 @@ it.effect("the production layer writes one physical line per call", () =>
         Effect.provide(
           Layer.mergeAll(
             CallAudit.layerLog({ who }),
-            Layer.succeed(Viewer, ANA),
+            Layer.succeed(Requester, ANA),
             Grant.layerFromPermissions(["greetings:read"]),
           ),
         ),

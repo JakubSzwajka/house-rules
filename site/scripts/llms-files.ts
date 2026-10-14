@@ -19,7 +19,7 @@ export const llmsText = (): string =>
     [
       "## For agents",
       "",
-      "Working in a repo made from House Rules? Read `AGENTS.md` at its root: it is the law there, and it wins over this site. Each framework package the app mounts ships its own `AGENTS.md`, such as `node_modules/@house-rules/capability/AGENTS.md`. Read those too.",
+      "Working in a repo made from House Rules? Read `AGENTS.md` at its root: it is the law there, and it wins over this site. Each framework package the app mounts ships its own `AGENTS.md`, such as `node_modules/@house-rules/application/AGENTS.md`. Read those too.",
     ].join("\n"),
     `Source: ${GITHUB_REPO}`,
   ].join("\n\n")}\n`;

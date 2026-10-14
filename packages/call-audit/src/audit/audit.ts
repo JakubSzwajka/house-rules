@@ -1,4 +1,4 @@
-import type { CallKind } from "@house-rules/capability";
+import type { CallKind } from "@house-rules/application";
 import { type Duration, type Effect, Schema } from "effect";
 
 export type AuditEntry = Readonly<{

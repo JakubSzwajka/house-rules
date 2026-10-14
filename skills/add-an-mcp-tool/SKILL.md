@@ -12,7 +12,7 @@ The reference implementation is Trippy, in `/home/kuba/DEV/priv/trippy` or its G
 | Part | Template path | Trippy path |
 | --- | --- | --- |
 | Service taking an `Actor` | `packages/<name>/src/facade.ts` | `packages/trips/src/facade.ts` |
-| `Viewer` service | `packages/<name>/src/viewer.ts` | `packages/trips/src/viewer.ts` |
+| `CurrentActor` service | `@house-rules/application`, no file of its own | `packages/trips/src/viewer.ts`, Trippy's own tag from before the kits |
 | Use-cases | `apps/<app>/src/use-cases/` | `apps/web/src/use-cases/**` |
 | Web adapter | `apps/<app>/src/delivery/http/` | `apps/web/src/app/_http/run-use-case.ts` |
 | Tool catalogue | `apps/<app>/src/delivery/mcp/tools.ts` | `apps/web/src/app/_mcp/tools.ts` (its hand-written `toolFrom` is what `toTool` replaces) |
@@ -29,8 +29,8 @@ Trippy is a Next.js app, so its delivery layer is `src/app/`. In the template la
 
 1. [ ] The data and its access rules live in a module in `packages/<name>`. If not, follow `skills/add-an-effect-module/SKILL.md` first. The module is not the capability: the capability is the use-case in step 4.
 2. [ ] Each service method that acts for a user takes an `Actor` argument and checks access inside the module.
-3. [ ] The package exports a `Viewer` service that holds the `Actor`.
-4. [ ] A use-case in `apps/<app>/src/use-cases/` is a capability: a contract from `defineContract` and a handler from `implement`, both from `@house-rules/capability`. Its contract names a `permission` the module exports, such as `trips:read`, and sets `needsApproval: true` when a human must confirm each call. Its handler yields `Viewer` and the service, and does what the tool needs. If it is missing, write it first, with its test. A tool never calls the module itself.
+3. [ ] The use-case reads the `Actor` from `CurrentActor`, which `@house-rules/application` exports. The package defines no request-identity service of its own; `Actor` comes from `@house-rules/domain`.
+4. [ ] A use-case in `apps/<app>/src/use-cases/` is a capability: a contract from `defineContract` and a handler from `implement`, both from `@house-rules/application`. Its contract names a `permission` the module exports, such as `trips:read`, and sets `needsApproval: true` when a human must confirm each call. Its handler yields `CurrentActor` and the service, and does what the tool needs. If it is missing, write it first, with its test. A tool never calls the module itself.
 
 ## 2. Set up MCP in an app, the first time
 
@@ -51,8 +51,8 @@ Skip this step when the app already serves MCP.
 5. [ ] Serve `/.well-known/oauth-protected-resource`. It names this resource by its canonical URL and names the identity provider as the authorization server. Trippy serves the same document at `/.well-known/oauth-protected-resource/mcp` too, the URL its 401 names.
 6. [ ] In the route, read the bearer token. With no token or a bad one, answer 401 with a `WWW-Authenticate` header that carries `resource_metadata` pointing at the document above.
 7. [ ] Check that the token is valid and that its audience is this resource. Trippy calls Clerk's `authenticateRequest` with `acceptsToken: "oauth_token"` and `audience` set to `APP_URL` plus `/mcp`, and the SDK rejects a token whose `aud` does not match. Clerk puts `aud` in the token only when "Include audience" is on, and it is off by default. With it off, every call gets 401 `invalid_token`. Require the scopes the module needs, and answer 403 `insufficient_scope` without them. Trippy requires `email`, because Shares match by email, and takes only verified emails from the identity provider's user record. Do not forward the token to any other service.
-8. [ ] Then build the per-request values and pass them to the handler. Delivery provides only these: the `Viewer`, the `CallChannel`, the request id through `withRequestId`, and the `Grant` and `Approval` it fills for this one request, such as a `Grant` from the caller's app role (`Grant.fromPermissions(memberPermissions)`) and `elicitationApproval` for `Approval`. `elicitationApproval` asks the human through the client's form, and fails closed when the client cannot. Delivery never provides a module service, a storage adapter, or a `Grant` or `Approval` that is the same for every request. The composition root provides those (see step 4 of this list). The toolkit takes services only at startup, so each tool handler reads the per-request values with `Effect.serviceOption`. Trippy's `withCaller` in `_mcp/server.ts` does this.
-9. [ ] If auth is not configured, refuse every call. Never fall back to an anonymous or default `Viewer`.
+8. [ ] Then build the per-request values and pass them to the handler. Delivery provides only these: the `CurrentActor`, the `CallChannel`, the request id through `withRequestId`, and the `Grant` and `Approval` it fills for this one request, such as a `Grant` from the caller's app role (`Grant.fromPermissions(memberPermissions)`) and `elicitationApproval` for `Approval`. `elicitationApproval` asks the human through the client's form, and fails closed when the client cannot. Delivery never provides a module service, a storage adapter, or a `Grant` or `Approval` that is the same for every request. The composition root provides those (see step 4 of this list). The toolkit takes services only at startup, so each tool handler reads the per-request values with `Effect.serviceOption`. Trippy's `withCaller` in `_mcp/server.ts` does this.
+9. [ ] If auth is not configured, refuse every call. Never fall back to an anonymous or default `CurrentActor`.
 10. [ ] Mark the MCP route and the metadata paths public in the session middleware, and nothing else. Trippy keeps them as `BEARER_PATHS` in `apps/web/src/app/_auth/public-paths.ts`. Its `proxy.ts` lets a path that passes `isBearerPath` skip the session middleware and the rewrite it does when no keys are set. Adding a public path needs owner approval.
 11. [ ] Write the error mapper in `delivery/mcp/`. It maps each typed error to a tool error the agent can read, `Forbidden` and `ApprovalDenied` included. Do not import the web error view.
 12. [ ] Write the adapter tests in `apps/<app>/src/delivery/mcp/tests/`: the 401 challenge and its header, the metadata document, and the fail-closed path.
@@ -70,7 +70,7 @@ The owner changes identity provider settings by hand. Write the steps down for t
 
 ## 4. Add one tool
 
-1. [ ] Build the tool from the use-case's contract with `toTool` from `@house-rules/capability`, in `apps/<app>/src/delivery/mcp/tools.ts`. The contract gives the name, the description, the input `Schema`, and the `Tool.Readonly` and `Tool.Destructive` annotations, so set `readOnly` and `destructive` on the contract, not on the tool. The options give what only MCP needs: `title`, `idempotent`, and `openWorld`. Pass `success` for a view of the output, and `failure` for the adapter's own error, such as a `ToolProblem`.
+1. [ ] Build the tool from the use-case's contract with `toTool` from `@house-rules/application`, in `apps/<app>/src/delivery/mcp/tools.ts`. The contract gives the name, the description, the input `Schema`, and the `Tool.Readonly` and `Tool.Destructive` annotations, so set `readOnly` and `destructive` on the contract, not on the tool. The options give what only MCP needs: `title`, `idempotent`, and `openWorld`. Pass `success` for a view of the output, and `failure` for the adapter's own error, such as a `ToolProblem`.
 
    ```ts
    export const ShowBooking = toTool(showBooking.contract, {
@@ -87,11 +87,11 @@ The owner changes identity provider settings by hand. Write the steps down for t
 3. [ ] Write the handler in the toolkit layer. It calls `<capability>.handler(input)`, maps errors with the MCP error mapper, and returns structured output shaped by the tool's success `Schema`. It does not reach a module, the database, or another adapter.
 4. [ ] Return data, never instructions. Text a user wrote, such as a trip note, goes out as a field value. Do not paste it into a message to the model.
 5. [ ] For a big record, add a tool that lists summaries, plus a separate tool that reads one record by id.
-6. [ ] Test it in `apps/<app>/src/delivery/mcp/tests/<tool>.test.ts`. Provide a fake `Viewer` and the module's test layer with `it.layer`, and run each case with `it.effect`. Cover the happy path, each mapped error, and access: user B cannot read user A's data through the tool, and a `Grant` without the permission gets `Forbidden`. For a tool whose contract needs approval, provide `Approval.denyAll` and show that nothing changed.
+6. [ ] Test it in `apps/<app>/src/delivery/mcp/tests/<tool>.test.ts`. Provide a fake `CurrentActor` and the module's test layer with `it.layer`, and run each case with `it.effect`. Cover the happy path, each mapped error, and access: user B cannot read user A's data through the tool, and a `Grant` without the permission gets `Forbidden`. For a tool whose contract needs approval, provide `Approval.denyAll` and show that nothing changed.
 
 ## 5. Start read-only
 
-The first tools an app exposes only read. An agent gets the same access as the user has in the app, no more. The module enforces what the `Viewer` may do, not the token.
+The first tools an app exposes only read. An agent gets the same access as the user has in the app, no more. The module enforces what the `CurrentActor` may do, not the token.
 
 1. [ ] Annotate every write or destructive tool as one, and get owner approval before it ships.
 2. [ ] A token scope is optional. It can only narrow access, never widen it.
@@ -104,12 +104,12 @@ Keep the catalogue small: each tool schema costs context in every agent session.
 `use-case-is-capability` and `no-hand-rolled-surface` check that the use-case is a capability and that the tool came from its contract. A reviewer checks the rest.
 
 1. [ ] The handler calls a use-case and nothing else.
-2. [ ] The use-case passes the `Viewer` to the module, and the module checks access.
+2. [ ] The use-case passes the `CurrentActor` to the module, and the module checks access.
 3. [ ] The contract's `readOnly` and `destructive` flags are right, the tool's `idempotent` and `openWorld` are right, and the tool has a test.
 4. [ ] The contract's `permission` is the module's, not `"public"` by habit, and a hard-to-undo tool sets `needsApproval: true`. The route provides `elicitationApproval`, never `Approval.allowAll`.
 5. [ ] The access test fails if you remove the module's access check.
 6. [ ] The output holds no instructions to the model.
-7. [ ] The route checks the token and its audience before it builds the `Viewer`, and never forwards the token.
+7. [ ] The route checks the token and its audience before it builds the `CurrentActor`, and never forwards the token.
 8. [ ] With auth unset, the route refuses every call.
 9. [ ] The public-path list gained only the MCP route and the metadata paths.
 10. [ ] No new dependency, unless the owner approved it.

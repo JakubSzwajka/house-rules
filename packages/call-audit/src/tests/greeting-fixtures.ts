@@ -1,4 +1,4 @@
-import { defineContract, Grant, implement } from "@house-rules/capability";
+import { defineContract, Grant, implement } from "@house-rules/application";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 import { type memoryAuditLog, CallAudit } from "../index.ts";
 
@@ -43,17 +43,19 @@ export const slowGreeting = implement(
   (input) => Effect.sleep("50 millis").pipe(Effect.andThen(greetHandler(input))),
 );
 
-export class Viewer extends Context.Service<Viewer, { readonly userId: string }>()("test/Viewer") {}
+export class Requester extends Context.Service<Requester, { readonly userId: string }>()(
+  "test/Requester",
+) {}
 
 export const ANA = { userId: "user_ana" };
 
-export const who = Effect.serviceOption(Viewer).pipe(
+export const who = Effect.serviceOption(Requester).pipe(
   Effect.map((viewer) => (Option.isSome(viewer) ? viewer.value.userId : null)),
 );
 
 export const audited = (log: ReturnType<typeof memoryAuditLog>) =>
   Layer.mergeAll(
     CallAudit.layerMemory(log, { who }),
-    Layer.succeed(Viewer, ANA),
+    Layer.succeed(Requester, ANA),
     Grant.layerFromPermissions(["greetings:read"]),
   );

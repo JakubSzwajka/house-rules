@@ -1,4 +1,4 @@
-import { type Actor, defineModule, type NoOpenUnit } from "@house-rules/capability";
+import { type Actor, defineModule, type NoOpenUnit } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import { memoryCommentStore } from "./adapters/memory/comment.js";
 import { postgresCommentStore } from "./adapters/postgres/comment.js";

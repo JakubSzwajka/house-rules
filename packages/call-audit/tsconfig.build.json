@@ -8,7 +8,8 @@
     "declaration": true,
     "rewriteRelativeImportExtensions": true,
     "paths": {
-      "@house-rules/capability": ["../capability/dist/index.d.ts"]
+      "@house-rules/application": ["../application/dist/index.d.ts"],
+      "@house-rules/domain": ["../domain/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*.ts"],

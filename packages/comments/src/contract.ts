@@ -1,4 +1,4 @@
-import { defineContract } from "@house-rules/capability/contract";
+import { defineContract } from "@house-rules/application/contract";
 import { Schema } from "effect";
 import {
   Comment,

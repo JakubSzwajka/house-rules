@@ -1,4 +1,4 @@
-import { CallWatch } from "@house-rules/capability";
+import { CallWatch } from "@house-rules/application";
 import { Effect, Layer } from "effect";
 import { postgresAuditStore } from "./adapters/postgres/postgres-audit-store.ts";
 import { readRows } from "./adapters/postgres/read-rows.ts";

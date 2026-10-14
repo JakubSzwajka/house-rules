@@ -1,6 +1,7 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { PgClient } from "@effect/sql-pg";
-import { memoryUnitOfWork, sqlUnitOfWork } from "@house-rules/capability";
+import { memoryUnitOfWork } from "@house-rules/domain";
+import { sqlUnitOfWork } from "@house-rules/application";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { Layer } from "effect";
 import { memoryBookingStore, postgresBookingStore } from "../../index.js";

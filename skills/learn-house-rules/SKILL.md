@@ -7,21 +7,27 @@ description: Find your way around house-rules or a repo made from its template. 
 
 Read before you write. house-rules has a law, a vocabulary, checked rules, and a docs site. Each answers a different question. This skill says which to open and when.
 
-## 1. Know the three parts
+## 1. Know the parts
 
 ```text
 house-rules
-├── the stack            a pnpm workspace template with the checks wired in
-├── packages/rules       @house-rules/rules, the house plugin: every checked rule
-└── packages/capability  @house-rules/capability: one action = one contract + one handler
+├── the stack                a pnpm workspace template with the checks wired in
+├── packages/rules           @house-rules/rules, the house plugin: every checked rule
+├── kits
+│   ├── packages/domain      @house-rules/domain: define a module (defineModule, Actor, policy, unit of work)
+│   └── packages/application @house-rules/application: one action = one contract + one handler, and delivery
+├── wiring                   packages/migrations, packages/node-host, packages/rules
+└── additions                packages/comments (a domain addition), packages/call-audit (a plug-in)
 ```
+
+`@house-rules/capability` is retired; the two kits replace it.
 
 A repo made from the template has the same shape, with its own scope instead of `@hosti/`.
 
 ## 2. Read in this order
 
 1. `AGENTS.md`. The law. It wins over everything else, this skill included.
-2. `CONTEXT.md`. The words. Use them as written: a *module* is a package, a *capability* is one action, the *fence* is what blocks skipped checks.
+2. `CONTEXT.md`. The words. Use them as written: a *module* is a package, a *capability* is one action, a *kit* is domain or application, the *fence* is what blocks skipped checks.
 3. `README.md`. The layout, the commands, and the prose rules no tool checks.
 4. The rules page, `https://stack.kubaszwajka.com/rules/`, or the rules table in `packages/rules/README.md`, when you need one rule.
 

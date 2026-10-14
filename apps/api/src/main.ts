@@ -1,4 +1,4 @@
-import { toFetchHandler, toOpenApi } from "@house-rules/capability";
+import { toFetchHandler, toOpenApi } from "@house-rules/application";
 import { serve } from "@house-rules/node-host";
 import { Config, Effect } from "effect";
 import { bookingRoutes } from "./delivery/http/routes.js";

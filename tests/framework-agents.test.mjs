@@ -3,7 +3,14 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-const FRAMEWORK_PACKAGES = ["capability", "call-audit", "comments", "migrations", "node-host"];
+const FRAMEWORK_PACKAGES = [
+  "domain",
+  "application",
+  "call-audit",
+  "comments",
+  "migrations",
+  "node-host",
+];
 const SECTIONS = ["## What it does", "## How an app mounts it", "## Fixed rules"];
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");

@@ -6,15 +6,25 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const runGit = (args) => execFileSync("git", args, { encoding: "utf8" });
-const folders = ["rules", "capability", "migrations", "call-audit", "comments", "node-host"];
+const folders = [
+  "rules",
+  "domain",
+  "application",
+  "migrations",
+  "call-audit",
+  "comments",
+  "node-host",
+];
+const retiredRecoveryOnlyFolders = ["capability"];
+const CURRENT_NAME =
+  /^@house-rules\/(?:rules|domain|application|migrations|call-audit|comments|node-host)$/u;
+const RECOVERABLE_NAME =
+  /^@house-rules\/(?:rules|domain|application|migrations|call-audit|comments|node-host|capability)$/u;
 
-function publishedTags(summary) {
+function publishedTags(summary, names = CURRENT_NAME) {
   assert.ok(Array.isArray(summary.publishedPackages), "publish summary needs publishedPackages");
   const tags = summary.publishedPackages.map(({ name, version }) => {
-    assert.match(
-      name,
-      /^@house-rules\/(?:rules|capability|migrations|call-audit|comments|node-host)$/u,
-    );
+    assert.match(name, names);
     assert.match(version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u);
     return `${name}@${version}`;
   });
@@ -22,8 +32,8 @@ function publishedTags(summary) {
   return tags;
 }
 
-export function tagPublished(summary, git = runGit, { dryRun = false } = {}) {
-  const tags = publishedTags(summary);
+export function tagPublished(summary, git = runGit, { dryRun = false, names = CURRENT_NAME } = {}) {
+  const tags = publishedTags(summary, names);
   if (tags.length === 0) return [];
   const head = git(["rev-parse", "HEAD"]).trim();
   const missing = tags.filter((tag) => {
@@ -120,7 +130,7 @@ export async function recoverPublished(
   registry = npmVersion,
   { attestations = fetchAttestations, dryRun = false, report = () => {} } = {},
 ) {
-  publishedTags({ publishedPackages: packages });
+  publishedTags({ publishedPackages: packages }, RECOVERABLE_NAME);
   const head = git(["rev-parse", "HEAD"]).trim();
   const publishedPackages = [];
   for (const pkg of packages) {
@@ -139,11 +149,11 @@ export async function recoverPublished(
     publishedPackages.push(pkg);
     report(`recovery match: ${pkg.name}@${pkg.version} commit ${commit}`);
   }
-  return tagPublished({ publishedPackages }, git, { dryRun });
+  return tagPublished({ publishedPackages }, git, { dryRun, names: RECOVERABLE_NAME });
 }
 
 export function workspacePackages(read = readFileSync) {
-  return folders.flatMap((folder) => {
+  return [...folders, ...retiredRecoveryOnlyFolders].flatMap((folder) => {
     let source;
     try {
       source = read(`packages/${folder}/package.json`, "utf8");

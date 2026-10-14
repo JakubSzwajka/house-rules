@@ -5,7 +5,7 @@ Rule ID: `house-rules/no-hand-rolled-surface`
 An MCP tool, an RPC, or an HTTP API endpoint is a surface an outside caller reaches. Build it from a capability's contract, so the name, the description, the input schema and the read and destructive flags are written once. The rule reports a surface built by hand outside the allowed paths. Enable it with `plugin.configs.capability`, which runs it on JavaScript and TypeScript files alike.
 
 ```ts
-import { toTool } from "@house-rules/capability";
+import { toTool } from "@house-rules/application";
 import { Tool } from "effect/ai";
 
 export const ShowBooking = toTool(showBooking.contract, {
@@ -17,7 +17,7 @@ export const ShowBooking = toTool(showBooking.contract, {
 export const Hand = Tool.make("show_booking", { parameters: Input }); // reported
 ```
 
-The message is `Tool.make builds a surface by hand. Define the action once with defineContract and implement from @house-rules/capability, then build the surface from its contract with toTool.`
+The message is `Tool.make builds a surface by hand. Define the action once with defineContract and implement from @house-rules/application, then build the surface from its contract with toTool.`
 
 ## What the rule checks
 
@@ -36,13 +36,13 @@ It follows aliases (`import { Tool as T }`), barrel namespaces (`Ai.Tool.make`),
 ```ts
 type Options = [
   {
-    allow?: string[]; // default: ["packages/capability/**"]
+    allow?: string[]; // default: ["packages/application/**"]
   },
 ];
 ```
 
-Globs are relative to ESLint's working directory. The capability package builds surfaces with `Tool.make` inside `toTool`, so it is allowed by default. Setting `allow` replaces the default.
+Globs are relative to ESLint's working directory. The application package builds surfaces with `Tool.make` inside `toTool`, so it is allowed by default. Setting `allow` replaces the default.
 
 ## Limits
 
-`@house-rules/capability` has `toTool` only. An app that needs an RPC or an HTTP endpoint today adds the projection to the capability package, or allows its own adapter folder with a reason.
+`@house-rules/application` has `toTool` only. An app that needs an RPC or an HTTP endpoint today adds the projection to the application package, or allows its own adapter folder with a reason.

@@ -7,7 +7,7 @@ description: Add one action to an app as a capability. Define its contract with 
 
 A capability is one named action: a contract plus one handler. Every use-case is one. Write the action once, and let each adapter reach it. The module does the work and checks the object. The capability only names the action and its gates.
 
-This skill assumes the module exists. If it does not, follow `skills/add-an-effect-module/SKILL.md` first. Read `packages/capability/README.md` for the full API.
+This skill assumes the module exists. If it does not, follow `skills/add-an-effect-module/SKILL.md` first. Read `packages/application/README.md` for the full API. Contracts, `implement`, `CurrentActor`, the gates and delivery come from the application kit, `@house-rules/application`. The module itself, its `Actor` and its policy come from the domain kit, `@house-rules/domain`.
 
 ## 1. Name the permission in the module
 
@@ -28,6 +28,8 @@ Use `"public"` only for an action any caller may run, and only on purpose.
 Create `apps/<app>/src/use-cases/<action>.ts`. One file, one capability.
 
 ```ts
+import { defineContract, implement } from "@house-rules/application";
+
 export const showBookingContract = defineContract("show_booking", {
   description: "Show one booking by its id.",
   input: Schema.Struct({ id: Schema.String }),
@@ -55,13 +57,13 @@ export const showBooking = implement(showBookingContract, ({ id }) =>
 );
 ```
 
-The handler yields services and calls their methods. Let typed errors flow. Do not catch them, do not open a transaction, and do not import another use-case. When the action acts for a user, yield the `Viewer` and pass its `Actor` to the service.
+The handler yields services and calls their methods. Let typed errors flow. Do not catch them, do not open a transaction, and do not import another use-case. When the action acts for a user, yield `CurrentActor` and pass the `Actor` to the service.
 
 The file exports the contract, the capability, and types. Nothing else. `use-case-is-capability` fails anything more.
 
 ## 4. Call it from delivery
 
-Mount the capability with a delivery adapter from `@house-rules/capability`. It decodes the input, runs the gates, and maps every typed error once through the app's views table:
+Mount the capability with a delivery adapter from `@house-rules/application`. It decodes the input, runs the gates, and maps every typed error once through the app's views table:
 
 1. [ ] Add a route in `src/delivery/http/routes.ts`: `route(showBooking, "GET /bookings/:id")`.
 2. [ ] Give each failure tag a view in the composition's `views`, in `src/composition/views.ts`. A missing view fails `tsc` and names the tag.
