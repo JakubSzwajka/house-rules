@@ -1,7 +1,7 @@
 import { UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer } from "effect";
 import { BookingStore } from "../../storage.js";
-import type { Booking } from "../../booking/booking.js";
+import type { Booking, BookingStatus } from "../../booking/booking.js";
 
 export const memoryBookingStore = (records: readonly Booking[] = []): Layer.Layer<BookingStore> =>
   Layer.sync(BookingStore, () => {
@@ -14,6 +14,18 @@ export const memoryBookingStore = (records: readonly Booking[] = []): Layer.Laye
         // The memory unit runs no transaction, so the store undoes its own write when the unit fails.
         yield* UnitOfWork.onRollback(Effect.sync(() => void rows.delete(booking.id)));
         rows.set(booking.id, { ...booking });
+        return true;
+      }),
+      transition: Effect.fn("BookingStore.memory.transition")(function* transition(
+        id: string,
+        from: BookingStatus,
+        to: BookingStatus,
+      ) {
+        yield* UnitOfWork.required;
+        const row = rows.get(id);
+        if (row === undefined || row.status !== from) return false;
+        yield* UnitOfWork.onRollback(Effect.sync(() => void rows.set(id, row)));
+        rows.set(id, { ...row, status: to });
         return true;
       }),
     });

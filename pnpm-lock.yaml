@@ -207,18 +207,33 @@ importers:
 
   apps/api:
     dependencies:
+      '@effect/platform-node':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)(redis@6.3.0)
+      '@effect/platform-node-shared':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)
+      '@effect/sql-pg':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)
       '@hosti/bookings':
         specifier: workspace:0.0.0
         version: link:../../packages/bookings
       '@house-rules/application':
         specifier: workspace:0.1.0
         version: link:../../packages/application
+      '@house-rules/call-audit':
+        specifier: workspace:0.6.0
+        version: link:../../packages/call-audit
       '@house-rules/comments':
         specifier: workspace:0.1.0
         version: link:../../packages/comments
       '@house-rules/domain':
         specifier: workspace:0.1.0
         version: link:../../packages/domain
+      '@house-rules/migrations':
+        specifier: workspace:0.3.0
+        version: link:../../packages/migrations
       '@house-rules/node-host':
         specifier: workspace:0.1.0
         version: link:../../packages/node-host

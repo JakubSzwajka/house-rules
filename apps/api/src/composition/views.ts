@@ -1,4 +1,9 @@
-import type { BookingNotFound, BookingStoreUnavailable } from "@hosti/bookings";
+import type {
+  BookingAlreadyCancelled,
+  BookingAlreadyExists,
+  BookingNotFound,
+  BookingStoreUnavailable,
+} from "@hosti/bookings";
 import { problemView } from "@house-rules/application";
 import type {
   CommentInputInvalid,
@@ -6,6 +11,7 @@ import type {
   CommentTargetNotFound,
   CommentTargetsUnavailable,
 } from "@house-rules/comments";
+import type { SqlError } from "effect/sql/SqlError";
 
 export const commentViews = {
   CommentInputInvalid: problemView(
@@ -38,9 +44,20 @@ export const bookingViews = {
     (error: BookingNotFound) => `Booking ${error.id} was not found.`,
     { exposeCode: true },
   ),
+  BookingAlreadyExists: problemView(
+    409,
+    "conflict",
+    (error: BookingAlreadyExists) => `Booking ${error.id} already exists.`,
+  ),
+  BookingAlreadyCancelled: problemView(
+    409,
+    "conflict",
+    (error: BookingAlreadyCancelled) => `Booking ${error.id} is already cancelled.`,
+  ),
   BookingStoreUnavailable: problemView(
     503,
     "unavailable",
     (_error: BookingStoreUnavailable) => "Bookings are unavailable right now.",
   ),
+  SqlError: problemView(503, "unavailable", (_error: SqlError) => "The database is unavailable."),
 };

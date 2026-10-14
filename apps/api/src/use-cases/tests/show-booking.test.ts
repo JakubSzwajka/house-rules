@@ -4,14 +4,20 @@ import { Forbidden, Grant } from "@house-rules/application";
 import { Effect, Layer } from "effect";
 import { showBooking } from "../show-booking.js";
 
-const bookings = Bookings.fromRecords([{ id: "b-1", guestName: "Ada", ownerId: "actor-a" }]);
+const bookings = Bookings.fromRecords([
+  { id: "b-1", guestName: "Ada", ownerId: "actor-a", status: "active" },
+]);
 
 it.layer(Layer.merge(bookings, Grant.layerFromPermissions([BookingPermissions.read])))(
   "showBooking",
   (test) => {
     test.effect("returns the booking", () =>
       Effect.gen(function* returnsBooking() {
-        expect(yield* showBooking.handler({ id: "b-1" })).toEqual({ id: "b-1", guestName: "Ada" });
+        expect(yield* showBooking.handler({ id: "b-1" })).toEqual({
+          id: "b-1",
+          guestName: "Ada",
+          status: "active",
+        });
       }),
     );
 
