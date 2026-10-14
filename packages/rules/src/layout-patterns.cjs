@@ -72,7 +72,8 @@ const TRUSTED_CONTRACT_PACKAGES = Object.freeze([
   "@house-rules/domain",
 ]);
 // The effect modules a contract entry may import: the root barrel, its stable top-level modules, and
-// http (unstable/http on RCs). Their import graphs are unseen here; apps/api's browser-bundle test bundles each one.
+// http (unstable/http on RCs). Their import graphs are unseen here; the browser-bundle test in
+// examples/booking-platform/apps/api bundles each one.
 const EFFECT_BROWSER_MODULES =
   "(?:index|[A-Z][A-Za-z0-9]*|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js";
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u;

@@ -5,18 +5,18 @@ description: Add one Effect module as a workspace package and carry it through a
 
 # Add an Effect module
 
-Build one capability from the inside out: package, then use-case, then delivery. Each module lives in a workspace package under `packages/`. A package may use another package only through its public entry and service. The package graph has no cycles or fixed levels, and one package never reads another's tables or SQL. Copy the bookings example in `packages/bookings` and the app in `apps/api`. Do not put business logic in delivery.
+Build one capability from the inside out: package, then use-case, then delivery. Each module lives in a workspace package under `packages/`, where a project keeps its own packages. A package may use another package only through its public entry and service. The package graph has no cycles or fixed levels, and one package never reads another's tables or SQL. Copy the bookings example in `examples/booking-platform/packages/bookings` and the app in `examples/booking-platform/apps/api`. In this repo, `packages/` also holds the framework packages, and `examples/` holds the showcase. Do not put business logic in delivery.
 
-Before you start, read `effect/AGENTS.md` in any workspace package's `node_modules`, such as `packages/bookings/node_modules/effect/AGENTS.md`. pnpm does not install `effect` at the repo root. `ls -d packages/*/node_modules/effect` lists the copies. For API shape, read the source mirror at `.agent_sources/github.com/Effect-TS/effect`. If it is missing, run `pnpm vendor:agent-sources`.
+Before you start, read `effect/AGENTS.md` in any workspace package's `node_modules`, such as `packages/domain/node_modules/effect/AGENTS.md`. pnpm does not install `effect` at the repo root. `ls -d packages/*/node_modules/effect` lists the copies. For API shape, read the source mirror at `.agent_sources/github.com/Effect-TS/effect`. If it is missing, run `pnpm vendor:agent-sources`.
 
 ## 1. Create the package
 
 First decide what the module holds. Cut modules by life cycle, not by noun. One module is one consistency and access boundary: it holds everything that only exists inside it. Trippy's `trips` keeps the trip, its days, its items and its shares, because an item's access is checked in the same SQL statement as the write, deleting a trip cascades in the database, and items change together. A thing with its own life gets its own module. Do not split a module into one package per noun: the in-statement guard and the cascades would cross module lines, which the module-owns-its-tables rules forbid.
 
-Create `packages/<name>/` with these files, copied from `packages/bookings`:
+Create `packages/<name>/` with these files, copied from `examples/booking-platform/packages/bookings`:
 
-1. `package.json`. Set `name` to `@hosti/<name>`, or your own scope. `exports` names one entry, `"." : "./src/index.ts"`. The only other path allowed is `"./contract": "./src/contract.ts"`, for a package whose contracts a browser needs; everything that file reaches must be browser-safe. Keep the `typecheck` and `test` scripts. Pin `effect`, `@effect/vitest`, `typescript`, and `vitest` to the same exact versions the other workspace packages use. A root module depends on the domain kit, `@house-rules/domain`, for `defineModule`, and also uses its `UnitOfWork` when it stores data. A package that ships contracts in `src/contract.ts` also depends on `@house-rules/application` and imports its `/contract` entry there.
-2. `tsconfig.json`, which extends `../../tsconfig.base.json`. A package that imports `@house-rules/domain`, `@house-rules/application` or `@house-rules/migrations` sets `allowImportingTsExtensions`, as `packages/bookings/tsconfig.json` does.
+1. `package.json`. Set `name` to `@acme/<name>`, with your own scope. `exports` names one entry, `"." : "./src/index.ts"`. The only other path allowed is `"./contract": "./src/contract.ts"`, for a package whose contracts a browser needs; everything that file reaches must be browser-safe. Keep the `typecheck` and `test` scripts. Pin `effect`, `@effect/vitest`, `typescript`, and `vitest` to the same exact versions the other workspace packages use. A root module depends on the domain kit, `@house-rules/domain`, for `defineModule`, and also uses its `UnitOfWork` when it stores data. A package that ships contracts in `src/contract.ts` also depends on `@house-rules/application` and imports its `/contract` entry there.
+2. `tsconfig.json`, which extends `../../tsconfig.base.json`. The example sits two folders deeper, so fix the path when you copy it. A package that imports `@house-rules/domain`, `@house-rules/application` or `@house-rules/migrations` sets `allowImportingTsExtensions`, as `examples/booking-platform/packages/bookings/tsconfig.json` does.
 3. `vitest.config.ts`.
 4. A framework package that apps mount, such as `@house-rules/call-audit`, also gets an `AGENTS.md` in its root, listed in `files` in its `package.json`. It says what the package does, how an app mounts it (the layer line, the `migrations.json` line, the hooks the app must wire), its options and presets, and its fixed rules. Add the package to the list in `tests/framework-agents.test.mjs`. An app's own module needs none.
 
@@ -47,10 +47,10 @@ export class Bookings extends defineModule<
     ) => Effect.Effect<Booking, BookingAlreadyExists | BookingStoreUnavailable | NoOpenUnit>;
     readonly relation: (actor: Actor, id: string) => Effect.Effect<"owner" | "none", BookingStoreUnavailable>;
   }
->()("@hosti/bookings/Bookings", {
+>()("@acme/bookings/Bookings", {
   make: Effect.gen(function* () {
     const store = yield* BookingStore;
-    return { /* methods that use store, as in packages/bookings/src/facade.ts */ };
+    return { /* methods that use store, as in examples/booking-platform/packages/bookings/src/facade.ts */ };
   }),
 }) {
   static readonly fromRecords = (records: readonly Booking[]) =>
@@ -71,7 +71,7 @@ If the module stores data, it owns its tables and puts them behind a storage por
 5. **The Postgres adapter.** Put it in `src/adapters/postgres/`, such as `postgresBookingStore`, a `Layer` that needs `SqlClient` from `effect/sql`. Write plain SQL, no ORM and no query builder, and decode each row with a `Schema` (`SqlSchema`) before it leaves the adapter. A write calls `UnitOfWork.required` first and then runs its statement on the injected client, which joins the open transaction. Only files under `src/adapters/**` may import `effect/sql`, `@effect/sql-*`, or `@effect/platform-*`. Adapters mirror the subjects: each subject's SQL or memory code sits in its own file under `adapters/<kind>/`, named after the subject. That is a review rule; no check covers it.
 6. **No transaction in the module.** A write method never opens a unit of work and never calls `withTransaction`. It runs inside the unit the use-case opened and fails with `NoOpenUnit` when none is open. One unit may span several modules. Section 3, "Expose it through a use-case", says how the use-case opens it.
 7. **Export both adapters** from `src/index.ts`, next to the port, so an app picks one and the suite imports them from the public entry.
-8. **The shared suite.** Write one test file in `src/adapters/tests/` that loops over both adapters and runs every case on each, as `packages/bookings/src/adapters/tests/booking-store.test.ts` does: a write with no open unit fails with `NoOpenUnit`, a failure inside the unit leaves no row, and each read and write works. Postgres comes from `MigrationsTesting.database` from `@house-rules/migrations` plus `Migrations.run` over the module's own folder, with `sqlUnitOfWork`; memory comes with `memoryUnitOfWork`. Run `docker compose up -d` once. The package's `test` script runs `varlock run --path ../../ -- vitest run`, so the suite reads `TEST_DATABASE_ADMIN_URL` from the root `.env.schema`. Test SQL against a real Postgres, never a fake client. Domain tests (policy, limits, validation) may run on memory only. The Postgres driver (`@effect/sql-pg`), `@effect/platform-node`, and `@house-rules/migrations` are devDependencies there; adding them to a new package is a dependency change, so ask the owner first.
+8. **The shared suite.** Write one test file in `src/adapters/tests/` that loops over both adapters and runs every case on each, as `examples/booking-platform/packages/bookings/src/adapters/tests/booking-store.test.ts` does: a write with no open unit fails with `NoOpenUnit`, a failure inside the unit leaves no row, and each read and write works. Postgres comes from `MigrationsTesting.database` from `@house-rules/migrations` plus `Migrations.run` over the module's own folder, with `sqlUnitOfWork`; memory comes with `memoryUnitOfWork`. Run `docker compose up -d` once. The package's `test` script runs `varlock run --path ../../ -- vitest run` (the example's runs `--path ../../../../`), so the suite reads `TEST_DATABASE_ADMIN_URL` from the root `.env.schema`. Test SQL against a real Postgres, never a fake client. Domain tests (policy, limits, validation) may run on memory only. The Postgres driver (`@effect/sql-pg`), `@effect/platform-node`, and `@house-rules/migrations` are devDependencies there; adding them to a new package is a dependency change, so ask the owner first.
 9. Register the module in `migrations.json` at the repository root: add `{ "workspace": "packages/<name>" }` to `"modules"`. `@house-rules/migrations` then runs its files into its own history table, `<name>_migrations`.
 
 `pnpm run migrations` checks the module's own tables and foreign keys with a text scan, fails when a package with a `migrations/` folder is missing from `migrations.json`, and catches a raw `withTransaction` or `begin` outside an adapter package and a module that calls `UnitOfWork.atomic`. `adapter-imports-only-in-adapters` fails on SQL, driver, or platform imports outside `src/adapters/`. `packages/rules/docs/migrations.md` lists what the scan misses.
@@ -83,12 +83,12 @@ The dependency-cruiser rules already cover a new package, including the subject-
 Add the package to the app that uses it:
 
 ```sh
-pnpm --filter @hosti/api add @hosti/<name>
+pnpm --filter @acme/<app> add @acme/<name>
 ```
 
-The app also needs both kits. `apps/api` already has them as `"@house-rules/domain": "workspace:0.1.0"` and `"@house-rules/application": "workspace:0.1.0"`. An app outside this repo installs them from npm at exact versions, as `packages/application/README.md` shows.
+The app also needs both kits. `examples/booking-platform/apps/api` already has them as `"@house-rules/domain": "workspace:0.1.0"` and `"@house-rules/application": "workspace:0.1.0"`. An app outside this repo installs them from npm at exact versions, as `packages/application/README.md` shows.
 
-`saveWorkspaceProtocol: true` and `saveExact: true` in `pnpm-workspace.yaml` make pnpm write `"@hosti/<name>": "workspace:0.0.0"` into the app's `package.json`. Do not name a spec such as `@workspace:0.0.0` on the command line: pnpm then writes `workspace:*`, which the pin check rejects.
+`saveWorkspaceProtocol: true` and `saveExact: true` in `pnpm-workspace.yaml` make pnpm write `"@acme/<name>": "workspace:0.0.0"` into the app's `package.json`. Do not name a spec such as `@workspace:0.0.0` on the command line: pnpm then writes `workspace:*`, which the pin check rejects.
 
 Create `apps/<app>/src/use-cases/<action>.ts`. Import packages by name through their public entries, never by a relative path into `packages/`. Do not import another use-case: `use-cases-do-not-import-use-cases` fails it. A folder under `use-cases/` counts as one use-case, so the files in `use-cases/<feature>/` may import each other. Each use-case is one thin feature in the app's feature list, exposed by delivery over HTTP, MCP, CLI, or another mechanism. It may call several packages inside one unit of work. Each file is still one capability, so move shared logic that is not a capability into a package.
 
@@ -101,7 +101,7 @@ import {
   BookingPermissions,
   Bookings,
   BookingStoreUnavailable,
-} from "@hosti/bookings";
+} from "@acme/bookings";
 import { defineContract, implement } from "@house-rules/application";
 import { Effect, Schema } from "effect";
 
@@ -122,15 +122,15 @@ export const showBooking = implement(showBookingContract, ({ id }) =>
 );
 ```
 
-The handler yields the service and calls its methods. Let typed errors flow through the error channel. Do not catch them here. To make the writes atomic, set `transactional: true` on the contract: `implement` then wraps the handler in a unit of work after the gates. When only a part must be atomic, call `UnitOfWork.atomic(...)` around that part instead. Either way the use-case opens the transaction, and the module never does. One unit may cover writes in several modules. Set `readOnly` when the action only reads, and `destructive` when it deletes or overwrites. Every contract names a `permission`, a `resource:action` string the module exports, such as `BookingPermissions.read`. Write `permission: "public"` only for an action any caller may run. Set `needsApproval: true` when a human must confirm each call. The package names its permissions next to its data, as `packages/bookings/src/booking/permissions.ts` does. An action with no input uses `NoInput` from `@house-rules/application`. `use-case-is-capability` fails a use-case file that exports anything else.
+The handler yields the service and calls its methods. Let typed errors flow through the error channel. Do not catch them here. To make the writes atomic, set `transactional: true` on the contract: `implement` then wraps the handler in a unit of work after the gates. When only a part must be atomic, call `UnitOfWork.atomic(...)` around that part instead. Either way the use-case opens the transaction, and the module never does. One unit may cover writes in several modules. Set `readOnly` when the action only reads, and `destructive` when it deletes or overwrites. Every contract names a `permission`, a `resource:action` string the module exports, such as `BookingPermissions.read`. Write `permission: "public"` only for an action any caller may run. Set `needsApproval: true` when a human must confirm each call. The package names its permissions next to its data, as `examples/booking-platform/packages/bookings/src/booking/permissions.ts` does. An action with no input uses `NoInput` from `@house-rules/application`. `use-case-is-capability` fails a use-case file that exports anything else.
 
 ## 4. Mount it in delivery
 
 Mount the use-case with a delivery adapter from `@house-rules/application`, as `skills/add-a-capability/SKILL.md` step 4 says. Add a route under `apps/<app>/src/delivery/`, such as `route(showBooking, "GET /bookings/:id")`, and mount it with `toFetchHandler`. The adapter decodes the input, runs the gates, and maps every typed error once through the app's views table. That includes `Forbidden` and `ApprovalDenied`. A missing view is a compile error that names the tag. Do not write a per-route error mapper, and do not call `catchTag` in delivery. Group delivery by mechanism, such as `delivery/http/` and `delivery/mcp/`.
 
-Delivery provides only per-request values, through the composition's `caller`: the `CurrentActor`, the `CallChannel`, and the `Grant` an adapter fills for this request. Everything else comes from the app's one composition root, `src/composition/`. Provide the module's layer there, its storage adapter, and any Grant that is the same for every request. The composition imports packages only. `apps/api/src/composition/app-layer.ts` provides `Bookings` and the visitor Grant, `apps/api/src/composition/index.ts` wraps it with `composition(...)`, and `apps/api/src/delivery/http/routes.ts` provides nothing.
+Delivery provides only per-request values, through the composition's `caller`: the `CurrentActor`, the `CallChannel`, and the `Grant` an adapter fills for this request. Everything else comes from the app's one composition root, `src/composition/`. Provide the module's layer there, its storage adapter, and any Grant that is the same for every request. The composition imports packages only. In the example, `examples/booking-platform/apps/api/src/composition/app-layer.ts` provides `Bookings` and the visitor Grant, `apps/api/src/composition/index.ts` wraps it with `composition(...)`, and `apps/api/src/delivery/http/routes.ts` provides nothing.
 
-The entry point, `apps/api/src/main.ts`, mounts the routes and owns the runtime. Do not call `Effect.run*` inside Effect code.
+The entry point, `examples/booking-platform/apps/api/src/main.ts` in the example, mounts the routes and owns the runtime. Do not call `Effect.run*` inside Effect code.
 
 ## 5. Test it
 

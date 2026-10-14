@@ -611,7 +611,7 @@ const booking = yield* client.show_booking({ id }); // Effect<Booking, HttpFailu
 2. [ ] Move each import to the kit that owns the name, as the table shows. A package's facade imports only domain; a package's contract entry imports `@house-rules/application/contract` and `@house-rules/domain/contract`.
 3. [ ] Rename the request slot to `CurrentActor`, from application, in callers, use-cases and tests. `yield* CurrentActor` returns the Actor, as before.
 4. [ ] Service keys moved from `@house-rules/capability/*` to `@house-rules/application/*` and `@house-rules/domain/*`. Only code that matched a key by string notices.
-5. [ ] Move `@house-rules/rules` to 0.17.0. Its checks now recognise the new names; see its README.
+5. [ ] Move `@house-rules/rules` to 0.18.0. Its checks now recognise the new names; see its README.
 
 ## History: @house-rules/capability
 

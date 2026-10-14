@@ -10,7 +10,7 @@ There is no layer of its own. A package declares its module with it, and the app
 
 ```ts
 // packages/<name>/src/facade.ts
-export class Bookings extends defineModule<Bookings, Shape>()("@hosti/bookings/Bookings", { make }) {}
+export class Bookings extends defineModule<Bookings, Shape>()("@acme/bookings/Bookings", { make }) {}
 
 // apps/<app>/src/composition/app-layer.ts
 Layer.mergeAll(Bookings.layer.pipe(Layer.provide(store)), memoryUnitOfWork); // or sqlUnitOfWork from application

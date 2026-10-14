@@ -1,5 +1,7 @@
 const config = require("@house-rules/rules/dependency-cruiser").layout({
-  scope: "@hosti/",
+  scope: "@example/",
+  appsDir: ["apps", "examples/*/apps"],
+  packagesDir: ["packages", "examples/*/packages"],
   adapterPackages: ["migrations"],
 });
 
@@ -19,5 +21,14 @@ config.forbidden = config.forbidden.flatMap((rule) =>
       ]
     : [rule],
 );
+
+config.forbidden.push({
+  name: "framework-does-not-import-examples",
+  comment:
+    "A framework package under packages/ never imports anything under examples/. The exclusion above hides packages/rules from this rule, so tests/rules-imports-no-examples.test.mjs runs this ban alone over its src/ and bin/.",
+  severity: "error",
+  from: { path: "^packages/" },
+  to: { path: "^examples/" },
+});
 
 module.exports = config;

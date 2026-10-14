@@ -12,8 +12,11 @@ It is a GitHub template. Create a repo from it with `gh repo create my-app --pri
 
 ```text
 .
-├── apps/api/               @hosti/api: delivery, server, use-cases
-├── packages/bookings/      @hosti/bookings: one Effect module with a storage port and two adapters; src/index.ts, plus src/contract.ts for browsers
+├── apps/                   your apps go here; empty in the template
+├── examples/               the showcase, never published; delete it in a new project
+│   ├── booking-platform/   a regular app workspace: apps/api (@example/api) and packages/bookings (@example/bookings)
+│   └── hosti-before/       code that fails the checks, as Markdown snippets
+├── packages/               your packages go here; in this repo, the framework packages:
 ├── packages/application/   @house-rules/application: the application kit: contracts, CurrentActor, gates, delivery, a typed HTTP client and OpenAPI
 ├── packages/call-audit/    @house-rules/call-audit: a plug-in that audits capability calls, as log lines or table rows
 ├── packages/comments/      @house-rules/comments: a domain addition for flat comments, with a host port for target access
@@ -24,7 +27,7 @@ It is a GitHub template. Create a repo from it with `gh repo create my-app --pri
 ├── site/                   @house-rules/site: the docs site (Astro + Starlight)
 ├── skills/                 agent skills, one folder each
 ├── tests/                  fence and thin-config wiring tests
-├── .dependency-cruiser.cjs layout({ scope: "@hosti/" }) from house-rules
+├── .dependency-cruiser.cjs layout() from house-rules, with the example roots and scope "@example/"
 ├── biome.json              extends the house-rules Biome preset, plus excludes
 ├── docker-compose.yml      the local Postgres that database tests use
 ├── eslint.config.mjs       the house-rules ESLint configs
@@ -43,14 +46,14 @@ Root tools run once over the whole repo. Biome and ESLint warnings fail the chec
 
 ## What the stack adds
 
-House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.17.0`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
+House-rules cannot ship these, because they live in files a package cannot hand down. The root uses the in-repo copy through `workspace:0.18.0`. Biome skips `packages/rules/tests/fixtures` and the git-ignored prototype folder `.pi/specs`, ESLint turns `comment-discipline` off in `packages/rules`, and Dependency Cruiser skips `packages/rules`: the plugin defines those rules, and its fixtures break them on purpose. For the docs site, Biome and ESLint skip only its build output (`site/dist`, `site/.astro`), and Dependency Cruiser lets files under `site/` import Astro's virtual `astro:*` modules, which exist on no disk.
 
 - **The fence.** lefthook runs `pnpm check` and then `pnpm test` before each commit. The agent harnesses block `git ... --no-verify` and friends. See [Fence](#fence).
 - **Install policy** in `pnpm-workspace.yaml`. `saveExact` and `saveWorkspaceProtocol` make `pnpm add` write exact pins. `engineStrict` enforces engines. `minimumReleaseAge: 1440` refuses a version younger than a day. `allowBuilds` sets every install script to `false`. `packageExtensions` gives the ESLint plugin TypeScript 6.0.3.
 - **Environment.** varlock checks `.env.schema` inside `pnpm check`. Its telemetry is off.
 - **Turborepo telemetry off.** Every script that calls `turbo` sets `TURBO_TELEMETRY_DISABLED=1`, and so does CI.
 - **The module list**, `migrations.json`. It names every module whose migrations the app runs, for `@house-rules/migrations` and for the migrations bin, which fails when a module with migrations is missing from it.
-- **A test Postgres.** `docker compose up -d` starts it on `127.0.0.1:55435`, and CI runs the same server as a service. Database tests create and drop their own database on it through `TEST_DATABASE_ADMIN_URL`. The test scripts that need it run under `varlock run --path ../../`, so they read the root `.env.schema`.
+- **A test Postgres.** `docker compose up -d` starts it on `127.0.0.1:55435`, and CI runs the same server as a service. Database tests create and drop their own database on it through `TEST_DATABASE_ADMIN_URL`. The test scripts that need it run under `varlock run --path` with the repository root, such as `../../` in `packages/<name>`, so they read the root `.env.schema`.
 - **Wiring tests** in `tests/`. They prove each thin config still extends its preset, and that the fence behaves.
 
 ## TypeScript 7 and Effect
@@ -133,13 +136,13 @@ Start from the template, or copy these into an existing pnpm workspace:
 3. [ ] The root `package.json` `scripts`, `devDependencies`, `engines`, and `packageManager`. Replace the `workspace:` house-rules dependency with the exact npm version in [Using the rules in another app](#using-the-rules-in-another-app).
 4. [ ] The fence: `.nvmrc`, `lefthook.yml`, `scripts/`, `tests/`, `.agents/settings.json`, `.pi/extensions/git-interceptor.ts`, `NOTICE`. Add `skills/` if your agents should use them.
 5. [ ] `AGENTS.md`, rewritten for your project. Write your own `VISION.md`.
-6. [ ] Rename `@hosti/` everywhere: package names, dependencies, imports, `Context.Service` keys, and the `scope` passed to `layout()`.
+6. [ ] Delete `examples/` and remove its traces, as [its README](examples/booking-platform/README.md) lists. Pass your own `scope` to `layout()` in place of `@example/`. Your own code goes in `apps/` and `packages/`.
 7. [ ] If your folders differ, pass `layout()` options such as `appsDir`, `packagesDir`, `layers`, `publicEntry`, `internalDir`, `appEntryFiles`, `ownerlessNames`, `mechanismNames`, `packageRootFiles`, `facadeFile`, or `testsDir`. The house-rules docs explain each one.
 8. [ ] Run `pnpm install`, then `pnpm check` and `pnpm test`.
 
 ### Installing
 
-The publish workflow includes seven public packages under the `@house-rules` scope, in four parts: the kits, the wiring, the additions, and the app you write. These are the release-ready workspace versions; domain 0.1.0, application 0.1.0, rules 0.17.0, call-audit 0.6.0 and comments 0.1.0 are prepared here, not yet published:
+The publish workflow includes seven public packages under the `@house-rules` scope, in four parts: the kits, the wiring, the additions, and the app you write. These are the release-ready workspace versions; domain 0.1.0, application 0.1.0, rules 0.18.0, call-audit 0.6.0 and comments 0.1.0 are prepared here, not yet published:
 
 | Part | Package | What it is | Version |
 | --- | --- | --- | --- |
@@ -147,7 +150,7 @@ The publish workflow includes seven public packages under the `@house-rules` sco
 | kit | [`@house-rules/application`](packages/application/README.md) | Build the application layer: contracts, CurrentActor, gates, composition, delivery | `0.1.0` |
 | wiring | [`@house-rules/migrations`](packages/migrations/README.md) | Run every module's SQL migrations | `0.3.0` |
 | wiring | [`@house-rules/node-host`](packages/node-host/README.md) | Host for a Web fetch handler on a Node socket | `0.1.0` |
-| wiring | [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript, dev only. | `0.17.0` |
+| wiring | [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript, dev only. | `0.18.0` |
 | addition | [`@house-rules/comments`](packages/comments/README.md) | A domain addition: flat comments with host-owned target access | `0.1.0` |
 | addition | [`@house-rules/call-audit`](packages/call-audit/README.md) | A plug-in: one audit line or row per capability call | `0.6.0` |
 
@@ -183,7 +186,7 @@ An app outside this repo installs the rules from npm at an exact version:
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "0.17.0"
+    "@house-rules/rules": "0.18.0"
   }
 }
 ```
@@ -238,14 +241,14 @@ A Host listens for HTTP and runs a fetch handler. Node apps use `serve` from `@h
 
 ### Add an app
 
-1. Create `apps/<name>/` from `apps/api`: `package.json` with a new `name`, `tsconfig.json`, and `vitest.config.ts`.
-2. Put code under `src/delivery/`, `src/use-cases/`, `src/composition/`, and `src/server/` when the app has a background loop. Only `src/main.ts` and `src/index.ts` sit directly in `src/`. The services, slots, callers and views go in one composition root, `src/composition/`, as `apps/api/src/composition/` shows. A Next.js app sets `host: "next"` in `layout()` and extends `tsconfig/next.json`; see the [house plugin README](packages/rules/README.md#a-web-app).
+1. Create `apps/<name>/` from `examples/booking-platform/apps/api`: `package.json` with a new `name`, `tsconfig.json`, and `vitest.config.ts`.
+2. Put code under `src/delivery/`, `src/use-cases/`, `src/composition/`, and `src/server/` when the app has a background loop. Only `src/main.ts` and `src/index.ts` sit directly in `src/`. The services, slots, callers and views go in one composition root, `src/composition/`, as `examples/booking-platform/apps/api/src/composition/` shows. A Next.js app sets `host: "next"` in `layout()` and extends `tsconfig/next.json`; see the [house plugin README](packages/rules/README.md#a-web-app).
 3. Add each package with `pnpm --filter <app name> add <package name>`.
 4. Run `pnpm install`, `pnpm check`, and `pnpm test`.
 
 ### Add a package
 
-Follow [`skills/add-an-effect-module/SKILL.md`](skills/add-an-effect-module/SKILL.md). In short: copy `packages/bookings`, keep `exports` to `"." : "./src/index.ts"`, plus `"./contract": "./src/contract.ts"` only when a browser needs the package's contracts, lay the code out in subject folders such as `src/booking/`, and run `pnpm install`.
+Follow [`skills/add-an-effect-module/SKILL.md`](skills/add-an-effect-module/SKILL.md). In short: copy `examples/booking-platform/packages/bookings` into `packages/<name>`, keep `exports` to `"." : "./src/index.ts"`, plus `"./contract": "./src/contract.ts"` only when a browser needs the package's contracts, lay the code out in subject folders such as `src/booking/`, and run `pnpm install`.
 
 ### Add a docs page
 
@@ -253,10 +256,10 @@ Follow [`skills/write-a-docs-page/SKILL.md`](skills/write-a-docs-page/SKILL.md).
 
 ### Single-page apps
 
-A single-page app calls the HTTP routes through a typed client built from the same contracts. It must not bundle SQL, so it imports only contract entries: `@house-rules/application/contract`, `@house-rules/domain/contract` and a package's `src/contract.ts`, such as `@hosti/bookings/contract`. `contract-entry-is-browser-safe` fails the check when a contract entry reaches an adapter, a facade, a `node:` module, a driver, an `effect` module off its allowlist, or an installed contract entry no one vouched for. In `apps/api`:
+A single-page app calls the HTTP routes through a typed client built from the same contracts. It must not bundle SQL, so it imports only contract entries: `@house-rules/application/contract`, `@house-rules/domain/contract` and a package's `src/contract.ts`, such as `@example/bookings/contract`. `contract-entry-is-browser-safe` fails the check when a contract entry reaches an adapter, a facade, a `node:` module, a driver, an `effect` module off its allowlist, or an installed contract entry no one vouched for. In the example app, `examples/booking-platform/apps/api`:
 
 ```text
-@hosti/bookings/contract ──> showBookingContract (schemas, errors, permission)
+@example/bookings/contract ──> showBookingContract (schemas, errors, permission)
 delivery/http/endpoints.ts   endpoint(showBookingContract, "GET /bookings/:id")
   ├─> delivery/http/routes.ts      route(showBooking, endpoint)  -> toFetchHandler  (server)
   ├─> delivery/web/booking-client.ts toHttpClient([endpoint])     -> the SPA        (browser)
@@ -273,15 +276,13 @@ Follow `skills/add-an-mcp-tool/SKILL.md`. `docs/mcp-adapter.md` records why an M
 
 [`examples/hosti-before`](examples/hosti-before/README.md) holds code that fails the checks, as Markdown snippets so this repo stays green.
 
-[`apps/api/README.md`](apps/api/README.md) maps each framework concept to the file that shows it.
-
-[`packages/bookings`](packages/bookings) and [`apps/api`](apps/api) are real code that passes. Dependencies point inward:
+[`examples/booking-platform`](examples/booking-platform/README.md) is real code that passes, laid out like a regular project. Its README maps each framework concept to the file that shows it, and says how to run it. Dependencies point inward:
 
 ```text
-apps/api
-  delivery    ───> use-cases ───> @hosti/bookings  (packages/bookings/src/index.ts)
-      └─────────────────────────> @hosti/bookings  (Bookings type)
-  composition ──────────────────> @hosti/bookings  (Bookings layer, BookingPermissions, error types)
+examples/booking-platform/apps/api
+  delivery    ───> use-cases ───> @example/bookings  (packages/bookings/src/index.ts)
+      └─────────────────────────> @example/bookings  (Bookings type)
+  composition ──────────────────> @example/bookings  (Bookings layer, BookingPermissions, error types)
   main.ts     ───> delivery routes + composition  (toFetchHandler)
 ```
 
@@ -289,7 +290,7 @@ The package declares its root `Bookings` service with `defineModule` from `@hous
 
 `Actor` and its branded `ActorId` come from the domain kit, and `CurrentActor` from the application kit. Delivery provides CurrentActor per request, a use-case yields the Actor directly, and module methods take it explicitly. `Bookings.create(actor, input)` stores ownerId. `Bookings.relation(actor, id)` decides `"owner"` or `"none"` from stored facts. New migration 0002 adds nullable owner_id; 0001 is unchanged, so legacy rows remain unowned and answer `"none"` for everyone. The visitor Grant and public reads stay as they were. The HTTP output omits ownerId.
 
-The package exports the `Booking`, `NewBooking` and `PublicBooking` schemas, and typed `BookingNotFound`, `BookingAlreadyExists`, `BookingAlreadyCancelled` and `BookingStoreUnavailable` errors. It names three permissions: `bookings:read`, `bookings:write` and `bookings:cancel`. `Bookings` talks only to its storage port, `BookingStore`. The package ships two adapters for it: a memory adapter (`memoryBookingStore`, behind `Bookings.fromRecords`) and a Postgres adapter in plain SQL (`postgresBookingStore`, with its migration in `packages/bookings/migrations/`). One shared suite in `src/adapters/tests/` runs every store case on both. `Bookings.create` is the write path: it runs inside an open unit of work and fails with `NoOpenUnit` without one, and the memory adapter registers an undo with `UnitOfWork.onRollback` so a rollback leaves no row. The module's contract entry holds three contracts. `show_booking` needs `bookings:read` and outputs `PublicBooking`: the id, the guest name and the status, never the owner. `book_booking` and `cancel_booking` are transactional writes, and cancel also needs Approval. [`apps/api/README.md`](apps/api/README.md) maps each concept to its file. The HTTP handler calls `showBooking.handler({ id })`, maps `BookingNotFound` to a 404, `BookingStoreUnavailable` to a 503, and `Forbidden` to a 403 once, so its error channel is `never`. It provides nothing. The composition root, `src/composition/`, provides `Bookings` and the `Grant` in `app-layer.ts`: the example has no sign-in, so every visitor holds `bookings:read`, and a Grant that is the same for every request belongs in the root. The entry point, `src/main.ts`, mounts the same use-case as a Web fetch handler with `toFetchHandler`. `src/composition/index.ts` wraps the root layer with `composition(...)` and the views table in `views.ts`, which maps `BookingNotFound` to 404 and `BookingStoreUnavailable` to 503, and `src/delivery/http/routes.ts` lists `route(showBooking, bookingEndpoints.showBooking)`, the endpoint the SPA client shares. Leave out a view and `tsc` fails. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
+The package exports the `Booking`, `NewBooking` and `PublicBooking` schemas, and typed `BookingNotFound`, `BookingAlreadyExists`, `BookingAlreadyCancelled` and `BookingStoreUnavailable` errors. It names three permissions: `bookings:read`, `bookings:write` and `bookings:cancel`. `Bookings` talks only to its storage port, `BookingStore`. The package ships two adapters for it: a memory adapter (`memoryBookingStore`, behind `Bookings.fromRecords`) and a Postgres adapter in plain SQL (`postgresBookingStore`, with its migration in `examples/booking-platform/packages/bookings/migrations/`). One shared suite in `src/adapters/tests/` runs every store case on both. `Bookings.create` is the write path: it runs inside an open unit of work and fails with `NoOpenUnit` without one, and the memory adapter registers an undo with `UnitOfWork.onRollback` so a rollback leaves no row. The module's contract entry holds three contracts. `show_booking` needs `bookings:read` and outputs `PublicBooking`: the id, the guest name and the status, never the owner. `book_booking` and `cancel_booking` are transactional writes, and cancel also needs Approval. [The example README](examples/booking-platform/README.md) maps each concept to its file. The HTTP handler calls `showBooking.handler({ id })`, maps `BookingNotFound` to a 404, `BookingStoreUnavailable` to a 503, and `Forbidden` to a 403 once, so its error channel is `never`. It provides nothing. The composition root, `src/composition/`, provides `Bookings` and the `Grant` in `app-layer.ts`: the example has no sign-in, so every visitor holds `bookings:read`, and a Grant that is the same for every request belongs in the root. The entry point, `src/main.ts`, mounts the same use-case as a Web fetch handler with `toFetchHandler`. `src/composition/index.ts` wraps the root layer with `composition(...)` and the views table in `views.ts`, which maps `BookingNotFound` to 404 and `BookingStoreUnavailable` to 503, and `src/delivery/http/routes.ts` lists `route(showBooking, bookingEndpoints.showBooking)`, the endpoint the SPA client shares. Leave out a view and `tsc` fails. Tests sit in a `tests/` folder beside the code they test and run under `it.effect`.
 
 ## Commands
 

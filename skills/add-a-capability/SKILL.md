@@ -11,7 +11,7 @@ This skill assumes the module exists. If it does not, follow `skills/add-an-effe
 
 ## 1. Name the permission in the module
 
-The module that owns the data names its permissions, next to its data, as `packages/bookings/src/permissions.ts` does:
+The module that owns the data names its permissions, next to its data, as `examples/booking-platform/packages/bookings/src/booking/permissions.ts` does:
 
 ```ts
 export const BookingPermissions = {
@@ -69,7 +69,7 @@ Mount the capability with a delivery adapter from `@house-rules/application`. It
 2. [ ] Give each failure tag a view in the composition's `views`, in `src/composition/views.ts`. A missing view fails `tsc` and names the tag.
 3. [ ] Let the composition's `caller` provide the per-request `Grant`, or let the root provide one that is the same for every request. Each adapter fills `Approval`: `denyAll` on HTTP, `elicitationApproval` on MCP, `allowAll` for `call`.
 
-`apps/api/src/delivery/http/routes.ts`, `apps/api/src/composition/` and `apps/api/src/main.ts` are the example. For an MCP tool, follow `skills/add-an-mcp-tool/SKILL.md`, which builds the tool with `toTool(capability.contract, ...)`. Never call `Tool.make` by hand: `no-hand-rolled-surface` fails it.
+In `examples/booking-platform/apps/api`, `src/delivery/http/routes.ts`, `src/composition/` and `src/main.ts` are the example. For an MCP tool, follow `skills/add-an-mcp-tool/SKILL.md`, which builds the tool with `toTool(capability.contract, ...)`. Never call `Tool.make` by hand: `no-hand-rolled-surface` fails it.
 
 ## 5. Test it
 
