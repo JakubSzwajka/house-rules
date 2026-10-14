@@ -1,4 +1,4 @@
-import { UnitOfWork } from "@house-rules/capability";
+import { UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer } from "effect";
 import { BookingStore } from "../../storage.js";
 import type { Booking } from "../../booking/booking.js";

@@ -11,7 +11,7 @@ const SURFACES = [
     methods: new Set(["make", "get", "post", "put", "patch", "delete", "del", "head", "options"]),
   },
 ];
-const DEFAULT_ALLOW = ["packages/capability/**"];
+const DEFAULT_ALLOW = ["packages/application/**"];
 
 function moduleSurface(source) {
   const slash = source.lastIndexOf("/");
@@ -58,11 +58,11 @@ export const noHandRolledSurfaceRule = {
     docs: {
       url: ruleDocsUrl("no-hand-rolled-surface"),
       description:
-        "Forbid building MCP tools, RPCs, and HTTP API endpoints by hand outside the capability package; build them from a contract.",
+        "Forbid building MCP tools, RPCs, and HTTP API endpoints by hand outside the application package; build them from a contract.",
     },
     messages: {
       handRolled:
-        "{{call}} builds a surface by hand. Define the action once with defineContract and implement from @house-rules/capability, then build the surface from its contract with toTool.",
+        "{{call}} builds a surface by hand. Define the action once with defineContract and implement from @house-rules/application, then build the surface from its contract with toTool.",
     },
     schema: [
       {

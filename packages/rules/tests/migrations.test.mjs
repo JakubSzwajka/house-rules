@@ -211,8 +211,8 @@ describe("house-rules-migrations", () => {
 
   it("passes a raw transaction in an adapter package, named by default or by --adapter-package", () => {
     const files = {
-      "packages/capability/package.json": '{ "name": "@house-rules/capability" }',
-      "packages/capability/src/adapters/sql-unit-of-work.ts":
+      "packages/application/package.json": '{ "name": "@house-rules/application" }',
+      "packages/application/src/adapters/sql-unit-of-work.ts":
         "export const atomic = (sql) => sql.withTransaction(work);\n",
       "packages/db/package.json": '{ "name": "@trippy/db" }',
       "packages/db/src/internal/tx.ts": "export const q = sql`begin`;\n",

@@ -32,7 +32,7 @@ const WHOLE_TRANSACTION_STRING =
 const OPENS_UNIT = /\b[Uu]nitOfWork\s*\.\s*atomic\b/u;
 const TEST_SOURCE = /(?:^|\/)(?:tests?|__tests__)\/|\.(?:test|spec)\.[^/]+$/u;
 // A UnitOfWork adapter and the migration runner may open a raw transaction. --adapter-package adds more.
-const DEFAULT_ADAPTER_PACKAGES = ["@house-rules/capability", "@house-rules/migrations"];
+const DEFAULT_ADAPTER_PACKAGES = ["@house-rules/application", "@house-rules/migrations"];
 const ADAPTER_FLAG = "--adapter-package";
 
 const adapterPackages = (args) => {

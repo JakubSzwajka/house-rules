@@ -1,6 +1,6 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { PgClient } from "@effect/sql-pg";
-import { defineContract, Grant, implement } from "@house-rules/capability";
+import { defineContract, Grant, implement } from "@house-rules/application";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { expect, layer } from "@effect/vitest";
 import { Context, Effect, Exit, Layer, Logger, Option, Schema } from "effect";
@@ -20,9 +20,11 @@ const readGreeting = implement(
   ({ name }) => (name === "" ? Effect.fail(new NameIsEmpty()) : Effect.succeed(`Hello, ${name}`)),
 );
 
-class Viewer extends Context.Service<Viewer, { readonly userId: string }>()("test/Viewer") {}
+class Requester extends Context.Service<Requester, { readonly userId: string }>()(
+  "test/Requester",
+) {}
 
-const who = Effect.serviceOption(Viewer).pipe(
+const who = Effect.serviceOption(Requester).pipe(
   Effect.map((viewer) => (Option.isSome(viewer) ? viewer.value.userId : null)),
 );
 
@@ -45,7 +47,7 @@ const migratedDatabase = Layer.effectDiscard(
 );
 
 const caller = Layer.mergeAll(
-  Layer.succeed(Viewer, { userId: "user_ana" }),
+  Layer.succeed(Requester, { userId: "user_ana" }),
   Grant.layerFromPermissions(["greetings:read"]),
 );
 

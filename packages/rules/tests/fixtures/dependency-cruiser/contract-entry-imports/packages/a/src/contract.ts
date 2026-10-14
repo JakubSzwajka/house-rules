@@ -1,4 +1,4 @@
-import { endpoint } from "@house-rules/capability/contract";
+import { endpoint } from "@house-rules/application/contract";
 import { installed } from "@acme/installed/contract";
 import { Effect } from "effect";
 import { Schema } from "effect/Schema";

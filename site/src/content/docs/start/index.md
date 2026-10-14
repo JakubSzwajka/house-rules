@@ -37,7 +37,7 @@ pnpm check
 
 The template keeps one module per package. [Bookings](../../../../../packages/bookings/src/facade.ts) declares its root service with `defineModule`, captures a storage port when its Layer builds, and has memory and Postgres adapters. Effect owns lazy build and scoped cleanup; two builds construct twice, with no global cache.
 
-`Actor` is an id, and `yield* Viewer` returns the Actor for one request. Delivery provides Viewer; module methods take the Actor explicitly. `Bookings.create(actor, input)` sets the owner, and `relation(actor, id)` returns `"owner"` or `"none"`. Legacy rows remain unowned. The example API still lets visitors read bookings, without sending the owner id. See the [capability guide](../../../../../packages/capability/README.md) for options, plain-data presets and adapter statics.
+`Actor` is an id, and `yield* Viewer` returns the Actor for one request. Delivery provides Viewer; module methods take the Actor explicitly. `Bookings.create(actor, input)` sets the owner, and `relation(actor, id)` returns `"owner"` or `"none"`. Legacy rows remain unowned. The example API still lets visitors read bookings, without sending the owner id. See the [capability guide](../../../../../packages/application/README.md) for options, plain-data presets and adapter statics.
 
 ## What happens on commit
 

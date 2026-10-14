@@ -1,11 +1,6 @@
 import { expectTypeOf, it } from "@effect/vitest";
-import {
-  defineContract,
-  implement,
-  NoOpenUnit,
-  UnitOfWork,
-  type UnitOfWorkFailed,
-} from "@house-rules/capability";
+import { NoOpenUnit, UnitOfWork, type UnitOfWorkFailed } from "@house-rules/domain";
+import { defineContract, implement } from "@house-rules/application";
 import { Effect, Schema } from "effect";
 
 const base = {

@@ -64,7 +64,7 @@ Every folder name above is an option. The `src` segment is fixed. Every file but
 | `adapterImports` | `DEFAULT_ADAPTER_IMPORTS`: `["effect/unstable/sql", "effect/sql", "@effect/sql-*", "@effect/platform-*"]` | Bare import specifiers that only adapter code may import. A `*` matches within one path segment. An entry in `scope`, such as `"@acme/db"`, names a workspace package too. Replaces the default list, so spread `DEFAULT_ADAPTER_IMPORTS` to add to it. Must not be empty. A scoped glob exempts every matching sibling's own folder; see [Adapter imports](#adapter-imports). |
 | `adapterPackages` | `[]` | Package folder names under `packagesDir` that are adapters by nature, such as plumbing (`"db"`) or the migration runner (`"migrations"`). Every file in them may import `adapterImports`. Names, not paths. |
 | `generatedDeclarationFiles` | `[]` | Declaration files a framework generates, such as `"vite-env.d.ts"`, whose imports `no-unresolved-imports` skips. Paths relative to each app folder, each ending in `.d.ts`, `.d.mts` or `.d.cts`. A `host` adds its own, such as Next's `next-env.d.ts`. See [Web apps](#web-apps). |
-| `trustedContractPackages` | `[]` | Installed packages whose `./contract` entry (`src/contract.ts`, or its build `dist/contract.js`) a contract entry may import. `@house-rules/capability` is always trusted. You vouch for each name: the rule cannot look inside `node_modules`. See [Contract entry](#contract-entry). |
+| `trustedContractPackages` | `[]` | Installed packages whose `./contract` entry (`src/contract.ts`, or its build `dist/contract.js`) a contract entry may import. `@house-rules/application` and `@house-rules/domain` are always trusted. You vouch for each name: the rule cannot look inside `node_modules`. See [Contract entry](#contract-entry). |
 | `testsDir` | `"tests"` | Name of the folder every test file must sit in directly, somewhere under `<workspace>/src/`. It also counts as a test path for `production-does-not-import-tests`, next to `test`, `tests`, and `__tests__`. |
 
 Option values are folder names and paths, not regular expressions. The factory escapes them. Each layer root ends in `(?:/|$)`, so `delivery-legacy` is not `delivery`. An unknown option or layer name throws, and so does a path that is empty or starts or ends with `/`. `adapterImportsSeverity` was removed in 0.8.0. Passing it throws, because `adapter-imports-only-in-adapters` is always an error: a repo that breaks it fixes the imports by hand. `serverEntryFiles` was removed in 0.16.0. Passing it throws too, even as `[]`, and the error says what replaces it: see [Upgrading to 0.16.0](#upgrading-to-0160). An unknown `host` throws and names the known hosts.
@@ -164,7 +164,7 @@ module.exports = config;
 
 ## Composition
 
-An app keeps its one composition root in `src/composition/`: the app layer, `composition({ layer, caller, views })` from `@house-rules/capability`, its callers and its views. Everything else reaches the app's services through it.
+An app keeps its one composition root in `src/composition/`: the app layer, `composition({ layer, caller, views })` from `@house-rules/application`, its callers and its views. Everything else reaches the app's services through it.
 
 ```text
 apps/<app>/src/
@@ -221,7 +221,7 @@ The host changes nothing else: every rule keeps its name, its order and its shap
 layout(): serverEntryFiles was removed in 0.16.0. Delivery no longer imports a server runtime. ...
 ```
 
-1. [ ] Move the app layer, the callers and the views into `src/composition/`, and export `app = composition({ layer, caller, views })` from `@house-rules/capability`. The composition may import packages only.
+1. [ ] Move the app layer, the callers and the views into `src/composition/`, and export `app = composition({ layer, caller, views })` from `@house-rules/application`. The composition may import packages only.
 2. [ ] Replace each page or route that ran a use-case on the server runtime with a delivery adapter over `app`: `call` in a server component or server action, `toFetchHandler` for HTTP routes, `toMcpHandler` for MCP.
 3. [ ] Delete the runtime file from `src/server/`, and drop `serverEntryFiles` from `layout()`.
 4. [ ] Move shared test layers, such as identity-backed holders, into `composition/`; use-case tests may import it.
@@ -263,7 +263,7 @@ A package may declare one second entry, `src/contract.ts`, as `"./contract"` in 
 | --- | --- |
 | A workspace package's files under `src/` | not `adaptersDir`, not `publicEntry`, `facadeFile` or `src/storage.ts`, not a test path. This includes another workspace package's `src/contract.ts`, which the rule follows too. |
 | An `effect` module on the allowlist | the root `effect`, a stable top-level module such as `effect/Schema`, and `effect/http` with its modules, or its RC path `effect/unstable/http`. Nothing else from `effect`: not `effect/sql`, `effect/process`, or `effect/persistence/PersistedQueue`, nor their RC paths. |
-| A trusted installed contract entry | `src/contract.ts`, or its build `dist/contract.js` and `dist/contract.d.ts`, of `@house-rules/capability`, and of each package named in the `trustedContractPackages` option, which defaults to `[]`. A git dependency installs the source file; the npm registry installs the build. |
+| A trusted installed contract entry | `src/contract.ts`, or its build `dist/contract.js` and `dist/contract.d.ts`, of `@house-rules/application` and `@house-rules/domain`, and of each package named in the `trustedContractPackages` option, which defaults to `[]`. A git dependency installs the source file; the npm registry installs the build. |
 
 So a contract entry that reaches `node:fs`, `pg`, `@effect/sql-pg`, its own `facade.ts`, another package's `index.ts`, or an installed contract entry no one vouched for fails.
 
@@ -271,6 +271,6 @@ The rule is always on, at error. Its one option, `trustedContractPackages`, name
 
 What it cannot see:
 
-- **Inside `node_modules`.** The config never follows an installed package, so whatever an allowlisted `effect` module or a trusted contract entry imports goes unchecked. That is why both lists are short and named. `@house-rules/capability`'s entry is checked as a workspace file in this repo. The stack's `apps/api/src/tests/browser-bundle.test.ts` bundles every allowlisted `effect` module with esbuild for the browser and fails if SQL or process code ships. Re-run it when you bump `effect`.
+- **Inside `node_modules`.** The config never follows an installed package, so whatever an allowlisted `effect` module or a trusted contract entry imports goes unchecked. That is why both lists are short and named. The entries of `@house-rules/application` and `@house-rules/domain` are checked as workspace files in this repo. The stack's `apps/api/src/tests/browser-bundle.test.ts` bundles every allowlisted `effect` module with esbuild for the browser and fails if SQL or process code ships. Re-run it when you bump `effect`.
 - **A computed import.** `import(at)` leaves no edge in the graph. The ESLint rule `no-computed-import` (`docs/no-computed-import.md`) fails it in every package's source. With another `packagesDir`, build the ESLint preset with `capabilityConfig({ packagesDir })` so it covers the same folder.
 - **The manifest.** The rule matches the resolved file, not the `exports` key. `house-rules-layout` reads every package's `package.json`. It fails any exports key but `.` and `./contract`, a pattern such as `./browser/*` included, since a pattern reaches every file under `src/`. It also fails a target, a condition's too, that is not that key's file or its build: `publicEntry` for `.`, `src/contract.ts` for `./contract`, and for `src/x.ts` the build is `dist/x.js` or `dist/x.d.ts`. It checks `publishConfig.exports` the same way, because pnpm puts that field in place of `exports` in the published manifest. A package the config's `options.exclude.path` excludes, such as the stack's `packages/rules`, is skipped.

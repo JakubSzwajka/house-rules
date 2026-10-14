@@ -3,7 +3,7 @@ import { existsSync, globSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { assertPackedComments } from "../scripts/packed-comments.mjs";
 
-const BUILT = ["capability", "migrations", "call-audit", "comments", "node-host"];
+const BUILT = ["domain", "application", "migrations", "call-audit", "comments", "node-host"];
 const PUBLISHED = [...BUILT, "rules"];
 const DOCS = new Set(["AGENTS.md", "README.md"]);
 
@@ -46,21 +46,32 @@ describe("published packages", () => {
     });
   }
 
-  it("comments and call-audit peer on capability 0.17.0 and Effect 4.0.3", () => {
-    assert.equal(manifest("capability").version, "0.17.0");
+  it("the kits and the additions peer on exact kit versions and Effect 4.0.3", () => {
+    assert.equal(manifest("domain").version, "0.1.0");
+    assert.equal(manifest("application").version, "0.1.0");
     assert.equal(manifest("comments").version, "0.1.0");
-    assert.equal(manifest("call-audit").version, "0.5.1");
+    assert.equal(manifest("call-audit").version, "0.6.0");
+    assert.deepEqual(manifest("domain").peerDependencies, { effect: "4.0.3" });
+    assert.deepEqual(manifest("application").peerDependencies, {
+      "@house-rules/domain": "0.1.0",
+      effect: "4.0.3",
+    });
+    assert.deepEqual(manifest("comments").peerDependencies, {
+      "@house-rules/application": "0.1.0",
+      "@house-rules/domain": "0.1.0",
+      effect: "4.0.3",
+    });
+    assert.deepEqual(manifest("call-audit").peerDependencies, {
+      "@house-rules/application": "0.1.0",
+      effect: "4.0.3",
+    });
     for (const folder of ["comments", "call-audit"]) {
-      assert.deepEqual(manifest(folder).peerDependencies, {
-        "@house-rules/capability": "0.17.0",
-        effect: "4.0.3",
-      });
       assert.equal(manifest(folder).houseRules.migrations, "migrations");
     }
   });
 
   it("Node platform consumers pin the shared package to the same Effect version", () => {
-    const repoEffect = manifest("capability").peerDependencies.effect;
+    const repoEffect = manifest("application").peerDependencies.effect;
     const paths = globSync(
       ["apps/*/package.json", "packages/*/package.json", "site/package.json"],
       {

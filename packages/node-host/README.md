@@ -39,7 +39,7 @@ const PUBLIC_ORIGIN = "https://public.example";
 const api = toFetchHandler(app, { routes: bookingRoutes, origins: [PUBLIC_ORIGIN] });
 ```
 
-See [the capability CSRF check](../capability/README.md#csrf). The reference API reads optional `APP_ORIGIN` through Effect Config and passes it as `origins` when set.
+See [the capability CSRF check](../application/README.md#csrf). The reference API reads optional `APP_ORIGIN` through Effect Config and passes it as `origins` when set.
 
 The Host has no allowed-host guard against DNS rebinding; local and internal apps must restrict Host at their proxy or listener and set explicit `origins` for cookie writes.
 

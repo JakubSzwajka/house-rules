@@ -1,4 +1,4 @@
-import { type CallKind, isMcpChannel } from "@house-rules/capability";
+import { type CallKind, isMcpChannel } from "@house-rules/application";
 import { Duration } from "effect";
 import type { AuditClass, AuditEntry, AuditPolicy } from "../audit/audit.ts";
 

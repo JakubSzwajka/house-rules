@@ -3,7 +3,7 @@ import { Effect, Fiber, Layer, Schedule } from "effect";
 import { type AuditPolicy, CallAudit } from "../../index.ts";
 import {
   allRows,
-  asViewer,
+  asRequester,
   capabilitiesOf,
   inRequest,
   onWeb,
@@ -71,7 +71,7 @@ const suite = <R, E, E2>(store: StoreUnderTest<R, E, E2>) => {
         it.effect(`the ${name} preset keeps ${expected.join(", ")}`, () =>
           Effect.gen(function* presetKeeps() {
             yield* everyKindOfCall.pipe(
-              asViewer("user_ana"),
+              asRequester("user_ana"),
               Effect.provide(CallAudit.layer({ who, policy })),
             );
             expect(kept(yield* allRows)).toEqual(expected);
@@ -84,11 +84,11 @@ const suite = <R, E, E2>(store: StoreUnderTest<R, E, E2>) => {
           const audit = CallAudit.layer({ who, policy: CallAudit.presets.strict });
           yield* onWeb(renameTrip.handler(trip)).pipe(
             inRequest("req-1"),
-            asViewer("user_ana"),
+            asRequester("user_ana"),
             Effect.provide(audit),
           );
           yield* overMcp(readTrip.handler(missing)).pipe(
-            asViewer("user_ana"),
+            asRequester("user_ana"),
             Effect.provide(audit),
             Effect.flip,
           );

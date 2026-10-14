@@ -1,4 +1,4 @@
-import { type Actor, UnitOfWork } from "@house-rules/capability";
+import { type Actor, UnitOfWork } from "@house-rules/domain";
 import { DateTime, Effect, Random, Schema } from "effect";
 import type { CommentStore } from "../storage.js";
 import type { CommentTargets } from "./comment-targets.js";

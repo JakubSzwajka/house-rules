@@ -1,5 +1,5 @@
 import { Bookings, showBookingContract } from "@hosti/bookings";
-import { implement } from "@house-rules/capability";
+import { implement } from "@house-rules/application";
 import { Effect } from "effect";
 
 export const showBooking = implement(showBookingContract, ({ id }) =>

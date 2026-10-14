@@ -26,7 +26,7 @@ export const commentsConsumerFiles = {
         severity: "error",
         from: {},
         to: {
-          path: "(?:^|/)(?:adapters|server)/|node_modules/@effect/(?:sql-|platform-node)|node_modules/@house-rules/(?:comments|capability)/dist/(?:index|facade|storage|delivery/(?:composition|fetch-handler|mcp-handler|invoke))\\.js$",
+          path: "(?:^|/)(?:adapters|server)/|node_modules/@effect/(?:sql-|platform-node)|node_modules/@house-rules/(?:comments|application|domain)/dist/(?:index|facade|storage|delivery/(?:composition|fetch-handler|mcp-handler|invoke))\\.js$",
         },
       },
     ],
@@ -41,7 +41,8 @@ export const commentsConsumerFiles = {
   "comments.mjs": [
     'import assert from "node:assert/strict";',
     'import path from "node:path";',
-    'import { Actor, ActorId, defineModule, Viewer, Grant, implement, memoryUnitOfWork } from "@house-rules/capability";',
+    'import { Actor, ActorId, defineModule, memoryUnitOfWork } from "@house-rules/domain";',
+    'import { CurrentActor, Grant, implement } from "@house-rules/application";',
     'import { Comments, CommentTargets, CommentTargetNotFound } from "@house-rules/comments";',
     'import * as contract from "@house-rules/comments/contract";',
     'import { Migrations } from "@house-rules/migrations";',
@@ -52,22 +53,22 @@ export const commentsConsumerFiles = {
     'class Probe extends defineModule()("cold_probe", { make: Effect.succeed({ echo: (actor) => Effect.succeed(actor.id) }) }) {}',
     'const targets = Layer.succeed(CommentTargets, CommentTargets.of({ relation: (viewer) => Effect.succeed(viewer.id === actor.id ? "owner" : "none") }));',
     'const comments = Comments.layerMemory({ ...Comments.presets.default, targets: ["item"] }).pipe(Layer.provide(targets));',
-    "const world = Layer.mergeAll(comments, Probe.layer, memoryUnitOfWork, Layer.succeed(Viewer, actor), Layer.succeed(Grant, Grant.fromPermissions(Object.values(contract.CommentPermissions))), NodeServices.layer);",
+    "const world = Layer.mergeAll(comments, Probe.layer, memoryUnitOfWork, Layer.succeed(CurrentActor, actor), Layer.succeed(Grant, Grant.fromPermissions(Object.values(contract.CommentPermissions))), NodeServices.layer);",
     "const add = implement(contract.addComment, ({ target, body }) => Effect.gen(function* () {",
-    "  return yield* (yield* Comments).add(yield* Viewer, target, body);",
+    "  return yield* (yield* Comments).add(yield* CurrentActor, target, body);",
     "}));",
     "const list = implement(contract.listComments, ({ target, page }) => Effect.gen(function* () {",
-    "  return yield* (yield* Comments).list(yield* Viewer, target, page);",
+    "  return yield* (yield* Comments).list(yield* CurrentActor, target, page);",
     "}));",
     "NodeRuntime.runMain(Effect.gen(function* () {",
-    "  assert.equal(yield* (yield* Probe).echo(yield* Viewer), actor.id);",
+    "  assert.equal(yield* (yield* Probe).echo(yield* CurrentActor), actor.id);",
     '  const target = { kind: "item", id: "packed" };',
     '  const added = yield* add.handler({ target, body: "Packed comment" });',
     "  assert.equal(added.authorId, actor.id);",
     "  const page = yield* list.handler({ target, page: { size: 10 } });",
     "  assert.deepEqual(page.items, [added]);",
     "  assert.equal(page.next, undefined);",
-    "  const denied = yield* Effect.flip(list.handler({ target, page: { size: 10 } }).pipe(Effect.provideService(Viewer, outsider)));",
+    "  const denied = yield* Effect.flip(list.handler({ target, page: { size: 10 } }).pipe(Effect.provideService(CurrentActor, outsider)));",
     "  assert.ok(denied instanceof CommentTargetNotFound);",
     '  const modules = yield* Migrations.readModuleList("migrations.json");',
     '  assert.deepEqual(modules.map(({ name, table }) => ({ name, table })), [{ name: "call_audit", table: "call_audit_migrations" }, { name: "comments", table: "comments_migrations" }]);',
@@ -77,12 +78,13 @@ export const commentsConsumerFiles = {
     "    const files = yield* fs.readDirectory(module.directory);",
     '    assert.ok(files.some((file) => file.endsWith(".sql")));',
     "  }",
-    '  yield* Effect.log("cold install: defineModule, Actor/Viewer, memory comments use-cases, denied viewer and installed migration resolution pass");',
+    '  yield* Effect.log("cold install: defineModule, Actor/CurrentActor, memory comments use-cases, denied actor and installed migration resolution pass");',
     "}).pipe(Effect.provide(world)));",
     "",
   ].join("\n"),
   "comments.ts": [
-    'import { Actor, ActorId, defineModule, Viewer, implement } from "@house-rules/capability";',
+    'import { Actor, ActorId, defineModule } from "@house-rules/domain";',
+    'import { CurrentActor, implement } from "@house-rules/application";',
     'import { Comments, type CommentFailure, CommentTargets, type CommentRelation, CommentsOptions } from "@house-rules/comments";',
     'import { addComment, listComments, type Comment, type CommentTarget, type CommentPage, type CommentCursor, type CommentList, type CommentPermission, CommentPermissions } from "@house-rules/comments/contract";',
     'import { Effect } from "effect";',
@@ -97,8 +99,8 @@ export const commentsConsumerFiles = {
     "export const failureTag = (failure: CommentFailure): string => failure._tag;",
     "export const body = (comment: Comment): string => comment.body;",
     "export const items = (list: CommentList): ReadonlyArray<Comment> => list.items;",
-    "export const add = implement(addComment, ({ target, body }) => Effect.gen(function* () { return yield* (yield* Comments).add(yield* Viewer, target, body); }));",
-    "export const list = implement(listComments, ({ target, page }) => Effect.gen(function* () { return yield* (yield* Comments).list(yield* Viewer, target, page); }));",
+    "export const add = implement(addComment, ({ target, body }) => Effect.gen(function* () { return yield* (yield* Comments).add(yield* CurrentActor, target, body); }));",
+    "export const list = implement(listComments, ({ target, page }) => Effect.gen(function* () { return yield* (yield* Comments).list(yield* CurrentActor, target, page); }));",
     "// @ts-expect-error ActorId is branded",
     'export const invalidActor: Actor = { id: "unbranded" };',
     "// @ts-expect-error CommentPage requires a numeric size",
@@ -153,7 +155,7 @@ function assertBrowserGraph(app, { run, write, failure }) {
   assert.equal(graph.summary.error, 0, JSON.stringify(graph.summary.violations));
   for (const expected of [
     entry,
-    "node_modules/@house-rules/capability/dist/contract.js",
+    "node_modules/@house-rules/application/dist/contract.js",
     "node_modules/effect/dist/Schema.js",
   ])
     assert.ok(
@@ -176,7 +178,7 @@ function assertBrowserGraph(app, { run, write, failure }) {
       "node:fs",
       "effect/sql",
       "@effect/sql-pg",
-      "@house-rules/capability",
+      "@house-rules/application",
       "./missing.js",
     ]) {
       write(app, {
@@ -200,7 +202,7 @@ export function assertContractRuleIsLive(app, { write, failure }) {
   // A clean run proves nothing unless the same rule still refuses the server entry.
   write(app, {
     "packages/catalogue/src/contract.ts":
-      'export { showItemContract } from "./item/show-item.ts";\nexport { addComment } from "@house-rules/comments";\nexport { implement } from "@house-rules/capability";\n',
+      'export { showItemContract } from "./item/show-item.ts";\nexport { addComment } from "@house-rules/comments";\nexport { implement } from "@house-rules/application";\n',
   });
   assert.match(
     failure(
@@ -208,7 +210,7 @@ export function assertContractRuleIsLive(app, { write, failure }) {
       ["--config", ".dependency-cruiser.cjs", "--output-type", "err", "apps", "packages"],
       app,
     ),
-    /contract-entry-is-browser-safe: packages\/catalogue\/src\/contract\.ts → node_modules\/@house-rules\/capability\/dist\/index\.js/u,
+    /contract-entry-is-browser-safe: packages\/catalogue\/src\/contract\.ts → node_modules\/@house-rules\/application\/dist\/index\.js/u,
   );
   assert.match(
     failure(

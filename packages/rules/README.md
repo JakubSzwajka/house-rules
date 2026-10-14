@@ -9,7 +9,7 @@ Node `>=24.21.0` only. The pins and migrations bins use `fs.globSync`, with no f
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "0.16.3"
+    "@house-rules/rules": "0.17.0"
   }
 }
 ```
@@ -46,7 +46,7 @@ The package used to be called `@jakubszwajka/house-rules`. In the app's `package
 | `design-no-raw-element` | A raw `<button>`, `<input>`, `<select>` and the like in JSX where the component folder has a component for it | ESLint | `shadcn()` factory | `docs/design-no-raw-element.md` |
 | `shadcn/*` (six rules from `@shadcn/lint`) | Restyled design-system components, raw palette colours, arbitrary values, inline styles, dynamic class names, and unknown Tailwind classes in JSX and TSX | ESLint | `shadcn()` factory | `docs/shadcn.md` |
 | `use-case-is-capability` | A use-case file that does not export exactly one `implement(...)` capability, exports a second contract, or exports another value | ESLint | `configs.capability` | [use-case-is-capability.md](docs/use-case-is-capability.md) |
-| `no-hand-rolled-surface` | `Tool.make`, `Rpc.make`, or `HttpApiEndpoint.<method>` outside `packages/capability/**` | ESLint | `configs.capability` | [no-hand-rolled-surface.md](docs/no-hand-rolled-surface.md) |
+| `no-hand-rolled-surface` | `Tool.make`, `Rpc.make`, or `HttpApiEndpoint.<method>` outside `packages/application/**` | ESLint | `configs.capability` | [no-hand-rolled-surface.md](docs/no-hand-rolled-surface.md) |
 | `no-hand-run-effect` | `Effect.run*` or `ManagedRuntime.make` in a test file; tests use `it.effect` or `it.layer` | ESLint | `configs.capability` | [no-hand-run-effect.md](docs/no-hand-run-effect.md) |
 | `no-computed-import` | An `import()` or `require()` whose specifier is not a string literal, in a package's source; no graph check can see where it leads | ESLint | `configs.capability` | `docs/no-computed-import.md` |
 | `testing-exports-only-in-tests` | A name that ends in `Testing`, a package's testing export, used outside a test file and outside testing code, a file whose runtime exports are all named `*Testing`; also a path re-export that renames one | ESLint | `configs.testing`, `configs.capability` | [testing-exports-only-in-tests.md](docs/testing-exports-only-in-tests.md) |
@@ -156,7 +156,7 @@ module.exports = require("@house-rules/rules/dependency-cruiser").layout({
 }
 ```
 
-`configs.capability` runs `no-hand-rolled-surface` on JS, JSX, MJS, CJS, TS, TSX, MTS, and CTS files, `use-case-is-capability` on TS, TSX, MTS, and CTS files, `no-hand-run-effect` on test files: anything under a `tests/` folder or named `*.test.*` or `*.spec.*`, `no-computed-import` on production files under `packages/*/src/`, and `testing-exports-only-in-tests` on every JS and TS file, where it passes those same test files. `configs.testing` runs that last rule alone, for an app with no capabilities; `configs.capability` includes it, so spread one or the other. Its defaults match the stack layout: use-cases in `apps/*/src/use-cases/`, surfaces built only in `packages/capability/`. Set the `include`, `exclude`, or `allow` option only when the layout differs. When `layout()` gets another `packagesDir`, spread `capabilityConfig({ packagesDir })`, a named export of the package root, in place of `configs.capability`, so `no-computed-import` covers the same packages.
+`configs.capability` runs `no-hand-rolled-surface` on JS, JSX, MJS, CJS, TS, TSX, MTS, and CTS files, `use-case-is-capability` on TS, TSX, MTS, and CTS files, `no-hand-run-effect` on test files: anything under a `tests/` folder or named `*.test.*` or `*.spec.*`, `no-computed-import` on production files under `packages/*/src/`, and `testing-exports-only-in-tests` on every JS and TS file, where it passes those same test files. `configs.testing` runs that last rule alone, for an app with no capabilities; `configs.capability` includes it, so spread one or the other. Its defaults match the stack layout: use-cases in `apps/*/src/use-cases/`, surfaces built only in `packages/application/`. Set the `include`, `exclude`, or `allow` option only when the layout differs. When `layout()` gets another `packagesDir`, spread `capabilityConfig({ packagesDir })`, a named export of the package root, in place of `configs.capability`, so `no-computed-import` covers the same packages.
 
 `shadcn()` runs `@shadcn/lint` on JSX and TSX with the setup its adoption guide gives: five rules at `error` and `no-unknown-classes` at `warn`, with three rules off in the component folder. It adds `design-no-raw-element` at `error`, off in the component folder too. An app that already has findings starts with `severity: "warn"`, as above. `docs/shadcn.md` covers the options, the TypeScript 7 caveat, how it overlaps the design rules, and three settings that make the utility checks stricter.
 
@@ -218,7 +218,19 @@ pnpm run pack:check # Verify tarball
    0.16.0 is breaking: `serverEntryFiles` is gone. Follow [Upgrading to 0.16.0](docs/dependency-cruiser.md#upgrading-to-0160).
    0.16.1 tightens two Next host defaults: `main.ts` and `index.ts` are no longer host entry files, and `tsconfig/next.json` sets `allowJs: false`, so an app that imports a `.js` file gives it types or converts it to TypeScript.
    0.16.2 adds stable Effect import paths: the SQL fence covers `effect/sql`, the browser allowlist covers `effect/http`, and `no-hand-rolled-surface` covers `effect/ai`, `effect/rpc` and `effect/http-api`. The RC paths stay checked too.
+   0.17.0 follows the split of `@house-rules/capability` into `@house-rules/domain` and `@house-rules/application`. See [Upgrading to 0.17.0](#upgrading-to-0170).
 4. Merge lockfile and config changes together.
+
+### Upgrading to 0.17.0
+
+`@house-rules/capability` is gone; `@house-rules/domain` and `@house-rules/application` replace it. The checks now look for the new names:
+
+- `use-case-is-capability` counts only `implement` from `@house-rules/application`.
+- `no-hand-rolled-surface` allows `packages/application/**` by default.
+- `contract-entry-is-browser-safe` trusts the installed `./contract` entries of `@house-rules/application` and `@house-rules/domain`, and no longer trusts `@house-rules/capability`.
+- `house-rules-migrations` exempts `@house-rules/application`, whose `sqlUnitOfWork` opens the transaction, in place of `@house-rules/capability`.
+
+Move each import to the kit that owns the name before you bump the pin.
 
 ### Upgrading to 0.16.3
 

@@ -1,4 +1,4 @@
-import type { Actor } from "@house-rules/capability";
+import type { Actor } from "@house-rules/domain";
 import { Context, type Effect } from "effect";
 import type { CommentTarget, CommentTargetsUnavailable } from "./comment.js";
 

@@ -1,4 +1,4 @@
-import type { NoOpenUnit } from "@house-rules/capability";
+import type { NoOpenUnit } from "@house-rules/domain";
 import { Context, type Effect } from "effect";
 import type {
   Comment,

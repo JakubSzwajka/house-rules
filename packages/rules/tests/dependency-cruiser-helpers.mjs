@@ -74,7 +74,7 @@ export async function cruiseFixture(fixture, config, inspect) {
     await stubPackage(
       workspace,
       {
-        name: "@house-rules/capability",
+        name: "@house-rules/application",
         exports: {
           ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
           "./contract": { types: "./dist/contract.d.ts", default: "./dist/contract.js" },
@@ -85,7 +85,7 @@ export async function cruiseFixture(fixture, config, inspect) {
         "dist/facade.js": 'export * from "node:fs";\n',
         "dist/contract.js": 'export * from "./facade.js";\n',
       },
-      "@house-rules+capability@0.13.1",
+      "@house-rules+application@0.13.1",
     );
     await stubPackage(
       workspace,

@@ -1,4 +1,4 @@
-import { UnitOfWork } from "@house-rules/capability";
+import { UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer } from "effect";
 import { CommentStore } from "../../storage.js";
 import {

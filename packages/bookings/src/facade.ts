@@ -1,4 +1,4 @@
-import { type Actor, defineModule, type NoOpenUnit } from "@house-rules/capability";
+import { type Actor, defineModule, type NoOpenUnit } from "@house-rules/domain";
 import { Effect, Layer } from "effect";
 import { memoryBookingStore } from "./adapters/memory/memory-booking-store.js";
 import { BookingStore } from "./storage.js";

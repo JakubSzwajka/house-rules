@@ -4,7 +4,7 @@ import { Linter } from "eslint";
 import plugin from "../src/index.mjs";
 
 const USE_CASE = "apps/api/src/use-cases/show-booking.ts";
-const IMPORTS = 'import { defineContract, implement } from "@house-rules/capability";\n';
+const IMPORTS = 'import { defineContract, implement } from "@house-rules/application";\n';
 const CAPABILITY = [
   'export const showBookingContract = defineContract("show_booking", spec);',
   "export const showBooking = implement(showBookingContract, handler);",
@@ -44,7 +44,7 @@ export { ping };`;
 });
 
 test("accepts a namespace import of the capability library", () => {
-  const code = `import * as Capability from "@house-rules/capability";
+  const code = `import * as Capability from "@house-rules/application";
 export const ping = Capability.implement(Capability.defineContract("ping", spec), handler);`;
   assert.deepEqual(lint(code), []);
 });
@@ -65,8 +65,17 @@ export const showBooking = Effect.fn("showBooking")(function* () {});`;
   ]);
 });
 
-test("fails an implement that does not come from @house-rules/capability", () => {
+test("fails an implement that does not come from @house-rules/application", () => {
   const code = `import { implement } from "./implement";
+export const showBooking = implement(contract, handler);`;
+  assert.deepEqual(lint(code), [
+    ["missingCapability", 1],
+    ["otherExport", 2],
+  ]);
+});
+
+test("fails an implement from the retired @house-rules/capability", () => {
+  const code = `import { implement } from "@house-rules/capability";
 export const showBooking = implement(contract, handler);`;
   assert.deepEqual(lint(code), [
     ["missingCapability", 1],
@@ -138,6 +147,6 @@ test("skips tests, files outside use-cases, and honours include and exclude", ()
 test("messages name the fix", () => {
   const { messages } = plugin.rules["use-case-is-capability"].meta;
   assert.match(messages.missingCapability, /implement\(contract, handler\)/);
-  assert.match(messages.missingCapability, /@house-rules\/capability/);
+  assert.match(messages.missingCapability, /@house-rules\/application/);
   assert.match(messages.otherExport, /only its capability, its contract, and types/);
 });

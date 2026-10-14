@@ -142,7 +142,7 @@ The publish workflow includes six public packages under the `@house-rules` scope
 | Package | What it is | Version |
 | --- | --- | --- |
 | [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript. | `0.16.3` |
-| [`@house-rules/capability`](packages/capability/README.md) | Capabilities, gates, units of work, delivery | `0.17.0` |
+| [`@house-rules/capability`](packages/application/README.md) | Capabilities, gates, units of work, delivery | `0.17.0` |
 | [`@house-rules/migrations`](packages/migrations/README.md) | Module-owned SQL migrations | `0.3.0` |
 | [`@house-rules/call-audit`](packages/call-audit/README.md) | One audit line or row per capability call | `0.5.1` |
 | [`@house-rules/comments`](packages/comments/README.md) | Flat comments with host-owned target access | `0.1.0` |
@@ -213,7 +213,7 @@ An old pin keeps working until you move it. The old commits are in this repo's h
 
 ### Using capabilities in another app
 
-[`@house-rules/capability`](packages/capability/README.md) defines a capability: one named action with a contract and one handler. An app installs it the same way, and pins `effect` to the version the package names:
+[`@house-rules/capability`](packages/application/README.md) defines a capability: one named action with a contract and one handler. An app installs it the same way, and pins `effect` to the version the package names:
 
 ```json
 {
@@ -257,7 +257,7 @@ delivery/http/endpoints.ts   endpoint(showBookingContract, "GET /bookings/:id")
   └─> main.ts                      toOpenApi(routes, { views })   -> OpenAPI 3.1
 ```
 
-The route and the client read one `endpoint`, so the path, the method and the status cannot drift. `src/tests/browser-bundle.test.ts` bundles the contract entries and the client with esbuild for the browser and fails on server code. It also bundles every `effect` module the rule trusts, because the rule cannot look inside `node_modules`. The [capability README](packages/capability/README.md#single-page-apps) covers failures, cookies, CSRF and OpenAPI.
+The route and the client read one `endpoint`, so the path, the method and the status cannot drift. `src/tests/browser-bundle.test.ts` bundles the contract entries and the client with esbuild for the browser and fails on server code. It also bundles every `effect` module the rule trusts, because the rule cannot look inside `node_modules`. The [capability README](packages/application/README.md#single-page-apps) covers failures, cookies, CSRF and OpenAPI.
 
 ### Let agents call a use-case
 

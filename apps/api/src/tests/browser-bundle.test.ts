@@ -37,7 +37,8 @@ it.effect(
       const inputs = yield* bundle(
         [
           'export * from "@hosti/bookings/contract";',
-          'export { toHttpClient, endpoint } from "@house-rules/capability/contract";',
+          'export { toHttpClient, endpoint } from "@house-rules/application/contract";',
+          'export { Actor, ActorId, UnitOfWorkFailed } from "@house-rules/domain/contract";',
           'export { bookingClient } from "./src/delivery/web/booking-client.ts";',
         ].join("\n"),
       );

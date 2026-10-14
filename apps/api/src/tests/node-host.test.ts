@@ -5,7 +5,7 @@ import {
   implement,
   route,
   toFetchHandler,
-} from "@house-rules/capability";
+} from "@house-rules/application";
 import { serve } from "@house-rules/node-host";
 import { Context, Effect, Layer, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";

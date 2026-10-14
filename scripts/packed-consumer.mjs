@@ -16,7 +16,8 @@ import {
 const root = path.resolve(import.meta.dirname, "..");
 const PUBLISHED_IN_BUILD_ORDER = [
   "migrations",
-  "capability",
+  "domain",
+  "application",
   "call-audit",
   "comments",
   "node-host",
@@ -93,9 +94,7 @@ try {
       "pnpm",
       ["pack", "--pack-destination", packs],
       path.join(root, "packages", folder),
-      {
-        capture: true,
-      },
+      { capture: true },
     );
     const tarball = out.trim().split("\n").pop().trim();
     assert.match(tarball, /\.tgz$/u, `pnpm pack printed no tarball for ${folder}:\n${out}`);
@@ -104,7 +103,7 @@ try {
   }
 
   const pins = readJson(path.join(root, "package.json")).devDependencies;
-  const effect = readJson(path.join(root, "packages/capability/package.json")).peerDependencies
+  const effect = readJson(path.join(root, "packages/application/package.json")).peerDependencies
     .effect;
   const platformNode = readJson(path.join(root, "packages/migrations/package.json"))
     .devDependencies["@effect/platform-node"];
@@ -131,48 +130,49 @@ try {
     },
     "run.mjs": [
       'import assert from "node:assert/strict";',
-      'import * as capability from "@house-rules/capability";',
-      'import * as contract from "@house-rules/capability/contract";',
+      'import * as domain from "@house-rules/domain";',
+      'import * as application from "@house-rules/application";',
+      'import * as contract from "@house-rules/application/contract";',
       'import * as migrations from "@house-rules/migrations";',
       'import * as callAudit from "@house-rules/call-audit";',
       'import { NodeRuntime, NodeServices } from "@effect/platform-node";',
       'import { Context, Effect, FileSystem, Layer, Schema } from "effect";',
-      'assert.equal(typeof capability.implement, "function");',
+      'assert.equal(typeof application.implement, "function");',
       'assert.equal(typeof contract.defineContract, "function");',
-      "assert.equal(contract.defineContract, capability.defineContract);",
+      "assert.equal(contract.defineContract, application.defineContract);",
       "assert.notEqual(migrations.Migrations, undefined);",
       "assert.notEqual(callAudit.CallAudit, undefined);",
       "let observedChannel;",
-      'const write = capability.implement(capability.defineContract("cold_write", {',
+      'const write = application.implement(application.defineContract("cold_write", {',
       '  description: "Check the installed unit of work and Node services.",',
-      "  input: capability.NoInput, output: Schema.String, failure: Schema.Never,",
+      "  input: application.NoInput, output: Schema.String, failure: Schema.Never,",
       '  permission: "public", transactional: true,',
       "}), () => Effect.gen(function* () {",
-      "  yield* capability.UnitOfWork.required;",
-      "  observedChannel = yield* capability.CallChannel;",
+      "  yield* domain.UnitOfWork.required;",
+      "  observedChannel = yield* application.CallChannel;",
       '  return "stable";',
       "}));",
-      "const app = capability.composition({",
-      "  layer: capability.memoryUnitOfWork,",
+      "const app = application.composition({",
+      "  layer: domain.memoryUnitOfWork,",
       "  caller: () => Effect.succeed(Context.empty()),",
       "});",
       'const incoming = { headers: new Headers(), url: "/" };',
       "try {",
-      "  const refused = await capability.admit(app, incoming, {",
-      '    caller: () => Effect.fail(new capability.Refused({ status: 401, code: "missing", message: "Sign in." })),',
+      "  const refused = await application.admit(app, incoming, {",
+      '    caller: () => Effect.fail(new application.Refused({ status: 401, code: "missing", message: "Sign in." })),',
       "  });",
       "  assert.equal(refused.ok, false);",
-      '  const admitted = await capability.admit(app, incoming, { channel: "api" });',
+      '  const admitted = await application.admit(app, incoming, { channel: "api" });',
       "  assert.equal(admitted.ok, true);",
       '  if (!admitted.ok) throw new Error("Expected admission to succeed.");',
-      '  assert.deepEqual(await capability.call(app, write, {}, incoming, { admitted: admitted.value }), { ok: true, value: "stable" });',
+      '  assert.deepEqual(await application.call(app, write, {}, incoming, { admitted: admitted.value }), { ok: true, value: "stable" });',
       '  assert.equal(observedChannel, "api");',
       "} finally { await app.dispose(); }",
       "NodeRuntime.runMain(Effect.gen(function* () {",
       '  assert.equal(yield* (yield* FileSystem.FileSystem).exists("package.json"), true);',
       '  assert.equal(yield* write.handler({}), "stable");',
       '  yield* Effect.log("cold install: packed admit refuses, admitted call succeeds, Node services and transactional handler run");',
-      "}).pipe(Effect.provide(Layer.merge(NodeServices.layer, capability.memoryUnitOfWork))));",
+      "}).pipe(Effect.provide(Layer.merge(NodeServices.layer, domain.memoryUnitOfWork))));",
       "",
     ].join("\n"),
     ...commentsConsumerFiles,
@@ -206,7 +206,7 @@ try {
       exports: { ".": "./src/index.ts", "./contract": "./src/contract.ts" },
     },
     "packages/catalogue/src/item/show-item.ts": [
-      'import { defineContract } from "@house-rules/capability/contract";',
+      'import { defineContract } from "@house-rules/application/contract";',
       'import { Schema } from "effect";',
       "",
       'export class ItemNotFound extends Schema.TaggedError<ItemNotFound>()("ItemNotFound", {}) {}',
@@ -236,7 +236,7 @@ try {
       dependencies: { "@consumer/catalogue": "0.0.0" },
     },
     "apps/web/src/main.ts": [
-      'import { implement } from "@house-rules/capability";',
+      'import { implement } from "@house-rules/application";',
       'import { showItemContract } from "@consumer/catalogue";',
       'import { NodeServices } from "@effect/platform-node";',
       'import { serve } from "@house-rules/node-host";',

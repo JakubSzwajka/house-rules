@@ -9,7 +9,15 @@ import {
   classOf,
   memoryAuditStore,
 } from "../index.ts";
-import { asViewer, daysAgo, onWeb, readTrip, renameTrip, secret, who } from "./audit-fixtures.ts";
+import {
+  asRequester,
+  daysAgo,
+  onWeb,
+  readTrip,
+  renameTrip,
+  secret,
+  who,
+} from "./audit-fixtures.ts";
 
 const trip = { tripId: "t-1", title: secret };
 
@@ -123,7 +131,7 @@ it.effect("onWriteFailure log warns with the capability and error tag only", () 
   Effect.gen(function* logsFailure() {
     const lines: Array<Line> = [];
     const result = yield* onWeb(renameTrip.handler(trip)).pipe(
-      asViewer("user_ana"),
+      asRequester("user_ana"),
       Effect.provide(
         Layer.mergeAll(
           CallAudit.layer({ who, policy: CallAudit.presets.strict }).pipe(

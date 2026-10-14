@@ -1,4 +1,4 @@
-import { route } from "@house-rules/capability";
+import { route } from "@house-rules/application";
 import { showBooking } from "../../use-cases/show-booking.js";
 import { bookingEndpoints } from "./endpoints.js";
 
