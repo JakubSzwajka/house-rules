@@ -8,7 +8,7 @@ import { bearer, issuer, resource, signedInApp } from "./signed-in.js";
 
 afterAll(() => handler.dispose().then(() => app.dispose()));
 
-const metadataUrl = "https://hosti.example/.well-known/oauth-protected-resource/mcp";
+const metadataUrl = "https://booking.example/.well-known/oauth-protected-resource/mcp";
 
 it.live("no token is a 401 whose challenge names resource_metadata", () =>
   Effect.gen(function* missingToken() {
@@ -32,7 +32,7 @@ it.live("a bad token, a web token and a foreign-signed token are 401 invalid_tok
       "not-a-jwt",
       // Issued for no audience, so not for this resource.
       yield* webToken("alice"),
-      yield* otherKeys.sign({ iss: issuer, sub: "alice", aud: "https://hosti.example/mcp" }),
+      yield* otherKeys.sign({ iss: issuer, sub: "alice", aud: "https://booking.example/mcp" }),
     ];
     for (const token of tokens) {
       const answer = yield* mcpSend(mcp, bearer(token), mcpInitialize);
@@ -61,14 +61,14 @@ it.effect("the metadata document names this resource and its authorization serve
     ]);
     for (const path of resource.paths) {
       const response = yield* Effect.promise(() =>
-        resource.handler(new Request(`https://hosti.example${path}`) as Request),
+        resource.handler(new Request(`https://booking.example${path}`) as Request),
       );
       expect(response.status).toBe(200);
       expect(yield* Effect.promise(() => response.json())).toEqual({
-        resource: "https://hosti.example/mcp",
+        resource: "https://booking.example/mcp",
         authorization_servers: ["https://id.example"],
         bearer_methods_supported: ["header"],
-        resource_name: "Hosti",
+        resource_name: "Booking example",
       });
     }
   }),
@@ -87,11 +87,11 @@ it.effect("fails closed: the running app without auth config refuses MCP and its
       "/.well-known/oauth-protected-resource/mcp",
     ]) {
       const response = yield* Effect.promise(() =>
-        handler(new Request(`https://hosti.example${path}`) as Request),
+        handler(new Request(`https://booking.example${path}`) as Request),
       );
       expect(response.status).toBe(503);
       const post = yield* Effect.promise(() =>
-        handler(new Request(`https://hosti.example${path}`, { method: "POST" }) as Request),
+        handler(new Request(`https://booking.example${path}`, { method: "POST" }) as Request),
       );
       expect(post.status).toBe(405);
     }

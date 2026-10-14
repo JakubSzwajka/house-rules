@@ -1,10 +1,10 @@
 import path from "node:path";
 import test from "node:test";
-import { HOSTI, HOSTI_TOKENS, cssRuleTester, rule } from "./design-helpers.mjs";
+import { ACME, ACME_TOKENS, cssRuleTester, rule } from "./design-helpers.mjs";
 
 const RULE = rule("design-no-raw-color");
-const tokens = { tokenFiles: [HOSTI_TOKENS] };
-const component = path.join(HOSTI, "apps/web/src/styles/component.css");
+const tokens = { tokenFiles: [ACME_TOKENS] };
+const component = path.join(ACME, "apps/web/src/styles/component.css");
 
 function nearest(color, token) {
   return { message: `Raw colour "${color}". Use a design token; the nearest is var(${token}).` };
@@ -27,7 +27,7 @@ test("design-no-raw-color", () => {
         name: "custom-property definitions inside a token file are the palette",
         code: ":root { --paper: #ecf2f3; } [data-theme='dark'] { --paper: oklch(0.2 0.01 200); }",
         options: [tokens],
-        filename: HOSTI_TOKENS,
+        filename: ACME_TOKENS,
       },
       {
         code: 'a { background: url("data:image/svg+xml,%23fff") url(#fff); content: "#fff red"; }',
@@ -62,7 +62,7 @@ test("design-no-raw-color", () => {
     ],
     invalid: [
       {
-        name: "Hosti grid.css: #e8f4f5 is closest to the paper token",
+        name: "Acme grid.css: #e8f4f5 is closest to the paper token",
         code: ".drop[data-over] {\n  background: #e8f4f5;\n}",
         options: [tokens],
         filename: component,
@@ -71,7 +71,7 @@ test("design-no-raw-color", () => {
         ],
       },
       {
-        name: "Hosti grid.css: #c5cdcf is closest to --line",
+        name: "Acme grid.css: #c5cdcf is closest to --line",
         code: ".plate-bars i { background: #c5cdcf; }",
         options: [tokens],
         filename: component,
@@ -92,7 +92,7 @@ test("design-no-raw-color", () => {
         name: "a token file's ordinary declarations are still checked",
         code: ":root { --paper: #ecf2f3; }\n::selection { background: #bfe0e3; }",
         options: [tokens],
-        filename: HOSTI_TOKENS,
+        filename: ACME_TOKENS,
         errors: [{ ...nearest("#bfe0e3", "--line-soft"), line: 2, column: 27 }],
       },
       {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { HOSTI_SCALES, cssRuleTester, rule } from "./design-helpers.mjs";
+import { ACME_SCALES, cssRuleTester, rule } from "./design-helpers.mjs";
 
 const RULE = rule("design-scale-value");
 const RADII = "2px, 3px, 4px, 5px, 6px, 8px, 10px, 12px, 999px";
@@ -8,17 +8,17 @@ const RADII = "2px, 3px, 4px, 5px, 6px, 8px, 10px, 12px, 999px";
 test("design-scale-value", () => {
   cssRuleTester().run("design-scale-value", RULE, {
     valid: [
-      { code: "a { border-radius: 6px; border-top-left-radius: 999px; }", options: [HOSTI_SCALES] },
-      { code: "a { border-radius: var(--radius) 4px / 2px; }", options: [HOSTI_SCALES] },
-      { code: "a { border-radius: calc(var(--radius) - 2px); }", options: [HOSTI_SCALES] },
-      { code: "a { box-shadow: none; text-shadow: NONE; }", options: [HOSTI_SCALES] },
+      { code: "a { border-radius: 6px; border-top-left-radius: 999px; }", options: [ACME_SCALES] },
+      { code: "a { border-radius: var(--radius) 4px / 2px; }", options: [ACME_SCALES] },
+      { code: "a { border-radius: calc(var(--radius) - 2px); }", options: [ACME_SCALES] },
+      { code: "a { box-shadow: none; text-shadow: NONE; }", options: [ACME_SCALES] },
       {
         code: "a { transition: border-color var(--t) ease, color var(--t) ease; animation-duration: var(--t-slow); }",
-        options: [HOSTI_SCALES],
+        options: [ACME_SCALES],
       },
       {
         code: "a { border-radius: inherit; transition: unset; box-shadow: revert-layer; }",
-        options: [HOSTI_SCALES],
+        options: [ACME_SCALES],
       },
       {
         code: "a { transition: none; }",
@@ -27,7 +27,7 @@ test("design-scale-value", () => {
       {
         name: "custom properties are token definitions, not uses",
         code: "a { --radius: 7px; }",
-        options: [HOSTI_SCALES],
+        options: [ACME_SCALES],
       },
       { name: "no scales configured", code: "a { border-radius: 7px; }" },
       {
@@ -43,9 +43,9 @@ test("design-scale-value", () => {
     ],
     invalid: [
       {
-        name: "Hosti grid.css: a flat-bottomed bar uses 0",
+        name: "Acme grid.css: a flat-bottomed bar uses 0",
         code: ".plate-bars i {\n  border-radius: 2px 2px 0 0;\n}",
-        options: [HOSTI_SCALES],
+        options: [ACME_SCALES],
         errors: [
           {
             message: `border-radius "2px 2px 0 0" has values off the scale: 0. Allowed: ${RADII}.`,
@@ -59,7 +59,7 @@ test("design-scale-value", () => {
       {
         name: "a shadow when the system is flat",
         code: "a { box-shadow: 0 1px 2px var(--ink); }",
-        options: [HOSTI_SCALES],
+        options: [ACME_SCALES],
         errors: [
           {
             message:
@@ -68,9 +68,9 @@ test("design-scale-value", () => {
         ],
       },
       {
-        name: "Hosti landing: a transition with its own durations",
+        name: "Acme landing: a transition with its own durations",
         code: ".bundle-content {\n  transition:\n    opacity 420ms cubic-bezier(0.16, 1, 0.3, 1),\n    visibility 420ms linear;\n}",
-        options: [HOSTI_SCALES],
+        options: [ACME_SCALES],
         errors: [
           {
             message:
@@ -83,7 +83,7 @@ test("design-scale-value", () => {
       {
         name: "every layer needs the token, and none needs allowing",
         code: "a { transition: color var(--t), opacity 200ms; }\nb { transition: none; }",
-        options: [HOSTI_SCALES],
+        options: [ACME_SCALES],
         errors: [
           {
             message: 'transition "color var(--t), opacity 200ms": every layer must use var(--t…).',

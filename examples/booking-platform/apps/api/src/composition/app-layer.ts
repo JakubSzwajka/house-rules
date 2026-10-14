@@ -3,14 +3,14 @@ import { BookingPermissions, Bookings, postgresBookingStore } from "@example/boo
 import { memoryUnitOfWork } from "@house-rules/domain";
 import { CurrentActor, Grant, sqlUnitOfWork } from "@house-rules/application";
 import { CallAudit, memoryAuditStore } from "@house-rules/call-audit";
-import type { AuthJwtOptions } from "@house-rules/auth-jwt";
 import { Comments, CommentTargets, CommentTargetsUnavailable } from "@house-rules/comments";
 import { Identity } from "@house-rules/identity";
 import { Party } from "@house-rules/party";
 import { Config, Effect, Layer, Option, Redacted } from "effect";
 import type { SqlClient } from "effect/sql/SqlClient";
 import type { SqlError } from "effect/sql/SqlError";
-import { authConfig, signInLayer } from "./sign-in.js";
+import { callNotes, requestLogWatch } from "./request-log.js";
+import { type SignInMode, signInConfig, signInLayer, visitorMode } from "./sign-in.js";
 
 export const visitorGrant: Layer.Layer<Grant> = Grant.layerFromPermissions([
   BookingPermissions.read,
@@ -47,28 +47,30 @@ const memoryModules = Layer.mergeAll(
     Layer.provide(commentTargets),
     Layer.provideMerge(Bookings.fromRecords(demoBookings)),
   ),
-  CallAudit.layer(auditOptions).pipe(Layer.provideMerge(memoryAuditStore())),
+  requestLogWatch(callNotes).pipe(
+    Layer.provideMerge(CallAudit.layer(auditOptions).pipe(Layer.provideMerge(memoryAuditStore()))),
+  ),
   Identity.layerMemory,
   Party.layerMemory,
   memoryUnitOfWork,
   visitorGrant,
 );
 
-export const memoryAppLayer = (auth: Option.Option<AuthJwtOptions> = Option.none()) =>
-  signInLayer(auth).pipe(Layer.provideMerge(memoryModules));
+export const memoryAppLayer = (mode: SignInMode = visitorMode) =>
+  signInLayer(mode).pipe(Layer.provideMerge(memoryModules));
 
 export const postgresAppLayer = <E>(
   database: Layer.Layer<SqlClient, E>,
-  auth: Option.Option<AuthJwtOptions> = Option.none(),
+  mode: SignInMode = visitorMode,
 ) =>
-  signInLayer(auth).pipe(
+  signInLayer(mode).pipe(
     Layer.provideMerge(
       Layer.mergeAll(
         Comments.layerPostgres(commentOptions).pipe(
           Layer.provide(commentTargets),
           Layer.provideMerge(Bookings.layer.pipe(Layer.provide(postgresBookingStore))),
         ),
-        CallAudit.layerPostgres(auditOptions),
+        requestLogWatch(callNotes).pipe(Layer.provideMerge(CallAudit.layerPostgres(auditOptions))),
         Identity.layerPostgres,
         Party.layerPostgres,
         sqlUnitOfWork,
@@ -87,11 +89,11 @@ export const postgresClient = (url: Redacted.Redacted<string>): Layer.Layer<SqlC
   PgClient.layer({ url });
 
 export const appLayer = Layer.unwrap(
-  Effect.orDie(Config.all({ database: databaseUrl, auth: authConfig })).pipe(
-    Effect.map(({ database, auth }) =>
+  Effect.orDie(Config.all({ database: databaseUrl, mode: signInConfig })).pipe(
+    Effect.map(({ database, mode }) =>
       Option.match(database, {
-        onNone: () => memoryAppLayer(auth),
-        onSome: (url) => postgresAppLayer(postgresClient(url), auth),
+        onNone: () => memoryAppLayer(mode),
+        onSome: (url) => postgresAppLayer(postgresClient(url), mode),
       }),
     ),
   ),

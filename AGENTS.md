@@ -92,6 +92,14 @@ Authorization has three steps. `Grant` is action-level: may this caller run this
 - No import cycles. No deep package imports. Production code never imports tests.
 - A test file sits directly in a `tests/` folder inside the folder it tests, such as `src/use-cases/tests/show-booking.test.ts`. A package's own tests import its `src/index.ts`. Only tests under `src/adapters/` import an adapter directly.
 
+## Web delivery
+
+Delivery is how the outside world reaches the use-cases. Each mechanism gets one folder: `delivery/http`, `delivery/mcp`, `delivery/web`.
+
+- A web page is `delivery/web`. It imports only browser-safe entries, such as `@house-rules/application/contract` and a package's `./contract`, and the app's API list in `delivery/http`.
+- Option A, the default: one service. The build writes the page to a folder, such as `dist/web`, and `src/main.ts` puts `staticFiles` from `@house-rules/node-host` before the API handler, with `exclude` naming every path the API owns. Page and API share one origin, and the client has no `baseUrl`. `examples/booking-platform/apps/api/src/main.ts` does this.
+- Option B, allowed: a separate web app or a CDN serves the page. The API mounts with `cors: { origins: [...] }` on `toFetchHandler`, and the client sets `baseUrl` to the API's origin. CORS is not access control; the caller and the gates still guard every call.
+
 ## Inside a package
 
 - Declare a package's root module with `defineModule<Self, Shape>()(id, { make })` from `@house-rules/domain`, in `facade.ts`. Keep one module per package. Its stable id is the service key; methods return Effects with no requirements. Construction captures long-lived services, never `CurrentActor` or another per-request service, and its Layer retains unmet ports and acquisition errors. An Effect `make` gives a Layer value; an options function gives `layer(options)`, with presets as plain data. Adapter statics stay in the class body. Effect owns lazy build, memoization and scope; no module-level cache, private nesting or registry.

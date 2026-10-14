@@ -13,13 +13,14 @@ import {
 } from "@house-rules/application";
 import { AuthJwtTesting } from "@house-rules/auth-jwt";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
-import { Context, Effect, Layer, Option } from "effect";
-import { bookingRoutes } from "../delivery/http/routes.js";
+import { Context, Effect, Layer } from "effect";
+import { visitorRoutes } from "../delivery/http/routes.js";
 import { bookBooking } from "../use-cases/book-booking.js";
 import { cancelBooking } from "../use-cases/cancel-booking.js";
 import { addComment } from "../use-cases/comments/add-comment.js";
 import { listComments } from "../use-cases/comments/list-comments.js";
 import { postgresAppLayer } from "../composition/app-layer.js";
+import { jwtMode } from "../composition/sign-in.js";
 import { webCaller } from "../composition/index.js";
 import { bookingViews } from "../composition/views.js";
 
@@ -56,14 +57,14 @@ const app = composition({
     ),
   views: bookingViews,
 });
-const api = toFetchHandler(app, { prefix: "/api", routes: bookingRoutes });
+const api = toFetchHandler(app, { routes: visitorRoutes });
 afterAll(() => api.dispose().then(() => app.dispose()), 30_000);
 
-const incoming = { headers: new Headers(), url: "https://hosti.example" };
+const incoming = { headers: new Headers(), url: "https://booking.example" };
 
 const show = (id: string) =>
   Effect.promise(() =>
-    api(new Request(`https://hosti.example/api/bookings/${id}`) as Request),
+    api(new Request(`https://booking.example/api/bookings/${id}`) as Request),
   ).pipe(
     Effect.flatMap((response) =>
       Effect.promise((): Promise<unknown> => response.json()).pipe(
@@ -113,7 +114,7 @@ it.live(
       const signedIn = yield* Effect.acquireRelease(
         Effect.sync(() =>
           composition({
-            layer: postgresAppLayer(database, Option.some({ issuer, jwks: keys.jwks })),
+            layer: postgresAppLayer(database, jwtMode({ issuer, jwks: keys.jwks })),
             caller: webCaller,
             views: bookingViews,
           }),
@@ -124,7 +125,7 @@ it.live(
         headers: new Headers({
           authorization: `Bearer ${yield* keys.sign({ iss: issuer, sub: "alice", name: "Alice" })}`,
         }),
-        url: "https://hosti.example",
+        url: "https://booking.example",
       };
       const booked = yield* Effect.promise(() =>
         call(signedIn, bookBooking, { id: "pg-alice", guestName: "Alice" }, asAlice),

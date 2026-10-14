@@ -9,7 +9,7 @@ const tripleSlashDirectives = [
   '/// <reference types="node" resolution-mode="import" />',
   '/// <reference lib="es2024" />',
   '/// <reference no-default-lib="true" />',
-  '/// <amd-module name="hosti" />',
+  '/// <amd-module name="acme" />',
   '/// <amd-dependency path="legacy" name="legacyName" />',
 ];
 
@@ -126,7 +126,7 @@ test("allows legal headers only before code", () => {
     "// SPDX-License-Identifier: MIT",
     "/* @license MIT */",
     "/*!\n * @preserve bundled notice\n */",
-    "// Copyright (c) 2026 Hosti",
+    "// Copyright (c) 2026 Acme",
   ];
 
   for (const header of headers) {
@@ -153,7 +153,7 @@ test("rejects directive and legal near misses", () => {
     "// webpackChunkName: true\nconst value = 1;",
     "// #__PURE__ extra\nconst value = 1;",
     "// @licensed MIT\nconst value = 1;",
-    "// Copyrighted by Hosti\nconst value = 1;",
+    "// Copyrighted by Acme\nconst value = 1;",
   ];
 
   for (const code of cases) assert.equal(commentMessages(code).length, 1, code);

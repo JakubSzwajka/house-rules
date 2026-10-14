@@ -30,7 +30,7 @@ It skips:
 - named colours in properties that take author-chosen names, such as `animation-name`, `font-family`, `grid-area`, `transition-property` and `counter-reset`
 - custom-property definitions inside the token files
 
-A token file's ordinary declarations are still checked. In Hosti's `hosti.css`, `--paper: #ecf2f3` inside `:root` passes, but `::selection { background: #bfe0e3; }` in the same file is reported.
+A token file's ordinary declarations are still checked. In Acme's `acme.css`, `--paper: #ecf2f3` inside `:root` passes, but `::selection { background: #bfe0e3; }` in the same file is reported.
 
 ## Messages
 

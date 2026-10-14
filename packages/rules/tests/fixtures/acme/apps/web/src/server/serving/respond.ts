@@ -1,4 +1,4 @@
-// Trimmed from Hosti's respond.ts: the 404 page borrows Tailwind stone, not the Hosti tokens.
+// Trimmed from Acme's respond.ts: the 404 page borrows Tailwind stone, not the Acme tokens.
 export function notFoundPage(): string {
   return `<!doctype html>
 <html lang="en">

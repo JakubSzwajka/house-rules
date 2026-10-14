@@ -6,7 +6,7 @@ The rule runs on the `@eslint/css` language. For the properties you list, it req
 
 ```js
 design({
-  tokenFiles: ["apps/web/src/styles/hosti.css"],
+  tokenFiles: ["apps/web/src/styles/acme.css"],
   rules: {
     "design-scale-value": [
       { property: "^border(-.+)?-radius$", allowed: ["2px", "3px", "4px", "6px", "8px", "999px"] },

@@ -1,0 +1,26 @@
+{
+  "name": "@example/dev-sign-in",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/contract.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "varlock run --path ../../../../ -- vitest run"
+  },
+  "dependencies": {
+    "@house-rules/application": "workspace:0.2.0",
+    "@house-rules/auth-jwt": "workspace:0.1.0",
+    "@house-rules/domain": "workspace:0.1.0",
+    "@house-rules/party": "workspace:0.1.0",
+    "effect": "4.0.3"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.0.3",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}

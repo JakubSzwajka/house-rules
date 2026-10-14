@@ -25,7 +25,7 @@ const messagesOf = (text: string): ReadonlyArray<RpcMessage> =>
       ? []
       : [JSON.parse(text) as RpcMessage];
 
-export const mcpUrl = "https://hosti.example/mcp";
+export const mcpUrl = "https://booking.example/mcp";
 
 export const mcpSend = (
   handler: Handler,

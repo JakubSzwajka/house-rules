@@ -94,7 +94,7 @@ test("design-no-raw-color-literal", () => {
         ],
       },
       {
-        name: "Hosti respond.ts: Tailwind stone colours in the 404 page template",
+        name: "Acme respond.ts: Tailwind stone colours in the 404 page template",
         code: "const html = `<style>\n  body { color: #1c1917; background: #fafaf9; }\n  code { background: #f5f5f4; }\n</style>`;",
         filename: "respond.ts",
         errors: [

@@ -1,8 +1,9 @@
 import { expect, it } from "@effect/vitest";
 import { composition, toFetchHandler } from "@house-rules/application";
 import { AuthJwtTesting } from "@house-rules/auth-jwt";
-import { Effect, Option } from "effect";
+import { Effect } from "effect";
 import { memoryAppLayer } from "../composition/app-layer.js";
+import { jwtMode } from "../composition/sign-in.js";
 import { webCaller } from "../composition/index.js";
 import { bookingViews } from "../composition/views.js";
 import { memberRoutes } from "../delivery/http/routes.js";
@@ -13,11 +14,11 @@ const signedInApi = Effect.acquireRelease(
   Effect.gen(function* mount() {
     const keys = yield* AuthJwtTesting.keys;
     const app = composition({
-      layer: memoryAppLayer(Option.some({ issuer, jwks: keys.jwks })),
+      layer: memoryAppLayer(jwtMode({ issuer, jwks: keys.jwks })),
       caller: webCaller,
       views: bookingViews,
     });
-    const api = toFetchHandler(app, { prefix: "/api", routes: memberRoutes });
+    const api = toFetchHandler(app, { routes: memberRoutes });
     const tokenFor = (claims: Readonly<Record<string, unknown>>) =>
       keys.sign({ iss: issuer, ...claims });
     return { api, app, tokenFor };
@@ -30,7 +31,7 @@ type Api = (request: Request) => Promise<Response>;
 const send = (api: Api, method: string, path: string, token?: string, body?: unknown) =>
   Effect.promise(() =>
     api(
-      new Request(`https://hosti.example/api${path}`, {
+      new Request(`https://booking.example/api${path}`, {
         method,
         headers: {
           ...(token === undefined ? {} : { authorization: `Bearer ${token}` }),

@@ -5,7 +5,7 @@ import { protectedResource, protectedResourceMetadataPath } from "../index.ts";
 const options = {
   resource: "https://app.example/mcp",
   authorizationServers: ["https://issuer.example/"],
-  resourceName: "Hosti",
+  resourceName: "Booking example",
 };
 
 const ask = (handler: (request: Request) => Promise<Response>, method = "GET") =>
@@ -36,7 +36,7 @@ describe("protectedResource", () => {
         resource: "https://app.example/mcp",
         authorization_servers: ["https://issuer.example/"],
         bearer_methods_supported: ["header"],
-        resource_name: "Hosti",
+        resource_name: "Booking example",
       });
     }),
   );

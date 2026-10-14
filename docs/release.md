@@ -36,7 +36,7 @@ Consumers must wait 24 hours after a future publication under this repo's releas
 
 ### Party and auth release preparation
 
-Merge first, publish later. This change adds sign-in and people as three new public packages and moves every exact peer on the application kit to its new version:
+Merge first, publish later. This change adds sign-in and people as three new public packages, moves every exact peer on the application kit to its new version, and adds static files to the Node Host:
 
 | Package | Version | Why |
 | --- | --- | --- |
@@ -49,7 +49,7 @@ Merge first, publish later. This change adds sign-in and people as three new pub
 | `@house-rules/domain` | 0.1.0 | unchanged |
 | `@house-rules/rules` | 0.18.0 | unchanged |
 | `@house-rules/migrations` | 0.3.0 | unchanged |
-| `@house-rules/node-host` | 0.1.0 | unchanged |
+| `@house-rules/node-host` | 0.2.0 | new public API: `staticFiles` serves a built single-page app from the API's own service; 0.1.0 is on npm |
 
 The three new packages peer on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Identity and party ship their SQL migrations; an app lists each in `migrations.json`.
 

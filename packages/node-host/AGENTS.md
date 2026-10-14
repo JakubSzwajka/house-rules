@@ -2,7 +2,7 @@
 
 ## What it does
 
-It is a Host for a Web fetch handler on Node 24.21.0 or later. Its only public export is `serve`. It owns the Node HTTP listener and streams in both directions. It has no runtime dependencies and no Effect code.
+It is a Host for a Web fetch handler on Node 24.21.0 or later. It exports `serve`, which owns the Node HTTP listener and streams in both directions, and `staticFiles`, which serves a built single-page app from the same service. It has no runtime dependencies and no Effect code.
 
 ## How an app mounts it
 
@@ -17,6 +17,15 @@ const api = toFetchHandler(app, { routes, origins: [PUBLIC_ORIGIN] });
 
 Set explicit `origins` for local and internal apps too, and restrict Host at their proxy or listener to guard against DNS rebinding. See the [application kit's CSRF check](../application/README.md#csrf).
 
+To serve the built page from the same origin, the default for a web app, put `staticFiles` before the API handler:
+
+```ts
+const site = staticFiles({ root: "dist/web", exclude: ["/api", "/mcp", "/.well-known"] });
+await serve(async (request) => (await site(request)) ?? api(request), { port, onClose, handleSignals: true });
+```
+
+`exclude` is required and names every path prefix the API owns; `staticFiles` returns `undefined` for those, for any method but GET and HEAD, and for nothing else. Options: `root`, `exclude`, `index` (default `index.html`), `immutable(path)` (default: a hashed `name-[hash].ext` under `/assets/`). A page on another origin uses the application kit's `cors` option instead.
+
 No layer or `migrations.json` line is needed. A Next app already has a Host.
 
 Options are `port`, optional `hostname`, optional `onClose`, and optional `handleSignals`, default false. See README.md for socket and close behaviour.
@@ -29,3 +38,4 @@ Options are `port`, optional `hostname`, optional `onClose`, and optional `handl
 - Drain for at most five seconds before disposing the app. Repeated closes and signals share one promise; keep signal hooks until disposal ends.
 - Reject malformed Host and non-origin-form request targets with plain 400 before the handler; OPTIONS *, TRACE and CONNECT answer 501. Keep IPv6 authorities working.
 - A thrown handler or a stream failure before its first byte returns a plain 500 without details.
+- `staticFiles` fails at construction when `root` or its index file is missing, or the index is a symlink. It walks `root` once and never lists symlinks, dotfiles or non-regular files; each request re-checks device and inode with `O_NOFOLLOW` on the final component. `root` must be immutable build output owned by the deploying user: anyone who can write inside it while the server starts can change what is served, as they could by replacing `index.html`. A file added later needs a new handler. It decodes a path once and answers 404 for encoded slashes, backslashes or NUL, dot segments, dotfiles and any path at or under a symlink. `exclude` matches case-insensitively and ignores repeated slashes, like the API router. It falls back to the index only for GET or HEAD whose `Accept` gives `text/html` (or `text/*`, `*/*`) a `q` above 0 (a range with parameters other than `q` never matches our UTF-8 HTML), with no file extension in the last segment. Hashed assets are immutable for a year; the index is `no-cache`.

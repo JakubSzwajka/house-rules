@@ -80,7 +80,7 @@
       "severity": "error",
       "comment": "See https://stack.kubaszwajka.com/rules/#delivery-does-not-import-server",
       "from": {
-        "path": "^apps/[^/]+/src/delivery(?:/|$)"
+        "path": "^apps/[^/]+/src/app(?:/|$)"
       },
       "to": {
         "path": "^apps/[^/]+/src/server(?:/|$)",
@@ -95,7 +95,7 @@
         "path": "^apps/[^/]+/src/server(?:/|$)"
       },
       "to": {
-        "path": "^apps/[^/]+/src/delivery(?:/|$)",
+        "path": "^apps/[^/]+/src/app(?:/|$)",
         "reachable": true
       }
     },
@@ -108,7 +108,7 @@
       },
       "to": {
         "path": [
-          "^apps/[^/]+/src/delivery(?:/|$)",
+          "^apps/[^/]+/src/app(?:/|$)",
           "^apps/[^/]+/src/server(?:/|$)"
         ],
         "reachable": true
@@ -145,7 +145,7 @@
       "comment": "See https://stack.kubaszwajka.com/rules/#no-unresolved-deep-package-imports",
       "from": {},
       "to": {
-        "path": "^@hosti/[^/]+/.+",
+        "path": "^@acme/[^/]+/.+",
         "couldNotResolve": true
       }
     },
@@ -187,7 +187,9 @@
       "name": "no-unresolved-imports",
       "severity": "error",
       "comment": "See https://stack.kubaszwajka.com/rules/#no-unresolved-imports",
-      "from": {},
+      "from": {
+        "pathNot": "^apps/[^/]+/(?:next-env[.]d[.]ts)$"
+      },
       "to": {
         "couldNotResolve": true
       }
@@ -199,8 +201,8 @@
       "module": {
         "path": "^apps/[^/]+/src/",
         "pathNot": [
-          "^apps/[^/]+/src/(?:delivery|server|use-cases|composition)/",
-          "^apps/[^/]+/src/(?:main[.]ts|index[.]ts)$",
+          "^apps/[^/]+/src/(?:app|server|use-cases|composition)/",
+          "^apps/[^/]+/src/(?:proxy[.]ts|instrumentation[.]ts)$",
           "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
         ],
         "numberOfDependentsLessThan": 100
@@ -325,7 +327,7 @@
   "options": {
     "parser": "swc",
     "exclude": {
-      "path": "^(?!.*node_modules/)(?:|.*/)(?:dist|coverage|generated|[.]turbo|[.]agent_sources)(?:/|$)"
+      "path": "^(?!.*node_modules/)(?:|.*/)(?:dist|coverage|generated|[.]turbo|[.]agent_sources|[.]next)(?:/|$)"
     },
     "doNotFollow": {
       "path": "(?:^|/)node_modules(?:/|$)"

@@ -31,17 +31,20 @@ const server =
   /(?:\/adapters\/|\/facade\.ts|\/storage\.ts|@effect\/sql|\/node_modules\/pg\/|\/(?:unstable\/)?sql\/|^node:|\/src\/index\.ts$)/u;
 
 it.effect(
-  "the contract entries and the SPA client bundle for the browser with no server code",
+  "the contract entries, the API list and the web app bundle for the browser with no server code",
   () =>
     Effect.gen(function* browserSafe() {
       const inputs = yield* bundle(
         [
           'export * from "@example/bookings/contract";',
-          'export { toHttpClient, endpoint } from "@house-rules/application/contract";',
+          'export * from "@example/dev-sign-in/contract";',
+          'export { toHttpClient, toPromiseClient, endpoint } from "@house-rules/application/contract";',
           'export { Actor, ActorId, UnitOfWorkFailed } from "@house-rules/domain/contract";',
-          'export { bookingClient } from "./src/delivery/web/booking-client.ts";',
+          'export { api, devApi } from "./src/delivery/http/api.ts";',
+          'import "./src/delivery/web/main.tsx";',
         ].join("\n"),
       );
+      expect(inputs.some((input) => input.endsWith("src/delivery/web/app.tsx"))).toBe(true);
       expect(inputs.some((input) => input.endsWith("bookings/src/booking/show-booking.ts"))).toBe(
         true,
       );

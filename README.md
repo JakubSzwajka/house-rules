@@ -15,7 +15,7 @@ It is a GitHub template. Create a repo from it with `gh repo create my-app --pri
 ├── apps/                   your apps go here; empty in the template
 ├── examples/               the showcase, never published; delete it in a new project
 │   ├── booking-platform/   a regular app workspace: apps/api (@example/api) and packages/bookings (@example/bookings)
-│   └── hosti-before/       code that fails the checks, as Markdown snippets
+│   └── rejected-shapes/   code that fails the checks, as Markdown snippets
 ├── packages/               your packages go here; in this repo, the framework packages:
 ├── packages/application/   @house-rules/application: the application kit: contracts, CurrentActor, gates, delivery, a typed HTTP client and OpenAPI
 ├── packages/auth-jwt/      @house-rules/auth-jwt: a plug-in that verifies JWTs against a key set, with a Clerk preset
@@ -145,14 +145,14 @@ Start from the template, or copy these into an existing pnpm workspace:
 
 ### Installing
 
-The publish workflow includes ten public packages under the `@house-rules` scope, in four parts: the kits, the wiring, the additions, and the app you write. These are the release-ready workspace versions; application 0.2.0, auth-jwt 0.1.0, identity 0.1.0, party 0.1.0, call-audit 0.7.0 and comments 0.2.0 are prepared here, not yet published:
+The publish workflow includes ten public packages under the `@house-rules` scope, in four parts: the kits, the wiring, the additions, and the app you write. These are the release-ready workspace versions; application 0.2.0, auth-jwt 0.1.0, identity 0.1.0, party 0.1.0, call-audit 0.7.0, comments 0.2.0 and node-host 0.2.0 are prepared here, not yet published:
 
 | Part | Package | What it is | Version |
 | --- | --- | --- | --- |
 | kit | [`@house-rules/domain`](packages/domain/README.md) | Define domain modules: `defineModule`, Actor, permissions and policy, the unit of work | `0.1.0` |
 | kit | [`@house-rules/application`](packages/application/README.md) | Build the application layer: contracts, CurrentActor, gates, composition, delivery, the `Authenticator` slot | `0.2.0` |
 | wiring | [`@house-rules/migrations`](packages/migrations/README.md) | Run every module's SQL migrations | `0.3.0` |
-| wiring | [`@house-rules/node-host`](packages/node-host/README.md) | Host for a Web fetch handler on a Node socket | `0.1.0` |
+| wiring | [`@house-rules/node-host`](packages/node-host/README.md) | Host for a Web fetch handler on a Node socket | `0.2.0` |
 | wiring | [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript, dev only. | `0.18.0` |
 | addition | [`@house-rules/comments`](packages/comments/README.md) | A domain addition: flat comments with host-owned target access | `0.2.0` |
 | addition | `@house-rules/party` | A domain addition: Person records keyed by ActorId, self-only rename | `0.1.0` |
@@ -280,7 +280,7 @@ Load the `house-rules` skill (`skills/house-rules/SKILL.md`); its router points 
 
 ## Example
 
-[`examples/hosti-before`](examples/hosti-before/README.md) holds code that fails the checks, as Markdown snippets so this repo stays green.
+[`examples/rejected-shapes`](examples/rejected-shapes/README.md) holds code that fails the checks, as Markdown snippets so this repo stays green.
 
 [`examples/booking-platform`](examples/booking-platform/README.md) is real code that passes, laid out like a regular project. Its README maps each framework concept to the file that shows it, and says how to run it. Dependencies point inward:
 

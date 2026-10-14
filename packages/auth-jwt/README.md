@@ -11,4 +11,21 @@ const clerk = AuthJwt.clerk({ publishableKey: "pk_live_..." });
 
 `verify(token, { audience? })` returns a `Principal` or fails with `TokenRejected`. Keys come from `<issuer>/.well-known/jwks.json` by default, or from `jwksUrl` (https only), or from a fixed `jwks` set. `AuthJwtTesting.keys` gives a local key pair and a signer for tests.
 
+For dev and demos only, never production, `AuthJwtLocal` is a local issuer: an in-memory key pair whose tokens the normal verify path accepts.
+
+```ts
+import { AuthJwtLocal, AuthJwtLocalIssuer } from "@house-rules/auth-jwt";
+
+const local = yield* AuthJwtLocal.make({ audience: "http://localhost:3000/api", ttlSeconds: 3600 });
+const token = yield* local.issue({ sub: "ada", name: "Ada" }); // Effect<string>
+// local.layer: Layer<Authenticator>; local.jwks: the public key set
+
+// or one layer with both the Authenticator and the AuthJwtLocalIssuer service
+const dev = AuthJwtLocal.layer({ audience: "http://localhost:3000/api" });
+```
+
+Whoever can call `issue` can sign in as anyone, so an app mounts it only behind an explicit switch and refuses it in production.
+
+`issue` drops the reserved claims `iss`, `aud`, `exp`, `iat`, `nbf` and `jti` from the claims you pass. The issuer sets `iss`, `iat` and `exp`, and sets `aud` only when you configured an audience; otherwise the token has no `aud`.
+
 Version 0.1.0 is prepared for its first public release, not yet live on npm. Pin `@house-rules/application` 0.2.0, `@house-rules/domain` 0.1.0 and Effect 4.0.3 exactly. It depends on `jose` 6.2.12. See `AGENTS.md` for options and fixed rules.

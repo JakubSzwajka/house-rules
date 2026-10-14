@@ -8,7 +8,7 @@ import { mcpTools } from "./tools.js";
 export const mcpRoute = (app: ApiComposition, resource: ProtectedResource) =>
   toMcpHandler(app, {
     path: mcpPath,
-    name: "hosti",
+    name: "booking-example",
     version: "0.0.0",
     caller: agentCaller(resource),
     tools: mcpTools,

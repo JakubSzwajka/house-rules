@@ -30,6 +30,17 @@ No `migrations.json` line.
 
 `AuthJwt.clerk({ publishableKey, audience?, clockTolerance?, jwks? })` derives the issuer from the key: the base64 after the prefix is the Frontend API host plus `$`, and the issuer is `https://<host>`. `AuthJwt.clerkIssuer(key)` returns that issuer as an `Option`.
 
+## Local issuer: dev and demos only
+
+`AuthJwtLocal` signs tokens in process so a demo can sign in with no identity provider. Never mount it in production: whoever can call `issue` can sign in as anyone.
+
+- `AuthJwtLocal.make({ issuer?, audience?, ttlSeconds? })` is an `Effect` of `{ issuer, audience?, jwks, issue, layer }`. It makes a fresh ES256 key pair in memory per call, so tokens die with the process and one issuer's tokens fail another's layer.
+- `issue({ sub, name?, ...claims })` is an `Effect<string>`. It sets `iss`, `iat`, `exp` (now plus `ttlSeconds`) and `aud` after the given claims, so a caller cannot extend a token. Time comes from `Clock`.
+- `layer` is a `Layer<Authenticator>` on the same verify code as `AuthJwt.layer`, with the local key set injected.
+- `AuthJwtLocal.layer(options)` provides both `Authenticator` and the `AuthJwtLocalIssuer` service, whose `issue` a dev sign-in use-case can yield.
+- Defaults: issuer `https://dev-issuer.invalid`, no audience, `ttlSeconds` 3600. A bad issuer or a `ttlSeconds` that is not a positive whole number fails with `AuthJwtConfigInvalid`.
+- The app keeps it behind an explicit switch, such as `DEV_ISSUER=1`, and refuses to start with it when `NODE_ENV=production`.
+
 ## Fixed rules
 
 - No token passes without a matching signature, issuer, non-empty string subject and unexpired time. A token with no `exp` is refused. There is no option to skip a check.

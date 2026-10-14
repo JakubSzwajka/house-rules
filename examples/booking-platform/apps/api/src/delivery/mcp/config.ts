@@ -14,7 +14,7 @@ export const mcpResourceOf = (appOrigin: string, issuer: string): ProtectedResou
     ? protectedResource({
         resource: `${new URL(appOrigin).origin}${mcpPath}`,
         authorizationServers: [issuer],
-        resourceName: "Hosti",
+        resourceName: "Booking example",
       })
     : protectedResource(undefined, mcpPath);
 

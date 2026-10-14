@@ -13,6 +13,7 @@ import type {
   CommentTargetsUnavailable,
 } from "@house-rules/comments";
 import type { PersonNotFound, PersonStoreUnavailable } from "@house-rules/party";
+import type { DevSignInOff } from "@example/dev-sign-in";
 import type { SqlError } from "effect/sql/SqlError";
 
 export const commentViews = {
@@ -20,11 +21,13 @@ export const commentViews = {
     400,
     "invalid_input",
     (_error: CommentInputInvalid) => "Invalid comment input.",
+    { exposeCode: true },
   ),
   CommentTargetNotFound: problemView(
     404,
     "not_found",
     (_error: CommentTargetNotFound) => "Comment target was not found.",
+    { exposeCode: true },
   ),
   CommentStoreUnavailable: problemView(
     503,
@@ -43,6 +46,7 @@ export const personViews = {
     404,
     "not_found",
     (_error: PersonNotFound) => "That person was not found.",
+    { exposeCode: true },
   ),
   PersonStoreUnavailable: problemView(
     503,
@@ -51,9 +55,19 @@ export const personViews = {
   ),
 };
 
+export const devSignInViews = {
+  DevSignInOff: problemView(
+    404,
+    "not_found",
+    (_error: DevSignInOff) => "Dev sign-in is off on this server.",
+    { exposeCode: true },
+  ),
+};
+
 export const bookingViews = {
   ...commentViews,
   ...personViews,
+  ...devSignInViews,
   BookingNotFound: problemView(
     404,
     "not_found",
@@ -64,6 +78,7 @@ export const bookingViews = {
     409,
     "conflict",
     (error: BookingAlreadyExists) => `Booking ${error.id} already exists.`,
+    { exposeCode: true },
   ),
   BookingAlreadyCancelled: problemView(
     409,

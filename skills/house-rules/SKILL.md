@@ -35,6 +35,7 @@ A package guide is `node_modules/@house-rules/<pkg>/AGENTS.md` in an app. In the
 | Sign users in | `auth-jwt` guide for the token, then `identity` guide for the `Caller`, `FirstSignIn` and `migrations.json` |
 | Keep the people an app knows | `party` guide: Person, `createPerson` in `FirstSignIn`, contracts and views |
 | Add a browser client | `application` `README.md`, "Single-page apps" (not its `AGENTS.md`): a contract entry (`src/contract.ts`), `endpoint`, `toHttpClient`, `toOpenApi` |
+| Serve a web page | `node-host` guide: `staticFiles` before the API handler, one origin (the default). `application` guide: the API list, `toPromiseClient`, and `cors` for a page on another origin. Root `AGENTS.md`, "Web delivery" |
 | Fix a failed check | The rules table in `node_modules/@house-rules/rules/README.md` (`packages/rules/README.md` in the house-rules repo). Follow the row's Docs link; the doc is not always named after the rule id. Fix the code |
 
 If your repo still has `examples/booking-platform`, it shows each part as working code. Do not depend on it.

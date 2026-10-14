@@ -19,7 +19,7 @@ const absoluteUrl = (value: string, option: string, protocols: ReadonlyArray<str
       );
 };
 
-const issuerUrl = (value: string) => absoluteUrl(value, "issuer", ["https:", "http:"]);
+export const issuerUrl = (value: string) => absoluteUrl(value, "issuer", ["https:", "http:"]);
 
 const jwksUrlOf = (value: string) => absoluteUrl(value, "jwksUrl", ["https:"]);
 
@@ -41,7 +41,11 @@ const keysOf = Effect.fnUntraced(function* (options: AuthJwtOptions) {
   return createRemoteJWKSet(url);
 });
 
-const authenticator = (options: AuthJwtOptions, keys: JWTVerifyGetKey, clockTolerance: number) => ({
+export const authenticator = (
+  options: AuthJwtOptions,
+  keys: JWTVerifyGetKey,
+  clockTolerance: number,
+) => ({
   verify: (token: string, verifyOptions?: Readonly<{ audience?: string }>) =>
     Effect.gen(function* () {
       const now = yield* DateTime.now;

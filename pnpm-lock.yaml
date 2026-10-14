@@ -219,6 +219,9 @@ importers:
       '@example/bookings':
         specifier: workspace:0.0.0
         version: link:../../packages/bookings
+      '@example/dev-sign-in':
+        specifier: workspace:0.0.0
+        version: link:../../packages/dev-sign-in
       '@house-rules/application':
         specifier: workspace:0.2.0
         version: link:../../../../packages/application
@@ -241,7 +244,7 @@ importers:
         specifier: workspace:0.3.0
         version: link:../../../../packages/migrations
       '@house-rules/node-host':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.2.0
         version: link:../../../../packages/node-host
       '@house-rules/party':
         specifier: workspace:0.1.0
@@ -256,12 +259,30 @@ importers:
       '@types/node':
         specifier: 24.19.1
         version: 24.19.1
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: 19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: 6.1.2
+        version: 6.1.2(vite@8.3.0(@types/node@24.19.1)(esbuild@0.28.2)(yaml@2.9.1))
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
+      vite:
+        specifier: 8.3.0
+        version: 8.3.0(@types/node@24.19.1)(esbuild@0.28.2)(yaml@2.9.1)
       vitest:
         specifier: 5.0.1
         version: 5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1))
@@ -293,6 +314,34 @@ importers:
       '@house-rules/migrations':
         specifier: workspace:0.3.0
         version: link:../../../../packages/migrations
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.1
+        version: 5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1))
+
+  examples/booking-platform/packages/dev-sign-in:
+    dependencies:
+      '@house-rules/application':
+        specifier: workspace:0.2.0
+        version: link:../../../../packages/application
+      '@house-rules/auth-jwt':
+        specifier: workspace:0.1.0
+        version: link:../../../../packages/auth-jwt
+      '@house-rules/domain':
+        specifier: workspace:0.1.0
+        version: link:../../../../packages/domain
+      '@house-rules/party':
+        specifier: workspace:0.1.0
+        version: link:../../../../packages/party
+      effect:
+        specifier: 4.0.3
+        version: 4.0.3
+    devDependencies:
+      '@effect/vitest':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1)))
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -1861,6 +1910,14 @@ packages:
   '@types/node@26.6.4':
     resolution: {integrity: sha512-ldVPDCzj7fsaGZrLB0NuHuTvJcsNasysBAqMolr/cgxrLd1xbqxIr3XJiPnHHJUCxj5sNF1vnRj9aWnrVh5Jcg==}
 
+  '@types/react-dom@19.3.0':
+    resolution: {integrity: sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==}
+    peerDependencies:
+      '@types/react': ^19.3.0
+
+  '@types/react@19.3.0':
+    resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
+
   '@types/sax@1.2.7':
     resolution: {integrity: sha512-rO73L89PJxeYM3s3pPPjiPgVVcymqU490g0YO5n5By0k2Erzj6tay/4lr1CHAAU4JyOWd1rpQ8bCf6cZfHU96A==}
 
@@ -2050,6 +2107,22 @@ packages:
   '@varlock/native-helper-win32-x64@1.20.0':
     resolution: {integrity: sha512-mDH00lx2h+dWmbARTnfmRu321SuZigKslUdX7dAn0/7+psShiFCx6QEWLjjyZgDPSCGVNbIM3JArC40vCTXJjw==}
     os: [win32, linux]
+
+  '@vitejs/plugin-react@6.1.2':
+    resolution: {integrity: sha512-fhJNGUdscQa4HkI0xFxwonWyhnVReCPDbXI7FH7jmzpnVCrFQI7PRrhWecO263610vOrs9tr2Y4xcf8uAdFxbw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    peerDependencies:
+      '@rolldown/plugin-babel': ^0.1.7 || ^0.2.0
+      babel-plugin-react-compiler: ^1.0.0
+      oxc-transform-react: ^0.152.0
+      vite: ^8.0.0
+    peerDependenciesMeta:
+      '@rolldown/plugin-babel':
+        optional: true
+      babel-plugin-react-compiler:
+        optional: true
+      oxc-transform-react:
+        optional: true
 
   '@vitest/mocker@5.0.1':
     resolution: {integrity: sha512-6K1DoBNAPGvuOcSsGA4D6x+5zEEff/KmOOP3uetT2TrGpVfI+HRHRnJJfKi5ib/g1vx8IYHQD8s0pbJz8WQI7Q==}
@@ -2263,6 +2336,9 @@ packages:
   csso@5.0.5:
     resolution: {integrity: sha512-0LrrStPOdJj+SPCCrGhzryycLjwcgUSHBtxNA8aIDxf0GLsRh1cKYhB00Gd1lDOS4yGH69+SNn13+TWbVHETFQ==}
     engines: {node: ^10 || ^12.20.0 || ^14.13.0 || >=15.0.0, npm: '>=7.0.0'}
+
+  csstype@3.2.3:
+    resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
 
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
@@ -3163,6 +3239,15 @@ packages:
   radix3@1.1.2:
     resolution: {integrity: sha512-b484I/7b8rDEdSDKckSSBA8knMpcdsXudlE/LNL639wFoHKwLbEkQFZHWEYwDC0wa0FKUcCY+GAF73Z7wxNVFA==}
 
+  react-dom@19.3.0:
+    resolution: {integrity: sha512-JDk8dgif51OjFoDE70+OT9ICyYr+69HlmihNwp1+Nsfbna3t5sIiCa9ZJktDmQ4/1b/rn26hIAR2uYXDMr5r0Q==}
+    peerDependencies:
+      react: ^19.3.0
+
+  react@19.3.0:
+    resolution: {integrity: sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==}
+    engines: {node: '>=0.10.0'}
+
   readdirp@5.1.1:
     resolution: {integrity: sha512-Kko+Y5XQ6fM+Ce3dq3m9YGxnacYZYl9cA1wZjaF3Vbry2L3i1qVg8+CAgNPsXRArPMUMCaOR7oa9Nqntc43JKA==}
     engines: {node: '>= 20.19.0'}
@@ -3219,6 +3304,9 @@ packages:
   sax@1.6.1:
     resolution: {integrity: sha512-42tBVwLWnaQvW5zc4HbZrTuWccECCZfBi92FDuwtqxasH+JbPB3/FOKb1m222K42R4WxuxzzMsTswfzgtSu64Q==}
     engines: {node: '>=11.0.0'}
+
+  scheduler@0.28.0:
+    resolution: {integrity: sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw==}
 
   semver@7.8.5:
     resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
@@ -4646,6 +4734,14 @@ snapshots:
     dependencies:
       undici-types: 8.9.0
 
+  '@types/react-dom@19.3.0(@types/react@19.3.0)':
+    dependencies:
+      '@types/react': 19.3.0
+
+  '@types/react@19.3.0':
+    dependencies:
+      csstype: 3.2.3
+
   '@types/sax@1.2.7':
     dependencies:
       '@types/node': 26.6.4
@@ -4783,6 +4879,11 @@ snapshots:
 
   '@varlock/native-helper-win32-x64@1.20.0':
     optional: true
+
+  '@vitejs/plugin-react@6.1.2(vite@8.3.0(@types/node@24.19.1)(esbuild@0.28.2)(yaml@2.9.1))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.1
+      vite: 8.3.0(@types/node@24.19.1)(esbuild@0.28.2)(yaml@2.9.1)
 
   '@vitest/mocker@5.0.1(vite@8.3.0(@types/node@24.19.1)(esbuild@0.28.2)(yaml@2.9.1))':
     dependencies:
@@ -5064,6 +5165,8 @@ snapshots:
   csso@5.0.5:
     dependencies:
       css-tree: 2.2.1
+
+  csstype@3.2.3: {}
 
   debug@4.4.3(supports-color@7.2.0):
     dependencies:
@@ -6222,6 +6325,13 @@ snapshots:
 
   radix3@1.1.2: {}
 
+  react-dom@19.3.0(react@19.3.0):
+    dependencies:
+      react: 19.3.0
+      scheduler: 0.28.0
+
+  react@19.3.0: {}
+
   readdirp@5.1.1: {}
 
   rechoir@0.8.0:
@@ -6322,6 +6432,8 @@ snapshots:
       '@bruits/satteri-win32-x64-msvc': 0.10.5
 
   sax@1.6.1: {}
+
+  scheduler@0.28.0: {}
 
   semver@7.8.5: {}
 
