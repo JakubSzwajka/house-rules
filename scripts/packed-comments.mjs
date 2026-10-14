@@ -4,7 +4,12 @@ import { readFileSync } from "node:fs";
 
 export const commentsConsumerFiles = {
   "migrations.json": {
-    modules: [{ package: "@house-rules/call-audit" }, { package: "@house-rules/comments" }],
+    modules: [
+      { package: "@house-rules/call-audit" },
+      { package: "@house-rules/comments" },
+      { package: "@house-rules/identity" },
+      { package: "@house-rules/party" },
+    ],
   },
   "browser-contract.json": {
     forbidden: [
@@ -26,7 +31,7 @@ export const commentsConsumerFiles = {
         severity: "error",
         from: {},
         to: {
-          path: "(?:^|/)(?:adapters|server)/|node_modules/@effect/(?:sql-|platform-node)|node_modules/@house-rules/(?:comments|application|domain)/dist/(?:index|facade|storage|delivery/(?:composition|fetch-handler|mcp-handler|invoke))\\.js$",
+          path: "(?:^|/)(?:adapters|server)/|node_modules/@effect/(?:sql-|platform-node)|node_modules/@house-rules/(?:comments|party|application|domain)/dist/(?:index|facade|storage|delivery/(?:composition|fetch-handler|mcp-handler|invoke))\\.js$",
         },
       },
     ],
@@ -71,7 +76,7 @@ export const commentsConsumerFiles = {
     "  const denied = yield* Effect.flip(list.handler({ target, page: { size: 10 } }).pipe(Effect.provideService(CurrentActor, outsider)));",
     "  assert.ok(denied instanceof CommentTargetNotFound);",
     '  const modules = yield* Migrations.readModuleList("migrations.json");',
-    '  assert.deepEqual(modules.map(({ name, table }) => ({ name, table })), [{ name: "call_audit", table: "call_audit_migrations" }, { name: "comments", table: "comments_migrations" }]);',
+    '  assert.deepEqual(modules.map(({ name, table }) => ({ name, table })), [{ name: "call_audit", table: "call_audit_migrations" }, { name: "comments", table: "comments_migrations" }, { name: "identity", table: "identity_migrations" }, { name: "party", table: "party_migrations" }]);',
     "  const fs = yield* FileSystem.FileSystem;",
     "  for (const module of modules) {",
     '    assert.equal(module.directory, path.resolve(`node_modules/@house-rules/${module.name.replaceAll("_", "-")}/migrations`));',
@@ -134,12 +139,12 @@ export function assertPackedComments(app, { run, write, failure }) {
     app,
     { capture: true },
   );
-  assert.match(migrationCheck, /owned by 2 package\(s\).*2 module\(s\) listed/u);
+  assert.match(migrationCheck, /owned by 4 package\(s\).*4 module\(s\) listed/u);
   console.log(migrationCheck.trim());
   assertBrowserGraph(app, { run, write, failure });
 }
 
-const CONTRACT_ENTRIES = ["comments", "application", "domain"].map(
+const CONTRACT_ENTRIES = ["comments", "party", "application", "domain"].map(
   (name) => `node_modules/@house-rules/${name}/dist/contract.js`,
 );
 
@@ -216,7 +221,7 @@ function assertBrowserGraph(app, { run, write, failure }) {
     write(app, { [transitive]: original });
   }
   console.log(
-    `cold install: browser graph traverses ${graph.modules.length} packed modules from the comments, application and domain contract entries; unsafe imports fail despite contract trust`,
+    `cold install: browser graph traverses ${graph.modules.length} packed modules from the comments, party, application and domain contract entries; unsafe imports fail despite contract trust`,
   );
 }
 

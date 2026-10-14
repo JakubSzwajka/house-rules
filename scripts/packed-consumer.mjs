@@ -13,12 +13,16 @@ import {
   assertPackedComments,
   commentsConsumerFiles,
 } from "./packed-comments.mjs";
+import { assertPackedAuth, authConsumerFiles } from "./packed-auth.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const PUBLISHED_IN_BUILD_ORDER = [
   "migrations",
   "domain",
   "application",
+  "auth-jwt",
+  "identity",
+  "party",
   "call-audit",
   "comments",
   "node-host",
@@ -181,6 +185,7 @@ try {
       "",
     ].join("\n"),
     ...commentsConsumerFiles,
+    ...authConsumerFiles,
     "rules.mjs": [
       'import assert from "node:assert/strict";',
       'import rules from "@house-rules/rules";',
@@ -201,7 +206,7 @@ try {
     "tsconfig.json": {
       extends: "@house-rules/rules/tsconfig/effect.json",
       compilerOptions: { allowImportingTsExtensions: true },
-      include: ["run.ts", "comments.ts", "apps/**/*.ts", "packages/**/*.ts"],
+      include: ["run.ts", "comments.ts", "auth.ts", "apps/**/*.ts", "packages/**/*.ts"],
     },
     "tsconfig.web.json": {
       extends: "@house-rules/rules/tsconfig/web.json",
@@ -232,6 +237,7 @@ try {
   run(process.execPath, ["--no-experimental-strip-types", "rules.mjs"], app);
   run(process.execPath, ["--no-experimental-strip-types", "run.mjs"], app);
   assertPackedComments(app, { run, write, failure });
+  assertPackedAuth(app, { run });
   const tsc = path.join(root, "node_modules/.bin/tsc");
   run(tsc, ["--project", "tsconfig.json"], app);
   run(tsc, ["--project", "tsconfig.web.json"], app);

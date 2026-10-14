@@ -138,7 +138,7 @@ A use-case opens one with `transactional: true` on its contract, or with `UnitOf
 
 1. [ ] Pin it and `effect` to exact versions. `effect` is an exact peer.
 2. [ ] The package ships built JavaScript and `.d.ts` files in `dist/`. Plain `node` loads it. Browser code imports `@house-rules/domain/contract`.
-3. [ ] An app that also uses contracts and delivery installs [`@house-rules/application`](../application/README.md) 0.1.0, which peers on this exact version.
+3. [ ] An app that also uses contracts and delivery installs [`@house-rules/application`](../application/README.md) 0.2.0, which peers on this exact version.
 
 This package and `@house-rules/application` replace `@house-rules/capability`, which stays at 0.16.0 on npm and gets no new versions. See [Upgrading from capability](../application/README.md#upgrading-from-house-rulescapability).
 

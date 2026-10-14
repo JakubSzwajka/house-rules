@@ -113,3 +113,19 @@ export {
   type ViewsCheck,
   type ViewTable,
 } from "./delivery/views.ts";
+export {
+  Authenticator,
+  type AuthenticatorService,
+  type VerifyOptions,
+} from "./auth/authenticator.ts";
+export { Principal } from "./auth/principal.ts";
+export {
+  type ChallengeError,
+  type ProtectedResource,
+  type ProtectedResourceMetadata,
+  type ProtectedResourceOptions,
+  protectedResource,
+  protectedResourceMetadataPath,
+} from "./auth/protected-resource.ts";
+export { TokenRejected, type TokenRejectedReason } from "./auth/token-rejected.ts";
+export { type TokenSource, tokenFrom } from "./auth/token-source.ts";

@@ -42,12 +42,14 @@ Your own code goes in `apps/` and `packages/`.
 | --- | --- |
 | Contracts, in the browser-safe contract entry | `show_booking`, `book_booking`, `cancel_booking` in [`booking/show-booking.ts`](packages/bookings/src/booking/show-booking.ts), [`book-booking.ts`](packages/bookings/src/booking/book-booking.ts), [`cancel-booking.ts`](packages/bookings/src/booking/cancel-booking.ts), exported by [`contract.ts`](packages/bookings/src/contract.ts) |
 | `implement`, `transactional: true` | [`src/use-cases/book-booking.ts`](apps/api/src/use-cases/book-booking.ts), [`src/use-cases/cancel-booking.ts`](apps/api/src/use-cases/cancel-booking.ts) |
-| `CurrentActor` | book, cancel, and the four [comment use-cases](apps/api/src/use-cases/comments/) |
-| Grant | the visitor Grant in [`src/composition/app-layer.ts`](apps/api/src/composition/app-layer.ts); a member Grant in [`booking-lifecycle.test.ts`](apps/api/src/use-cases/tests/booking-lifecycle.test.ts) |
+| `CurrentActor` | book, cancel, the four [comment use-cases](apps/api/src/use-cases/comments/) and [`show-person.ts`](apps/api/src/use-cases/show-person.ts) |
+| Grant | the visitor Grant in [`src/composition/app-layer.ts`](apps/api/src/composition/app-layer.ts); the member and agent Grants in [`src/composition/callers.ts`](apps/api/src/composition/callers.ts) |
 | Approval on a destructive contract | `cancel_booking` sets `needsApproval: true`; the lifecycle test grants and denies it |
 | CallWatch | call-audit on the slot in [`src/composition/app-layer.ts`](apps/api/src/composition/app-layer.ts) |
 | HTTP route, typed client, OpenAPI | [`src/delivery/http/`](apps/api/src/delivery/http/routes.ts), [`src/delivery/web/booking-client.ts`](apps/api/src/delivery/web/booking-client.ts), `openApi` in [`src/main.ts`](apps/api/src/main.ts) |
+| A caller per adapter | `toFetchHandler(app, { caller: visitorCaller })` in [`src/main.ts`](apps/api/src/main.ts) when sign-in is off; `agentCaller` on MCP |
 | MCP tools, fail closed | [`src/delivery/mcp/`](apps/api/src/delivery/mcp/route.ts); tests in [`src/delivery/mcp/tests/`](apps/api/src/delivery/mcp/tests/auth.test.ts) |
+| `protectedResource`: RFC 9728 metadata and the `WWW-Authenticate` challenge | `mcpResourceOf` in [`src/delivery/mcp/config.ts`](apps/api/src/delivery/mcp/config.ts) |
 
 ### Wiring
 
@@ -55,6 +57,7 @@ Your own code goes in `apps/` and `packages/`.
 | --- | --- |
 | Composition root | [`src/composition/`](apps/api/src/composition/index.ts): layer, caller, views |
 | Memory or Postgres, picked once | `appLayer` in [`src/composition/app-layer.ts`](apps/api/src/composition/app-layer.ts), from `DATABASE_URL` |
+| Sign-in on or off, picked once | `signInLayer` in [`src/composition/sign-in.ts`](apps/api/src/composition/sign-in.ts), from `AUTH_ISSUER` |
 | Migrations runner | [`src/main.ts`](apps/api/src/main.ts) runs `Migrations.script` on the root [`migrations.json`](../../migrations.json) before it serves |
 | Host | `serve` from `@house-rules/node-host` in [`src/main.ts`](apps/api/src/main.ts) |
 | The Postgres composition, proven | [`src/tests/postgres-composition.test.ts`](apps/api/src/tests/postgres-composition.test.ts) |
@@ -65,6 +68,10 @@ Your own code goes in `apps/` and `packages/`.
 | --- | --- |
 | Comments, a domain addition, with its host port filled from `Bookings.relation` | `commentTargets` in [`src/composition/app-layer.ts`](apps/api/src/composition/app-layer.ts) |
 | call-audit, a plug-in on `CallWatch` (`agentAware` preset) | `auditOptions` in [`src/composition/app-layer.ts`](apps/api/src/composition/app-layer.ts) |
+| auth-jwt, a plug-in on `Authenticator`: checks the token's signature, `iss`, `exp` and `aud` | `AuthJwt.layer` in `signInLayer`, [`src/composition/sign-in.ts`](apps/api/src/composition/sign-in.ts) |
+| identity: a login (`iss`, `sub`) bound to an `ActorId`, and `Identity.caller` | `Identity.layerMemory` / `layerPostgres` in [`app-layer.ts`](apps/api/src/composition/app-layer.ts); `memberCaller` and `agentCaller` in [`callers.ts`](apps/api/src/composition/callers.ts) |
+| party, a domain addition: the Person is the actor | `Party.layerMemory` / `layerPostgres` in [`app-layer.ts`](apps/api/src/composition/app-layer.ts); `show_person` in [`show-person.ts`](apps/api/src/use-cases/show-person.ts) |
+| `FirstSignIn` filled by the app: create a Person, bind the login, in one unit; never by email | `createPersonOnFirstSignIn` in [`src/composition/sign-in.ts`](apps/api/src/composition/sign-in.ts); tests in [`src/tests/sign-in.test.ts`](apps/api/src/tests/sign-in.test.ts) |
 
 ## Run modes
 
@@ -72,6 +79,13 @@ Your own code goes in `apps/` and `packages/`.
 | --- | --- | --- | --- |
 | empty | memory, seeded with one booking, `demo` | `memoryUnitOfWork` | memory |
 | set | Postgres | `sqlUnitOfWork` | the `call_audit` table |
+
+| `AUTH_ISSUER` | Web API | `FirstSignIn` |
+| --- | --- | --- |
+| empty | visitors read `GET /api/bookings/:id`; no actor route is mounted | `Identity.refuse`, and every token is refused |
+| set | every route needs `Authorization: Bearer <token>` from that issuer | a new Person, named from the `name` claim |
+
+`AUTH_AUDIENCE`, when set, is the `aud` a web token must carry.
 
 ## Run it
 
@@ -94,26 +108,31 @@ DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/house_rules pnpm
 The Postgres database starts empty, so `demo` is a 404 there. Then try:
 
 ```sh
-curl -i localhost:3000/api/bookings/demo   # 200 in memory mode
+curl -i localhost:3000/api/bookings/demo   # 200 in memory mode, AUTH_ISSUER empty
 curl -i localhost:3000/api/bookings/nobody # 404 not_found
 curl -i -X POST localhost:3000/mcp         # 503 not_configured
 ```
 
 The OpenAPI document is `openApi` in [`src/main.ts`](apps/api/src/main.ts). No route serves it yet; [`src/tests/main.test.ts`](apps/api/src/tests/main.test.ts) reads it.
 
+## Signed-in routes
+
+With `AUTH_ISSUER` set, `main.ts` mounts `memberRoutes` from [`src/delivery/http/routes.ts`](apps/api/src/delivery/http/routes.ts) on the composition's own caller, `webCaller`. It is `memberCaller`: `Identity.caller` with a bearer token and the member Grant (`bookings:read`, `bookings:write`, `comments:read`, `comments:write`, `party:read`).
+
+| Route | Capability |
+| --- | --- |
+| `GET /api/bookings/:id` | `show_booking` |
+| `POST /api/bookings` (201) | `book_booking` |
+| `POST /api/list_comments`, `/add_comment`, `/edit_comment`, `/remove_comment` | the four comment use-cases |
+| `GET /api/people/:id` | `show_person`, from `@house-rules/party/contract` |
+
+The first request with a new login runs `FirstSignIn`: one unit creates the Person and binds `(iss, sub)` to its id. Later requests resolve the binding. `cancel_booking` stays off HTTP: it sets `needsApproval: true`, and HTTP fills Approval with `denyAll`, so every call would be refused. It waits for a real confirm step.
+
 ## MCP
 
-`POST /mcp` serves two read-only tools, `show_booking` and `list_comments`. The bearer check is the `TokenVerifier` slot in [`src/composition/token-verifier.ts`](apps/api/src/composition/token-verifier.ts). The root fills it with `TokenVerifier.none`, so the app fails closed:
+`POST /mcp` serves two read-only tools, `show_booking` and `list_comments`. Its caller is `agentCaller` in [`src/composition/callers.ts`](apps/api/src/composition/callers.ts): `Identity.caller` with the MCP resource as the audience, the read-only agent Grant, and the challenge from `protectedResource`. A person who signs in on the web and over MCP is the same actor.
 
-1. [ ] `APP_ORIGIN` or `MCP_AUTH_ISSUER` empty: `/mcp` answers 503 `not_configured` with no challenge, and the metadata paths answer GET and HEAD with 503 `not_configured` and other methods with 405, because there is no authorization server to name. This is the fail-closed case in `AGENTS.md`.
-2. [ ] Both set: no token gets 401 with `WWW-Authenticate: Bearer resource_metadata="…"`, and any token gets 401 `invalid_token`.
+1. [ ] `APP_ORIGIN` or `AUTH_ISSUER` empty: `/mcp` answers 503 `not_configured` with no challenge, and the metadata paths answer GET and HEAD with 503 `not_configured` and other methods with 405, because there is no authorization server to name. This is the fail-closed case in `AGENTS.md`.
+2. [ ] Both set: no token gets 401 with `WWW-Authenticate: Bearer resource_metadata="…"`, and a token that is bad, expired, or not issued for `<APP_ORIGIN>/mcp` gets 401 `invalid_token`.
 
-`/.well-known/oauth-protected-resource` (and `…/mcp`) names `<APP_ORIGIN>/mcp` as the resource and `MCP_AUTH_ISSUER` as the authorization server.
-
-## Mounted once identity exists
-
-There is no sign-in yet, so no caller sets `CurrentActor`. These use-cases run only in tests, through the composition with fake actors:
-
-1. [ ] `book_booking` and `cancel_booking`: HTTP routes behind a session or JWT caller. Cancel keeps `needsApproval: true`, so the route fills Approval with a real confirm step.
-2. [ ] `add_comment`, `edit_comment`, `remove_comment` and `list_comments`: HTTP routes behind the same caller.
-3. [ ] A real `TokenVerifier` layer in the composition root, in place of `TokenVerifier.none`. MCP then serves its two read tools. Write tools wait for owner approval, by name.
+`/.well-known/oauth-protected-resource` (and `…/mcp`) names `<APP_ORIGIN>/mcp` as the resource and `AUTH_ISSUER` as the authorization server. Write tools wait for owner approval, by name.

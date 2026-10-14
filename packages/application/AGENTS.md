@@ -2,7 +2,7 @@
 
 ## What it does
 
-It turns one use-case into a capability: a contract (name, input, output, failure, permission) plus one Effect handler. `implement` wraps the handler in gates: `CallWatch` around everything, then `Grant`, then `Approval` when the contract asks for it, then `UnitOfWork.atomic` when the contract is transactional. `toTool` turns a contract into an MCP tool. It also owns the request side: `CurrentActor`, callers, composition and HTTP and MCP delivery. Version 0.1.0 peers on exact `@house-rules/domain` 0.1.0 and `effect` 4.0.3. With `@house-rules/domain` it replaces the retired `@house-rules/capability`. The full guide is `README.md` in this package.
+It turns one use-case into a capability: a contract (name, input, output, failure, permission) plus one Effect handler. `implement` wraps the handler in gates: `CallWatch` around everything, then `Grant`, then `Approval` when the contract asks for it, then `UnitOfWork.atomic` when the contract is transactional. `toTool` turns a contract into an MCP tool. It also owns the request side: `CurrentActor`, callers, composition and HTTP and MCP delivery. Version 0.2.0 peers on exact `@house-rules/domain` 0.1.0 and `effect` 4.0.3. It adds the `Authenticator` slot, `Principal`, `TokenRejected`, `tokenFrom` and `protectedResource` to 0.1.0. With `@house-rules/domain` it replaces the retired `@house-rules/capability`. The full guide is `README.md` in this package.
 
 ## How an app mounts it
 
@@ -61,6 +61,20 @@ Hooks the app wires itself when it does not use delivery:
 1. [ ] Set the channel in each runner that is not MCP: `Effect.provideService(CallChannel, "web")`. MCP calls get `"mcp"` or `"mcp:<client>"` on their own.
 2. [ ] At the edge, take the request id: `requestIdOf(headers.get(requestIdHeader))`, else `yield* newRequestId`. Forward it, echo it on the response, and run the request inside `withRequestId(id)`. That sets `CallRequestId` and annotates every log line with `requestId`.
 3. [ ] Build MCP tools only with `toTool(capability.contract, ...)`, and run `capability.handler` in the tool handler.
+
+## Authentication pieces
+
+The kit has the provider-neutral parts of auth; a package such as `@house-rules/auth-jwt` fills the slot.
+
+| Piece | Job |
+| --- | --- |
+| `Authenticator` | slot: `verify(token, { audience? })` gives a `Principal` or fails with `TokenRejected` |
+| `Principal` | Schema: `issuer`, `subject`, `audience`, `scopes`, `claims`. No app data. |
+| `TokenRejected` | `reason`: `invalid`, `expired`, `wrong_audience`, `wrong_issuer`, `unavailable` |
+| `tokenFrom(incoming, source)` | `Option` of the token from `"bearer"` (`Authorization: Bearer`) or `{ cookie: name }` |
+| `protectedResource(options \| undefined, unconfiguredResourcePath?)` | RFC 9728 metadata `handler` and `paths`; when configured, `metadata`, `metadataUrl` and `challenge(error?)` for `WWW-Authenticate` |
+
+`protectedResource(undefined, "/mcp")` fails closed: GET and HEAD answer 503 `not_configured`, other methods 405. Configured, GET and HEAD answer the metadata; HEAD has the same status and headers and no body. The authorization server identifiers are served exactly as given. Options typed as defined give the configured shape and `undefined` gives the unconfigured shape; only a union needs a `configured` check before `challenge`. Mount the `handler` on every path in `paths`. Building it throws on a resource or authorization server that is not an absolute http(s) URL.
 
 ## Request identity
 

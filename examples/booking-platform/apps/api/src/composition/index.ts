@@ -1,13 +1,13 @@
-import { composition } from "@house-rules/application";
-import { Context, Effect } from "effect";
+import { type Caller, composition, type CurrentActor, type Grant } from "@house-rules/application";
+import type { Layer } from "effect";
 import { appLayer } from "./app-layer.js";
+import { memberCaller } from "./callers.js";
 import { bookingViews } from "./views.js";
 
-const visitorCaller = () => {
-  // The example has no sign-in, so every visitor holds the root's Grant and the caller adds nothing.
-  return Effect.succeed(Context.empty());
-};
+export type AppServices = Layer.Success<typeof appLayer>;
 
-export const app = composition({ layer: appLayer, caller: visitorCaller, views: bookingViews });
+export const webCaller: Caller<CurrentActor | Grant, AppServices> = memberCaller;
+
+export const app = composition({ layer: appLayer, caller: webCaller, views: bookingViews });
 
 export type ApiComposition = typeof app;

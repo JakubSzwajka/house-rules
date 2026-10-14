@@ -1,8 +1,11 @@
 import { readFileSync } from "node:fs";
 
-export const application = { name: "@house-rules/application", version: "0.1.0" };
-export const comments = { name: "@house-rules/comments", version: "0.1.0" };
-export const callAudit = { name: "@house-rules/call-audit", version: "0.6.0" };
+export const application = { name: "@house-rules/application", version: "0.2.0" };
+export const comments = { name: "@house-rules/comments", version: "0.2.0" };
+export const callAudit = { name: "@house-rules/call-audit", version: "0.7.0" };
+export const authJwt = { name: "@house-rules/auth-jwt", version: "0.1.0" };
+export const identity = { name: "@house-rules/identity", version: "0.1.0" };
+export const party = { name: "@house-rules/party", version: "0.1.0" };
 export const migrations = { name: "@house-rules/migrations", version: "0.3.0" };
 export const head = "a".repeat(40);
 export const fixture = JSON.parse(

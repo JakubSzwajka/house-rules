@@ -18,11 +18,14 @@ It is a GitHub template. Create a repo from it with `gh repo create my-app --pri
 │   └── hosti-before/       code that fails the checks, as Markdown snippets
 ├── packages/               your packages go here; in this repo, the framework packages:
 ├── packages/application/   @house-rules/application: the application kit: contracts, CurrentActor, gates, delivery, a typed HTTP client and OpenAPI
+├── packages/auth-jwt/      @house-rules/auth-jwt: a plug-in that verifies JWTs against a key set, with a Clerk preset
 ├── packages/call-audit/    @house-rules/call-audit: a plug-in that audits capability calls, as log lines or table rows
 ├── packages/comments/      @house-rules/comments: a domain addition for flat comments, with a host port for target access
 ├── packages/domain/        @house-rules/domain: the domain kit: defineModule, Actor, permissions and policy, the unit of work
+├── packages/identity/      @house-rules/identity: binds a verified login to an ActorId and fills the Caller
 ├── packages/migrations/    @house-rules/migrations: runs the migrations of every listed module
 ├── packages/node-host/     @house-rules/node-host: streams a Web fetch handler on a Node socket
+├── packages/party/         @house-rules/party: a domain addition for the people an app knows
 ├── packages/rules/         @house-rules/rules: the house rules, presets, and bins
 ├── site/                   @house-rules/site: the docs site (Astro + Starlight)
 ├── skills/                 the `house-rules` agent skill, a router to the package guides
@@ -142,25 +145,28 @@ Start from the template, or copy these into an existing pnpm workspace:
 
 ### Installing
 
-The publish workflow includes seven public packages under the `@house-rules` scope, in four parts: the kits, the wiring, the additions, and the app you write. These are the release-ready workspace versions; domain 0.1.0, application 0.1.0, rules 0.18.0, call-audit 0.6.0 and comments 0.1.0 are prepared here, not yet published:
+The publish workflow includes ten public packages under the `@house-rules` scope, in four parts: the kits, the wiring, the additions, and the app you write. These are the release-ready workspace versions; application 0.2.0, auth-jwt 0.1.0, identity 0.1.0, party 0.1.0, call-audit 0.7.0 and comments 0.2.0 are prepared here, not yet published:
 
 | Part | Package | What it is | Version |
 | --- | --- | --- | --- |
 | kit | [`@house-rules/domain`](packages/domain/README.md) | Define domain modules: `defineModule`, Actor, permissions and policy, the unit of work | `0.1.0` |
-| kit | [`@house-rules/application`](packages/application/README.md) | Build the application layer: contracts, CurrentActor, gates, composition, delivery | `0.1.0` |
+| kit | [`@house-rules/application`](packages/application/README.md) | Build the application layer: contracts, CurrentActor, gates, composition, delivery, the `Authenticator` slot | `0.2.0` |
 | wiring | [`@house-rules/migrations`](packages/migrations/README.md) | Run every module's SQL migrations | `0.3.0` |
 | wiring | [`@house-rules/node-host`](packages/node-host/README.md) | Host for a Web fetch handler on a Node socket | `0.1.0` |
 | wiring | [`@house-rules/rules`](packages/rules/README.md) | The house plugin: rules, presets, bins. Plain JavaScript, dev only. | `0.18.0` |
-| addition | [`@house-rules/comments`](packages/comments/README.md) | A domain addition: flat comments with host-owned target access | `0.1.0` |
-| addition | [`@house-rules/call-audit`](packages/call-audit/README.md) | A plug-in: one audit line or row per capability call | `0.6.0` |
+| addition | [`@house-rules/comments`](packages/comments/README.md) | A domain addition: flat comments with host-owned target access | `0.2.0` |
+| addition | `@house-rules/party` | A domain addition: Person records keyed by ActorId, self-only rename | `0.1.0` |
+| addition | `@house-rules/identity` | A domain addition: binds a verified login to an ActorId and fills the `Caller` | `0.1.0` |
+| addition | `@house-rules/auth-jwt` | A plug-in: fills `Authenticator` by verifying JWTs, with a Clerk preset | `0.1.0` |
+| addition | [`@house-rules/call-audit`](packages/call-audit/README.md) | A plug-in: one audit line or row per capability call | `0.7.0` |
 
 The two kits replace `@house-rules/capability`, which stays at 0.16.0 on npm and gets no new versions. Its [upgrade notes](packages/application/README.md#upgrading-from-house-rulescapability) say which kit each name moved to.
 
-1. [ ] Pin each one to an exact version, like every other dependency: `"@house-rules/application": "0.1.0"`. `house-rules-pins` fails `^` and `~`.
-2. [ ] Pin `effect` to the version their `peerDependencies` name, now `4.0.3`. If the app installs `@effect/platform-node`, also declare `@effect/platform-node-shared` as an exact direct dependency at that same version. `application` peers on the exact `domain` version, `call-audit` on the exact `application` version, and `comments` on both.
+1. [ ] Pin each one to an exact version, like every other dependency: `"@house-rules/application": "0.2.0"`. `house-rules-pins` fails `^` and `~`.
+2. [ ] Pin `effect` to the version their `peerDependencies` name, now `4.0.3`. If the app installs `@effect/platform-node`, also declare `@effect/platform-node-shared` as an exact direct dependency at that same version. `application` peers on the exact `domain` version, `call-audit` on the exact `application` version, and `comments`, `auth-jwt`, `identity` and `party` on both.
 3. [ ] If your `pnpm-workspace.yaml` sets `minimumReleaseAge`, a version younger than that fails the install. This repo requires 24 hours after publication. Wait; a release-age exception needs separate owner approval.
 
-`domain`, `application`, `migrations`, `call-audit`, `comments`, and `node-host` ship built JavaScript and declarations in `dist/`. Plain `node` loads them, any bundler takes them as is, and `tsc` reads their `.d.ts` files. An app needs no `transpilePackages`, no type-stripping loader, and no `allowImportingTsExtensions` for them. In this repo they stay source: `exports` points at `src/`, and pnpm swaps in `publishConfig.exports`, which points at `dist/`, only when it packs. `pnpm run packed-consumer` packs all seven and installs them with `@effect/platform-node` and an exact direct `@effect/platform-node-shared` pin into a fresh app with no lockfile. It checks the resolved shared Node package, runs the Node Host on a real socket, the rules plugin, Node services, a transactional capability, and memory comments use-cases with Actor, CurrentActor and denied access. It type-checks a consumer that declares a module with `defineModule`, reads `CurrentActor` in a use-case and mounts comments, with the Effect and web presets. It checks that the comments, application and domain contract entries stay browser-safe, and runs the layout and installed-package migration checks. CI runs it on every pull request.
+`domain`, `application`, `auth-jwt`, `identity`, `party`, `migrations`, `call-audit`, `comments`, and `node-host` ship built JavaScript and declarations in `dist/`. Plain `node` loads them, any bundler takes them as is, and `tsc` reads their `.d.ts` files. An app needs no `transpilePackages`, no type-stripping loader, and no `allowImportingTsExtensions` for them. In this repo they stay source: `exports` points at `src/`, and pnpm swaps in `publishConfig.exports`, which points at `dist/`, only when it packs. `pnpm run packed-consumer` packs all ten and installs them with `@effect/platform-node` and an exact direct `@effect/platform-node-shared` pin into a fresh app with no lockfile. It checks the resolved shared Node package, runs the Node Host on a real socket, the rules plugin, Node services, a transactional capability, memory comments use-cases with Actor, CurrentActor and denied access, and a sign-in: auth-jwt verifies a locally signed token, identity resolves the actor and refuses bad tokens, and party serves that person. It type-checks a consumer that declares a module with `defineModule`, reads `CurrentActor` in a use-case and mounts comments, with the Effect and web presets. It checks that the comments, party, application and domain contract entries stay browser-safe, and runs the layout and installed-package migration checks. CI runs it on every pull request.
 
 #### Upgrading from a Git SHA pin
 
@@ -226,7 +232,7 @@ An old pin keeps working until you move it. The old commits are in this repo's h
 ```json
 {
   "dependencies": {
-    "@house-rules/application": "0.1.0",
+    "@house-rules/application": "0.2.0",
     "@house-rules/domain": "0.1.0",
     "effect": "4.0.3"
   }

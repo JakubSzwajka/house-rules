@@ -220,23 +220,32 @@ importers:
         specifier: workspace:0.0.0
         version: link:../../packages/bookings
       '@house-rules/application':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.2.0
         version: link:../../../../packages/application
+      '@house-rules/auth-jwt':
+        specifier: workspace:0.1.0
+        version: link:../../../../packages/auth-jwt
       '@house-rules/call-audit':
-        specifier: workspace:0.6.0
+        specifier: workspace:0.7.0
         version: link:../../../../packages/call-audit
       '@house-rules/comments':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.2.0
         version: link:../../../../packages/comments
       '@house-rules/domain':
         specifier: workspace:0.1.0
         version: link:../../../../packages/domain
+      '@house-rules/identity':
+        specifier: workspace:0.1.0
+        version: link:../../../../packages/identity
       '@house-rules/migrations':
         specifier: workspace:0.3.0
         version: link:../../../../packages/migrations
       '@house-rules/node-host':
         specifier: workspace:0.1.0
         version: link:../../../../packages/node-host
+      '@house-rules/party':
+        specifier: workspace:0.1.0
+        version: link:../../../../packages/party
       effect:
         specifier: 4.0.3
         version: 4.0.3
@@ -260,7 +269,7 @@ importers:
   examples/booking-platform/packages/bookings:
     dependencies:
       '@house-rules/application':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.2.0
         version: link:../../../../packages/application
       '@house-rules/domain':
         specifier: workspace:0.1.0
@@ -315,6 +324,31 @@ importers:
         specifier: 5.0.1
         version: 5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1))
 
+  packages/auth-jwt:
+    dependencies:
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
+    devDependencies:
+      '@effect/vitest':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1)))
+      '@house-rules/application':
+        specifier: workspace:0.2.0
+        version: link:../application
+      '@house-rules/domain':
+        specifier: workspace:0.1.0
+        version: link:../domain
+      effect:
+        specifier: 4.0.3
+        version: 4.0.3
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.1
+        version: 5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1))
+
   packages/call-audit:
     devDependencies:
       '@effect/platform-node':
@@ -330,7 +364,7 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.2.0
         version: link:../application
       '@house-rules/migrations':
         specifier: workspace:0.3.0
@@ -360,7 +394,7 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.2.0
         version: link:../application
       '@house-rules/domain':
         specifier: workspace:0.1.0
@@ -383,6 +417,39 @@ importers:
       '@effect/vitest':
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1)))
+      effect:
+        specifier: 4.0.3
+        version: 4.0.3
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.1
+        version: 5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1))
+
+  packages/identity:
+    devDependencies:
+      '@effect/platform-node':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)(redis@6.3.0)
+      '@effect/platform-node-shared':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)
+      '@effect/sql-pg':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)
+      '@effect/vitest':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1)))
+      '@house-rules/application':
+        specifier: workspace:0.2.0
+        version: link:../application
+      '@house-rules/domain':
+        specifier: workspace:0.1.0
+        version: link:../domain
+      '@house-rules/migrations':
+        specifier: workspace:0.3.0
+        version: link:../migrations
       effect:
         specifier: 4.0.3
         version: 4.0.3
@@ -428,6 +495,39 @@ importers:
       vitest:
         specifier: 5.0.1
         version: 5.0.1(@types/node@24.19.1)(vite@8.3.0(@types/node@24.19.1)(esbuild@0.28.2)(yaml@2.9.1))
+
+  packages/party:
+    devDependencies:
+      '@effect/platform-node':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)(redis@6.3.0)
+      '@effect/platform-node-shared':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)
+      '@effect/sql-pg':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)
+      '@effect/vitest':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1)))
+      '@house-rules/application':
+        specifier: workspace:0.2.0
+        version: link:../application
+      '@house-rules/domain':
+        specifier: workspace:0.1.0
+        version: link:../domain
+      '@house-rules/migrations':
+        specifier: workspace:0.3.0
+        version: link:../migrations
+      effect:
+        specifier: 4.0.3
+        version: 4.0.3
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.1
+        version: 5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1))
 
   packages/rules:
     dependencies:
@@ -2559,6 +2659,9 @@ packages:
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
 
+  jose@6.2.12:
+    resolution: {integrity: sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw==}
+
   js-yaml@4.3.2:
     resolution: {integrity: sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==}
     hasBin: true
@@ -3846,6 +3949,11 @@ snapshots:
       '@effect/tsgo-linux-x64': 0.45.0
       '@effect/tsgo-win32-arm64': 0.45.0
       '@effect/tsgo-win32-x64': 0.45.0
+
+  '@effect/vitest@4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@24.19.1)(vite@8.3.0(@types/node@24.19.1)(esbuild@0.28.2)(yaml@2.9.1)))':
+    dependencies:
+      effect: 4.0.3
+      vitest: 5.0.1(@types/node@24.19.1)(vite@8.3.0(@types/node@24.19.1)(esbuild@0.28.2)(yaml@2.9.1))
 
   '@effect/vitest@4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(yaml@2.9.1)))':
     dependencies:
@@ -5418,6 +5526,8 @@ snapshots:
   is-plain-obj@4.1.0: {}
 
   isexe@2.0.0: {}
+
+  jose@6.2.12: {}
 
   js-yaml@4.3.2:
     dependencies:

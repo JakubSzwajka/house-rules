@@ -2,7 +2,7 @@
 
 ## What it does
 
-A domain addition: a public support module for flat, plain-text comments on an app's targets. `Comments` uses `defineModule` from `@house-rules/domain`, captures storage and the host port, and takes an explicit Actor on user methods. It ships four browser-safe contracts at `@house-rules/comments/contract`, built with `@house-rules/application/contract`. Version 0.1.0 is ready for its first npm release, not yet published. It peers on exact `@house-rules/domain` 0.1.0, `@house-rules/application` 0.1.0 and Effect 4.0.3, and ships built JavaScript and declarations in `dist/`.
+A domain addition: a public support module for flat, plain-text comments on an app's targets. `Comments` uses `defineModule` from `@house-rules/domain`, captures storage and the host port, and takes an explicit Actor on user methods. It ships four browser-safe contracts at `@house-rules/comments/contract`, built with `@house-rules/application/contract`. Version 0.2.0 is ready for release, not yet published; 0.1.0 is on npm. It peers on exact `@house-rules/domain` 0.1.0, `@house-rules/application` 0.2.0 and Effect 4.0.3, and ships built JavaScript and declarations in `dist/`.
 
 ## How an app mounts it
 

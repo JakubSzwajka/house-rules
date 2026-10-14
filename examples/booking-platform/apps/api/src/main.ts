@@ -4,38 +4,42 @@ import { Migrations } from "@house-rules/migrations";
 import { serve } from "@house-rules/node-host";
 import { Config, Effect, Layer, Option } from "effect";
 import { databaseUrl, postgresClient } from "./composition/app-layer.js";
+import { visitorCaller } from "./composition/callers.js";
 import { app } from "./composition/index.js";
-import { bookingRoutes } from "./delivery/http/routes.js";
-import { mcpAuthConfig, mcpPath } from "./delivery/mcp/config.js";
-import { metadataHandler, metadataPaths } from "./delivery/mcp/metadata.js";
+import { authConfig } from "./composition/sign-in.js";
+import { bookingRoutes, memberRoutes } from "./delivery/http/routes.js";
+import { mcpPath, mcpResource } from "./delivery/mcp/config.js";
 import { mcpRoute } from "./delivery/mcp/route.js";
 
 const publicOrigin = await Effect.runPromise(
   Config.String("APP_ORIGIN").pipe(Config.withDefault("")),
 );
-const mcpAuth = await Effect.runPromise(mcpAuthConfig);
+const auth = await Effect.runPromise(authConfig);
+const resource = await Effect.runPromise(mcpResource);
+const origins = publicOrigin === "" ? {} : { origins: [publicOrigin] };
 
-export const api = toFetchHandler(app, {
-  prefix: "/api",
-  routes: bookingRoutes,
-  ...(publicOrigin === "" ? {} : { origins: [publicOrigin] }),
-});
+export const api = Option.isSome(auth)
+  ? toFetchHandler(app, { prefix: "/api", routes: memberRoutes, ...origins })
+  : toFetchHandler(app, {
+      prefix: "/api",
+      routes: bookingRoutes,
+      caller: visitorCaller,
+      ...origins,
+    });
 
-export const mcp = mcpRoute(app, mcpAuth);
-
-const metadata = metadataHandler(mcpAuth);
+export const mcp = mcpRoute(app, resource);
 
 export const handler = Object.assign(
   (request: Request): Promise<Response> => {
     const path = new URL(request.url).pathname;
     if (path === mcpPath) return mcp(request);
-    if (metadataPaths.includes(path)) return metadata(request);
+    if (resource.paths.includes(path)) return resource.handler(request);
     return api(request);
   },
   { dispose: () => Promise.all([mcp.dispose(), api.dispose()]).then(() => undefined) },
 );
 
-export const openApi = toOpenApi(bookingRoutes, {
+export const openApi = toOpenApi(memberRoutes, {
   title: "Hosti API",
   version: "0.0.0",
   prefix: "/api",

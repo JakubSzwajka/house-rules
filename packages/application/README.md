@@ -351,7 +351,7 @@ Install it from npm at an exact version:
 ```json
 {
   "dependencies": {
-    "@house-rules/application": "0.1.0",
+    "@house-rules/application": "0.2.0",
     "@house-rules/domain": "0.1.0",
     "effect": "4.0.3"
   }
@@ -466,6 +466,39 @@ const result = await call(app, showBooking, { id }, { headers: await headers(), 
 | `UnitOfWorkFailed` | 503 `unavailable` |
 | `CompositionClosed` | 503 `unavailable`, `The app is shutting down.` |
 | `NoOpenUnit`, a defect, no view | 500 `internal_error` |
+
+### Token authentication
+
+The kit holds the provider-neutral auth pieces; a package such as `@house-rules/auth-jwt` fills the `Authenticator` slot in the composition root.
+
+```ts
+import { Authenticator, type Incoming, protectedResource, Refused, tokenFrom } from "@house-rules/application";
+import { Effect, Option } from "effect";
+
+const mcpResource = protectedResource(
+  { resource: "https://app.example/mcp", authorizationServers: ["https://auth.example.com"] },
+); // typed as the configured shape: metadata, metadataUrl, challenge(error?)
+const closed = protectedResource(undefined, "/mcp"); // the unconfigured shape: 503 not_configured
+
+const verify = (incoming: Incoming) =>
+  Effect.gen(function* () {
+    const token = tokenFrom(incoming, "bearer"); // or { cookie: "__session" }
+    if (Option.isNone(token)) {
+      return yield* new Refused({
+        status: 401,
+        code: "unauthenticated",
+        message: "Send a bearer token.",
+        challenge: mcpResource.challenge(),
+      });
+    }
+    // Principal { issuer, subject, audience, scopes, claims }, or TokenRejected { reason }
+    return yield* (yield* Authenticator).verify(token.value, { audience: "https://app.example/mcp" });
+  });
+```
+
+- `TokenRejected.reason` is `invalid`, `expired`, `wrong_audience`, `wrong_issuer` or `unavailable`. A caller turns it into a 401 `Refused` with `challenge: mcpResource.challenge("invalid_token")`.
+- `protectedResource` gives the RFC 9728 metadata `handler` for every path in `paths`: GET and HEAD answer the metadata, other methods 405. Unconfigured, GET and HEAD answer 503 `not_configured`, so the route fails closed. HEAD answers carry the status and headers of GET and no body. Configured, it also gives `metadata`, `metadataUrl` and `challenge(error?)`, the `WWW-Authenticate` value with `resource_metadata`. Passing options types the result as the configured shape and passing `undefined` types it as the unconfigured one, so only a value of type `ProtectedResourceOptions | undefined` needs a `configured` check before `challenge`. The authorization server identifiers go out exactly as given, with no trailing-slash stripping, because a client compares issuer strings exactly.
+- `Principal` carries no app data. Turning it into an `ActorId` is the identity package's job.
 
 ### Admit before parsing
 
@@ -591,7 +624,7 @@ const booking = yield* client.show_booking({ id }); // Effect<Booking, HttpFailu
 
 ## Upgrading from @house-rules/capability
 
-`@house-rules/capability` 0.16.0 is its last version. Its planned 0.17.0 was never published. Replace it with two packages, pinned exactly, and move `@house-rules/call-audit` to 0.6.0 in the same change. Effect stays at 4.0.3. There are no re-exports or aliases, so every import moves:
+`@house-rules/capability` 0.16.0 is its last version. Its planned 0.17.0 was never published. Replace it with two packages, pinned exactly, and move `@house-rules/call-audit` to 0.7.0 in the same change. Effect stays at 4.0.3. There are no re-exports or aliases, so every import moves:
 
 ```text
 @house-rules/capability                @house-rules/domain           @house-rules/application
@@ -607,7 +640,7 @@ const booking = yield* client.show_booking({ id }); // Effect<Booking, HttpFailu
                                          UnitOfWorkFailed
 ```
 
-1. [ ] Replace the dependency: `"@house-rules/domain": "0.1.0"` and `"@house-rules/application": "0.1.0"`.
+1. [ ] Replace the dependency: `"@house-rules/domain": "0.1.0"` and `"@house-rules/application": "0.2.0"`.
 2. [ ] Move each import to the kit that owns the name, as the table shows. A package's facade imports only domain; a package's contract entry imports `@house-rules/application/contract` and `@house-rules/domain/contract`.
 3. [ ] Rename the request slot to `CurrentActor`, from application, in callers, use-cases and tests. `yield* CurrentActor` returns the Actor, as before.
 4. [ ] Service keys moved from `@house-rules/capability/*` to `@house-rules/application/*` and `@house-rules/domain/*`. Only code that matched a key by string notices.
@@ -667,6 +700,8 @@ It has request identity through `CurrentActor`, `defineContract`, `implement`, `
 Request identity: `CurrentActor`. `defineModule`, `Actor`, `ActorId`, `Permission`, `definePolicy`, `UnitOfWork`, `CurrentUnit`, `NoOpenUnit`, `UnitOfWorkFailed` and `memoryUnitOfWork` come from `@house-rules/domain`.
 
 Delivery: `composition`, `once`, `admit`, `call`, `toFetchHandler`, `route`, `toMcpHandler`, `tool`, `decodeInput`, `defaultViews`, `defaultMaxBodyBytes`, `problem`, `problemView`, `toOpenApi`, the `Refused`, `InputInvalid` and `CompositionClosed` errors, and the types `Composition`, `Caller`, `Incoming`, `View`, `ViewFn`, `ViewTable`, `ViewStatus`, `CallerContext`, `DefaultViewTag`, `DefectStatusReserved`, `ViewsCheck`, `MountCheck`, `ServicesCheck`, `Mountable`, `Outcome`, `ApprovalOption`, `Admitted`, `AdmitOptions`, `CallOptions`, `Route`, `RouteOptions`, `CsrfOptOut`, `Method`, `FetchHandler`, `FetchHandlerOptions`, `McpTool`, `McpToolOptions`, `McpHandlerOptions`, `InputSource`, `InputIssue`, `ProblemViewOptions`, `StaticStatus`, `OpenApiDocument`, `OpenApiOptions`, `OpenApiSecurity`, and `OpenApiSecurityScheme`.
+
+Authentication: the `Authenticator` service, the `Principal` schema, the `TokenRejected` error, `tokenFrom`, `protectedResource`, `protectedResourceMetadataPath`, and the types `AuthenticatorService`, `VerifyOptions`, `TokenRejectedReason`, `TokenSource`, `ProtectedResource`, `ProtectedResourceOptions`, `ProtectedResourceMetadata` and `ChallengeError`.
 
 Client, also from `@house-rules/application/contract`: `endpoint`, `toHttpClient`, `failureCodeHeader`, the `HttpFailure` error, and the types `Endpoint`, `EndpointOptions`, `EndpointShape`, `HttpClientOf`, `HttpClientOptions`, `ClientCall`, `ClientFailureCode` and `HttpFailureOf`. The contract entry also exports `defineContract`, `failureSchemaOf`, `NoInput`, the `Forbidden`, `ApprovalDenied`, `InputInvalid` and `Refused` errors, the `InputIssue` type, the contract types and `PermissionDeclaration`.
 

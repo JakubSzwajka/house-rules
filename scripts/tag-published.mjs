@@ -10,6 +10,9 @@ const folders = [
   "rules",
   "domain",
   "application",
+  "auth-jwt",
+  "identity",
+  "party",
   "migrations",
   "call-audit",
   "comments",
@@ -17,9 +20,9 @@ const folders = [
 ];
 const retiredRecoveryOnlyFolders = ["capability"];
 const CURRENT_NAME =
-  /^@house-rules\/(?:rules|domain|application|migrations|call-audit|comments|node-host)$/u;
+  /^@house-rules\/(?:rules|domain|application|auth-jwt|identity|party|migrations|call-audit|comments|node-host)$/u;
 const RECOVERABLE_NAME =
-  /^@house-rules\/(?:rules|domain|application|migrations|call-audit|comments|node-host|capability)$/u;
+  /^@house-rules\/(?:rules|domain|application|auth-jwt|identity|party|migrations|call-audit|comments|node-host|capability)$/u;
 
 function publishedTags(summary, names = CURRENT_NAME) {
   assert.ok(Array.isArray(summary.publishedPackages), "publish summary needs publishedPackages");

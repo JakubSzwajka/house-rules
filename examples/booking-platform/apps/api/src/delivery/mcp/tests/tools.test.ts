@@ -1,37 +1,41 @@
-import { afterAll, expect, it } from "@effect/vitest";
+import { expect, it } from "@effect/vitest";
 import { call } from "@house-rules/application";
 import { Effect } from "effect";
 import { addComment } from "../../../use-cases/comments/add-comment.js";
 import { bookBooking } from "../../../use-cases/book-booking.js";
-import { mcpRoute } from "../route.js";
-import { appWithFakeVerifier, config } from "./fake-verifier.js";
 import { mcpRequest, openMcpSession } from "./mcp-client.js";
+import { bearer, incomingWith, signedInApp } from "./signed-in.js";
 
-const app = appWithFakeVerifier();
-const mcp = mcpRoute(app, config);
-afterAll(() => mcp.dispose().then(() => app.dispose()));
-
-const incoming = { headers: new Headers(), url: "https://hosti.example" };
 const target = { kind: "booking", id: "b-1" };
-
-const booked = Effect.promise(() =>
-  call(app, bookBooking, { id: "b-1", guestName: "Ada" }, incoming),
-);
-const commented = Effect.promise(() =>
-  call(app, addComment, { target, body: "Late check-in, please." }, incoming),
-);
 
 const errorOf = (result: Record<string, unknown> | undefined): unknown => {
   const content = (result?.["content"] ?? []) as ReadonlyArray<{ text?: string }>;
   return JSON.parse(content[0]?.text ?? "null");
 };
 
-const toolCall = (session: Record<string, string>, name: string, args: unknown) =>
+type Handler = (request: Request) => Promise<Response>;
+
+const toolCall = (mcp: Handler, session: Record<string, string>, name: string, args: unknown) =>
   mcpRequest(mcp, session, "tools/call", { name, arguments: args });
 
-it.effect("lists only the two read-only tools", () =>
+const aliceBooksAndComments = Effect.gen(function* setUp() {
+  const mounted = yield* signedInApp;
+  const incoming = incomingWith(yield* mounted.webToken("alice"));
+  const booked = yield* Effect.promise(() =>
+    call(mounted.app, bookBooking, { id: "b-1", guestName: "Ada" }, incoming),
+  );
+  expect(booked.ok).toBe(true);
+  const commented = yield* Effect.promise(() =>
+    call(mounted.app, addComment, { target, body: "Late check-in, please." }, incoming),
+  );
+  if (!commented.ok) return yield* Effect.die("Alice could not comment");
+  return { ...mounted, aliceId: commented.value.authorId };
+});
+
+it.live("lists only the two read-only tools", () =>
   Effect.gen(function* listsTools() {
-    const session = yield* openMcpSession(mcp, { authorization: "Bearer tok-a" });
+    const { mcp, mcpToken } = yield* signedInApp;
+    const session = yield* openMcpSession(mcp, bearer(yield* mcpToken("alice")));
     const listed = yield* mcpRequest(mcp, session, "tools/list", {});
     const tools = (listed?.["tools"] ?? []) as ReadonlyArray<{
       name: string;
@@ -44,14 +48,14 @@ it.effect("lists only the two read-only tools", () =>
   }),
 );
 
-it.effect("show_booking returns the public booking, never its owner", () =>
+it.live("show_booking returns the public booking, never its owner", () =>
   Effect.gen(function* showsBooking() {
-    yield* booked;
-    const session = yield* openMcpSession(mcp, { authorization: "Bearer tok-b" });
-    const shown = yield* toolCall(session, "show_booking", { id: "b-1" });
+    const { mcp, mcpToken } = yield* aliceBooksAndComments;
+    const session = yield* openMcpSession(mcp, bearer(yield* mcpToken("bob")));
+    const shown = yield* toolCall(mcp, session, "show_booking", { id: "b-1" });
     expect(shown?.["isError"]).toBe(false);
     expect(shown?.["structuredContent"]).toEqual({ id: "b-1", guestName: "Ada", status: "active" });
-    const missing = yield* toolCall(session, "show_booking", { id: "nobody" });
+    const missing = yield* toolCall(mcp, session, "show_booking", { id: "nobody" });
     expect(missing?.["isError"]).toBe(true);
     expect(errorOf(missing)).toEqual({
       error: { code: "not_found", message: "No booking with id nobody is visible to you." },
@@ -59,20 +63,19 @@ it.effect("show_booking returns the public booking, never its owner", () =>
   }),
 );
 
-it.effect("list_comments shows A's comments to A, and user B cannot read them", () =>
+it.live("list_comments shows A's comments to A, and user B cannot read them", () =>
   Effect.gen(function* accessHolds() {
-    yield* booked;
-    yield* commented;
-    const asOwner = yield* openMcpSession(mcp, { authorization: "Bearer tok-a" });
-    const own = yield* toolCall(asOwner, "list_comments", { target, page: { size: 20 } });
+    const { mcp, mcpToken, aliceId } = yield* aliceBooksAndComments;
+    const asOwner = yield* openMcpSession(mcp, bearer(yield* mcpToken("alice")));
+    const own = yield* toolCall(mcp, asOwner, "list_comments", { target, page: { size: 20 } });
     expect(own?.["isError"]).toBe(false);
     expect(own?.["structuredContent"]).toMatchObject({
-      items: [{ body: "Late check-in, please.", authorId: "actor-a" }],
+      items: [{ body: "Late check-in, please.", authorId: aliceId }],
     });
 
-    const asOther = yield* openMcpSession(mcp, { authorization: "Bearer tok-b" });
-    const other = yield* toolCall(asOther, "list_comments", { target, page: { size: 20 } });
-    const nowhere = yield* toolCall(asOther, "list_comments", {
+    const asOther = yield* openMcpSession(mcp, bearer(yield* mcpToken("bob")));
+    const other = yield* toolCall(mcp, asOther, "list_comments", { target, page: { size: 20 } });
+    const nowhere = yield* toolCall(mcp, asOther, "list_comments", {
       target: { kind: "booking", id: "nobody" },
       page: { size: 20 },
     });
