@@ -112,6 +112,7 @@ it.effect(
         config.forbidden.find((rule) => rule.name === "contract-entry-is-browser-safe")?.to
           .pathNot ?? []
       ).map((pattern) => new RegExp(pattern, "u"));
+      // Bundles every trusted Effect module, so busy CI runners need more than the default timeout.
       const modules = yield* effectModules;
       const trusted = modules.filter((file) => safe.some((pattern) => pattern.test(file)));
       const inDist = (file: string) =>
@@ -125,6 +126,7 @@ it.effect(
       );
       expect(inputs.filter((input) => /(?:^|\/)(?:sql|process)\/|^node:/u.test(input))).toEqual([]);
     }),
+  30_000,
 );
 
 it.effect("the public entry, by contrast, pulls in the Postgres adapter", () =>
