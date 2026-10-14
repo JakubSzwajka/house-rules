@@ -25,7 +25,7 @@ It is a GitHub template. Create a repo from it with `gh repo create my-app --pri
 ├── packages/node-host/     @house-rules/node-host: streams a Web fetch handler on a Node socket
 ├── packages/rules/         @house-rules/rules: the house rules, presets, and bins
 ├── site/                   @house-rules/site: the docs site (Astro + Starlight)
-├── skills/                 agent skills, one folder each
+├── skills/                 the `house-rules` agent skill, a router to the package guides
 ├── tests/                  fence and thin-config wiring tests
 ├── .dependency-cruiser.cjs layout() from house-rules, with the example roots and scope "@example/"
 ├── biome.json              extends the house-rules Biome preset, plus excludes
@@ -134,7 +134,7 @@ Start from the template, or copy these into an existing pnpm workspace:
 1. [ ] The thin configs: `biome.json`, `eslint.config.mjs`, `tsconfig.base.json`, `.dependency-cruiser.cjs`.
 2. [ ] The stack files: `turbo.json`, `pnpm-workspace.yaml`, `.github/workflows/ci.yml`, `.env.schema`, `.varlock/config.json`, `docker-compose.yml`, `migrations.json`, and the `.env` lines from `.gitignore`.
 3. [ ] The root `package.json` `scripts`, `devDependencies`, `engines`, and `packageManager`. Replace the `workspace:` house-rules dependency with the exact npm version in [Using the rules in another app](#using-the-rules-in-another-app).
-4. [ ] The fence: `.nvmrc`, `lefthook.yml`, `scripts/`, `tests/`, `.agents/settings.json`, `.pi/extensions/git-interceptor.ts`, `NOTICE`. Add `skills/` if your agents should use them.
+4. [ ] The fence: `.nvmrc`, `lefthook.yml`, `scripts/`, `tests/`, `.agents/settings.json`, `.pi/extensions/git-interceptor.ts`, `NOTICE`. Add `skills/house-rules/` if your agents should use it.
 5. [ ] `AGENTS.md`, rewritten for your project. Write your own `VISION.md`.
 6. [ ] Delete `examples/` and remove its traces, as [its README](examples/booking-platform/README.md) lists. Pass your own `scope` to `layout()` in place of `@example/`. Your own code goes in `apps/` and `packages/`.
 7. [ ] If your folders differ, pass `layout()` options such as `appsDir`, `packagesDir`, `layers`, `publicEntry`, `internalDir`, `appEntryFiles`, `ownerlessNames`, `mechanismNames`, `packageRootFiles`, `facadeFile`, or `testsDir`. The house-rules docs explain each one.
@@ -248,11 +248,11 @@ A Host listens for HTTP and runs a fetch handler. Node apps use `serve` from `@h
 
 ### Add a package
 
-Follow [`skills/add-an-effect-module/SKILL.md`](skills/add-an-effect-module/SKILL.md). In short: copy `examples/booking-platform/packages/bookings` into `packages/<name>`, keep `exports` to `"." : "./src/index.ts"`, plus `"./contract": "./src/contract.ts"` only when a browser needs the package's contracts, lay the code out in subject folders such as `src/booking/`, and run `pnpm install`.
+Load the `house-rules` skill (`skills/house-rules/SKILL.md`); its router points at the [domain kit guide](packages/domain/AGENTS.md). In short: copy `examples/booking-platform/packages/bookings` into `packages/<name>`, keep `exports` to `"." : "./src/index.ts"`, plus `"./contract": "./src/contract.ts"` only when a browser needs the package's contracts, lay the code out in subject folders such as `src/booking/`, and run `pnpm install`.
 
 ### Add a docs page
 
-Follow [`skills/write-a-docs-page/SKILL.md`](skills/write-a-docs-page/SKILL.md). In short: the site has one hand-written page, `site/src/content/docs/start/index.md`, and one generated page, the rules table. To change the table, change `packages/rules`, then run `pnpm --filter @house-rules/site generate` and commit the result.
+Read [`site/README.md`](site/README.md) and the "Docs site" section of [`AGENTS.md`](AGENTS.md). In short: the site has one hand-written page, `site/src/content/docs/start/index.md`, and one generated page, the rules table. To change the table, change `packages/rules`, then run `pnpm --filter @house-rules/site generate` and commit the result.
 
 ### Single-page apps
 
@@ -270,7 +270,7 @@ The route and the client read one `endpoint`, so the path, the method and the st
 
 ### Let agents call a use-case
 
-Follow `skills/add-an-mcp-tool/SKILL.md`. `docs/mcp-adapter.md` records why an MCP tool only runs an existing use-case.
+Load the `house-rules` skill (`skills/house-rules/SKILL.md`); its router points at the [application kit guide](packages/application/AGENTS.md) and the "Agent adapters" section of [`AGENTS.md`](AGENTS.md). `docs/mcp-adapter.md` records why an MCP tool only runs an existing use-case.
 
 ## Example
 

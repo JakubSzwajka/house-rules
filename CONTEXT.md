@@ -12,7 +12,7 @@ The template is a showcase of the house plugin wired into a real workspace. The 
 
 1. **Thin configs**: `tsconfig.base.json`, `biome.json`, `.dependency-cruiser.cjs`, and `eslint.config.mjs`. Each points at a preset and sets only **project values**, such as the `@example/` scope, the example roots, or Biome's own excludes.
 2. **Stack-only files**, which no package can hand down: `turbo.json`, `pnpm-workspace.yaml`, `.env.schema`, CI, `lefthook.yml`, and the agent-harness hooks.
-3. Prose: `AGENTS.md`, `CONTEXT.md`, `README.md`, `VISION.md`, and `skills/`. The **prose rules** in `README.md` are what a reviewer checks, because no tool can.
+3. Prose: `AGENTS.md`, `CONTEXT.md`, `README.md`, `VISION.md`, and `skills/house-rules/`, the one agent skill. The **prose rules** in `README.md` are what a reviewer checks, because no tool can.
 4. The **example**, `examples/booking-platform`: a private **showcase** laid out like a regular project, with its app in `apps/api` (`@example/api`) and its package in `packages/bookings` (`@example/bookings`). It is never published, framework packages never import it, and a new project deletes `examples/`. `packages/rules` is the plugin, not example code, so the layout rules do not apply to it. `packages/domain` and `packages/application` are libraries, not example code, and the layout rules apply to them like any package.
 5. **Wiring tests** under `tests/`, which prove the thin configs and the fence are hooked up, not how each rule behaves. The plugin tests its own rules.
 

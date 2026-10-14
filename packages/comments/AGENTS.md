@@ -28,7 +28,10 @@ A domain addition: a public support module for flat, plain-text comments on an a
    On rules 0.17.0, a consumer contract that imports this package needs `trustedContractPackages: ["@house-rules/comments"]` in its existing `layout(...)` options. Only `/contract` is trusted; the packed-consumer check verifies its transitive browser safety.
 
 4. [ ] Use `implement(contract, handler)` from `@house-rules/application` in thin use-cases. Yield `CurrentActor` and pass the Actor to `Comments`. Keep the app's Grant at the request boundary.
-5. [ ] Call `Comments.removeTarget(ref)` when the app deletes a target, in the same unit. Call `Comments.erase(authorId)` when it deletes a user.
+5. [ ] Give `Comments` the same `SqlClient` layer, and the same `sqlUnitOfWork`, as the app's other stores. One unit then covers all their writes.
+6. [ ] Add a view for each failure tag the shipped contracts declare, such as `CommentTargetNotFound`, and for `CommentTargetsUnavailable`. A missing view fails `tsc`.
+7. [ ] Call `Comments.removeTarget(ref)` when the app deletes a target, in the same unit. Call `Comments.erase(authorId)` when it deletes a user.
+8. [ ] Test through the composition with an allowed and a denied actor, and check that leaving `CommentTargets` unfilled fails the app layer's type check. Add no route or tool until the app has real identity and the owner approves it.
 
 `Comments.presets.default` is partial data: body length 4000 UTF-16 code units and page size 100. Spread it and supply `targets`; the app must choose its kinds. All options are required, with positive integer limits. Times and cursors use epoch milliseconds. Lists sort oldest first by createdAt then id and return an exclusive `next` cursor.
 

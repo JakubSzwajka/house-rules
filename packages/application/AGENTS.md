@@ -77,6 +77,21 @@ A package declares its root module with `defineModule` from `@house-rules/domain
 | `annotations` | `readOnly` (call kind `read`, MCP hint) and `destructive`. Both default to `false`. |
 | `audit` | `{ target: "<input field>" }`: a string field of the input whose value becomes the call's target id. |
 
+## Use-cases and tests
+
+A use-case is one file under `src/use-cases/` with one `implement(...)` capability and at most one contract.
+
+1. [ ] Give the contract a stable snake_case name, such as `show_booking`. `toTool` uses it as the MCP tool name.
+2. [ ] Write the description so it says when an agent should call the tool. Every adapter shows the same text.
+3. [ ] Set `annotations.readOnly` on a read and `destructive` on a delete or overwrite; a plain write sets neither. Set `needsApproval: true` where a human must confirm each call, such as delete or share.
+4. [ ] An action with no input uses `NoInput`, never `Schema.Struct({})`.
+5. [ ] An MCP tool is `tool(capability, { title, idempotent, openWorld })`. All three options are required.
+6. [ ] Test with `@effect/vitest` (`it.effect`, `it.layer`), never `Effect.run*`. Cover the good input, the contract's typed error (inspect it with `Effect.flip`), `Grant.denyAll` failing with `Forbidden` before the service runs, and `Approval.denyAll` failing with `ApprovalDenied` when the contract needs approval. For a tool, add an access test: user B cannot read user A's data.
+
+A `Caller` refuses with `new Refused({ status, code, message, challenge })`. The `challenge` goes out as `WWW-Authenticate`; an MCP route names `resource_metadata` in it.
+
+`toMcpHandler` keeps each MCP session in process memory, through Effect's HTTP transport. For the protocol versions clients speak today (2025-03-26 to 2025-11-25) a session needs an `Mcp-Session-Id`. So make the handler once per process (`once`), and run one replica or route each client to the same one. A restart gives clients 404, and they start a new session. A session holds no user data, because the caller runs on every request. Sessions never expire, a small memory leak, because Effect has no public expiry.
+
 ## Fixed rules
 
 - It depends on `@house-rules/domain`; domain never imports it. Import each name from the kit that owns it: no re-exports, no aliases.
