@@ -3,11 +3,13 @@
 const {
   adapterImportsOption,
   caseless,
+  disjointRoots,
   escape,
   layerOptions,
   nameListOption,
   pathListOption,
   pathOption,
+  rootsOption,
   scopeName,
 } = require("./layout-option-parsers.cjs");
 const { hostOption } = require("./hosts.cjs");
@@ -109,8 +111,11 @@ function patterns(options) {
   const settings = { ...DEFAULTS, ...options };
   const host = hostOption(settings.host, "layout()");
   const scope = scopeName(settings.scope);
-  const apps = pathOption(settings.appsDir, "appsDir");
-  const packages = pathOption(settings.packagesDir, "packagesDir");
+  const appRoots = rootsOption(settings.appsDir, "appsDir");
+  const packageRoots = rootsOption(settings.packagesDir, "packagesDir");
+  disjointRoots(appRoots, packageRoots);
+  const apps = appRoots.pattern;
+  const packages = packageRoots.pattern;
   const tests = pathOption(settings.testsDir, "testsDir");
   const layers = layerOptions(settings.layers ?? {}, host ? { delivery: host.deliveryLayer } : {});
   const layerRoot = (layer) => `^${apps}/[^/]+/src/${layer}(?:/|$)`;

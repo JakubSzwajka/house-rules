@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import * as fs from "node:fs";
 import path from "node:path";
+import { LAYOUT_CONFIG_FILE, readAppsRoot } from "../src/layout-config.mjs";
 import { seeRuleLine } from "../src/rule-docs.mjs";
 import { checkModuleList, LIST_FILE } from "../src/module-list.mjs";
 import {
@@ -12,9 +13,8 @@ import {
   tableName,
   tableReferences,
 } from "../src/sql-text.mjs";
+import { workspaceDirectories } from "../src/workspaces.mjs";
 
-const DEFAULT_WORKSPACES = ["apps/*", "packages/*"];
-const WORKSPACE_LIST_ITEM = /^\s+-\s+["']?([^"'#\s]+)["']?\s*$/u;
 const SOURCE_FILE = /\.(?:ts|tsx|mts|cts)$/u;
 const SKIPPED_DIRECTORY = (name) => name === "node_modules" || name.startsWith(".");
 const OPENS_TRANSACTION_CALL = /\bwithTransaction\b/u;
@@ -62,25 +62,6 @@ const adapters = adapterPackages(process.argv.slice(2));
 const relative = (file) => path.relative(process.cwd(), file).split(path.sep).join("/");
 
 const lineAt = (text, index) => text.slice(0, index).split("\n").length;
-
-const workspacePatterns = () => {
-  if (!fs.existsSync("pnpm-workspace.yaml")) return DEFAULT_WORKSPACES;
-  const lines = fs.readFileSync("pnpm-workspace.yaml", "utf8").split("\n");
-  const start = lines.findIndex((line) => line.trimEnd() === "packages:");
-  const patterns = [];
-  for (const line of start === -1 ? [] : lines.slice(start + 1)) {
-    const item = WORKSPACE_LIST_ITEM.exec(line);
-    if (item === null) break;
-    patterns.push(item[1]);
-  }
-  return patterns.length > 0 ? patterns : DEFAULT_WORKSPACES;
-};
-
-const workspaceDirectories = () =>
-  fs
-    .globSync(workspacePatterns().map((pattern) => `${pattern}/package.json`))
-    .map((manifest) => path.dirname(manifest).split(path.sep).join("/"))
-    .sort();
 
 const walk = (directory, keep) => {
   if (!fs.existsSync(directory)) return [];
@@ -263,12 +244,22 @@ const checkSource = (file, owner, { adapter, module, useCases }) => {
   }
 };
 
-const APP_ROOT = /^apps\//u;
+// Apps may open a unit of work; modules may not. The apps roots come from the layout config.
+const APP_ROOT = (() => {
+  try {
+    return readAppsRoot(process.cwd());
+  } catch (error) {
+    console.error(
+      `migrations: cannot read the apps roots from ${LAYOUT_CONFIG_FILE}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    process.exit(1);
+  }
+})();
 
 for (const workspace of workspaces) {
   const options = {
     adapter: adapters.has(packageName(workspace)),
-    module: !APP_ROOT.test(workspace),
+    module: !APP_ROOT.test(`${workspace}/`),
     useCases: path.resolve(workspace, "src", "use-cases"),
   };
   for (const file of walk(path.resolve(workspace, "src"), (name) => SOURCE_FILE.test(name))) {
