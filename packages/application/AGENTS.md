@@ -2,7 +2,7 @@
 
 ## What it does
 
-It turns one use-case into a capability: a contract (name, input, output, failure, permission) plus one Effect handler. `implement` wraps the handler in gates: `CallWatch` around everything, then `Grant`, then `Approval` when the contract asks for it, then `UnitOfWork.atomic` when the contract is transactional. `toTool` turns a contract into an MCP tool. Version 0.17.0 peers on exact `effect` 4.0.3. The full guide is `README.md` in this package.
+It turns one use-case into a capability: a contract (name, input, output, failure, permission) plus one Effect handler. `implement` wraps the handler in gates: `CallWatch` around everything, then `Grant`, then `Approval` when the contract asks for it, then `UnitOfWork.atomic` when the contract is transactional. `toTool` turns a contract into an MCP tool. It also owns the request side: `CurrentActor`, callers, composition and HTTP and MCP delivery. Version 0.1.0 peers on exact `@house-rules/domain` 0.1.0 and `effect` 4.0.3. With `@house-rules/domain` it replaces the retired `@house-rules/capability`. The full guide is `README.md` in this package.
 
 ## How an app mounts it
 
@@ -10,9 +10,10 @@ There is no single layer. The app provides the slots its contracts need, once, i
 
 | Slot | Production | Tests |
 | --- | --- | --- |
+| `CurrentActor` | set by the composition's `Caller` per request | `Effect.provideService(CurrentActor, actor)` |
 | `Grant` | `Effect.provideService(Grant, Grant.fromPermissions(list))` per request | `Grant.allowAll`, `Grant.denyAll`, `Grant.layerFromPermissions(list)` |
 | `Approval` | `elicitationApproval` on the MCP route | a fake `Approval` layer |
-| `UnitOfWork` | `sqlUnitOfWork`, from the same `SqlClient` layer as the stores | `memoryUnitOfWork` |
+| `UnitOfWork` (defined in domain) | `sqlUnitOfWork`, from the same `SqlClient` layer as the stores | `memoryUnitOfWork` from `@house-rules/domain` |
 | `CallWatch` | `@house-rules/call-audit` | nothing: the default passes through |
 
 No `migrations.json` line: this package owns no tables.
@@ -28,7 +29,7 @@ const result = await call(app, showBooking, { id }, { headers, url }); // React 
 
 | Delivery option | Effect |
 | --- | --- |
-| `caller` | Per adapter, `call` or `admit`. Turns `{ headers, url }` into `Context<Viewer \| Grant ...>` or `Refused`. Defaults to `app.caller`. |
+| `caller` | Per adapter, `call` or `admit`. Turns `{ headers, url }` into `Context<CurrentActor \| Grant ...>` or `Refused`. Defaults to `app.caller`. |
 | `admitted` | `call` only. Reuses the opaque value from `admit` on this composition, without running a caller. Cannot be combined with `caller`. Keeps the admission request id and channel. |
 | `channel` | `admit` defaults to `"web"` and sets it inside the caller. `call` sets it inside the capability, using its own option, else the admitted channel, else `"web"`. |
 | `views` | Failure tag to `(error, caller) => { status, body, headers?, code? }`. Defaults cover `Refused`, `InputInvalid`, `Forbidden`, `ApprovalDenied`, `UnitOfWorkFailed`, `NoOpenUnit`, `CompositionClosed`. The composition's table also needs a view for each tag the layer can fail with, such as `DbUnavailable`. `InputInvalid` carries `capabilityName`, `field`, `issue` (`unexpected`, `missing`, `invalid`, `repeated`) and `message`, so a view can word a message per capability and field. |
@@ -37,7 +38,7 @@ const result = await call(app, showBooking, { id }, { headers, url }); // React 
 | `maxBodyBytes` | Write body limit. Default 1 MB; over it is 413. |
 | `route(cap, "GET /x/:id", { status, csrf })` | Default `POST /<name>`. `csrf: { skip: true, reason }` opts one route out. `route(cap, endpoint)` takes method, path and status from an endpoint the SPA client shares. |
 
-A single-page app imports only `@house-rules/capability/contract` and packages' `/contract` entries: `toHttpClient(endpoints, { prefix })` gives Effect calls that need `HttpClient` and fail with `HttpFailure { code, status, body }`; `toOpenApi(routes, { title, version, views })` describes the routes. Use `problemView(status, code, message)` so OpenAPI knows a view's status. A client sees a failure code only when the view opts in (`problemView(..., { exposeCode: true })`) and the endpoint declares it (`endpoint(contract, at, { codes: [...] })`); anything else is `Unknown`. The opt-in gates only the `x-failure-code` header; the view's body goes out as its author wrote it.
+A single-page app imports only `@house-rules/application/contract`, `@house-rules/domain/contract` and packages' `/contract` entries: `toHttpClient(endpoints, { prefix })` gives Effect calls that need `HttpClient` and fail with `HttpFailure { code, status, body }`; `toOpenApi(routes, { title, version, views })` describes the routes. Use `problemView(status, code, message)` so OpenAPI knows a view's status. A client sees a failure code only when the view opts in (`problemView(..., { exposeCode: true })`) and the endpoint declares it (`endpoint(contract, at, { codes: [...] })`); anything else is `Unknown`. The opt-in gates only the `x-failure-code` header; the view's body goes out as its author wrote it.
 
 ### Admit before parsing
 
@@ -61,15 +62,9 @@ Hooks the app wires itself when it does not use delivery:
 2. [ ] At the edge, take the request id: `requestIdOf(headers.get(requestIdHeader))`, else `yield* newRequestId`. Forward it, echo it on the response, and run the request inside `withRequestId(id)`. That sets `CallRequestId` and annotates every log line with `requestId`.
 3. [ ] Build MCP tools only with `toTool(capability.contract, ...)`, and run `capability.handler` in the tool handler.
 
-## Root modules and request identity
+## Request identity
 
-Declare a package's root service in `facade.ts` with `defineModule<Self, Shape>()(id, { make })`, imported from this package's root entry. It returns a `Context.Service` class with `id`, `make` and `layer`. The id is the stable service key. Every Shape member is a method returning `Effect<Success, Failure, never>`. Construction captures long-lived ports; unmet requirements and acquisition errors stay in the Layer type. It cannot require `Viewer`.
-
-An Effect `make` gives a Layer value. A function `make: (options: O) => Effect` gives `layer(options)`. Presets are plain data, such as `Comments.layer(Comments.presets.default)`. Adapter statics such as `layerPostgres`, `layerMemory` and `fromRecords` stay in the class body; compose the generated layer with `Layer.provide`. The constructor adds no adapter choice.
-
-Effect builds lazily and memoizes within one build. Two `Layer.build` runs build twice; ids do not create singletons. Scoped resources close with the build scope. This constructor covers root modules only, with no private nesting, registry, discovery or Entity constructor.
-
-`Actor` is `Schema.Struct({ id: ActorId })`; `ActorId` is a branded non-empty string. `yield* Viewer` returns the Actor directly. Delivery provides Viewer per request, and use-cases pass the Actor into module methods. Modules never capture Viewer during construction. Writes still require the use-case's open unit of work; defineModule opens none.
+A package declares its root module with `defineModule` from `@house-rules/domain`, not from here. `CurrentActor` is this package's per-request slot: `yield* CurrentActor` returns the domain `Actor` directly. The composition's `Caller` sets it per request, and use-cases pass the Actor into module methods. `CurrentActor` carries domain's `PerRequest` marker, so `defineModule` fails `tsc` for a `make` that requires it. Writes still require the use-case's open unit of work; `defineModule` opens none.
 
 ## Contract options
 
@@ -83,6 +78,9 @@ Effect builds lazily and memoizes within one build. Two `Layer.build` runs build
 | `audit` | `{ target: "<input field>" }`: a string field of the input whose value becomes the call's target id. |
 
 ## Fixed rules
+
+- It depends on `@house-rules/domain`; domain never imports it. Import each name from the kit that owns it: no re-exports, no aliases.
+- `Grant` is action-level authorization and `Approval` is consent. Both are fixed steps of `implement`; only their answers are slots. Object-level authorization is the module's policy, in the domain. `CallWatch` is the only middleware.
 
 - Delivery: a missing view, a view that takes the wrong error, or a service nobody provides is a compile error at `toFetchHandler`, `toMcpHandler` or `call`. A layer error tag without a view is one at `composition()`. Never cast it away; add the view.
 - Delivery: a layer that fails to build with a tagged error answers that error's view on every adapter; `call` and the MCP handler resolve, never reject. A dying layer is the fixed 500. The next use builds the layer again, so read `app.runtime` each time instead of keeping it.

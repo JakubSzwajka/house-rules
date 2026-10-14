@@ -1,13 +1,14 @@
 name: Publish packages
 
-# Publishes the public @house-rules packages to npm: rules, capability, migrations, call-audit, comments, node-host.
+# Publishes the public @house-rules packages to npm: rules, domain, application, migrations, call-audit,
+# comments, node-host. The retired @house-rules/capability is never published again.
 # `pnpm publish -r` skips private packages and every version already on the registry, so one run
 # publishes exactly the packages whose version was bumped.
 # Two jobs. `verify` runs on every trigger with `contents: read` only: no token, no OIDC. It checks,
 # tests, builds, runs the packed consumer and dry-runs the publish. Its first step refuses a manual
 # publish run from any ref but exactly refs/heads/main.
 # `publish` is the only job with `id-token: write` and NPM_TOKEN. It runs only after `verify`, on a push
-# of a package tag such as `@house-rules/capability@0.13.1`, or on a manual run on main with `publish` ticked.
+# of a package tag such as `@house-rules/application@0.1.0`, or on a manual run on main with `publish` ticked.
 # NPM_TOKEN is a repository secret: an npm granular token with publish rights on the @house-rules scope.
 # tests/published-packages.test.mjs parses this file and guards that split.
 on:
@@ -20,6 +21,8 @@ on:
       - "scripts/packed-consumer.mjs"
       - "scripts/packed-comments.mjs"
       - "scripts/packed-next-host.mjs"
+      - "scripts/packed-workspace.mjs"
+      - "scripts/tarball-content.mjs"
       - "scripts/tag-published.mjs"
       - "tests/publish-workflow*.mjs"
       - "tests/tag-published*.mjs"

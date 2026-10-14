@@ -27,7 +27,7 @@ Use this when the module already exists. To build a new module, follow
    app's other stores.
 5. [ ] Fill each host port with a layer that captures your own module's service
    and calls it for facts. Map failures to the port's declared errors. Do not
-   query another module's tables or capture a request's Viewer.
+   query another module's tables or capture a request's `CurrentActor`.
 6. [ ] Add the module's entry to root `migrations.json` as its guide says. Use a
    workspace entry for a local package and a package entry for an installed one.
 7. [ ] Wire its deletion hooks into the app's target and user deletion use-cases,
@@ -36,9 +36,11 @@ Use this when the module already exists. To build a new module, follow
 ## Add use-cases and prove the mount
 
 8. [ ] Wrap shipped contracts with thin `implement(contract, handler)` files.
-   Yield the module and Viewer, then pass the Actor to the service. Leave object
-   access checks in the module. Keep per-request Grant and Viewer at delivery.
-9. [ ] Test with allowed and denied viewers through the composition. Check that
+   Import `implement` and `CurrentActor` from `@house-rules/application`.
+   Yield the module and `CurrentActor`, then pass the Actor to the service.
+   Leave object access checks in the module. Keep the per-request Grant and
+   `CurrentActor` at delivery.
+9. [ ] Test with allowed and denied actors through the composition. Check that
    a missing host port fails the app-layer type check. Do not expose a route or
    tool until the app can supply real identity and the owner approves it.
 10. [ ] Run `pnpm check` and `pnpm test`. Fix failures without weakening rules.

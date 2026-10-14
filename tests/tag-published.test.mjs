@@ -150,6 +150,22 @@ describe("tags for published packages", () => {
     ]);
   });
 
+  it("recovers a tag for the retired capability package on an old release commit", async () => {
+    const capability = { name: "@house-rules/capability", version: "0.13.1" };
+    const { git, calls } = fakeGit();
+    assert.deepEqual(
+      await recoverPublished([capability, migrations], git, metadata, recoveryOptions),
+      ["@house-rules/capability@0.13.1", "@house-rules/migrations@0.3.0"],
+    );
+    assert.deepEqual(calls.at(-1), [
+      "push",
+      "--atomic",
+      "origin",
+      "refs/tags/@house-rules/capability@0.13.1",
+      "refs/tags/@house-rules/migrations@0.3.0",
+    ]);
+  });
+
   it("skips versions whose provenance source is not HEAD, ignoring gitHead", async () => {
     const { git, calls } = fakeGit();
     assert.deepEqual(
@@ -249,6 +265,8 @@ describe("tags for published packages", () => {
       { publishedPackages: [{ name: "@other/app", version: "1.0.0" }] },
       { publishedPackages: [{ ...application, version: "latest" }] },
       { publishedPackages: [application, application] },
+      // The retired capability package is never published again, so a summary may not name it.
+      { publishedPackages: [{ name: "@house-rules/capability", version: "0.17.0" }] },
     ]) {
       const { git, calls } = fakeGit();
       assert.throws(() => tagPublished(summary, git));

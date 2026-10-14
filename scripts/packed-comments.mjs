@@ -101,6 +101,11 @@ export const commentsConsumerFiles = {
     "export const items = (list: CommentList): ReadonlyArray<Comment> => list.items;",
     "export const add = implement(addComment, ({ target, body }) => Effect.gen(function* () { return yield* (yield* Comments).add(yield* CurrentActor, target, body); }));",
     "export const list = implement(listComments, ({ target, page }) => Effect.gen(function* () { return yield* (yield* Comments).list(yield* CurrentActor, target, page); }));",
+    "// The shipped declarations keep the per-request marker: a module may not capture CurrentActor.",
+    'export const captures = () => defineModule<Probe, { echo: (actor: Actor) => Effect.Effect<ActorId> }>()("cold_captures", {',
+    "  // @ts-expect-error defineModule refuses a make that requires CurrentActor",
+    "  make: Effect.map(CurrentActor, (current) => ({ echo: (_actor: Actor) => Effect.succeed(current.id) })),",
+    "});",
     "// @ts-expect-error ActorId is branded",
     'export const invalidActor: Actor = { id: "unbranded" };',
     "// @ts-expect-error CommentPage requires a numeric size",
@@ -134,8 +139,12 @@ export function assertPackedComments(app, { run, write, failure }) {
   assertBrowserGraph(app, { run, write, failure });
 }
 
+const CONTRACT_ENTRIES = ["comments", "application", "domain"].map(
+  (name) => `node_modules/@house-rules/${name}/dist/contract.js`,
+);
+
 function assertBrowserGraph(app, { run, write, failure }) {
-  const entry = "node_modules/@house-rules/comments/dist/contract.js";
+  const [entry] = CONTRACT_ENTRIES;
   const depcruise = path.join(app, "node_modules/.bin/depcruise");
   const args = ["--config", "browser-contract.json", "--output-type", "err-long", entry];
   run(
@@ -147,21 +156,34 @@ function assertBrowserGraph(app, { run, write, failure }) {
       "json",
       "--output-to",
       "browser-graph.json",
-      entry,
+      ...CONTRACT_ENTRIES,
     ],
     app,
   );
   const graph = JSON.parse(readFileSync(path.join(app, "browser-graph.json"), "utf8"));
   assert.equal(graph.summary.error, 0, JSON.stringify(graph.summary.violations));
-  for (const expected of [
-    entry,
-    "node_modules/@house-rules/application/dist/contract.js",
-    "node_modules/effect/dist/Schema.js",
-  ])
+  for (const expected of [...CONTRACT_ENTRIES, "node_modules/effect/dist/Schema.js"])
     assert.ok(
       graph.modules.some(({ source }) => source === expected),
       `browser graph skipped ${expected}`,
     );
+  for (const kitEntry of CONTRACT_ENTRIES.slice(1)) {
+    const kitOriginal = readFileSync(path.join(app, kitEntry), "utf8");
+    try {
+      write(app, { [kitEntry]: `${kitOriginal}\nimport "node:fs";\n` });
+      assert.match(
+        failure(
+          depcruise,
+          ["--config", "browser-contract.json", "--output-type", "err-long", kitEntry],
+          app,
+        ),
+        /browser-no-builtins/u,
+        `${kitEntry} passed with a node:fs import`,
+      );
+    } finally {
+      write(app, { [kitEntry]: kitOriginal });
+    }
+  }
   const transitive = "node_modules/@house-rules/comments/dist/comment/permissions.js";
   const original = readFileSync(path.join(app, transitive), "utf8");
   try {
@@ -194,7 +216,7 @@ function assertBrowserGraph(app, { run, write, failure }) {
     write(app, { [transitive]: original });
   }
   console.log(
-    `cold install: browser graph traverses ${graph.modules.length} packed modules; unsafe transitive imports fail despite contract trust`,
+    `cold install: browser graph traverses ${graph.modules.length} packed modules from the comments, application and domain contract entries; unsafe imports fail despite contract trust`,
   );
 }
 

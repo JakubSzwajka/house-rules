@@ -119,7 +119,7 @@ describe("publish report and recovery inputs", () => {
     );
   });
 
-  it("loads only the seven public workspace manifests, without the summary", () => {
+  it("loads the seven public workspace manifests and the retired capability one, without the summary", () => {
     const files = [];
     const packages = workspacePackages((file) => {
       files.push(file);
@@ -128,17 +128,54 @@ describe("publish report and recovery inputs", () => {
     });
     assert.deepEqual(
       files,
-      ["rules", "domain", "application", "migrations", "call-audit", "comments", "node-host"].map(
-        (folder) => `packages/${folder}/package.json`,
-      ),
+      [
+        "rules",
+        "domain",
+        "application",
+        "migrations",
+        "call-audit",
+        "comments",
+        "node-host",
+        "capability",
+      ].map((folder) => `packages/${folder}/package.json`),
     );
-    assert.equal(packages.length, 7);
+    assert.equal(packages.length, 8);
     assert.throws(() => workspacePackages(() => JSON.stringify({ name: "@other/app" })));
     assert.throws(() =>
       workspacePackages((file) =>
         JSON.stringify({ name: `@house-rules/${file.split("/")[1]}`, private: true }),
       ),
     );
+  });
+
+  const checkout = (present) => (file) => {
+    const folder = file.split("/")[1];
+    if (!present.includes(folder)) throw Object.assign(new Error(`no ${file}`), { code: "ENOENT" });
+    return JSON.stringify({ name: `@house-rules/${folder}`, version: "1.0.0" });
+  };
+  const names = (packages) => packages.map(({ name }) => name.replace("@house-rules/", ""));
+
+  it("reads an old release commit that has capability and lacks domain and application", () => {
+    const old = ["rules", "capability", "migrations", "call-audit"];
+    assert.deepEqual(names(workspacePackages(checkout(old))), [
+      "rules",
+      "migrations",
+      "call-audit",
+      "capability",
+    ]);
+  });
+
+  it("reads a new release commit that has domain and application and lacks capability", () => {
+    const current = [
+      "rules",
+      "domain",
+      "application",
+      "migrations",
+      "call-audit",
+      "comments",
+      "node-host",
+    ];
+    assert.deepEqual(names(workspacePackages(checkout(current))), current);
   });
 
   it("skips absent historical manifests but refuses every other manifest failure", () => {
@@ -149,7 +186,7 @@ describe("publish report and recovery inputs", () => {
       return JSON.stringify({ name: `@house-rules/${folder}`, version: "1.0.0" });
     };
     const packages = workspacePackages(historical);
-    assert.equal(packages.length, 6);
+    assert.equal(packages.length, 7);
     assert.ok(!packages.some(({ name }) => name === "@house-rules/comments"));
     for (const source of [
       "not json",

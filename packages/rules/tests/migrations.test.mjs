@@ -226,6 +226,33 @@ describe("house-rules-migrations", () => {
     assert.equal(equals.status, 0, equals.stderr);
   });
 
+  it("exempts the domain and application kits by default, and refuses the retired capability name", () => {
+    const opensUnit = [
+      "export const atomic = (effect) => Effect.gen(function* () {",
+      "  const unitOfWork = yield* UnitOfWork;",
+      "  return yield* unitOfWork.atomic(effect);",
+      "});",
+    ].join("\n");
+    const rawTransaction = "export const atomic = (sql) => sql.withTransaction(work);\n";
+    const kits = run({
+      "packages/domain/package.json": '{ "name": "@house-rules/domain" }',
+      "packages/domain/src/unit-of-work/unit-of-work.ts": opensUnit,
+      "packages/application/package.json": '{ "name": "@house-rules/application" }',
+      "packages/application/src/adapters/sql-unit-of-work.ts": rawTransaction,
+    });
+    assert.equal(kits.status, 0, kits.stderr);
+    const retired = run({
+      "packages/capability/package.json": '{ "name": "@house-rules/capability" }',
+      "packages/capability/src/unit-of-work/unit-of-work.ts": opensUnit,
+      "packages/capability/src/adapters/sql-unit-of-work.ts": rawTransaction,
+    });
+    assert.equal(retired.status, 1);
+    assert.deepEqual(problemLines(retired), [
+      "packages/capability/src/adapters/sql-unit-of-work.ts:1",
+      "packages/capability/src/unit-of-work/unit-of-work.ts:3",
+    ]);
+  });
+
   it("fails an unknown argument", () => {
     const result = run({}, { args: ["--adapter-packages", "@trippy/db"] });
     assert.equal(result.status, 1);

@@ -15,8 +15,8 @@ First decide what the module holds. Cut modules by life cycle, not by noun. One 
 
 Create `packages/<name>/` with these files, copied from `packages/bookings`:
 
-1. `package.json`. Set `name` to `@hosti/<name>`, or your own scope. `exports` names one entry, `"." : "./src/index.ts"`. The only other path allowed is `"./contract": "./src/contract.ts"`, for a package whose contracts a browser needs; everything that file reaches must be browser-safe. Keep the `typecheck` and `test` scripts. Pin `effect`, `@effect/vitest`, `typescript`, and `vitest` to the same exact versions the other workspace packages use. A root module depends on `@house-rules/capability` for `defineModule`, and also uses its `UnitOfWork` when it stores data.
-2. `tsconfig.json`, which extends `../../tsconfig.base.json`. A package that imports `@house-rules/capability` or `@house-rules/migrations` sets `allowImportingTsExtensions`, as `packages/bookings/tsconfig.json` does.
+1. `package.json`. Set `name` to `@hosti/<name>`, or your own scope. `exports` names one entry, `"." : "./src/index.ts"`. The only other path allowed is `"./contract": "./src/contract.ts"`, for a package whose contracts a browser needs; everything that file reaches must be browser-safe. Keep the `typecheck` and `test` scripts. Pin `effect`, `@effect/vitest`, `typescript`, and `vitest` to the same exact versions the other workspace packages use. A root module depends on the domain kit, `@house-rules/domain`, for `defineModule`, and also uses its `UnitOfWork` when it stores data. A package that ships contracts in `src/contract.ts` also depends on `@house-rules/application` and imports its `/contract` entry there.
+2. `tsconfig.json`, which extends `../../tsconfig.base.json`. A package that imports `@house-rules/domain`, `@house-rules/application` or `@house-rules/migrations` sets `allowImportingTsExtensions`, as `packages/bookings/tsconfig.json` does.
 3. `vitest.config.ts`.
 4. A framework package that apps mount, such as `@house-rules/call-audit`, also gets an `AGENTS.md` in its root, listed in `files` in its `package.json`. It says what the package does, how an app mounts it (the layer line, the `migrations.json` line, the hooks the app must wire), its options and presets, and its fixed rules. Add the package to the list in `tests/framework-agents.test.mjs`. An app's own module needs none.
 
@@ -31,7 +31,7 @@ Inside `packages/<name>/src/`:
 3. Put each expected error in the subject it belongs to, as a `Schema.TaggedError` class, such as `BookingNotFound` in `booking/booking.ts`. Never fail with a global `Error`. An id or an error that several subjects use goes in the root subject, the shared kernel, such as Trippy's `trip/`.
 4. Let subjects import each other in one direction only: the kernel, then the subjects, then the facade, then `index.ts`. `no-subject-folder-cycles` fails two subject folders that import each other, even through different files. `subjects-do-not-import-package-root` fails a file in a subject folder that imports its own package's `index.ts` or `facade.ts`, because that barrel would hide a cycle.
 5. Every file but `index.ts` is private, because `packages-public-entry-only` lets no other workspace import it. No `internal/` folder is needed.
-6. Put the root service in `facade.ts`. Use `defineModule<Self, Shape>()(id, { make })` from `@house-rules/capability`. The stable id is the service key. Every Shape member is a method returning `Effect.Effect<Success, TypedError>` with no requirements. The make Effect captures long-lived dependencies, such as the storage port, never Viewer. Unmet requirements and acquisition errors remain in the generated Layer type.
+6. Put the root service in `facade.ts`. Use `defineModule<Self, Shape>()(id, { make })` from `@house-rules/domain`. The stable id is the service key. Every Shape member is a method returning `Effect.Effect<Success, TypedError>` with no requirements. The make Effect captures long-lived dependencies, such as the storage port, never `CurrentActor` or another per-request service. Unmet requirements and acquisition errors remain in the generated Layer type.
 7. One service per file. A second service, such as a storage port or an owner-standing check, gets its own file named after its job, such as `storage.ts` or `owner-standing.ts`, never a shared `services.ts`. Root modules get their Layer from defineModule; other services keep static `Layer.effect` layers. A storage port is the exception: its layers are the adapters under `src/adapters/`.
 8. Write `index.ts` as the one public entry. Name each export. No `export *`.
 9. Give each data type a `Schema`, such as `Booking = Schema.Struct({ ... })`, and export it with its type. A capability's contract names it as its output.
@@ -60,7 +60,7 @@ export class Bookings extends defineModule<
 
 Keep adapter statics such as `layerPostgres`, `layerMemory` and `fromRecords` in the class body. The constructor adds only `layer`, with no adapter choice. If make takes options, `make: (options: O) => Effect`, then layer takes them too: `Comments.layer(Comments.presets.default)`, with presets as plain data. Construction is lazy, and two Layer builds construct twice. Use Effect's scoped resources, not a global cache. This pattern covers root modules only, with no private nesting or registry.
 
-Use `Actor`, `ActorId` and `Viewer` from the capability root entry. Delivery provides Viewer per request; `yield* Viewer` returns the Actor, which a use-case passes explicitly into module methods. The domain decides relations from storage facts. In Bookings, `create(actor, input)` sets ownerId, and `relation(actor, id)` returns `"owner"` or `"none"`. Migration 0002 adds a nullable owner column without changing 0001. Legacy rows remain unowned. Public get stays visitor-readable, and its HTTP contract omits ownerId.
+Use `Actor` and `ActorId` from `@house-rules/domain`, and `CurrentActor` from `@house-rules/application`. Delivery provides `CurrentActor` per request; `yield* CurrentActor` returns the Actor, which a use-case passes explicitly into module methods. The domain decides relations from storage facts. In Bookings, `create(actor, input)` sets ownerId, and `relation(actor, id)` returns `"owner"` or `"none"`. Migration 0002 adds a nullable owner column without changing 0001. Legacy rows remain unowned. Public get stays visitor-readable, and its HTTP contract omits ownerId.
 
 If the module stores data, it owns its tables and puts them behind a storage port:
 
@@ -86,7 +86,7 @@ Add the package to the app that uses it:
 pnpm --filter @hosti/api add @hosti/<name>
 ```
 
-The app also needs `@house-rules/capability`. `apps/api` already has it as `"workspace:0.16.0"`. An app outside this repo installs it from npm at an exact version, as `packages/capability/README.md` shows.
+The app also needs both kits. `apps/api` already has them as `"@house-rules/domain": "workspace:0.1.0"` and `"@house-rules/application": "workspace:0.1.0"`. An app outside this repo installs them from npm at exact versions, as `packages/application/README.md` shows.
 
 `saveWorkspaceProtocol: true` and `saveExact: true` in `pnpm-workspace.yaml` make pnpm write `"@hosti/<name>": "workspace:0.0.0"` into the app's `package.json`. Do not name a spec such as `@workspace:0.0.0` on the command line: pnpm then writes `workspace:*`, which the pin check rejects.
 
@@ -102,7 +102,7 @@ import {
   Bookings,
   BookingStoreUnavailable,
 } from "@hosti/bookings";
-import { defineContract, implement } from "@house-rules/capability";
+import { defineContract, implement } from "@house-rules/application";
 import { Effect, Schema } from "effect";
 
 export const showBookingContract = defineContract("show_booking", {
@@ -122,13 +122,13 @@ export const showBooking = implement(showBookingContract, ({ id }) =>
 );
 ```
 
-The handler yields the service and calls its methods. Let typed errors flow through the error channel. Do not catch them here. To make the writes atomic, set `transactional: true` on the contract: `implement` then wraps the handler in a unit of work after the gates. When only a part must be atomic, call `UnitOfWork.atomic(...)` around that part instead. Either way the use-case opens the transaction, and the module never does. One unit may cover writes in several modules. Set `readOnly` when the action only reads, and `destructive` when it deletes or overwrites. Every contract names a `permission`, a `resource:action` string the module exports, such as `BookingPermissions.read`. Write `permission: "public"` only for an action any caller may run. Set `needsApproval: true` when a human must confirm each call. The package names its permissions next to its data, as `packages/bookings/src/booking/permissions.ts` does. An action with no input uses `NoInput` from `@house-rules/capability`. `use-case-is-capability` fails a use-case file that exports anything else.
+The handler yields the service and calls its methods. Let typed errors flow through the error channel. Do not catch them here. To make the writes atomic, set `transactional: true` on the contract: `implement` then wraps the handler in a unit of work after the gates. When only a part must be atomic, call `UnitOfWork.atomic(...)` around that part instead. Either way the use-case opens the transaction, and the module never does. One unit may cover writes in several modules. Set `readOnly` when the action only reads, and `destructive` when it deletes or overwrites. Every contract names a `permission`, a `resource:action` string the module exports, such as `BookingPermissions.read`. Write `permission: "public"` only for an action any caller may run. Set `needsApproval: true` when a human must confirm each call. The package names its permissions next to its data, as `packages/bookings/src/booking/permissions.ts` does. An action with no input uses `NoInput` from `@house-rules/application`. `use-case-is-capability` fails a use-case file that exports anything else.
 
 ## 4. Mount it in delivery
 
-Mount the use-case with a delivery adapter from `@house-rules/capability`, as `skills/add-a-capability/SKILL.md` step 4 says. Add a route under `apps/<app>/src/delivery/`, such as `route(showBooking, "GET /bookings/:id")`, and mount it with `toFetchHandler`. The adapter decodes the input, runs the gates, and maps every typed error once through the app's views table. That includes `Forbidden` and `ApprovalDenied`. A missing view is a compile error that names the tag. Do not write a per-route error mapper, and do not call `catchTag` in delivery. Group delivery by mechanism, such as `delivery/http/` and `delivery/mcp/`.
+Mount the use-case with a delivery adapter from `@house-rules/application`, as `skills/add-a-capability/SKILL.md` step 4 says. Add a route under `apps/<app>/src/delivery/`, such as `route(showBooking, "GET /bookings/:id")`, and mount it with `toFetchHandler`. The adapter decodes the input, runs the gates, and maps every typed error once through the app's views table. That includes `Forbidden` and `ApprovalDenied`. A missing view is a compile error that names the tag. Do not write a per-route error mapper, and do not call `catchTag` in delivery. Group delivery by mechanism, such as `delivery/http/` and `delivery/mcp/`.
 
-Delivery provides only per-request values, through the composition's `caller`: the `Viewer`, the `CallChannel`, and the `Grant` an adapter fills for this request. Everything else comes from the app's one composition root, `src/composition/`. Provide the module's layer there, its storage adapter, and any Grant that is the same for every request. The composition imports packages only. `apps/api/src/composition/app-layer.ts` provides `Bookings` and the visitor Grant, `apps/api/src/composition/index.ts` wraps it with `composition(...)`, and `apps/api/src/delivery/http/routes.ts` provides nothing.
+Delivery provides only per-request values, through the composition's `caller`: the `CurrentActor`, the `CallChannel`, and the `Grant` an adapter fills for this request. Everything else comes from the app's one composition root, `src/composition/`. Provide the module's layer there, its storage adapter, and any Grant that is the same for every request. The composition imports packages only. `apps/api/src/composition/app-layer.ts` provides `Bookings` and the visitor Grant, `apps/api/src/composition/index.ts` wraps it with `composition(...)`, and `apps/api/src/delivery/http/routes.ts` provides nothing.
 
 The entry point, `apps/api/src/main.ts`, mounts the routes and owns the runtime. Do not call `Effect.run*` inside Effect code.
 

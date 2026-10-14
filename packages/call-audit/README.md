@@ -1,8 +1,8 @@
 # @house-rules/call-audit
 
-Version 0.5.1 peers on exact `effect` 4.0.3 and `@house-rules/capability` 0.17.0. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
+Version 0.6.0 peers on exact `effect` 4.0.3 and `@house-rules/application` 0.1.0, which replaces the retired capability package. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
 
-An audit trail for every capability call. It plugs into the `CallWatch` hook of `@house-rules/capability`, so it sees calls from every surface, `Forbidden` and `ApprovalDenied` included. An `AuditPolicy` decides which calls it keeps and how long their rows live. `AGENTS.md` in this package is the short mounting guide.
+An audit trail for every capability call. It plugs into the `CallWatch` hook of `@house-rules/application`, so it sees calls from every surface, `Forbidden` and `ApprovalDenied` included. An `AuditPolicy` decides which calls it keeps and how long their rows live. `AGENTS.md` in this package is the short mounting guide.
 
 An entry holds these fields and nothing else:
 
@@ -16,7 +16,7 @@ An entry holds these fields and nothing else:
 | `kind` | `read` when the contract is `readOnly`, else `write` |
 | `targetId` | the input field the contract names in `audit: { target }`, when it is a string, else `null` |
 | `channel` | `mcp` or `mcp:<client>` for MCP calls, else the app's `CallChannel`, `unknown` by default |
-| `requestId` | the app's `CallRequestId`, set by `withRequestId` from `@house-rules/capability`, or `null` |
+| `requestId` | the app's `CallRequestId`, set by `withRequestId` from `@house-rules/application`, or `null` |
 
 It never records the input, and never an error message. Input is often user data.
 
@@ -139,17 +139,18 @@ Rows come back newest first, decoded with a `Schema`. An `AuditRow` has `capabil
 
 ## The `who` option
 
-The framework does not know an app's `Viewer`, so the app passes `who`: an Effect with no requirements that yields the caller id, or `null`.
+The framework does not decide who an app's caller is, so the app passes `who`: an Effect with no requirements that yields the caller id, or `null`. Most apps read the application kit's `CurrentActor`:
 
 ```ts
+import { CurrentActor } from "@house-rules/application";
 import { Effect, Option } from "effect";
 
-const who = Effect.serviceOption(Viewer).pipe(
-  Effect.map((viewer) => (Option.isSome(viewer) ? viewer.value.userId : null)),
+const who = Effect.serviceOption(CurrentActor).pipe(
+  Effect.map((actor) => (Option.isSome(actor) ? actor.value.id : null)),
 );
 ```
 
-`Effect.serviceOption` keeps `who` free of requirements, and a call with no viewer logs `null`. `who` runs once, before the handler, in the context of the call, so the entry names the caller who entered the capability even if the handler swaps the `Viewer` later.
+`Effect.serviceOption` keeps `who` free of requirements, and a call with no actor logs `null`. `who` runs once, before the handler, in the context of the call, so the entry names the caller who entered the capability even if the handler swaps `CurrentActor` later. The column keeps its old name, `viewerId`.
 
 ## A broken log cannot break a call
 

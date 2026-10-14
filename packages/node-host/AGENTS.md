@@ -15,7 +15,7 @@ const PUBLIC_ORIGIN = "https://public.example";
 const api = toFetchHandler(app, { routes, origins: [PUBLIC_ORIGIN] });
 ```
 
-Set explicit `origins` for local and internal apps too, and restrict Host at their proxy or listener to guard against DNS rebinding. See the [capability CSRF check](../application/README.md#csrf).
+Set explicit `origins` for local and internal apps too, and restrict Host at their proxy or listener to guard against DNS rebinding. See the [application kit's CSRF check](../application/README.md#csrf).
 
 No layer or `migrations.json` line is needed. A Next app already has a Host.
 

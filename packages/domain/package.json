@@ -5,7 +5,9 @@
   "license": "MIT",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "AGENTS.md",
+    "README.md"
   ],
   "exports": {
     ".": "./src/index.ts",

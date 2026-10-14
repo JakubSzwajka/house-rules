@@ -107,6 +107,15 @@ test("allows packages/application by default, and honours a custom allow list", 
   ]);
 });
 
+test("the default allow list is the application package only, and refuses the retired capability package", () => {
+  assert.deepEqual(plugin.rules["no-hand-rolled-surface"].meta.defaultOptions, [
+    { allow: ["packages/application/**"] },
+  ]);
+  const code = 'import { Tool } from "effect/unstable/ai";\nTool.make("ping");';
+  assert.deepEqual(lint(code, "packages/capability/src/contract/to-tool.ts"), [["Tool.make", 2]]);
+  assert.deepEqual(lint(code, "packages/domain/src/module/define-module.ts"), [["Tool.make", 2]]);
+});
+
 test("the message points at toTool", () => {
   assert.match(
     plugin.rules["no-hand-rolled-surface"].meta.messages.handRolled,

@@ -1,6 +1,6 @@
-# @house-rules/capability
+# @house-rules/application
 
-A capability is one named action an app offers, such as "show a booking". It has a contract and one handler. The contract holds the name, a description, Effect Schemas for the input, the output and the failure, two flags, `readOnly` and `destructive`, a `permission`, `needsApproval`, and `transactional`. The handler is an Effect that takes the decoded input and gets its services from Layers. An MCP tool is built from the contract with `toTool`, and HTTP or CLI adapters can later be built the same way, so each action is written once.
+The application kit: it builds an app's application layer on top of the domain modules. A capability is one named action an app offers, such as "show a booking". It has a contract and one handler. The contract holds the name, a description, Effect Schemas for the input, the output and the failure, two flags, `readOnly` and `destructive`, a `permission`, `needsApproval`, and `transactional`. The handler is an Effect that takes the decoded input and gets its services from Layers. An MCP tool is built from the contract with `toTool`, and HTTP or CLI adapters can later be built the same way, so each action is written once.
 
 ```text
 adapter      HTTP route   MCP tool   CLI command    decides who calls, maps errors
@@ -12,49 +12,50 @@ capability          showBooking contract + handler     one action, typed in and 
 service             Bookings (a module's interface)     rules, checks of one object, data
 ```
 
-A module is a deep piece of behavior: an interface plus a private implementation. Its service, a `Context.Service` class, is that interface. A capability is one action offered on top of the service; the module knows nothing about it. The contract declares its permission, and `implement` checks it before the handler runs. Checks of one object, such as whether this user owns this trip, stay inside the service. The `readOnly` and `destructive` flags tell an adapter a read from a write.
+This package and [`@house-rules/domain`](../domain/README.md) replace `@house-rules/capability`, which stays at 0.16.0 on npm and gets no new versions. Domain defines modules: `defineModule`, `Actor`, permissions and policy, and the unit of work. Application defines everything about one call: contracts and capabilities, `CurrentActor`, the gates, the call watch, composition and delivery, and `sqlUnitOfWork`. Application depends on domain, never the other way.
 
-## Root modules and Actor
-
-A package's root module uses `defineModule` from the root entry, not the browser contract entry. It declares one stable service id and the methods callers may use. It is still an ordinary `Context.Service` class.
-
-```ts
-import { type Actor, defineModule } from "@house-rules/capability";
-import { Effect } from "effect";
-
-class Greetings extends defineModule<
-  Greetings,
-  { readonly greet: (actor: Actor) => Effect.Effect<string> }
->()("app/Greetings", {
-  make: (options: { readonly prefix: string }) =>
-    Effect.succeed({
-      greet: (actor: Actor) => Effect.succeed(options.prefix + actor.id),
-    }),
-}) {
-  static readonly presets = { default: { prefix: "Hello " } };
-}
-
-const greetings = Greetings.layer(Greetings.presets.default);
+```text
+@house-rules/application
+  actions     defineContract, implement, Capability
+  request     CurrentActor, Caller, Incoming, admit, Refused, decodeInput, InputInvalid
+  gates       Grant, Approval, Forbidden, ApprovalDenied, PermissionDeclaration
+  watch       CallWatch, CallChannel, call facts, request id helpers
+  app         composition, CompositionClosed, call, views, problem, defaultViews
+  http        endpoint, route, toFetchHandler, toHttpClient, HttpFailure, toOpenApi
+  mcp         toTool, tool, toMcpHandler, elicitationApproval
+  data        sqlUnitOfWork
+  /contract   defineContract, endpoint, toHttpClient, HttpFailure, gate errors, InputInvalid, Refused
 ```
 
-`Greetings.id` equals its service key. An Effect `make` gives a Layer value; a function `make(options)` gives `layer(options)`. Presets stay plain data. Adapter statics such as `layerPostgres`, `layerMemory` and `fromRecords` belong in the class body, composed with `Layer.provide`.
+| Slot | Filled by |
+| --- | --- |
+| `Caller`, which sets `CurrentActor` | the app, per request |
+| `Grant` | a permission list, per request or once at the root |
+| `Approval` | MCP elicitation; the click in the app |
+| `CallWatch` | `@house-rules/call-audit`, or nothing |
+| `UnitOfWork`, defined in domain | `memoryUnitOfWork` (domain) or `sqlUnitOfWork` (here) |
 
-Every declared method returns `Effect<Success, Failure, never>`. Construction captures long-lived dependencies once within a Layer build. For example, Bookings captures BookingStore; `Bookings.layer` still requires that port until the root provides an adapter. Acquisition failures remain in the Layer's error type. Scope requirements are handled by Effect's Layer scope. Construction is lazy, including options functions, and scoped finalizers run when that scope closes. Two `Layer.build` runs build twice. There is no singleton, global registry, private nesting or Entity constructor.
+`Grant` is action-level authorization: may this caller run this action at all? `Approval` is consent: does a human mean this call, now? Both are fixed steps of `implement`; only their answers are slots. Object-level authorization, whether this caller may act on this one object, is the module's policy, inside the domain. `CallWatch` is the only middleware: it wraps every call and never changes the result.
 
-`Actor` is a schema with one field, `id: ActorId`, a branded non-empty string. `Viewer` holds the Actor for one request; yielding it returns the Actor directly:
+A module is a deep piece of behavior: an interface plus a private implementation. Its service, a `Context.Service` class, is that interface. A capability is one action offered on top of the service; the module knows nothing about it. The contract declares its permission, and `implement` checks it before the handler runs. Checks of one object, such as whether this user owns this trip, stay inside the service. The `readOnly` and `destructive` flags tell an adapter a read from a write.
+
+## Request identity: CurrentActor
+
+A package declares its root module with `defineModule` from [`@house-rules/domain`](../domain/README.md#root-modules). Its methods take the `Actor` as an explicit argument. `CurrentActor` is the per-request slot that holds that Actor; yielding it returns the Actor directly:
 
 ```ts
-import { Actor, ActorId, Viewer } from "@house-rules/capability";
+import { Actor, ActorId } from "@house-rules/domain";
+import { CurrentActor } from "@house-rules/application";
 
 const actor = Actor.make({ id: ActorId.make("user-1") });
 const request = Effect.gen(function* () {
-  const viewer = yield* Viewer;
+  const current = yield* CurrentActor;
   const greetings = yield* Greetings;
-  return yield* greetings.greet(viewer);
-}).pipe(Effect.provideService(Viewer, actor));
+  return yield* greetings.greet(current);
+}).pipe(Effect.provideService(CurrentActor, actor));
 ```
 
-Delivery provides Viewer per request, and a use-case passes its Actor into module methods. The constructor rejects a make Effect that requires Viewer, in either form. A module never stores request identity at build time, and its writes still require the use-case's open unit of work.
+Delivery sets `CurrentActor` per request, through the composition's `Caller`, and a use-case passes the Actor into module methods. `CurrentActor` carries domain's `PerRequest` marker, so `defineModule` fails `tsc` for a `make` that requires it, in either form. A module never stores request identity at build time, and its writes still require the use-case's open unit of work.
 
 The template's Bookings module uses `create(actor, input: NewBooking)` to store the actor's id as ownerId. `relation(actor, id)` answers `"owner"` or `"none"` from that stored fact, in the domain rather than the storage port. Migration 0002 adds nullable owner_id; unchanged legacy rows have no owner and answer `"none"` for everyone. Public `get` remains visitor-readable. Its HTTP contract returns only id and guestName, never ownerId.
 
@@ -63,7 +64,8 @@ The template's Bookings module uses `create(actor, input: NewBooking)` to store 
 ```ts
 import { expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import { defineContract, defineModule, implement } from "@house-rules/capability";
+import { defineModule } from "@house-rules/domain";
+import { defineContract, implement } from "@house-rules/application";
 
 class Greetings extends defineModule<
   Greetings,
@@ -110,7 +112,7 @@ it.layer(Greetings.layer)("greet", (test) => {
 
 ## Permissions and approval
 
-Each call runs two gates before the handler. They are `Context.Service` slots that the adapter provides for each request, the way it provides the `Viewer`.
+Each call runs two gates before the handler. They are `Context.Service` slots that the adapter provides for each request, the way it provides `CurrentActor`.
 
 ```text
 handler(input)
@@ -119,12 +121,12 @@ handler(input)
   3 handler    the use-case itself
 ```
 
-1. [ ] **Permission.** A `resource:action` string, such as `trips:delete`, or `"public"`. The module that owns the resource names its permissions. The type rejects a contract without one, and a string without a colon.
+1. [ ] **Permission.** A `resource:action` string, such as `trips:delete`, or `"public"`. The module that owns the resource names its permissions, typed as domain's `Permission`. The type rejects a contract without one, and a string without a colon.
 2. [ ] **Grant.** `holds(permission) => Effect<boolean>`: does this caller hold the permission at all? It runs before any data is read, so it cannot leak whether a record exists. A non-public contract adds `Grant` to the handler's requirements and `Forbidden` to its failures.
 3. [ ] **Approval.** `approve(capabilityName, input) => Effect<void, ApprovalDenied>`: does a human mean this call, now? `needsApproval: true` adds `Approval` to the requirements and `ApprovalDenied` to the failures. `false`, the default, adds nothing.
 
 ```ts
-import { Approval, defineContract, Grant, implement } from "@house-rules/capability";
+import { Approval, defineContract, Grant, implement } from "@house-rules/application";
 
 const removeTripContract = defineContract("remove_trip", {
   description: "Delete one trip the caller owns.",
@@ -138,7 +140,7 @@ const removeTripContract = defineContract("remove_trip", {
 
 const removeTrip = implement(removeTripContract, ({ tripId }) => /* ... */);
 // removeTrip.handler: (input) =>
-//   Effect<void, TripNotFound | Forbidden | ApprovalDenied, Trips | Viewer | Grant | Approval>
+//   Effect<void, TripNotFound | Forbidden | ApprovalDenied, Trips | CurrentActor | Grant | Approval>
 
 removeTrip.handler({ tripId }).pipe(
   Effect.provideService(Grant, Grant.fromPermissions(memberPermissions)),
@@ -167,7 +169,7 @@ A wide flag, such as a `needsApproval` typed only as `boolean`, gets both gates 
 `CallWatch` is a `Context.Reference` with a pass-through default. Provide nothing and the call behaves as before. It adds no requirement and no failure to any capability. A watch is trusted code. It must return the exit of `run` unchanged: no `Effect.orDie`, and no skipping `run`. The `Around` type keeps the channels, but it cannot enforce that behaviour.
 
 ```ts
-import { CallWatch } from "@house-rules/capability";
+import { CallWatch } from "@house-rules/application";
 import { Clock, Effect, Layer } from "effect";
 
 const loggingWatch = Layer.succeed(CallWatch, {
@@ -193,7 +195,7 @@ const loggingWatch = Layer.succeed(CallWatch, {
 });
 ```
 
-The example logs no input values, because input is often user data. A watch that wants the viewer reads it with `Effect.serviceOption`, so it adds no requirement either.
+The example logs no input values, because input is often user data. A watch that wants the caller reads `CurrentActor` with `Effect.serviceOption`, so it adds no requirement either.
 
 You do not have to write the watch yourself. `@house-rules/call-audit` (`packages/call-audit`, see its README) is one that writes a log line per call, or keeps the entries in memory for tests.
 
@@ -244,12 +246,12 @@ A valid incoming id is kept as sent, so an id set by a proxy or a client in fron
 
 ### Units of work
 
-A use-case owns the transaction, not the module. One unit of work may cover writes in several modules. `UnitOfWork` is a slot like `Grant`, with two adapters:
+A use-case owns the transaction, not the module. One unit of work may cover writes in several modules. `UnitOfWork` is a slot like `Grant`. The domain kit defines it, with `CurrentUnit`, `NoOpenUnit`, `UnitOfWorkFailed` and the memory adapter; this package adds the SQL adapter:
 
-| Adapter | Type | Use |
-| --- | --- | --- |
-| `sqlUnitOfWork` | `Layer<UnitOfWork, never, SqlClient>` | Postgres: one `SqlClient.withTransaction` per unit |
-| `memoryUnitOfWork` | `Layer<UnitOfWork>` | memory stores: runs the effect, and on failure runs the rollback hooks the stores registered; one unit at a time |
+| Adapter | Package | Type | Use |
+| --- | --- | --- | --- |
+| `sqlUnitOfWork` | application | `Layer<UnitOfWork, never, SqlClient>` | Postgres: one `SqlClient.withTransaction` per unit |
+| `memoryUnitOfWork` | domain | `Layer<UnitOfWork>` | memory stores: runs the effect, and on failure runs the rollback hooks the stores registered; one unit at a time |
 
 A use-case opens a unit in one of two ways:
 
@@ -277,45 +279,9 @@ put: (booking) =>
 
 A `CallWatch` runs outside the unit, so an audit row written there survives a rollback.
 
-### Relations and policy
+### Relations, policy and plans
 
-A relation is how the caller stands to one object, such as owner or shared. The module checks the relation against its own data. `definePolicy` gives the shape:
-
-```ts
-import { definePolicy } from "@house-rules/capability";
-
-export const tripPolicy = definePolicy({
-  owner: ["trips:read", "trips:write", "trips:delete", "trips:share"],
-  shared: ["trips:read", "trips:write"],
-});
-
-tripPolicy.allows("shared", "trips:delete"); // false
-tripPolicy.table(); // { owner: { "trips:read": true, ... }, shared: { ..., "trips:delete": false } }
-```
-
-`table()` is pure, so a test compares the whole who × action table to a literal. A permission no relation holds does not appear in the table.
-
-An object also has a state, such as a Trip that is active or frozen. `withStates` adds that dimension and leaves the relation-only policy as it was:
-
-```ts
-export const tripPolicy = definePolicy({
-  owner: ["trips:read", "trips:write", "trips:delete", "trips:share"],
-  shared: ["trips:read", "trips:write"],
-}).withStates({
-  active: ["trips:read", "trips:write", "trips:delete", "trips:share"],
-  frozen: ["trips:read", "trips:delete"],
-});
-
-tripPolicy.allows("owner", "frozen", "trips:write"); // false: the state does not carry it
-tripPolicy.allows("owner", "frozen", "trips:delete"); // true: both carry it
-tripPolicy.table(); // { owner: { active: { ... }, frozen: { "trips:write": false, ... } }, shared: { ... } }
-```
-
-`allows(relation, state, permission)` is true only when the relation's list and the state's list both hold the permission. `table()` covers relation × state × permission. A state can only list permissions the relations name, and an unknown state or permission does not compile. The types are `StatefulPolicy<Relation, State, P>` and `StatefulPolicyTable`. `Policy<Relation, P>` stays the four-field shape (`relations`, `permissions`, `allows`, `table`), so a hand-written one still type-checks. `definePolicy` returns `PolicyBuilder<Relation, P>`, a `Policy` plus `withStates`.
-
-### Plans
-
-A plan, such as free or paid, is a fact about the caller, so it feeds the Grant. The app builds a Grant for each request from the caller's plan, with `Grant.fromPermissions`. The state of an object goes in the stateful policy. For example, a Trip is frozen when its owner stopped paying, and the policy then drops write and share. A quota, such as five trips at most, needs a count, so the module counts inside the unit of work its write runs in.
+A relation is how the caller stands to one object, such as owner or shared. The module checks it against its own data with `definePolicy` from the domain kit; see [Permissions and policy](../domain/README.md#permissions-and-policy). A plan, such as free or paid, is a fact about the caller, so it feeds the Grant: the app builds a Grant for each request from the caller's plan with `Grant.fromPermissions`.
 
 ## An action with no input
 
@@ -323,7 +289,7 @@ Some actions take no input, such as "list my trips". Give them `NoInput` as the 
 
 ```ts
 import { Effect, Schema } from "effect";
-import { defineContract, implement, NoInput } from "@house-rules/capability";
+import { defineContract, implement, NoInput } from "@house-rules/application";
 
 const pingContract = defineContract("ping", {
   description: "Answer pong.",
@@ -347,7 +313,7 @@ Some actions take one of a few inputs, such as "find a booking by its id or by i
 
 ```ts
 import { Effect, Schema } from "effect";
-import { defineContract, implement } from "@house-rules/capability";
+import { defineContract, implement } from "@house-rules/application";
 
 const FindInput = Schema.Union([
   Schema.Struct({ by: Schema.Literal("id"), bookingId: Schema.String }),
@@ -385,15 +351,16 @@ Install it from npm at an exact version:
 ```json
 {
   "dependencies": {
-    "@house-rules/capability": "0.17.0",
+    "@house-rules/application": "0.1.0",
+    "@house-rules/domain": "0.1.0",
     "effect": "4.0.3"
   }
 }
 ```
 
-1. [ ] Pin `effect` to the same exact version this package names in `peerDependencies`. It is an exact peer, and the handler types come from that copy of `effect`. If the app installs `@effect/platform-node`, also declare `@effect/platform-node-shared` as an exact direct dependency at the same version, now `4.0.3`.
+1. [ ] Pin `@house-rules/domain` and `effect` to the exact versions this package names in `peerDependencies`. It is an exact peer, and the handler types come from that copy of `effect`. If the app installs `@effect/platform-node`, also declare `@effect/platform-node-shared` as an exact direct dependency at the same version, now `4.0.3`.
 2. [ ] Stable 4.0.3 needs no release-age exception. For a future version under a day old, wait or get approval for an exact-version `minimumReleaseAgeExclude` entry. Remove the old RC entries.
-3. [ ] The package ships built JavaScript and `.d.ts` files in `dist/`. Plain `node` loads it, and a bundler such as Next's needs no `transpilePackages` entry for it. Browser code imports `@house-rules/capability/contract`.
+3. [ ] The package ships built JavaScript and `.d.ts` files in `dist/`. Plain `node` loads it, and a bundler such as Next's needs no `transpilePackages` entry for it. Browser code imports `@house-rules/application/contract` and `@house-rules/domain/contract`.
 4. [ ] Use TypeScript 7 or 6 with `module` and `moduleResolution` set to `NodeNext`, or `Bundler` for UI code, and `skipLibCheck: true`. It is tested with TypeScript 7.0.2. Or extend `@house-rules/rules/tsconfig/effect.json`, installed as [the root README](../../README.md#using-the-rules-in-another-app) shows. Its Effect diagnostics run only after `pnpm exec effect-tsgo patch` from `@effect/tsgo`, as this repo's `prepare` script does.
 5. [ ] The usage example is a test, so it needs two dev dependencies, pinned exactly: `"@effect/vitest": "4.0.3"` and `"vitest": "5.0.1"` (the versions this repo uses).
 6. [ ] To upgrade, change the version and run `pnpm install`. An app that still pins a Git SHA moves as [the root README](../../README.md#upgrading-from-a-git-sha-pin) shows.
@@ -412,7 +379,7 @@ Install it from npm at an exact version:
 
 ```ts
 import { Toolkit } from "effect/ai";
-import { toTool } from "@house-rules/capability";
+import { toTool } from "@house-rules/application";
 
 export const Greet = toTool(greet.contract, {
   title: "Greet someone",
@@ -441,7 +408,7 @@ Delivery mounts capabilities on a host. The seam is the Web fetch standard: the 
  toFetchHandler / toMcpHandler                        call(app, capability, input, incoming)
    1 request id (x-request-id, echoed)
    2 CSRF: a write with a Cookie from another origin -> 403
-   3 caller(incoming) -> Context<Viewer | Grant | ...>  or Refused -> its status + challenge
+   3 caller(incoming) -> Context<CurrentActor | Grant | ...>  or Refused -> its status + challenge
    4 decode input with contract.input                   or InputInvalid -> 400
         v
  composition: the app layer (built on first use, again after a failed build), the caller, the views
@@ -452,7 +419,7 @@ Delivery mounts capabilities on a host. The seam is the Web fetch standard: the 
 ```
 
 ```ts
-import { composition, route, toFetchHandler, toMcpHandler, tool, call, once } from "@house-rules/capability";
+import { composition, route, toFetchHandler, toMcpHandler, tool, call, once } from "@house-rules/application";
 
 // The one composition root: the layer is built once and shared by every adapter.
 export const app = composition({ layer: appLayer, caller: sessionCaller, views });
@@ -483,7 +450,7 @@ const result = await call(app, showBooking, { id }, { headers: await headers(), 
 ```
 
 1. [ ] **Composition.** `composition({ layer, caller, views })` builds one `ManagedRuntime` over the layer. `call`, every fetch handler and every MCP handler read the same built services, so they share one pool. `app.dispose()` closes it. The layer's error type stays in the composition, `Composition<A, C, Views, E>`, so a layer that fails with a tagged error, such as a database that is down, answers that error's view on every adapter: `toFetchHandler` sends its status and body, `toMcpHandler` refuses the HTTP request with them before `McpServer` runs, and `call` resolves to `{ ok: false, error, view }`. None of them rejects. A layer that dies, or fails with an error that has no tag, is the fixed 500. Each failure is logged with the request id. A failed build is not kept: the next use builds the layer again, so a 503 clears when the database comes back, with no restart. Concurrent first requests share one build, and a build that succeeds is kept. `app.runtime` is the current runtime, a fresh one after a failed build. Each request runs as a fiber of that runtime once the layer is built. `app.dispose()` is final: it interrupts every request still running, then closes the layer's resources, so no request runs on a closed pool. After it, nothing builds the layer again, not even after a failed build. A request that arrives later, or waits on a build when dispose runs, answers `CompositionClosed`, whose default view is 503 `unavailable` `The app is shutting down.`, on all three adapters. A second `dispose()` returns the same finished shutdown. The layer starts cold: the first request builds it, even one that a refusal then turns away, such as a 401 from the caller. Only the CSRF check runs before the build. To keep a refused request from doing startup work, warm the app at startup, for example with `app.runtime.runPromise(Effect.void)`.
-2. [ ] **Caller.** `Caller<C, R>` is `(incoming: { headers, url }) => Effect<Context<C>, Refused, R>`. It runs with the app's services, so it can ask an identity module who this is. It returns the per-request services, usually `Viewer` and `Grant`. `Refused` carries a `status`, a `code`, a `message` and an optional `challenge`, which goes out as `WWW-Authenticate`. Each adapter may take its own caller; the composition's is the default.
+2. [ ] **Caller.** `Caller<C, R>` is `(incoming: { headers, url }) => Effect<Context<C>, Refused, R>`. It runs with the app's services, so it can ask an identity module who this is. It returns the per-request services, usually `CurrentActor` and `Grant`. `Refused` carries a `status`, a `code`, a `message` and an optional `challenge`, which goes out as `WWW-Authenticate`. Each adapter may take its own caller; the composition's is the default.
 3. [ ] **Input.** The adapter decodes the whole input once, with `contract.input`, and the handler gets the decoded type. A path param on a write, and an MCP call's arguments, pass a field or toolkit decode first, so a schema filter may run more than once. A GET takes path params plus query, decoded with the StringTree codec, so `"5"` becomes `5`. A write (POST, PUT, PATCH, DELETE) takes the JSON body plus path params; a path param is decoded through its field's codec first. A key given twice, a JSON member given twice (even spelled with an escape), a key the input does not take (`__proto__` too), or a query key on a write is a 400. An array field in a GET query is the one exception to "once": see [The query](#the-query). A write body must be valid UTF-8; a stray byte is a 400 `The body is not valid UTF-8.`, never a replacement character. `InputInvalid` names the capability, the field and the issue, and never quotes the value. `call` decodes its input too, because a server action's input is untrusted.
 4. [ ] **Views.** A view is `{ status, body, headers?, code? }`; `code` is the public failure code it opts in to send, see [Single-page apps](#single-page-apps). The app keeps one table, failure tag to `(error, caller) => View`. Defaults cover House Rules' own tags; an app or adapter view replaces one by tag. A defect, or an error with no view, is a 500 `internal_error`, logged with the request id. So is a view that throws, an output the contract cannot encode, and any other defect while the adapter answers. Status 500 is kept for defects. `problem` and `problemView` refuse a literal 500 at compile time. A view that answers 500 anyway, say from a status held in a variable, sends the same `internal_error` body, and its own body goes to the log. A view may still pick another 5xx, such as 503 `unavailable`, with the body its author wrote. MCP uses the same table: the body becomes an `isError` tool result and the status is dropped.
 5. [ ] **Approval per channel.** `toFetchHandler` fails closed (`Approval.denyAll`), `toMcpHandler` asks the human with `elicitationApproval`, and `call` uses `Approval.allowAll`, because a click in the app is the human's yes. Each takes an `approval` option. The adapter's Approval always wins over one a caller returns, so a caller cannot switch off the human's yes by mistake. To let the caller's Approval decide, say so by name: `approval: "fromCaller"`. The adapter's default still applies when the caller returns none.
@@ -505,7 +472,7 @@ const result = await call(app, showBooking, { id }, { headers: await headers(), 
 A custom delivery may need to refuse a read token's write before it parses its own query dialect or body. `admit(app, incoming, { caller?, channel? })` runs only the caller, with the app's services and request tracing, and returns `Promise<Outcome<Admitted, Refused | E>>`. The composition's caller is the default; the channel defaults to `"web"`.
 
 ```ts
-import { Approval, admit, call } from "@house-rules/capability";
+import { Approval, admit, call } from "@house-rules/application";
 
 async function handle(request: Request) {
   const incoming = { headers: request.headers, url: request.url };
@@ -596,7 +563,7 @@ Every adapter takes `x-request-id` when it is safe, or makes a fresh one of 32 l
 
 ## Single-page apps
 
-A single-page app calls the same routes over HTTP. `@house-rules/capability/contract` is the browser-safe entry: `defineContract`, `endpoint`, `toHttpClient`, the gate errors and the types, with no SQL, no MCP server and no router. A module puts the contracts a browser needs in its own contract entry, `src/contract.ts`, exported as `"./contract"`. The rule `contract-entry-is-browser-safe` fails the check when that file reaches an adapter, a facade, a storage port, a `node:` module or a driver.
+A single-page app calls the same routes over HTTP. `@house-rules/application/contract` is the browser-safe entry: `defineContract`, `endpoint`, `toHttpClient`, the gate errors and the types, with no SQL, no MCP server and no router. `@house-rules/domain/contract` adds `Actor`, `ActorId`, `Permission` and `UnitOfWorkFailed`. A module puts the contracts a browser needs in its own contract entry, `src/contract.ts`, exported as `"./contract"`. The rule `contract-entry-is-browser-safe` fails the check when that file reaches an adapter, a facade, a storage port, a `node:` module or a driver.
 
 ```ts
 // packages/bookings/src/booking/show-booking.ts, re-exported by src/contract.ts
@@ -622,17 +589,39 @@ const booking = yield* client.show_booking({ id }); // Effect<Booking, HttpFailu
 - **Cookies and CSRF.** `FetchHttpClient` uses `fetch`, which sends same-origin cookies by default. Set `FetchHttpClient.RequestInit` for anything else. The browser adds `Origin` to every POST, PUT, PATCH and DELETE, and to cross-origin requests, so the CSRF check passes from the app's own origin and refuses another site's write with a 403. Script cannot set `Origin`, so the client never does.
 - **OpenAPI.** `toOpenApi(routes, { title, version, prefix, views, security })` returns an OpenAPI 3.1 document. Inputs and outputs come from the contracts through Effect's JSON Schema, with shared, named schemas under `components.schemas`. A named input is followed before it is split. A GET Struct input becomes path and query parameters, an array field a `style: form`, `explode: true` parameter, and a GET Union input becomes one exploded `input` query object, required when every member requires a field. A write gets a JSON body without the path fields. A failure goes under the status its view always answers: a `problemView(404, "not_found", message)` view, or a default view, says it. A view that picks its status per error goes under `default`, as do refusals and the 500. The document names no internal tag. A response lists the `x-failure-code` header only for codes the endpoint declares: under the status of the `problemView` that exposes it, or under `default`. The `operationId` is the contract's name; a contract on two endpoints gets its method and path added, and a clash fails the build. `security: { schemes, require? }` adds the schemes; a `"public"` contract drops them. Effect's `OpenApi.fromApi` needs an `HttpApi`, which wants the HTTP status on the error schema and four input schemas, so House Rules writes the document itself. The tests check its shape; no OpenAPI 3.1 validator runs on it yet.
 
-## Upgrading to 0.17.0
+## Upgrading from @house-rules/capability
 
-This release is prepared here; merge first, publish later. Pin capability to 0.17.0 and call-audit to 0.5.1 together. Effect stays at 4.0.3. `defineModule`, `Actor`, `ActorId` and `Viewer` are now public exports. Existing capability and delivery APIs keep their behavior; use these exports when declaring root modules and passing request identity. `ActorId` is branded, so build it with `ActorId.make(id)` rather than assigning an arbitrary string. An app with its own Viewer tag can keep it or move its providers and use-cases to the shared tag together.
+`@house-rules/capability` 0.16.0 is its last version. Its planned 0.17.0 was never published. Replace it with two packages, pinned exactly, and move `@house-rules/call-audit` to 0.6.0 in the same change. Effect stays at 4.0.3. There are no re-exports or aliases, so every import moves:
 
-Comments 0.1.0 is the first public support module built on those APIs. It requires a host port, target kinds and app-owned deletion hooks; it adds no default identity or target access. Package boundaries and layout stay unchanged.
+```text
+@house-rules/capability                @house-rules/domain           @house-rules/application
+  defineModule, Actor, ActorId     ->    yes
+  Permission, definePolicy         ->    yes
+  UnitOfWork, CurrentUnit,         ->    yes
+  NoOpenUnit, UnitOfWorkFailed,
+  memoryUnitOfWork
+  sqlUnitOfWork                    ->                                  yes
+  contracts, gates, CallWatch,     ->                                  yes
+  composition, delivery, toTool
+  /contract                        ->    Actor, ActorId, Permission,   everything else
+                                         UnitOfWorkFailed
+```
 
-## Upgrading to 0.16.0
+1. [ ] Replace the dependency: `"@house-rules/domain": "0.1.0"` and `"@house-rules/application": "0.1.0"`.
+2. [ ] Move each import to the kit that owns the name, as the table shows. A package's facade imports only domain; a package's contract entry imports `@house-rules/application/contract` and `@house-rules/domain/contract`.
+3. [ ] Rename the request slot to `CurrentActor`, from application, in callers, use-cases and tests. `yield* CurrentActor` returns the Actor, as before.
+4. [ ] Service keys moved from `@house-rules/capability/*` to `@house-rules/application/*` and `@house-rules/domain/*`. Only code that matched a key by string notices.
+5. [ ] Move `@house-rules/rules` to 0.17.0. Its checks now recognise the new names; see its README.
+
+## History: @house-rules/capability
+
+These notes are for apps that upgrade older `@house-rules/capability` versions first. They keep the old package name.
+
+### Upgrading to 0.16.0
 
 Pin capability to 0.16.0 and call-audit to 0.5.0, whose exact capability peer moves with it. Effect stays at 4.0.3. Existing `call`, HTTP and MCP callers keep their behavior. For a delivery that resolves its caller by hand, replace that runtime code with `admit`, return `auth.view` on failure, and pass `{ admitted: auth.value }` to later calls instead of supplying a caller that returns the saved context.
 
-## Upgrading to 0.15.0
+### Upgrading to 0.15.0
 
 Pin `effect`, `@effect/platform-node`, `@effect/platform-node-shared`, `@effect/sql-pg` and `@effect/vitest` to 4.0.3. Apps that install `@effect/platform-node` declare the shared package directly too. The Effect peer is exact. Move migrations to 0.3.0, call-audit to 0.4.0 and rules to 0.16.2 in the same change. Remove the old RC release-age exceptions. Add an exact-version exception only for a release under a day old.
 
@@ -642,7 +631,7 @@ A contract with `transactional: true` no longer exposes `NoOpenUnit` in its impl
 
 A fresh install of Node platform rc.117 could pull stable `platform-node-shared`, whose process imports do not exist in RC Effect. The packed-consumer check now installs all tarballs plus stable Node platform without a lockfile, then type-checks and runs Node services with a transactional handler.
 
-## Upgrading to 0.14.0
+### Upgrading to 0.14.0
 
 0.14.0 breaks five things:
 
@@ -656,11 +645,11 @@ A fresh request id still comes from the app: on a built app, `call` and MCP make
 
 Two stricter checks: a write body that is not valid UTF-8 is a 400, where it decoded with replacement characters; and an MCP server that rejects, such as for a tool schema it cannot list, is the fixed 500 with the request id, where the handler rejected. `@house-rules/call-audit` 0.3.0 peers on this version.
 
-## Upgrading to 0.13.0
+### Upgrading to 0.13.0
 
 Nothing breaks for a route written as a string. `route(capability, at)` now also takes an `endpoint`, and it throws at mount on an unknown method. `Route` gained `contract` and `codes`, so code that builds a `Route` by hand, not through `route()`, must add both. A failure response sends no tag; a view and an endpoint opt in to an `x-failure-code` together. `defaultViews` entries with a fixed status carry it as `.status`, and a `problemView` with `exposeCode` carries `.code`, for OpenAPI. The stack's example moved `showBookingContract` from its use-case to `@hosti/bookings/contract`, so a browser can import it.
 
-## Upgrading to 0.11.0
+### Upgrading to 0.11.0
 
 0.11.0 is a breaking change for MCP tools. Every `toTool` tool, a Struct one too, is now `Tool.Strict`:
 
@@ -671,14 +660,14 @@ A Union input is new and changes nothing for a Struct input's types.
 
 ## Limits
 
-It has root-module declarations through `defineModule`, request identity through `Actor`, `ActorId` and `Viewer`, `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, the `CallWatch` hook with its call facts, the `UnitOfWork` slot with its SQL and memory adapters, and `definePolicy` with its `withStates`, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities and no CLI command from a contract. The typed SPA client and OpenAPI come from House Rules' own projection, not Effect's `HttpApi`. Delivery has no streaming, file upload or rate limit, and plain HTTP has no confirm flow for a write that needs approval. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job; the delivery adapters do it for you.
+It has request identity through `CurrentActor`, `defineContract`, `implement`, `NoInput`, `toTool`, the `Grant` and `Approval` gates with their cartridges, the `CallWatch` hook with its call facts, the SQL adapter for domain's `UnitOfWork` slot, composition and delivery, and nothing else. A token scope does not narrow the Grant yet, and there is no CLI `--yes` or web confirm for approval. There is no registry of capabilities and no CLI command from a contract. The typed SPA client and OpenAPI come from House Rules' own projection, not Effect's `HttpApi`. Delivery has no streaming, file upload or rate limit, and plain HTTP has no confirm flow for a write that needs approval. The handler takes the decoded input. Decoding raw input with the contract's schema is the adapter's job; the delivery adapters do it for you.
 
 ## Exports
 
-Root modules and identity, only from `@house-rules/capability`: `defineModule`, `Actor`, `ActorId`, `Viewer`, and the types `ModuleClass`, `ModuleDeclaration`, `ModuleLayer`, `ModuleMethod`, `ModuleShape` and `NoViewer`.
+Request identity: `CurrentActor`. `defineModule`, `Actor`, `ActorId`, `Permission`, `definePolicy`, `UnitOfWork`, `CurrentUnit`, `NoOpenUnit`, `UnitOfWorkFailed` and `memoryUnitOfWork` come from `@house-rules/domain`.
 
-Delivery: `composition`, `once`, `admit`, `call`, `toFetchHandler`, `route`, `toMcpHandler`, `tool`, `decodeInput`, `defaultViews`, `defaultMaxBodyBytes`, `problem`, `problemView`, `toOpenApi`, the `Refused` and `InputInvalid` errors, and the types `Composition`, `Caller`, `Incoming`, `View`, `ViewFn`, `ViewTable`, `CallerContext`, `DefaultViewTag`, `ViewsCheck`, `MountCheck`, `ServicesCheck`, `Mountable`, `Outcome`, `ApprovalOption`, `Admitted`, `AdmitOptions`, `CallOptions`, `Route`, `RouteOptions`, `CsrfOptOut`, `Method`, `FetchHandler`, `FetchHandlerOptions`, `McpTool`, `McpToolOptions`, `McpHandlerOptions`, `InputSource`, `InputIssue`, `ProblemViewOptions`, `StaticStatus`, `OpenApiDocument`, `OpenApiOptions`, `OpenApiSecurity`, and `OpenApiSecurityScheme`.
+Delivery: `composition`, `once`, `admit`, `call`, `toFetchHandler`, `route`, `toMcpHandler`, `tool`, `decodeInput`, `defaultViews`, `defaultMaxBodyBytes`, `problem`, `problemView`, `toOpenApi`, the `Refused`, `InputInvalid` and `CompositionClosed` errors, and the types `Composition`, `Caller`, `Incoming`, `View`, `ViewFn`, `ViewTable`, `ViewStatus`, `CallerContext`, `DefaultViewTag`, `DefectStatusReserved`, `ViewsCheck`, `MountCheck`, `ServicesCheck`, `Mountable`, `Outcome`, `ApprovalOption`, `Admitted`, `AdmitOptions`, `CallOptions`, `Route`, `RouteOptions`, `CsrfOptOut`, `Method`, `FetchHandler`, `FetchHandlerOptions`, `McpTool`, `McpToolOptions`, `McpHandlerOptions`, `InputSource`, `InputIssue`, `ProblemViewOptions`, `StaticStatus`, `OpenApiDocument`, `OpenApiOptions`, `OpenApiSecurity`, and `OpenApiSecurityScheme`.
 
-Client, also from `@house-rules/capability/contract`: `endpoint`, `toHttpClient`, `failureCodeHeader`, the `HttpFailure` error, and the types `Endpoint`, `EndpointOptions`, `EndpointShape`, `HttpClientOf`, `HttpClientOptions`, `ClientCall`, `ClientFailureCode` and `HttpFailureOf`. The contract entry also exports `defineContract`, `failureSchemaOf`, `NoInput`, the `Forbidden`, `ApprovalDenied`, `UnitOfWorkFailed`, `InputInvalid` and `Refused` errors, the `InputIssue` type, and the contract and permission types.
+Client, also from `@house-rules/application/contract`: `endpoint`, `toHttpClient`, `failureCodeHeader`, the `HttpFailure` error, and the types `Endpoint`, `EndpointOptions`, `EndpointShape`, `HttpClientOf`, `HttpClientOptions`, `ClientCall`, `ClientFailureCode` and `HttpFailureOf`. The contract entry also exports `defineContract`, `failureSchemaOf`, `NoInput`, the `Forbidden`, `ApprovalDenied`, `InputInvalid` and `Refused` errors, the `InputIssue` type, the contract types and `PermissionDeclaration`.
 
-The rest: `defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval`, `CallWatch`, `UnitOfWork`, and `CurrentUnit` services, the `CallChannel` and `CallRequestId` references, `withRequestId`, `requestIdOf`, `newRequestId`, `requestIdHeader`, `mcpChannel`, `isMcpChannel`, `maxClientNameLength`, `maxTargetIdLength`, `sqlUnitOfWork` and `memoryUnitOfWork`, the `Forbidden`, `ApprovalDenied`, `NoOpenUnit`, and `UnitOfWorkFailed` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, `definePolicy`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `StructInput`, `UnionInput`, `PlainSchema`, `DefineContractOptions`, `Permission`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `CallFacts`, `CallKind`, `AuditDeclaration`, `AuditOptions`, `StringKeyOf`, `GrantRequirement`, `ApprovalRequirement`, `UnitOfWorkRequirement`, `GateRequirements`, `UnitOfWorkService`, `OpenUnit`, `Atomic`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `ContractTool`, `ToToolOptions`, `ToolParameters`, and `MergedParameters`.
+The rest: `defineContract`, `implement`, `toTool`, `failureSchemaOf`, the `NoInput` schema, the `Grant`, `Approval` and `CallWatch` services, the `CallChannel` and `CallRequestId` references, `withRequestId`, `requestIdOf`, `newRequestId`, `requestIdHeader`, `mcpChannel`, `isMcpChannel`, `unknownCallFacts`, `maxClientNameLength`, `maxTargetIdLength`, `sqlUnitOfWork`, the `Forbidden` and `ApprovalDenied` errors, `elicitationApproval`, `ApprovalForm`, `approvalMessage`, and the types `Contract`, `AnyContract`, `Annotations`, `InputSchema`, `StructInput`, `UnionInput`, `PlainSchema`, `DefineContractOptions`, `PermissionDeclaration`, `GrantService`, `ApprovalService`, `CallWatchService`, `Around`, `CallFacts`, `CallKind`, `AuditDeclaration`, `AuditOptions`, `StringKeyOf`, `GrantRequirement`, `ApprovalRequirement`, `UnitOfWorkRequirement`, `GateRequirements`, `FailureSchemaOf`, `FailureOf`, `Capability`, `HandlerOf`, `ContractTool`, `ToToolOptions`, `ToolParameters`, and `MergedParameters`.

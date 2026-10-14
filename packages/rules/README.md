@@ -228,7 +228,7 @@ pnpm run pack:check # Verify tarball
 - `use-case-is-capability` counts only `implement` from `@house-rules/application`.
 - `no-hand-rolled-surface` allows `packages/application/**` by default.
 - `contract-entry-is-browser-safe` trusts the installed `./contract` entries of `@house-rules/application` and `@house-rules/domain`, and no longer trusts `@house-rules/capability`.
-- `house-rules-migrations` exempts `@house-rules/application`, whose `sqlUnitOfWork` opens the transaction, in place of `@house-rules/capability`.
+- `house-rules-migrations` exempts `@house-rules/application`, whose `sqlUnitOfWork` opens the transaction, and `@house-rules/domain`, which defines `UnitOfWork.atomic`, in place of `@house-rules/capability`.
 
 Move each import to the kit that owns the name before you bump the pin.
 

@@ -98,8 +98,8 @@ export class UnitOfWork extends Context.Service<UnitOfWork, UnitOfWorkService>()
     effect: Effect.Effect<A, E, R>,
   ): Effect.Effect<A, E | UnitOfWorkFailed, R | UnitOfWork> =>
     Effect.gen(function* atomicThroughService() {
-      const service = yield* UnitOfWork;
-      return yield* service.atomic(effect);
+      const unitOfWork = yield* UnitOfWork;
+      return yield* unitOfWork.atomic(effect);
     });
 
   // A transaction adapter asks this to tell a fiber that outlived its unit from a nested call.
