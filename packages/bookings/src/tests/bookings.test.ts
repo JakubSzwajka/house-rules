@@ -2,13 +2,20 @@ import { expect, it } from "@effect/vitest";
 import { Actor, ActorId, memoryUnitOfWork, NoOpenUnit, UnitOfWork } from "@house-rules/domain";
 import { CurrentActor } from "@house-rules/application";
 import { Effect } from "effect";
-import { BookingAlreadyExists, Bookings } from "../index.js";
+import {
+  BookingAlreadyCancelled,
+  BookingAlreadyExists,
+  BookingNotFound,
+  Bookings,
+  bookingPolicy,
+} from "../index.js";
 
 const actorA = Actor.make({ id: ActorId.make("actor-a") });
 const actorB = Actor.make({ id: ActorId.make("actor-b") });
 const records = [
-  { id: "b-1", guestName: "Ada", ownerId: actorA.id },
-  { id: "legacy", guestName: "Grace", ownerId: null },
+  { id: "b-1", guestName: "Ada", ownerId: actorA.id, status: "active" as const },
+  { id: "legacy", guestName: "Grace", ownerId: null, status: "active" as const },
+  { id: "gone", guestName: "Alan", ownerId: actorA.id, status: "cancelled" as const },
 ];
 
 it.layer(Bookings.fromRecords(records))("Bookings", (test) => {
@@ -83,4 +90,37 @@ it.layer(Bookings.fromRecords(records))("Bookings", (test) => {
       expect(yield* bookings.relation(actorB, b.id)).toBe("owner");
     }).pipe(Effect.provide(memoryUnitOfWork)),
   );
+
+  test.effect(
+    "cancel: a cancelled booking stays cancelled; others' and legacy rows look missing",
+    () =>
+      Effect.gen(function* cancelStates() {
+        const bookings = yield* Bookings;
+        const again = yield* Effect.flip(UnitOfWork.atomic(bookings.cancel(actorA, "gone")));
+        expect(again).toEqual(new BookingAlreadyCancelled({ id: "gone" }));
+        for (const [actor, id] of [
+          [actorB, "gone"],
+          [actorB, "b-1"],
+          [actorA, "legacy"],
+          [actorA, "missing"],
+        ] as const) {
+          const error = yield* Effect.flip(UnitOfWork.atomic(bookings.cancel(actor, id)));
+          expect(error).toEqual(new BookingNotFound({ id }));
+        }
+        expect((yield* bookings.get("b-1")).status).toBe("active");
+      }).pipe(Effect.provide(memoryUnitOfWork)),
+  );
+});
+
+it("the policy lets only the owner cancel, and only an active booking", () => {
+  expect(bookingPolicy.table()).toEqual({
+    owner: {
+      active: { "bookings:cancel": true },
+      cancelled: { "bookings:cancel": false },
+    },
+    none: {
+      active: { "bookings:cancel": false },
+      cancelled: { "bookings:cancel": false },
+    },
+  });
 });

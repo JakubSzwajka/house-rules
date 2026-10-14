@@ -1,7 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import type { PipelineOptions } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 
 const drainTimeoutMs = 5_000;
@@ -92,7 +91,7 @@ const respond = async (
     } else {
       // Read once before pipeline: it destroys the socket on even a pre-header stream failure.
       const body = Readable.fromWeb(response.body as unknown as NodeReadableStream, {
-        signal: controller.signal as PipelineOptions["signal"],
+        signal: controller.signal,
       });
       try {
         const chunks = body[Symbol.asyncIterator]();
@@ -108,7 +107,7 @@ const respond = async (
               })(),
             ),
             outgoing,
-            { signal: controller.signal as PipelineOptions["signal"] },
+            { signal: controller.signal },
           );
         }
       } finally {

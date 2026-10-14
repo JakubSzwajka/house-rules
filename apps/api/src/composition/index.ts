@@ -9,3 +9,5 @@ const visitorCaller = () => {
 };
 
 export const app = composition({ layer: appLayer, caller: visitorCaller, views: bookingViews });
+
+export type ApiComposition = typeof app;

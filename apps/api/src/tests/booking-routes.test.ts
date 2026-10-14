@@ -10,12 +10,15 @@ import { Context, Effect, Layer } from "effect";
 import { bookingRoutes } from "../delivery/http/routes.js";
 import { bookingViews } from "../composition/views.js";
 
-const bookings = Bookings.fromRecords([{ id: "b-1", guestName: "Ada", ownerId: "actor-a" }]);
+const bookings = Bookings.fromRecords([
+  { id: "b-1", guestName: "Ada", ownerId: "actor-a", status: "active" },
+]);
 const reader = Grant.layerFromPermissions([BookingPermissions.read]);
 const brokenStore = Layer.succeed(BookingStore, {
   find: () =>
     Effect.fail(new BookingStoreUnavailable({ message: "The Booking could not be read." })),
   insert: () => Effect.die("not used"),
+  transition: () => Effect.die("not used"),
 });
 
 const mountWith = (layer: Layer.Layer<Bookings | Grant>) => {
@@ -48,7 +51,7 @@ it.effect("answers 200 for a visitor without revealing the ownerId", () =>
   Effect.gen(function* answersOk() {
     expect(yield* get(open.api, "b-1")).toEqual({
       status: 200,
-      body: { id: "b-1", guestName: "Ada" },
+      body: { id: "b-1", guestName: "Ada", status: "active" },
     });
   }),
 );

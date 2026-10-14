@@ -150,7 +150,7 @@ An app can let agents call its use-cases over MCP, and later over a CLI. Write e
 - A remote MCP endpoint is an OAuth resource server under the [MCP authorization spec 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization). It answers a call with no valid token with 401 and a `WWW-Authenticate` header that names `resource_metadata`. It serves `/.well-known/oauth-protected-resource`, naming the authorization server.
 - The MCP route checks that the token is valid and was issued for this resource (its audience, RFC 8707) before it builds the `CurrentActor`. It never passes the token on to another service.
 - The identity provider is the authorization server. Prefer Client ID Metadata Documents to Dynamic Client Registration.
-- When auth is not configured, the MCP routes refuse every call. They fail closed.
+- When auth is not configured, the MCP routes refuse every call. They fail closed. Unconfigured, `/mcp` answers 503 `not_configured` with no challenge, and the metadata paths answer GET and HEAD with 503 `not_configured` and other methods with 405, because there is no authorization server to name; the 401 challenge and the metadata document apply once auth is configured.
 - The session middleware treats the MCP route and the metadata paths as public. The MCP route does its own bearer check.
 - The app's canonical public URL is an environment variable declared in `.env.schema`.
 - Tests cover the 401 challenge, the metadata document, and the fail-closed path.

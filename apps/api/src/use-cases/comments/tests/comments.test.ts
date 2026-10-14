@@ -17,7 +17,9 @@ const options = { ...Comments.presets.default, targets: ["booking"] };
 const world = Layer.merge(
   Comments.layerMemory(options).pipe(
     Layer.provide(commentTargets),
-    Layer.provideMerge(Bookings.fromRecords([{ id: "1", guestName: "Ada", ownerId: actorA.id }])),
+    Layer.provideMerge(
+      Bookings.fromRecords([{ id: "1", guestName: "Ada", ownerId: actorA.id, status: "active" }]),
+    ),
   ),
   memoryUnitOfWork,
 );

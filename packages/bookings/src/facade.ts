@@ -1,10 +1,13 @@
-import { type Actor, defineModule, type NoOpenUnit } from "@house-rules/domain";
+import { type Actor, defineModule, type NoOpenUnit, UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer } from "effect";
 import { memoryBookingStore } from "./adapters/memory/memory-booking-store.js";
 import { BookingStore } from "./storage.js";
 import type { BookingStoreUnavailable } from "./booking/store-unavailable.js";
+import { type BookingRelation, bookingPolicy, relationOf } from "./booking/booking-policy.js";
+import { BookingPermissions } from "./booking/permissions.js";
 import {
   type Booking,
+  BookingAlreadyCancelled,
   BookingAlreadyExists,
   BookingNotFound,
   type NewBooking,
@@ -18,10 +21,17 @@ export class Bookings extends defineModule<
       actor: Actor,
       input: NewBooking,
     ) => Effect.Effect<Booking, BookingAlreadyExists | BookingStoreUnavailable | NoOpenUnit>;
+    readonly cancel: (
+      actor: Actor,
+      id: string,
+    ) => Effect.Effect<
+      Booking,
+      BookingNotFound | BookingAlreadyCancelled | BookingStoreUnavailable | NoOpenUnit
+    >;
     readonly relation: (
       actor: Actor,
       id: string,
-    ) => Effect.Effect<"owner" | "none", BookingStoreUnavailable>;
+    ) => Effect.Effect<BookingRelation, BookingStoreUnavailable>;
   }
 >()("@hosti/bookings/Bookings", {
   make: Effect.gen(function* bookingsLayer() {
@@ -35,15 +45,35 @@ export class Bookings extends defineModule<
         return booking;
       }),
       create: Effect.fn("Bookings.create")(function* create(actor: Actor, input: NewBooking) {
-        const booking = { id: input.id, guestName: input.guestName, ownerId: actor.id };
+        yield* UnitOfWork.required;
+        const booking: Booking = {
+          id: input.id,
+          guestName: input.guestName,
+          ownerId: actor.id,
+          status: "active",
+        };
         if (!(yield* store.insert(booking))) {
           return yield* new BookingAlreadyExists({ id: booking.id });
         }
         return booking;
       }),
-      relation: Effect.fn("Bookings.relation")(function* relation(actor: Actor, id: string) {
+      cancel: Effect.fn("Bookings.cancel")(function* cancel(actor: Actor, id: string) {
+        yield* UnitOfWork.required;
         const booking = yield* store.find(id);
-        return booking?.ownerId === actor.id ? "owner" : "none";
+        const relation = relationOf(actor, booking);
+        if (booking === undefined || relation === "none") {
+          return yield* new BookingNotFound({ id });
+        }
+        if (
+          !bookingPolicy.allows(relation, booking.status, BookingPermissions.cancel) ||
+          !(yield* store.transition(id, booking.status, "cancelled"))
+        ) {
+          return yield* new BookingAlreadyCancelled({ id });
+        }
+        return { ...booking, status: "cancelled" as const };
+      }),
+      relation: Effect.fn("Bookings.relation")(function* relation(actor: Actor, id: string) {
+        return relationOf(actor, yield* store.find(id));
       }),
     };
   }),

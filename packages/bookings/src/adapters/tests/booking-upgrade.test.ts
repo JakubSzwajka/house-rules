@@ -22,7 +22,7 @@ const world = Bookings.layer.pipe(
 layer(world, { excludeTestServices: true, timeout: "30 seconds" })(
   "booking migration upgrade",
   (it) => {
-    it.effect("keeps a booking seeded under 0001 unowned after 0002", () =>
+    it.effect("keeps a booking seeded under 0001 unowned and active after 0002 and 0003", () =>
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
@@ -37,18 +37,21 @@ layer(world, { excludeTestServices: true, timeout: "30 seconds" })(
         expect(first[0]?.applied).toEqual([{ id: 1, name: "bookings" }]);
         const sql = yield* SqlClient;
         yield* sql`insert into booking (id, guest_name) values ('legacy-upgrade', 'Ada')`;
-        yield* fs.copyFile(
-          path.join(source, "0002_booking_owner.sql"),
-          path.join(directory, "0002_booking_owner.sql"),
-        );
+        for (const file of ["0002_booking_owner.sql", "0003_booking_status.sql"]) {
+          yield* fs.copyFile(path.join(source, file), path.join(directory, file));
+        }
         const upgraded = yield* Migrations.run([module]);
         expect(upgraded[0]?.verified).toEqual([{ id: 1, name: "bookings" }]);
-        expect(upgraded[0]?.applied).toEqual([{ id: 2, name: "booking_owner" }]);
+        expect(upgraded[0]?.applied).toEqual([
+          { id: 2, name: "booking_owner" },
+          { id: 3, name: "booking_status" },
+        ]);
         const bookings = yield* Bookings;
         expect(yield* bookings.get("legacy-upgrade")).toEqual({
           id: "legacy-upgrade",
           guestName: "Ada",
           ownerId: null,
+          status: "active",
         });
         const actor = Actor.make({ id: ActorId.make("a") });
         expect(yield* bookings.relation(actor, "legacy-upgrade")).toBe("none");

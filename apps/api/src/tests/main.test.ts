@@ -1,9 +1,9 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { api, openApi } from "../main.js";
+import { api, handler, openApi } from "../main.js";
 import { app } from "../composition/index.js";
 
-afterAll(() => api.dispose().then(app.dispose));
+afterAll(() => handler.dispose().then(app.dispose));
 
 const get = (path: string, headers: Record<string, string> = {}) =>
   Effect.promise(() =>
@@ -24,6 +24,14 @@ it.effect("GET /api/bookings/:id maps BookingNotFound through the app's view", (
       error: { code: "not_found", message: "Booking missing was not found." },
     });
     expect(r.headers.get("x-request-id")).toBe("req-1");
+  }),
+);
+
+it.effect("memory mode serves the seeded demo booking", () =>
+  Effect.gen(function* demo() {
+    const r = yield* get("/api/bookings/demo");
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ id: "demo", guestName: "Ada Lovelace", status: "active" });
   }),
 );
 
