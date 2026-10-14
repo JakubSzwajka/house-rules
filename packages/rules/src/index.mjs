@@ -7,6 +7,7 @@ import { designNoRawElementRule } from "./design-no-raw-element.mjs";
 import { designNoUnknownTokenRule } from "./design-no-unknown-token.mjs";
 import { designScaleValueRule } from "./design-scale-value.mjs";
 import hosts from "./hosts.cjs";
+import layoutOptions from "./layout-option-parsers.cjs";
 import { noBrokenRelativeLinksRule } from "./no-broken-relative-links.mjs";
 import { noComputedImportRule } from "./no-computed-import.mjs";
 import { noHandRolledSurfaceRule } from "./no-hand-rolled-surface.mjs";
@@ -18,7 +19,7 @@ import { ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL } from "./rule-docs.m
 const plugin = {
   meta: {
     name: "@house-rules/rules",
-    version: "0.17.0",
+    version: "0.18.0",
   },
   rules: {
     "comment-discipline": commentDisciplineRule,
@@ -83,20 +84,26 @@ plugin.configs.testing = [
   },
 ];
 
-// One packages root for the whole preset: pass the folder layout({ packagesDir }) names, so
-// no-computed-import covers the same package source that contract-entry-is-browser-safe follows.
-function capabilityConfig({ packagesDir = "packages" } = {}) {
-  if (
-    typeof packagesDir !== "string" ||
-    !packagesDir ||
-    packagesDir.startsWith("/") ||
-    packagesDir.endsWith("/") ||
-    /[*?{}[\]!]/u.test(packagesDir)
-  ) {
-    throw new TypeError(
-      'capabilityConfig(): packagesDir must be a non-empty relative path without a leading or trailing "/" or glob characters.',
-    );
-  }
+// The same roots for the whole preset: pass the appsDir and packagesDir layout() gets, a path or a list,
+// so no-computed-import covers the package source contract-entry-is-browser-safe follows, and
+// use-case-is-capability the use-cases the layer rules check.
+function capabilityConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
+  const caller = "capabilityConfig()";
+  const packageRoots = layoutOptions.rootsOption(packagesDir, "packagesDir", caller);
+  const appRoots = layoutOptions.rootsOption(appsDir, "appsDir", caller);
+  layoutOptions.disjointRoots(appRoots, packageRoots, caller);
+  // The rule's own default covers apps/, so the default preset keeps its plain "error".
+  const useCases =
+    appRoots.entries.length === 1 && appRoots.entries[0] === "apps"
+      ? "error"
+      : [
+          "error",
+          {
+            include: appRoots.entries.map(
+              (root) => `${root}/*/src/use-cases/**/*.{ts,tsx,mts,cts}`,
+            ),
+          },
+        ];
   return [
     {
       files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
@@ -119,7 +126,7 @@ function capabilityConfig({ packagesDir = "packages" } = {}) {
     {
       files: ["**/*.{ts,tsx,mts,cts}"],
       rules: {
-        "house-rules/use-case-is-capability": "error",
+        "house-rules/use-case-is-capability": useCases,
       },
     },
     {
@@ -133,7 +140,9 @@ function capabilityConfig({ packagesDir = "packages" } = {}) {
     },
     // Package source a contract entry may reach. Dependency Cruiser records no edge for import(at).
     {
-      files: [`${packagesDir}/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}`],
+      files: packageRoots.entries.map(
+        (root) => `${root}/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}`,
+      ),
       ignores: ["**/{tests,test,__tests__}/**", "**/*.{test,spec}.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
       rules: {
         "house-rules/no-computed-import": "error",

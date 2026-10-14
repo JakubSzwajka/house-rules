@@ -50,7 +50,12 @@ EOF
 EFFECT_VERSION="$(cd "$ROOT" && node -e '
 const { globSync, readFileSync } = require("node:fs");
 const pins = new Set(
-  globSync(["apps/*/package.json", "packages/*/package.json"])
+  globSync([
+    "apps/*/package.json",
+    "packages/*/package.json",
+    "examples/*/apps/*/package.json",
+    "examples/*/packages/*/package.json",
+  ])
     .map((path) => JSON.parse(readFileSync(path, "utf8")).dependencies?.effect)
     .filter((pin) => pin !== undefined),
 );

@@ -1,5 +1,6 @@
 import path from "node:path";
 import { readdir, readFile } from "node:fs/promises";
+import { rootsFromPattern } from "./layout-option-parsers.cjs";
 
 const CONTRACT_KEY = "./contract";
 const CONTRACT_FILE = "src/contract.ts";
@@ -62,22 +63,51 @@ export function contractExportProblems(manifest, { publicEntry = PUBLIC_ENTRY } 
   return problems;
 }
 
-function packagesRoot(config) {
+function packagesRoots(config) {
   const from = config?.forbidden?.find(({ name }) => name === "contract-entry-is-browser-safe")
     ?.from?.path;
   const root = typeof from === "string" ? /^\^(.+)\/\[\^\/\]\+\/src\//u.exec(from)?.[1] : undefined;
   if (root === undefined) throw new Error("layout config is missing the contract entry pattern");
-  return unescape(root);
+  return rootsFromPattern(root);
 }
 
 function unescape(pattern) {
   return pattern.replace(/\[\.\]/gu, ".").replace(/\\(.)/gu, "$1");
 }
 
+async function directories(workspace, folder) {
+  try {
+    const entries = await readdir(path.join(workspace, folder), { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isDirectory())
+      .map(({ name }) => name)
+      .sort();
+  } catch (error) {
+    if (error.code === "ENOENT" || error.code === "ENOTDIR") return [];
+    throw error;
+  }
+}
+
+// The folders a root names: a "*" segment stands for each folder at that depth.
+async function rootFolders(workspace, root) {
+  let folders = [""];
+  for (const segment of root.split("/")) {
+    const next = [];
+    for (const folder of folders) {
+      const names = segment === "*" ? await directories(workspace, folder) : [segment];
+      next.push(...names.map((name) => (folder ? `${folder}/${name}` : name)));
+    }
+    folders = next;
+  }
+  return folders;
+}
+
 function publicEntryOf(config) {
   const to = config?.forbidden?.find(({ name }) => name === "packages-public-entry-only")?.to?.path;
   const entry =
-    typeof to === "string" ? /\(\?:(.+)\|src\/contract\[\.\]ts\)\$\)$/u.exec(to)?.[1] : undefined;
+    typeof to === "string"
+      ? /\/\(\?!\(\?:(.+)\|src\/contract\[\.\]ts\)\$\)$/u.exec(to)?.[1]
+      : undefined;
   if (entry === undefined) throw new Error("layout config is missing the public entry pattern");
   return unescape(entry);
 }
@@ -89,31 +119,24 @@ function excluded(config, file) {
 }
 
 export async function findContractExportProblems(config, workspace) {
-  const root = packagesRoot(config);
   const publicEntry = publicEntryOf(config);
-  let folders;
-  try {
-    folders = await readdir(path.join(workspace, root), { withFileTypes: true });
-  } catch (error) {
-    if (error.code === "ENOENT") return [];
-    throw error;
-  }
   const found = [];
-  for (const folder of folders
-    .filter((entry) => entry.isDirectory())
-    .map(({ name }) => name)
-    .sort()) {
-    const manifestPath = `${root}/${folder}/package.json`;
-    if (excluded(config, manifestPath)) continue;
-    let manifest;
-    try {
-      manifest = JSON.parse(await readFile(path.join(workspace, manifestPath), "utf8"));
-    } catch (error) {
-      if (error.code === "ENOENT") continue;
-      throw error;
-    }
-    for (const problem of contractExportProblems(manifest, { publicEntry })) {
-      found.push({ manifest: manifestPath, problem });
+  for (const pattern of packagesRoots(config)) {
+    for (const root of await rootFolders(workspace, pattern)) {
+      for (const folder of await directories(workspace, root)) {
+        const manifestPath = `${root}/${folder}/package.json`;
+        if (excluded(config, manifestPath)) continue;
+        let manifest;
+        try {
+          manifest = JSON.parse(await readFile(path.join(workspace, manifestPath), "utf8"));
+        } catch (error) {
+          if (error.code === "ENOENT") continue;
+          throw error;
+        }
+        for (const problem of contractExportProblems(manifest, { publicEntry })) {
+          found.push({ manifest: manifestPath, problem });
+        }
+      }
     }
   }
   return found;

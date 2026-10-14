@@ -145,6 +145,22 @@ describe("exact pin check", () => {
     assert.match(result.stdout, /apps\/web\/package\.json, packages\/core\/package\.json/);
   });
 
+  it("checks nested workspace globs, such as an example's apps and packages", () => {
+    const result = checkWorkspace({
+      "pnpm-workspace.yaml":
+        'packages:\n  - "apps/*"\n  - packages/*\n  - "examples/*/apps/*"\n  - "examples/*/packages/*"\n',
+      "package.json": { devDependencies: { a: "1.2.3" } },
+      "examples/shop/apps/api/package.json": { dependencies: { b: "workspace:0.0.0" } },
+      "examples/shop/packages/orders/package.json": { dependencies: { c: "~4.0.0" } },
+    });
+    assert.equal(result.status, 1);
+    assert.match(
+      result.stderr,
+      /examples\/shop\/packages\/orders\/package\.json[\s\S]*dependencies\.c: ~4\.0\.0/,
+    );
+    assert.doesNotMatch(result.stderr, /examples\/shop\/apps/);
+  });
+
   it("fails when pnpm-workspace.yaml lists no packages", () => {
     const result = checkWorkspace({
       "pnpm-workspace.yaml": "saveExact: true\n",

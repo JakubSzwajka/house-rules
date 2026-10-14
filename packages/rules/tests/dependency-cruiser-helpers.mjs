@@ -108,16 +108,27 @@ export async function cruiseFixture(fixture, config, inspect) {
         },
       );
     }
-    const packagesDir = path.join(workspace, "packages");
-    for (const name of existsSync(packagesDir) ? await readdir(packagesDir) : []) {
-      const manifest = path.join(packagesDir, name, "package.json");
-      if (!existsSync(manifest)) continue;
-      const packageName = JSON.parse(await readFile(manifest, "utf8")).name;
-      const link = path.join(workspace, "node_modules", packageName);
-      await mkdir(path.dirname(link), { recursive: true });
-      await symlink(path.join(packagesDir, name), link, "dir");
+    // Packages under packages/ and, for a fixture with several roots, under examples/*/packages/.
+    const examplesDir = path.join(workspace, "examples");
+    const packageRoots = [
+      path.join(workspace, "packages"),
+      ...(existsSync(examplesDir)
+        ? (await readdir(examplesDir)).map((name) => path.join(examplesDir, name, "packages"))
+        : []),
+    ];
+    for (const packagesDir of packageRoots) {
+      for (const name of existsSync(packagesDir) ? await readdir(packagesDir) : []) {
+        const manifest = path.join(packagesDir, name, "package.json");
+        if (!existsSync(manifest)) continue;
+        const packageName = JSON.parse(await readFile(manifest, "utf8")).name;
+        const link = path.join(workspace, "node_modules", packageName);
+        await mkdir(path.dirname(link), { recursive: true });
+        await symlink(path.join(packagesDir, name), link, "dir");
+      }
     }
-    const roots = ["apps", "packages"].filter((root) => existsSync(path.join(workspace, root)));
+    const roots = ["apps", "packages", "examples"].filter((root) =>
+      existsSync(path.join(workspace, root)),
+    );
     const { forbidden, options } = config;
     const { output } = await cruise(roots, {
       ...structuredClone(options),

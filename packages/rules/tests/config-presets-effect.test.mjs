@@ -11,9 +11,7 @@ const repositoryRoot = path.resolve(import.meta.dirname, "..");
 test("extends [effect.json, web.json] keeps the Effect diagnostics on the patched tsc", async () => {
   const stackRoot = path.resolve(repositoryRoot, "../..");
   const patchedTsc = path.join(stackRoot, "node_modules/.bin/tsc");
-  const effectPackage = await realpath(
-    path.join(stackRoot, "packages/bookings/node_modules/effect"),
-  );
+  const effectPackage = await realpath(path.join(stackRoot, "packages/domain/node_modules/effect"));
   const files = {
     "package.json": { type: "module" },
     "tsconfig.json": {

@@ -1,0 +1,1 @@
+{ "name": "@acme/catalog", "private": true, "exports": { ".": "./src/index.ts" } }

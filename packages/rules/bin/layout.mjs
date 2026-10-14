@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import path from "node:path";
-import { createRequire } from "node:module";
 import { cruise } from "dependency-cruiser";
 import { findContractExportProblems } from "../src/contract-exports.mjs";
+import { loadLayoutConfig } from "../src/layout-config.mjs";
 import { findPackageCycles } from "../src/package-cycles.mjs";
 import { seeRuleLine } from "../src/rule-docs.mjs";
 import { findSubjectFolderCycles } from "../src/subject-folder-cycles.mjs";
@@ -28,11 +28,7 @@ function workspaceFromArgs(args) {
 }
 
 async function check(workspace) {
-  const configPath = path.join(workspace, ".dependency-cruiser.cjs");
-  const config = createRequire(import.meta.url)(configPath);
-  if (!Array.isArray(config?.forbidden) || typeof config.options !== "object") {
-    throw new Error(`${configPath} must export a Dependency Cruiser layout config`);
-  }
+  const config = loadLayoutConfig(workspace);
 
   const { output } = await cruise(["."], {
     ...config.options,

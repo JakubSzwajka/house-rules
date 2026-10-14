@@ -14,6 +14,10 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 const readJson = (path) => JSON.parse(read(path));
 const require = createRequire(import.meta.url);
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
+const ROOTS = {
+  appsDir: ["apps", "examples/*/apps"],
+  packagesDir: ["packages", "examples/*/packages"],
+};
 
 describe("thin configs over the house plugin", () => {
   it("tsconfig.base.json extends the Effect preset and does not replace its plugin block", () => {
@@ -48,7 +52,11 @@ describe("thin configs over the house plugin", () => {
     );
     const { layout } = require(`${PLUGIN}/dependency-cruiser`);
     const config = require("../.dependency-cruiser.cjs");
-    const rules = layout({ scope: "@hosti/", adapterPackages: ["migrations"] }).forbidden;
+    const rules = layout({
+      scope: "@example/",
+      ...ROOTS,
+      adapterPackages: ["migrations"],
+    }).forbidden;
     for (const rule of rules) {
       if (rule.name === "no-unresolved-imports") continue;
       const expected = rules.filter(({ name }) => name === rule.name);
@@ -62,15 +70,15 @@ describe("thin configs over the house plugin", () => {
     const rule = config.forbidden.find(({ name }) => name === "adapter-imports-only-in-adapters");
     assert.equal(rule.severity, "error");
     assert.deepEqual(rule.from.pathNot, [
-      "^packages/[^/]+/src/adapters(?:/|$)",
-      "^packages/(?:migrations)/",
+      "^(?:packages|examples/[^/]+/packages)/[^/]+/src/adapters(?:/|$)",
+      "^(?:packages|examples/[^/]+/packages)/(?:migrations)/",
     ]);
   });
 
   it(".dependency-cruiser.cjs excludes only the in-repo plugin on top of the preset's excludes", () => {
     const { layout } = require(`${PLUGIN}/dependency-cruiser`);
     const config = require("../.dependency-cruiser.cjs");
-    const preset = layout({ scope: "@hosti/" }).options.exclude.path;
+    const preset = layout({ scope: "@example/", ...ROOTS }).options.exclude.path;
     assert.equal(config.options.exclude.path, `${preset}|^packages/rules/`);
   });
 
@@ -96,6 +104,41 @@ describe("thin configs over the house plugin", () => {
         ({ from, rule }) => `${from}: ${rule.name}`,
       );
       assert.deepEqual(violations, ["scripts/page.ts: no-unresolved-imports"]);
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  it(".dependency-cruiser.cjs keeps framework packages from importing anything under examples/", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "house-rules-examples-"));
+    const files = {
+      "packages/catalog/src/catalog/leak.ts":
+        'import { order } from "../../../../examples/shop/packages/orders/src/index.ts";\nexport const leak = order;\n',
+      "packages/catalog/src/catalog/item.ts":
+        'import { kit } from "../../../kit/src/index.ts";\nexport const item = kit;\n',
+      "packages/kit/src/index.ts": "export const kit = 1;\n",
+      "examples/shop/packages/orders/src/index.ts":
+        'import { kit } from "../../../../../packages/kit/src/index.ts";\nexport const order = kit;\n',
+    };
+    try {
+      for (const [file, contents] of Object.entries(files)) {
+        await mkdir(dirname(join(workspace, file)), { recursive: true });
+        await writeFile(join(workspace, file), contents);
+      }
+      const config = require("../.dependency-cruiser.cjs");
+      const { output } = await cruise(["packages", "examples"], {
+        ...structuredClone(config.options),
+        baseDir: workspace,
+        ruleSet: { forbidden: structuredClone(config.forbidden) },
+        validate: true,
+        outputType: "json",
+      });
+      const violations = JSON.parse(output)
+        .summary.violations.filter(({ rule }) => rule.name === "framework-does-not-import-examples")
+        .map(({ from, to, rule }) => `${from} -> ${to}: ${rule.severity}`);
+      assert.deepEqual(violations, [
+        "packages/catalog/src/catalog/leak.ts -> examples/shop/packages/orders/src/index.ts: error",
+      ]);
     } finally {
       await rm(workspace, { recursive: true, force: true });
     }
@@ -132,14 +175,28 @@ describe("thin configs over the house plugin", () => {
     };
 
     assert.deepEqual(
-      await rulesFor("export const x = 1;\n", "apps/api/src/use-cases/wiring-probe.ts"),
+      await rulesFor(
+        "export const x = 1;\n",
+        "examples/booking-platform/apps/api/src/use-cases/wiring-probe.ts",
+      ),
       ["house-rules/use-case-is-capability", "house-rules/use-case-is-capability"],
+    );
+    assert.deepEqual(
+      await rulesFor("export const x = 1;\n", "apps/web/src/use-cases/wiring-probe.ts"),
+      ["house-rules/use-case-is-capability", "house-rules/use-case-is-capability"],
+    );
+    assert.deepEqual(
+      await rulesFor(
+        "export const load = (name: string) => import(name);\n",
+        "examples/booking-platform/packages/bookings/src/booking/wiring-probe.ts",
+      ),
+      ["house-rules/no-computed-import"],
     );
     for (const source of ["effect/ai", "effect/unstable/ai"]) {
       assert.deepEqual(
         await rulesFor(
           `import { Tool } from "${source}";\nexport const T = Tool.make("probe");\n`,
-          "apps/api/src/delivery/mcp/wiring-probe.ts",
+          "examples/booking-platform/apps/api/src/delivery/mcp/wiring-probe.ts",
         ),
         ["house-rules/no-hand-rolled-surface"],
       );
@@ -147,14 +204,14 @@ describe("thin configs over the house plugin", () => {
     assert.deepEqual(
       await rulesFor(
         'import { Effect } from "effect";\nexport const run = () => Effect.runPromise(Effect.void);\n',
-        "apps/api/src/use-cases/tests/wiring-probe.test.ts",
+        "examples/booking-platform/apps/api/src/use-cases/tests/wiring-probe.test.ts",
       ),
       ["house-rules/no-hand-run-effect"],
     );
     assert.deepEqual(
       await rulesFor(
         'import { MigrationsTesting } from "@house-rules/migrations";\nexport const db = MigrationsTesting;\n',
-        "apps/api/src/server/wiring-probe.ts",
+        "examples/booking-platform/apps/api/src/server/wiring-probe.ts",
       ),
       ["house-rules/testing-exports-only-in-tests"],
     );

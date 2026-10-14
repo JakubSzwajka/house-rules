@@ -97,8 +97,8 @@ test("contract-entry-is-browser-safe refuses effect's adapter imports", () => {
 });
 
 // node_modules is never followed, so whatever an installed entry or an effect module imports is unseen.
-// The rule refuses all of them but a vouched-for list; the stack's apps/api/src/tests/browser-bundle.test.ts
-// bundles the effect allowlist for a browser as the second guard.
+// The rule refuses all of them but a vouched-for list; the stack's example app, in examples/booking-platform,
+// bundles the effect allowlist for a browser in its browser-bundle test as the second guard.
 test("contract-entry-is-browser-safe trusts only allowlisted effect modules and vouched-for installed contract entries", async () => {
   const lines = (violations) =>
     fromPaths(violations).map((line) => line.replace(/node_modules\/.*?node_modules\//u, ""));

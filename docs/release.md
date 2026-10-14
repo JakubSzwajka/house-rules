@@ -22,7 +22,7 @@ Merge first, publish later. This change splits `@house-rules/capability` into tw
 | `@house-rules/application` | 0.1.0 | new name for the application side of capability: first release |
 | `@house-rules/comments` | 0.1.0 | first release; exact peers on domain 0.1.0 and application 0.1.0 |
 | `@house-rules/call-audit` | 0.6.0 | exact peer on application 0.1.0 instead of capability |
-| `@house-rules/rules` | 0.17.0 | its checks recognise the new kit names |
+| `@house-rules/rules` | 0.18.0 | its checks recognise the new kit names and take several apps and packages roots |
 | `@house-rules/migrations` | 0.3.0 | unchanged |
 | `@house-rules/node-host` | 0.1.0 | unchanged |
 

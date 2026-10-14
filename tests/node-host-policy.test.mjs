@@ -9,7 +9,10 @@ it("only the plain Node host uses strict.json; Effect app code still fails nodeB
     read("../packages/node-host/tsconfig.json").extends,
     "@house-rules/rules/tsconfig/strict.json",
   );
-  assert.equal(read("../apps/api/tsconfig.json").extends, "../../tsconfig.base.json");
+  assert.equal(
+    read("../examples/booking-platform/apps/api/tsconfig.json").extends,
+    "../../../../tsconfig.base.json",
+  );
   const result = spawnSync(
     "pnpm",
     ["exec", "tsc", "--project", "tests/fixtures/node-builtin/tsconfig.json"],

@@ -15,16 +15,16 @@ The Effect setup is adapted from the same rat-stack commit:
 
 - tsconfig.base.json (compiler flags and Effect diagnostic list, from tsconfig.base.json)
 - package.json `prepare` script (from package.json)
-- apps/api/vitest.config.ts and packages/bookings/vitest.config.ts (from packages/core/vitest.config.ts)
+- examples/booking-platform/apps/api/vitest.config.ts and examples/booking-platform/packages/bookings/vitest.config.ts (from packages/core/vitest.config.ts)
 - scripts/vendor-agent-sources.sh (from scripts/vendor-agent-sources.sh)
 - skills/add-an-effect-module/SKILL.md (from skills/add-a-capability/SKILL.md)
-- packages/bookings/src and apps/api/src (service and test shape from packages/core/src and packages/core/test)
+- examples/booking-platform/packages/bookings/src and examples/booking-platform/apps/api/src (service and test shape from packages/core/src and packages/core/test)
 
 The pnpm workspace and Turborepo setup is adapted from the same rat-stack commit:
 
 - pnpm-workspace.yaml (workspace folders, allowBuilds, and minimumReleaseAgeExclude, from pnpm-workspace.yaml)
 - turbo.json (typecheck and test tasks, from turbo.json)
-- apps/api/package.json, apps/api/tsconfig.json, packages/bookings/package.json, and packages/bookings/tsconfig.json (per-package scripts and tsconfig shape, from packages/core)
+- examples/booking-platform/apps/api/package.json, examples/booking-platform/apps/api/tsconfig.json, examples/booking-platform/packages/bookings/package.json, and examples/booking-platform/packages/bookings/tsconfig.json (per-package scripts and tsconfig shape, from packages/core)
 - .github/workflows/ci.yml (corepack pnpm setup and frozen-lockfile install, from .github/workflows/ci.yml)
 
 rat-stack is distributed under the following license:

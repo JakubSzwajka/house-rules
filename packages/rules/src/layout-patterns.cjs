@@ -3,11 +3,13 @@
 const {
   adapterImportsOption,
   caseless,
+  disjointRoots,
   escape,
   layerOptions,
   nameListOption,
   pathListOption,
   pathOption,
+  rootsOption,
   scopeName,
 } = require("./layout-option-parsers.cjs");
 const { hostOption } = require("./hosts.cjs");
@@ -70,7 +72,8 @@ const TRUSTED_CONTRACT_PACKAGES = Object.freeze([
   "@house-rules/domain",
 ]);
 // The effect modules a contract entry may import: the root barrel, its stable top-level modules, and
-// http (unstable/http on RCs). Their import graphs are unseen here; apps/api's browser-bundle test bundles each one.
+// http (unstable/http on RCs). Their import graphs are unseen here; the browser-bundle test in
+// examples/booking-platform/apps/api bundles each one.
 const EFFECT_BROWSER_MODULES =
   "(?:index|[A-Z][A-Za-z0-9]*|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js";
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u;
@@ -109,8 +112,11 @@ function patterns(options) {
   const settings = { ...DEFAULTS, ...options };
   const host = hostOption(settings.host, "layout()");
   const scope = scopeName(settings.scope);
-  const apps = pathOption(settings.appsDir, "appsDir");
-  const packages = pathOption(settings.packagesDir, "packagesDir");
+  const appRoots = rootsOption(settings.appsDir, "appsDir");
+  const packageRoots = rootsOption(settings.packagesDir, "packagesDir");
+  disjointRoots(appRoots, packageRoots);
+  const apps = appRoots.pattern;
+  const packages = packageRoots.pattern;
   const tests = pathOption(settings.testsDir, "testsDir");
   const layers = layerOptions(settings.layers ?? {}, host ? { delivery: host.deliveryLayer } : {});
   const layerRoot = (layer) => `^${apps}/[^/]+/src/${layer}(?:/|$)`;

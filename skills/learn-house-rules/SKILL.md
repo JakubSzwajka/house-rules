@@ -17,12 +17,13 @@ house-rules
 │   ├── packages/domain      @house-rules/domain: define a module (defineModule, Actor, policy, unit of work)
 │   └── packages/application @house-rules/application: one action = one contract + one handler, and delivery
 ├── wiring                   packages/migrations, packages/node-host, packages/rules
-└── additions                packages/comments (a domain addition), packages/call-audit (a plug-in)
+├── additions                packages/comments (a domain addition), packages/call-audit (a plug-in)
+└── the example              examples/booking-platform: apps/api and packages/bookings, a private showcase
 ```
 
 `@house-rules/capability` is retired; the two kits replace it.
 
-A repo made from the template has the same shape, with its own scope instead of `@hosti/`.
+A repo made from the template keeps its own code in `apps/` and `packages/`, with its own scope instead of `@example/`, and deletes `examples/`.
 
 ## 2. Read in this order
 

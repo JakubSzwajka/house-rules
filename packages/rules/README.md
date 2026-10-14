@@ -9,7 +9,7 @@ Node `>=24.21.0` only. The pins and migrations bins use `fs.globSync`, with no f
 ```json
 {
   "devDependencies": {
-    "@house-rules/rules": "0.17.0"
+    "@house-rules/rules": "0.18.0"
   }
 }
 ```
@@ -127,6 +127,15 @@ module.exports = require("@house-rules/rules/dependency-cruiser").layout({
 });
 ```
 
+`layout()` options are in [dependency-cruiser.md](docs/dependency-cruiser.md#options). Two of them name where the code lives:
+
+| Option | Default | Takes |
+| --- | --- | --- |
+| `appsDir` | `"apps"` | The folder that holds the apps, or a non-empty array of them, such as `["apps", "examples/*/apps"]` |
+| `packagesDir` | `"packages"` | The folder that holds the packages, or a non-empty array of them, such as `["packages", "examples/*/packages"]` |
+
+A segment that is exactly `*` matches one folder. Empty arrays, absolute paths, `..`, other globs, a trailing `*`, and overlapping roots throw. See [Several roots](docs/dependency-cruiser.md#several-roots).
+
 ```json
 // tsconfig.base.json
 {
@@ -156,7 +165,7 @@ module.exports = require("@house-rules/rules/dependency-cruiser").layout({
 }
 ```
 
-`configs.capability` runs `no-hand-rolled-surface` on JS, JSX, MJS, CJS, TS, TSX, MTS, and CTS files, `use-case-is-capability` on TS, TSX, MTS, and CTS files, `no-hand-run-effect` on test files: anything under a `tests/` folder or named `*.test.*` or `*.spec.*`, `no-computed-import` on production files under `packages/*/src/`, and `testing-exports-only-in-tests` on every JS and TS file, where it passes those same test files. `configs.testing` runs that last rule alone, for an app with no capabilities; `configs.capability` includes it, so spread one or the other. Its defaults match the stack layout: use-cases in `apps/*/src/use-cases/`, surfaces built only in `packages/application/`. Set the `include`, `exclude`, or `allow` option only when the layout differs. When `layout()` gets another `packagesDir`, spread `capabilityConfig({ packagesDir })`, a named export of the package root, in place of `configs.capability`, so `no-computed-import` covers the same packages.
+`configs.capability` runs `no-hand-rolled-surface` on JS, JSX, MJS, CJS, TS, TSX, MTS, and CTS files, `use-case-is-capability` on TS, TSX, MTS, and CTS files, `no-hand-run-effect` on test files: anything under a `tests/` folder or named `*.test.*` or `*.spec.*`, `no-computed-import` on production files under `packages/*/src/`, and `testing-exports-only-in-tests` on every JS and TS file, where it passes those same test files. `configs.testing` runs that last rule alone, for an app with no capabilities; `configs.capability` includes it, so spread one or the other. Its defaults match the stack layout: use-cases in `apps/*/src/use-cases/`, surfaces built only in `packages/application/`. Set the `include`, `exclude`, or `allow` option only when the layout differs. When `layout()` gets another `appsDir` or `packagesDir`, spread `capabilityConfig({ appsDir, packagesDir })`, a named export of the package root, in place of `configs.capability`, with the same values, so `no-computed-import` covers the same packages and `use-case-is-capability` the same use-cases. Both options take one path or, since 0.18.0, an array of them.
 
 `shadcn()` runs `@shadcn/lint` on JSX and TSX with the setup its adoption guide gives: five rules at `error` and `no-unknown-classes` at `warn`, with three rules off in the component folder. It adds `design-no-raw-element` at `error`, off in the component folder too. An app that already has findings starts with `severity: "warn"`, as above. `docs/shadcn.md` covers the options, the TypeScript 7 caveat, how it overlaps the design rules, and three settings that make the utility checks stricter.
 
@@ -219,7 +228,18 @@ pnpm run pack:check # Verify tarball
    0.16.1 tightens two Next host defaults: `main.ts` and `index.ts` are no longer host entry files, and `tsconfig/next.json` sets `allowJs: false`, so an app that imports a `.js` file gives it types or converts it to TypeScript.
    0.16.2 adds stable Effect import paths: the SQL fence covers `effect/sql`, the browser allowlist covers `effect/http`, and `no-hand-rolled-surface` covers `effect/ai`, `effect/rpc` and `effect/http-api`. The RC paths stay checked too.
    0.17.0 follows the split of `@house-rules/capability` into `@house-rules/domain` and `@house-rules/application`. See [Upgrading to 0.17.0](#upgrading-to-0170).
+   0.18.0 lets `appsDir` and `packagesDir` name several roots. See [Upgrading to 0.18.0](#upgrading-to-0180).
 4. Merge lockfile and config changes together.
+
+### Upgrading to 0.18.0
+
+`layout()` and `capabilityConfig()` take `appsDir` and `packagesDir` as one path, as before, or as a non-empty array of paths, such as `["apps", "examples/*/apps"]`. With one path, or none, the config is the same as in 0.17.0. Three things can now fail that passed before:
+
+- An `appsDir` or `packagesDir` with `.`, `..`, an empty segment, or a glob other than a whole `*` segment throws. Before, such a path was taken as literal folder names.
+- An `appsDir` that overlaps `packagesDir`, such as both `"src"`, throws.
+- `house-rules-migrations` reads the apps roots from `.dependency-cruiser.cjs` when that file exists. It fails if the file does not load, or has no `packages-do-not-import-apps` rule from `layout()`. Without the file, the apps root stays `apps/`.
+
+`house-rules-layout` checks package manifests in every packages root.
 
 ### Upgrading to 0.17.0
 
