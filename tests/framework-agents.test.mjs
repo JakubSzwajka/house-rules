@@ -47,11 +47,8 @@ describe("every framework package an app mounts ships an AGENTS.md", () => {
     });
   }
 
-  it("root AGENTS.md and the add-an-effect-module skill state the convention", () => {
+  it("root AGENTS.md and the house-rules skill state the convention", () => {
     assert.match(read("AGENTS.md"), /framework package an app mounts[^\n]*AGENTS\.md/u);
-    assert.match(
-      read("skills/add-an-effect-module/SKILL.md"),
-      /framework package[^\n]*AGENTS\.md/u,
-    );
+    assert.match(read("skills/house-rules/SKILL.md"), /framework package[^\n]*AGENTS\.md/u);
   });
 });

@@ -30,6 +30,15 @@ No `migrations.json` line: this package owns no tables.
 
 `UnitOfWorkService` is a support type for adapter authors: the shape `UnitOfWork.make(transaction)` returns.
 
+## Defining a module
+
+1. [ ] Name the module's permissions next to its data, as `resource:action` strings: `export const BookingPermissions = { read: "bookings:read" } as const`. Export them from `src/index.ts`. A contract's `permission` uses them.
+2. [ ] If the module has storage, put the data behind a storage port: a `Context.Service` in `storage.ts` with an error the module owns. The port answers facts. It never decides a permission, a standing or a limit.
+3. [ ] A module with storage writes two adapters. Memory, in `src/adapters/memory/`, calls `UnitOfWork.onRollback` with an undo before it changes a row. Postgres, in `src/adapters/postgres/`, calls `UnitOfWork.required` on each write, then runs plain SQL on the injected `SqlClient` and decodes each row with a `Schema`. Reads may run outside a unit; only writes need one. Export the port and both adapters from `src/index.ts`.
+4. [ ] A method that acts for a user takes an `Actor`. The module reads its own data to decide the relation, such as `relation(actor, id)` returning `"owner"` or `"none"`, so no adapter can skip the check.
+5. [ ] A module with storage has one shared store suite in `src/adapters/tests/` runs every case on both adapters: a write with no open unit fails with `NoOpenUnit`, a failure inside the unit leaves no row, and each read and write works. Policy and validation tests may run on memory only.
+6. [ ] A module with migrations is listed in `migrations.json` at the repo root, as `{ "workspace": "packages/<name>" }`. A module with no tables has no entry.
+
 ## Fixed rules
 
 - It imports no `@house-rules/*` package. `@house-rules/application` depends on it, never the other way.

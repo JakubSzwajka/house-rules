@@ -21,6 +21,7 @@ It runs the SQL migrations of many modules against one Postgres database, in one
 
 2. [ ] Add a migrate entry that runs `Migrations.script("migrations.json")` with a `SqlClient` and the Node platform layer. Run it before the app starts.
 3. [ ] In a module's Postgres tests, use `MigrationsTesting.database({ label, client })` and `Migrations.run([...])`. Each test file gets its own database.
+   For a module's shared store suite, run `Migrations.run` over the module's own `migrations/` folder and provide `sqlUnitOfWork` from `@house-rules/application` beside it. `TEST_DATABASE_ADMIN_URL` must reach a Postgres server. In this repo `docker compose up -d` starts it.
 
 No layer goes into the app runtime. It owns no tables of its own beyond the history tables.
 

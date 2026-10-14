@@ -119,7 +119,7 @@ Authorization has three steps. `Grant` is action-level: may this caller run this
 
 ## Effect
 
-Before you edit Effect code, read `effect/AGENTS.md` and the docs under `effect/ai-docs/` in any workspace package's `node_modules`, such as `packages/domain/node_modules/effect/AGENTS.md`. pnpm does not install `effect` at the repo root. `ls -d packages/*/node_modules/effect` lists the copies. For API shape and examples, read the source mirror at `.agent_sources/github.com/Effect-TS/effect`. Run `pnpm vendor:agent-sources` if it is missing. Trust the installed version over memory: this repo pins stable Effect 4.0.3, and several modules still have unstable APIs. To add a package, follow `skills/add-an-effect-module/SKILL.md`.
+Before you edit Effect code, read `effect/AGENTS.md` and the docs under `effect/ai-docs/` in any workspace package's `node_modules`, such as `packages/domain/node_modules/effect/AGENTS.md`. pnpm does not install `effect` at the repo root. `ls -d packages/*/node_modules/effect` lists the copies. For API shape and examples, read the source mirror at `.agent_sources/github.com/Effect-TS/effect`. Run `pnpm vendor:agent-sources` if it is missing. Trust the installed version over memory: this repo pins stable Effect 4.0.3, and several modules still have unstable APIs. To start an app, add a module or add a use-case, load the `house-rules` skill, `skills/house-rules/SKILL.md`. It routes to the package guides.
 
 - Expected errors are typed. Define each one as a `Schema.TaggedError` class and put it in the error channel. Never fail with a global `Error`, and never `throw` inside Effect code.
 - A package's service methods return Effects with no requirements. The service captures its own dependencies.
@@ -131,7 +131,7 @@ Before you edit Effect code, read `effect/AGENTS.md` and the docs under `effect/
 
 ## Agent adapters (MCP and CLI)
 
-An app can let agents call its use-cases over MCP, and later over a CLI. Write each capability once, in a module and a use-case, and let each adapter reach it. `docs/mcp-adapter.md` records why. To add a tool, follow `skills/add-an-mcp-tool/SKILL.md`.
+An app can let agents call its use-cases over MCP, and later over a CLI. Write each capability once, in a module and a use-case, and let each adapter reach it. `docs/mcp-adapter.md` records why. For the tool steps, load the `house-rules` skill; it routes to the application kit's `AGENTS.md`.
 
 - A service method that acts for a user takes that user as an explicit `Actor` argument. Rules about one object, such as owner or shared, live inside the module, so no adapter can skip them.
 - Every contract declares a `permission`, a `resource:action` string the owning module names, or `"public"` on purpose. The type requires it. `implement` runs the `Grant` check, then `Approval` when the contract sets `needsApproval: true`, then the handler. The gates add `Grant` and `Approval` to the capability's requirements and `Forbidden` and `ApprovalDenied` to its failures.
@@ -161,10 +161,11 @@ An app can let agents call its use-cases over MCP, and later over a CLI. Write e
 - The docs site lives in `site/`, the private workspace package `@house-rules/site`, built with Astro and Starlight. `site/README.md` says how it is built and served.
 - It is neither an app nor a package, so the layout rules do not apply to it. Its `tsconfig.json` extends the plugin's `strict.json`, not the Effect preset, because its code is plain Node. Every other check runs on it.
 - The site has two pages besides the home page: `site/src/content/docs/start/index.md`, written by hand, and `site/src/content/docs/rules/index.md`, generated from the rules table in `packages/rules/README.md` and the ESLint rules' `meta`. Never edit the rules page by hand. When you change a row of the rules table or a rule's `meta.docs.description`, run `pnpm --filter @house-rules/site generate` and commit the regenerated page in the same change. `pnpm test` fails while it is stale.
+- The site is two pages on purpose. Ask the owner before you add a third.
 - Each rule's row has the anchor `/rules/#<rule id>`, such as `/rules/#comment-discipline`. Error messages link there, so a rule's anchor never changes.
 - A page links to another page, or to a repo file, by its relative file path, such as `../rules/index.md`. ESLint checks the path, and the build turns it into a route or a GitHub URL. Never link by a hand-written site URL.
 - The site explains; this file is the law. A page that disagrees with this file is wrong.
-- To add a page, follow `skills/write-a-docs-page/SKILL.md`.
+- A page is `.md`, not `.mdx`, because ESLint checks only `.md`. Keep the frontmatter `title`, a one-sentence `description` and `sidebar.order`. Start sections with `##`: the home page links to their slugs, and `site/scripts/tests/home.test.ts` checks them.
 
 ## Prose rules
 
