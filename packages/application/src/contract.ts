@@ -33,6 +33,12 @@ export {
   failureCodeHeader,
   type Method,
 } from "./contract/endpoint.ts";
+export type {
+  BodyOf,
+  SessionGrant,
+  SessionOption,
+  SessionRole,
+} from "./contract/session.ts";
 export { InputInvalid, type InputIssue } from "./delivery/input.ts";
 export { Refused } from "./delivery/caller.ts";
 export { ApprovalDenied, Forbidden } from "./gates/gate-errors.ts";

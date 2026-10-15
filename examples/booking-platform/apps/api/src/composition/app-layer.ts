@@ -1,7 +1,9 @@
 import { PgClient } from "@effect/sql-pg";
-import { BookingPermissions, Bookings, postgresBookingStore } from "@example/bookings";
+import { Accounts } from "@example/accounts";
+import { Activity } from "@example/activity";
+import { Bookings, postgresBookingStore } from "@example/bookings";
 import { memoryUnitOfWork } from "@house-rules/domain";
-import { CurrentActor, Grant, sqlUnitOfWork } from "@house-rules/application";
+import { CurrentActor, sqlUnitOfWork } from "@house-rules/application";
 import { CallAudit, memoryAuditStore } from "@house-rules/call-audit";
 import { Comments, CommentTargets, CommentTargetsUnavailable } from "@house-rules/comments";
 import { Identity } from "@house-rules/identity";
@@ -10,11 +12,7 @@ import { Config, Effect, Layer, Option, Redacted } from "effect";
 import type { SqlClient } from "effect/sql/SqlClient";
 import type { SqlError } from "effect/sql/SqlError";
 import { callNotes, requestLogWatch } from "./request-log.js";
-import { type SignInMode, signInConfig, signInLayer, visitorMode } from "./sign-in.js";
-
-export const visitorGrant: Layer.Layer<Grant> = Grant.layerFromPermissions([
-  BookingPermissions.read,
-]);
+import { localSignIn, type SignInSettings, signInConfig, signInLayer } from "./sign-in.js";
 
 export const commentTargets = Layer.effect(
   CommentTargets,
@@ -35,7 +33,7 @@ const auditOptions = {
   who: Effect.serviceOption(CurrentActor).pipe(
     Effect.map(Option.match({ onNone: () => null, onSome: (actor) => actor.id })),
   ),
-  policy: CallAudit.presets.agentAware,
+  policy: CallAudit.presets.strict,
 };
 
 const demoBookings = [
@@ -47,34 +45,44 @@ const memoryModules = Layer.mergeAll(
     Layer.provide(commentTargets),
     Layer.provideMerge(Bookings.fromRecords(demoBookings)),
   ),
-  requestLogWatch(callNotes).pipe(
-    Layer.provideMerge(CallAudit.layer(auditOptions).pipe(Layer.provideMerge(memoryAuditStore()))),
+  Activity.layer.pipe(
+    Layer.provideMerge(
+      requestLogWatch(callNotes).pipe(
+        Layer.provideMerge(
+          CallAudit.layer(auditOptions).pipe(Layer.provideMerge(memoryAuditStore())),
+        ),
+      ),
+    ),
   ),
   Identity.layerMemory,
   Party.layerMemory,
   memoryUnitOfWork,
-  visitorGrant,
 );
 
-export const memoryAppLayer = (mode: SignInMode = visitorMode) =>
-  signInLayer(mode).pipe(Layer.provideMerge(memoryModules));
+export const memoryAppLayer = (settings: SignInSettings = localSignIn) =>
+  signInLayer(settings, Accounts.layerMemory).pipe(Layer.provideMerge(memoryModules));
 
 export const postgresAppLayer = <E>(
   database: Layer.Layer<SqlClient, E>,
-  mode: SignInMode = visitorMode,
+  settings: SignInSettings = localSignIn,
 ) =>
-  signInLayer(mode).pipe(
+  signInLayer(settings, Accounts.layerPostgres).pipe(
     Layer.provideMerge(
       Layer.mergeAll(
         Comments.layerPostgres(commentOptions).pipe(
           Layer.provide(commentTargets),
           Layer.provideMerge(Bookings.layer.pipe(Layer.provide(postgresBookingStore))),
         ),
-        requestLogWatch(callNotes).pipe(Layer.provideMerge(CallAudit.layerPostgres(auditOptions))),
+        Activity.layer.pipe(
+          Layer.provideMerge(
+            requestLogWatch(callNotes).pipe(
+              Layer.provideMerge(CallAudit.layerPostgres(auditOptions)),
+            ),
+          ),
+        ),
         Identity.layerPostgres,
         Party.layerPostgres,
         sqlUnitOfWork,
-        visitorGrant,
       ),
     ),
     Layer.provide(database),
@@ -89,11 +97,11 @@ export const postgresClient = (url: Redacted.Redacted<string>): Layer.Layer<SqlC
   PgClient.layer({ url });
 
 export const appLayer = Layer.unwrap(
-  Effect.orDie(Config.all({ database: databaseUrl, mode: signInConfig })).pipe(
-    Effect.map(({ database, mode }) =>
+  Effect.orDie(Config.all({ database: databaseUrl, signIn: signInConfig })).pipe(
+    Effect.map(({ database, signIn }) =>
       Option.match(database, {
-        onNone: () => memoryAppLayer(mode),
-        onSome: (url) => postgresAppLayer(postgresClient(url), mode),
+        onNone: () => memoryAppLayer(signIn),
+        onSome: (url) => postgresAppLayer(postgresClient(url), signIn),
       }),
     ),
   ),

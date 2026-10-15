@@ -7,7 +7,10 @@ import {
 import { afterAll, expect, it } from "@effect/vitest";
 import { composition, Grant, toFetchHandler } from "@house-rules/application";
 import { Context, Effect, Layer } from "effect";
-import { visitorRoutes } from "../delivery/http/routes.js";
+import { defineApi } from "@house-rules/application/contract";
+import { mount } from "@house-rules/application";
+import { api } from "../delivery/http/api.js";
+import { showBooking } from "../use-cases/show-booking.js";
 import { bookingViews } from "../composition/views.js";
 
 const bookings = Bookings.fromRecords([
@@ -17,9 +20,17 @@ const reader = Grant.layerFromPermissions([BookingPermissions.read]);
 const brokenStore = Layer.succeed(BookingStore, {
   find: () =>
     Effect.fail(new BookingStoreUnavailable({ message: "The Booking could not be read." })),
+  listByOwner: () => Effect.die("not used"),
   insert: () => Effect.die("not used"),
   transition: () => Effect.die("not used"),
 });
+
+const readRoutes = mount(
+  defineApi({ prefix: "/api" }, { showBooking: api.endpoints.showBooking }),
+  {
+    showBooking,
+  },
+);
 
 const mountWith = (layer: Layer.Layer<Bookings | Grant>) => {
   const app = composition({
@@ -27,7 +38,7 @@ const mountWith = (layer: Layer.Layer<Bookings | Grant>) => {
     caller: () => Effect.succeed(Context.empty()),
     views: bookingViews,
   });
-  const api = toFetchHandler(app, { routes: visitorRoutes });
+  const api = toFetchHandler(app, { routes: readRoutes });
   return { api, dispose: () => api.dispose().then(app.dispose) };
 };
 
@@ -47,7 +58,7 @@ const get = (api: (request: Request) => Promise<Response>, id: string) =>
     ),
   );
 
-it.effect("answers 200 for a visitor without revealing the ownerId", () =>
+it.effect("answers 200 without revealing the ownerId", () =>
   Effect.gen(function* answersOk() {
     expect(yield* get(open.api, "b-1")).toEqual({
       status: 200,

@@ -1,4 +1,12 @@
 import type {
+  AccountEmailTaken,
+  AccountInputInvalid,
+  AccountsIssuerConfigInvalid,
+  AccountStoreUnavailable,
+  InvalidCredentials,
+} from "@example/accounts";
+import type { ActivityUnavailable } from "@example/activity";
+import type {
   BookingAlreadyCancelled,
   BookingAlreadyExists,
   BookingNotFound,
@@ -12,8 +20,12 @@ import type {
   CommentTargetNotFound,
   CommentTargetsUnavailable,
 } from "@house-rules/comments";
-import type { PersonNotFound, PersonStoreUnavailable } from "@house-rules/party";
-import type { DevSignInOff } from "@example/dev-sign-in";
+import type {
+  PersonInputInvalid,
+  PersonNotFound,
+  PersonStoreUnavailable,
+  PersonUpdateRefused,
+} from "@house-rules/party";
 import type { SqlError } from "effect/sql/SqlError";
 
 export const commentViews = {
@@ -48,6 +60,18 @@ export const personViews = {
     (_error: PersonNotFound) => "That person was not found.",
     { exposeCode: true },
   ),
+  PersonInputInvalid: problemView(
+    400,
+    "invalid_input",
+    (_error: PersonInputInvalid) => "A display name has 1 to 120 characters.",
+    { exposeCode: true },
+  ),
+  PersonUpdateRefused: problemView(
+    403,
+    "forbidden",
+    (_error: PersonUpdateRefused) => "You may rename only yourself.",
+    { exposeCode: true },
+  ),
   PersonStoreUnavailable: problemView(
     503,
     "unavailable",
@@ -55,19 +79,50 @@ export const personViews = {
   ),
 };
 
-export const devSignInViews = {
-  DevSignInOff: problemView(
-    404,
-    "not_found",
-    (_error: DevSignInOff) => "Dev sign-in is off on this server.",
+export const accountViews = {
+  InvalidCredentials: problemView(
+    401,
+    "invalid_credentials",
+    (_error: InvalidCredentials) => "That email and password do not match an account.",
     { exposeCode: true },
+  ),
+  AccountInputInvalid: problemView(
+    400,
+    "invalid_input",
+    (error: AccountInputInvalid) => error.message,
+    { exposeCode: true },
+  ),
+  AccountEmailTaken: problemView(
+    409,
+    "taken",
+    (_error: AccountEmailTaken) => "That email already has an account.",
+    { exposeCode: true },
+  ),
+  AccountStoreUnavailable: problemView(
+    503,
+    "unavailable",
+    (_error: AccountStoreUnavailable) => "Accounts are unavailable right now.",
+  ),
+  AccountsIssuerConfigInvalid: problemView(
+    503,
+    "unavailable",
+    (_error: AccountsIssuerConfigInvalid) => "Sign-in is not set up correctly on this server.",
+  ),
+};
+
+export const activityViews = {
+  ActivityUnavailable: problemView(
+    503,
+    "unavailable",
+    (_error: ActivityUnavailable) => "Your activity is unavailable right now.",
   ),
 };
 
 export const bookingViews = {
   ...commentViews,
   ...personViews,
-  ...devSignInViews,
+  ...accountViews,
+  ...activityViews,
   BookingNotFound: problemView(
     404,
     "not_found",

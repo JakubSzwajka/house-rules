@@ -22,6 +22,13 @@ export const postgresBookingStore: Layer.Layer<BookingStore, never, SqlClient> =
         sql`select id, guest_name as "guestName", owner_id as "ownerId", status
           from booking where id = ${id}`,
     });
+    const listOwned = SqlSchema.findAll({
+      Request: Schema.Struct({ ownerId: Schema.String, limit: Schema.Finite }),
+      Result: Booking,
+      execute: ({ ownerId, limit }) =>
+        sql`select id, guest_name as "guestName", owner_id as "ownerId", status
+          from booking where owner_id = ${ownerId} order by id collate "C" limit ${limit}`,
+    });
     // Returns the id when the row was written, and no row when the id is taken.
     const insertOne = SqlSchema.findAll({
       Request: Booking,
@@ -43,6 +50,10 @@ export const postgresBookingStore: Layer.Layer<BookingStore, never, SqlClient> =
         findOne(id).pipe(
           Effect.map((found) => (found._tag === "Some" ? found.value : undefined)),
           Effect.mapError(unavailable("The Booking could not be read")),
+        ),
+      listByOwner: (ownerId, limit) =>
+        listOwned({ ownerId, limit }).pipe(
+          Effect.mapError(unavailable("The owner's Bookings could not be read")),
         ),
       insert: Effect.fn("BookingStore.postgres.insert")(function* insert(booking: Booking) {
         yield* UnitOfWork.required;

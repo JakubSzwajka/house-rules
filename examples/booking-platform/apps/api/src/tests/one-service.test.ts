@@ -57,7 +57,26 @@ it.effect("one handler serves the built page and the API", () =>
     expect((yield* send(handler, "/.env", html)).status).toBe(404);
     expect((yield* send(handler, "/assets/gone.js")).status).toBe(404);
 
-    const booking = yield* send(handler, "/api/bookings/demo", html);
+    const json = { "content-type": "application/json" };
+    const credentials = JSON.stringify({
+      email: "one@example.test",
+      password: "a long enough secret",
+    });
+    const signUp = yield* send(handler, "/api/sign-up", {
+      method: "POST",
+      headers: { ...json, origin: "https://booking.example" },
+      body: JSON.stringify({ ...JSON.parse(credentials), displayName: "One" }),
+    });
+    expect(signUp.status).toBe(201);
+    const signIn = yield* send(handler, "/api/token", {
+      method: "POST",
+      headers: json,
+      body: credentials,
+    });
+    const { token } = JSON.parse(signIn.body) as { token: string };
+    const booking = yield* send(handler, "/api/bookings/demo", {
+      headers: { ...html.headers, authorization: `Bearer ${token}` },
+    });
     expect(booking.status).toBe(200);
     expect(JSON.parse(booking.body)).toEqual({
       id: "demo",

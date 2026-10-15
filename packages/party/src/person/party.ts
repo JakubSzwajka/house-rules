@@ -23,6 +23,13 @@ export const makeParty = (store: PersonStore["Service"]) => {
     Effect.map((hex) => ActorId.make(hex)),
   );
   const relationOf = (actor: Actor, id: ActorId) => (actor.id === id ? "self" : "other");
+  const get = Effect.fn("Party.get")(function* (actor: Actor, id: ActorId) {
+    if (!personPolicy.allows(relationOf(actor, id), PartyPermissions.read))
+      return yield* new PersonNotFound();
+    const person = yield* store.find(id);
+    if (person === undefined) return yield* new PersonNotFound();
+    return person;
+  });
   return {
     createPerson: Effect.fn("Party.createPerson")(function* (input: {
       readonly displayName: string;
@@ -42,12 +49,9 @@ export const makeParty = (store: PersonStore["Service"]) => {
       if (!(yield* store.insertIfFree(person))) return yield* new PersonAlreadyExists();
       return person;
     }),
-    get: Effect.fn("Party.get")(function* (actor: Actor, id: ActorId) {
-      if (!personPolicy.allows(relationOf(actor, id), PartyPermissions.read))
-        return yield* new PersonNotFound();
-      const person = yield* store.find(id);
-      if (person === undefined) return yield* new PersonNotFound();
-      return person;
+    get,
+    me: Effect.fn("Party.me")(function* (actor: Actor) {
+      return yield* get(actor, actor.id);
     }),
     rename: Effect.fn("Party.rename")(function* (actor: Actor, id: ActorId, displayName: string) {
       yield* UnitOfWork.required;

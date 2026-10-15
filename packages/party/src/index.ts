@@ -14,5 +14,6 @@ export {
   PersonStoreUnavailable,
   PersonUpdateRefused,
   renamePerson,
+  showMe,
   showPerson,
 } from "./contract.js";

@@ -1,63 +1,129 @@
+import { listMyActivityContract } from "@example/activity/contract";
 import type { Person } from "@house-rules/party/contract";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AccountPanel } from "./account-panel.js";
+import { AuditDock } from "./audit-dock.js";
 import { BookPanel } from "./book-panel.js";
 import { BookingPanel } from "./booking-panel.js";
-import { EditCommentPanel } from "./edit-comment-panel.js";
-import { RequestLog } from "./request-log.js";
-import { clientsFor, clockNow, type LoggedCall } from "./session.js";
-import { SignInPanel } from "./sign-in-panel.js";
+import { Button } from "./components/ui/button.js";
+import { MyBookingsPanel } from "./my-bookings-panel.js";
+import { ProblemAlert } from "./problem-alert.js";
+import { ProfilePanel } from "./profile-panel.js";
+import { clientsFor } from "./session.js";
+import { useCall } from "./use-call.js";
 
 export function App() {
-  const token = useRef<string | undefined>(undefined);
-  const counter = useRef(0);
-  const [calls, setCalls] = useState<ReadonlyArray<LoggedCall>>([]);
+  const [pageCalls, setPageCalls] = useState(0);
   const [me, setMe] = useState<Person | null>(null);
-  const [bookingId, setBookingId] = useState("b-1");
+  // The cookie is the only session, so the page asks the server who it is before it draws a card.
+  const [restoring, setRestoring] = useState(true);
+  const [opened, setOpened] = useState<string | null>(null);
+  const [bookings, setBookings] = useState(0);
 
   const clients = useMemo(
     () =>
-      clientsFor(
-        () => token.current,
-        (entry) => {
-          counter.current += 1;
-          const logged = { ...entry, at: clockNow(), key: counter.current };
-          setCalls((previous) => [logged, ...previous].slice(0, 200));
-        },
-      ),
+      clientsFor((entry) => {
+        // The dock's own read would otherwise ask again after every answer, forever.
+        if (entry.name !== listMyActivityContract.name) setPageCalls((count) => count + 1);
+      }),
     [],
   );
 
-  return (
-    <main>
-      <header>
-        <h1>Booking example</h1>
-        <p>The booking example, end to end: dev sign-in, a Person, bookings and comments.</p>
-      </header>
-      <div className="columns">
-        <div className="screens">
-          <SignInPanel
-            clients={clients}
-            me={me}
-            onToken={(value) => {
-              token.current = value;
-            }}
-            onMe={setMe}
-          />
-          {me !== null && (
-            <>
-              <BookPanel member={clients.member} onBooked={setBookingId} />
-              <BookingPanel
-                key={`${me.id}/${bookingId}`}
-                member={clients.member}
-                me={me}
-                bookingId={bookingId}
-              />
-              <EditCommentPanel member={clients.member} />
-            </>
-          )}
-        </div>
-        <RequestLog calls={calls} onClear={() => setCalls([])} />
+  useEffect(() => {
+    let current = true;
+    clients.member
+      .showMe({})
+      .then(
+        (person) => {
+          if (current) setMe(person);
+        },
+        // A 401 means no session. Any other failure also leaves the sign-in card, which can retry.
+        () => undefined,
+      )
+      .finally(() => {
+        if (current) setRestoring(false);
+      });
+    return () => {
+      current = false;
+    };
+  }, [clients]);
+
+  const signOutCall = useCall();
+
+  const signOut = () => {
+    // On a failure the cookie may still be live, so only a successful sign-out clears the person.
+    signOutCall.run(
+      () => clients.accounts.signOut({}),
+      () => {
+        setOpened(null);
+        setMe(null);
+      },
+    );
+  };
+
+  const log = (
+    <AuditDock
+      key={me?.id ?? "signed-out"}
+      member={me === null ? null : clients.member}
+      pageCalls={pageCalls}
+    />
+  );
+
+  if (restoring) {
+    return (
+      <div className="flex min-h-svh flex-col">
+        <main className="flex flex-1 items-center justify-center p-6">
+          <h1 className="sr-only">Stays</h1>
+          <p role="status" className="text-sm text-muted-foreground">
+            Loading…
+          </p>
+        </main>
+        {log}
       </div>
-    </main>
+    );
+  }
+
+  if (me === null) {
+    return (
+      <div className="flex min-h-svh flex-col">
+        <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
+          <h1 className="sr-only">Stays</h1>
+          <AccountPanel clients={clients} onMe={setMe} />
+        </main>
+        {log}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-svh">
+      <header className="border-b">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
+          <h1 className="font-semibold">Stays</h1>
+          <ProfilePanel member={clients.member} me={me} onMe={setMe} onSignOut={signOut} />
+        </div>
+      </header>
+      {signOutCall.problem !== null && (
+        <div className="mx-auto grid max-w-5xl gap-3 px-6 pt-6">
+          <ProblemAlert problem={signOutCall.problem} />
+          <div>
+            <Button variant="outline" size="sm" onClick={signOut}>
+              Try signing out again
+            </Button>
+          </div>
+        </div>
+      )}
+      <main className="mx-auto grid max-w-5xl gap-6 p-6 md:grid-cols-2">
+        <BookPanel member={clients.member} onBooked={() => setBookings((count) => count + 1)} />
+        <MyBookingsPanel key={`${me.id}/${bookings}`} member={clients.member} onOpen={setOpened} />
+      </main>
+      {log}
+      <BookingPanel
+        member={clients.member}
+        me={me}
+        bookingId={opened}
+        onClose={() => setOpened(null)}
+      />
+    </div>
   );
 }

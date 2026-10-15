@@ -20,5 +20,5 @@ export const mcpResourceOf = (appOrigin: string, issuer: string): ProtectedResou
 
 export const mcpResource = Config.all({
   appOrigin: Config.String("APP_ORIGIN").pipe(Config.withDefault("")),
-  issuer: Config.String("AUTH_ISSUER").pipe(Config.withDefault("")),
+  issuer: Config.String("MCP_AUTH_ISSUER").pipe(Config.withDefault("")),
 }).pipe(Config.map(({ appOrigin, issuer }) => mcpResourceOf(appOrigin, issuer)));

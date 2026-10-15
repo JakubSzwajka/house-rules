@@ -34,6 +34,7 @@ export class Party extends defineModule<
       actor: Actor,
       id: ActorId,
     ) => Effect.Effect<Person, PersonNotFound | PersonStoreUnavailable>;
+    readonly me: (actor: Actor) => Effect.Effect<Person, PersonNotFound | PersonStoreUnavailable>;
     readonly rename: (
       actor: Actor,
       id: ActorId,

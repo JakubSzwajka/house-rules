@@ -7,27 +7,46 @@ import { formatAccessLine, logRequests } from "../access-log.js";
 
 afterAll(() => handler.dispose().then(app.dispose));
 
-const read = (id: string, requestId: string) =>
+const credentials = { email: "log@example.test", password: "a long enough secret" };
+const post = (path: string, body: unknown) =>
+  handler(
+    new Request(`https://booking.example/api${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://booking.example" },
+      body: JSON.stringify(body),
+    }),
+  );
+
+const token = Effect.promise(() =>
+  post("/sign-up", { ...credentials, displayName: "Log" })
+    .then(() => post("/token", credentials))
+    .then((response) => response.json())
+    .then((body: { token: string }) => body.token),
+);
+
+const read = (id: string, requestId: string, bearer: string) =>
   new Request(`https://booking.example/api/bookings/${id}`, {
-    headers: { "x-request-id": requestId },
+    headers: { "x-request-id": requestId, authorization: `Bearer ${bearer}` },
   });
 
 it.live("the CallWatch notes each call's capability, actor and outcome under its request id", () =>
   Effect.gen(function* notes() {
-    yield* Effect.promise(() => web(read("demo", "req-note-ok")));
-    expect(callNotes.take("req-note-ok")).toEqual({
-      capability: "show_booking",
-      actor: null,
-      outcome: "ok",
-    });
-    yield* Effect.promise(() => web(read("missing", "req-note-missing")));
+    const bearer = yield* token;
+    yield* Effect.promise(() => web(read("demo", "req-note-ok", bearer)));
+    const note = callNotes.take("req-note-ok");
+    expect(note).toMatchObject({ capability: "show_booking", outcome: "ok" });
+    expect(note?.actor).toMatch(/^[0-9a-f]+$/u);
+    yield* Effect.promise(() => web(read("missing", "req-note-missing", bearer)));
     expect(callNotes.take("req-note-missing")).toMatchObject({ outcome: "BookingNotFound" });
   }),
 );
 
 it.live("the access log joins the note and leaves nothing behind", () =>
   Effect.gen(function* joins() {
-    const response = yield* logRequests(web, callNotes)(read("demo", "req-note-joined"));
+    const response = yield* logRequests(
+      web,
+      callNotes,
+    )(read("demo", "req-note-joined", yield* token));
     expect(response.status).toBe(200);
     expect(callNotes.take("req-note-joined")).toBeUndefined();
   }),

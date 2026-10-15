@@ -39,7 +39,7 @@ The template keeps one module per package. [Bookings](../../../../../examples/bo
 
 The [example guide](../../../../../examples/booking-platform/README.md) maps each framework concept to the file that shows it. The example lives in `examples/booking-platform`, laid out like a regular project; a new project deletes `examples/` and keeps its own code in `apps/` and `packages/`.
 
-`Actor` is an id, and `yield* CurrentActor`, from the application kit, `@house-rules/application`, returns the Actor for one request. Delivery provides `CurrentActor`; module methods take the Actor explicitly. `Bookings.create(actor, input)` sets the owner, and `relation(actor, id)` returns `"owner"` or `"none"`. Legacy rows remain unowned. The example API still lets visitors read bookings, without sending the owner id. See the [domain kit guide](../../../../../packages/domain/README.md) for options, plain-data presets and adapter statics, and the [application kit guide](../../../../../packages/application/README.md) for contracts, gates and delivery.
+`Actor` is an id, and `yield* CurrentActor`, from the application kit, `@house-rules/application`, returns the Actor for one request. Delivery provides `CurrentActor`; module methods take the Actor explicitly. `Bookings.create(actor, input)` sets the owner, and `relation(actor, id)` returns `"owner"` or `"none"`. Legacy rows remain unowned. The example API has no visitor reads: members sign in with an account, and the HTTP output never sends the owner id. See the [domain kit guide](../../../../../packages/domain/README.md) for options, plain-data presets and adapter statics, and the [application kit guide](../../../../../packages/application/README.md) for contracts, gates and delivery.
 
 ## What happens on commit
 

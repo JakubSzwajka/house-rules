@@ -7,6 +7,10 @@ export class BookingStore extends Context.Service<
   BookingStore,
   {
     readonly find: (id: string) => Effect.Effect<Booking | undefined, BookingStoreUnavailable>;
+    readonly listByOwner: (
+      ownerId: string,
+      limit: number,
+    ) => Effect.Effect<ReadonlyArray<Booking>, BookingStoreUnavailable>;
     readonly insert: (
       booking: Booking,
     ) => Effect.Effect<boolean, BookingStoreUnavailable | NoOpenUnit>;

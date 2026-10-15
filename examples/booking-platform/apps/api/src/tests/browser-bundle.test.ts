@@ -37,10 +37,11 @@ it.effect(
       const inputs = yield* bundle(
         [
           'export * from "@example/bookings/contract";',
-          'export * from "@example/dev-sign-in/contract";',
+          'export * from "@example/accounts/contract";',
+          'export * from "@example/activity/contract";',
           'export { toHttpClient, toPromiseClient, endpoint } from "@house-rules/application/contract";',
           'export { Actor, ActorId, UnitOfWorkFailed } from "@house-rules/domain/contract";',
-          'export { api, devApi } from "./src/delivery/http/api.ts";',
+          'export { api, publicApi } from "./src/delivery/http/api.ts";',
           'import "./src/delivery/web/main.tsx";',
         ].join("\n"),
       );

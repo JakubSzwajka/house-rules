@@ -37,6 +37,16 @@ it.layer(world)("Party", (test) => {
       expect(yield* party.get(grace, ada.id)).toEqual(created);
     }),
   );
+  test.effect("me reads the actor's own person, and fails when the actor has none", () =>
+    Effect.gen(function* () {
+      const party = yield* Party;
+      const id = ActorId.make("me-myself");
+      const me = Actor.make({ id });
+      expect(yield* Effect.flip(party.me(me))).toBeInstanceOf(PersonNotFound);
+      const created = yield* UnitOfWork.atomic(party.createPerson({ id, displayName: "Me" }));
+      expect(yield* party.me(me)).toEqual(created);
+    }),
+  );
   test.effect("generates a new id when none is given", () =>
     Effect.gen(function* () {
       const party = yield* Party;

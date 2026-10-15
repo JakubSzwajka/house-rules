@@ -8,6 +8,14 @@ export const memoryBookingStore = (records: readonly Booking[] = []): Layer.Laye
     const rows = new Map<string, Booking>(records.map((booking) => [booking.id, { ...booking }]));
     return BookingStore.of({
       find: (id) => Effect.sync(() => rows.get(id)),
+      listByOwner: (ownerId, limit) =>
+        Effect.sync(() =>
+          [...rows.values()]
+            .filter((booking) => booking.ownerId === ownerId)
+            .sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0))
+            .slice(0, limit)
+            .map((booking) => ({ ...booking })),
+        ),
       insert: Effect.fn("BookingStore.memory.insert")(function* insert(booking: Booking) {
         yield* UnitOfWork.required;
         if (rows.has(booking.id)) return false;

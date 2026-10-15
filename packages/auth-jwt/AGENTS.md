@@ -15,7 +15,7 @@ It fills the `Authenticator` slot from `@house-rules/application`. `verify(token
    ```
 
 2. [ ] Add a view for `AuthJwtConfigInvalid` to the composition's views. The layer fails with it when the issuer is not an absolute http(s) URL, the JWKS URL (explicit, or derived from the issuer) is not https, `clockTolerance` is not a finite, non-negative number, or the Clerk key is not a `pk_test_` or `pk_live_` key.
-3. [ ] In the caller, read the token with `tokenFrom(incoming, "bearer")` or `tokenFrom(incoming, { cookie: "__session" })`, call `verify`, and turn `TokenRejected` into a 401 `Refused`.
+3. [ ] In the caller, read the token with `tokenFrom`, call `verify`, and turn `TokenRejected` into a 401 `Refused`. One place: `tokenFrom(incoming, "bearer")` or `tokenFrom(incoming, { cookie: "__session" })`. Several places, tried in order, first token wins: `tokenFrom(incoming, ["bearer", { cookie: "__session" }])`. List the bearer header first, so a script's header beats a browser's cookie.
 4. [ ] In tests, sign tokens with `AuthJwtTesting.keys` and pass its `jwks` to the layer, so no test touches the network.
 
 No `migrations.json` line.
@@ -37,9 +37,9 @@ No `migrations.json` line.
 - `AuthJwtLocal.make({ issuer?, audience?, ttlSeconds? })` is an `Effect` of `{ issuer, audience?, jwks, issue, layer }`. It makes a fresh ES256 key pair in memory per call, so tokens die with the process and one issuer's tokens fail another's layer.
 - `issue({ sub, name?, ...claims })` is an `Effect<string>`. It sets `iss`, `iat`, `exp` (now plus `ttlSeconds`) and `aud` after the given claims, so a caller cannot extend a token. Time comes from `Clock`.
 - `layer` is a `Layer<Authenticator>` on the same verify code as `AuthJwt.layer`, with the local key set injected.
-- `AuthJwtLocal.layer(options)` provides both `Authenticator` and the `AuthJwtLocalIssuer` service, whose `issue` a dev sign-in use-case can yield.
+- `AuthJwtLocal.layer(options)` provides both `Authenticator` and the `AuthJwtLocalIssuer` service, whose `issue` a test or demo sign-in use-case can yield.
 - Defaults: issuer `https://dev-issuer.invalid`, no audience, `ttlSeconds` 3600. A bad issuer or a `ttlSeconds` that is not a positive whole number fails with `AuthJwtConfigInvalid`.
-- The app keeps it behind an explicit switch, such as `DEV_ISSUER=1`, and refuses to start with it when `NODE_ENV=production`.
+- The app keeps it behind an explicit switch, such as `DEMO_ISSUER=1`, and refuses to start with it when `NODE_ENV=production`.
 
 ## Fixed rules
 

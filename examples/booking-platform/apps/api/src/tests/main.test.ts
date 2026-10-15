@@ -1,13 +1,13 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { handler, openApi, web } from "../main.js";
+import { handler, openApi } from "../main.js";
 import { app } from "../composition/index.js";
 
 afterAll(() => handler.dispose().then(app.dispose));
 
-const get = (path: string, headers: Record<string, string> = {}) =>
+const send = (path: string, init: RequestInit = {}) =>
   Effect.promise(() =>
-    web(new Request(`https://booking.example${path}`, { headers }) as Request),
+    handler(new Request(`https://booking.example${path}`, init) as Request),
   ).pipe(
     Effect.flatMap((response) =>
       Effect.promise((): Promise<unknown> => response.json()).pipe(
@@ -15,6 +15,35 @@ const get = (path: string, headers: Record<string, string> = {}) =>
       ),
     ),
   );
+
+const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
+  send(path, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "https://booking.example", ...headers },
+    body: JSON.stringify(body),
+  });
+
+const credentials = { email: "main@example.test", password: "a long enough secret" };
+const token = Effect.gen(function* signedIn() {
+  yield* post("/api/sign-up", { ...credentials, displayName: "Main" });
+  const signedInAnswer = yield* post("/api/token", credentials);
+  return (signedInAnswer.body as { token: string }).token;
+});
+
+const get = (path: string, headers: Record<string, string> = {}) =>
+  Effect.gen(function* authorized() {
+    return yield* send(path, { headers: { authorization: `Bearer ${yield* token}`, ...headers } });
+  });
+
+it.effect("sign-up and sign-in answer on /api without a token; the rest needs one", () =>
+  Effect.gen(function* publicRoutes() {
+    expect((yield* token).length).toBeGreaterThan(0);
+    const anonymous = yield* send("/api/bookings/demo");
+    expect(anonymous).toMatchObject({ status: 401, body: { error: { code: "token_missing" } } });
+    const wrong = yield* post("/api/sign-in", { ...credentials, password: "wrong password" });
+    expect(wrong).toMatchObject({ status: 401, body: { error: { code: "invalid_credentials" } } });
+  }),
+);
 
 it.effect("GET /api/bookings/:id maps BookingNotFound through the app's view", () =>
   Effect.gen(function* notFound() {

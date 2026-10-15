@@ -5,6 +5,7 @@ import { BookingStore } from "./storage.js";
 import type { BookingStoreUnavailable } from "./booking/store-unavailable.js";
 import { type BookingRelation, bookingPolicy, relationOf } from "./booking/booking-policy.js";
 import { BookingPermissions } from "./booking/permissions.js";
+import { myBookingsLimit } from "./booking/list-my-bookings.js";
 import {
   type Booking,
   BookingAlreadyCancelled,
@@ -17,6 +18,9 @@ export class Bookings extends defineModule<
   Bookings,
   {
     readonly get: (id: string) => Effect.Effect<Booking, BookingNotFound | BookingStoreUnavailable>;
+    readonly listMine: (
+      actor: Actor,
+    ) => Effect.Effect<ReadonlyArray<Booking>, BookingStoreUnavailable>;
     readonly create: (
       actor: Actor,
       input: NewBooking,
@@ -44,6 +48,7 @@ export class Bookings extends defineModule<
         }
         return booking;
       }),
+      listMine: (actor: Actor) => store.listByOwner(actor.id, myBookingsLimit),
       create: Effect.fn("Bookings.create")(function* create(actor: Actor, input: NewBooking) {
         yield* UnitOfWork.required;
         const booking: Booking = {

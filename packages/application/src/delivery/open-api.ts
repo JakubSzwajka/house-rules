@@ -1,6 +1,7 @@
 import { JsonSchema, Schema, SchemaAST, SchemaRepresentation } from "effect";
 import { type AnyContract, failureSchemaOf } from "../contract/contract.ts";
 import { type EndpointShape, failureCodeHeader } from "../contract/endpoint.ts";
+import { bodySchemaOf } from "../contract/session.ts";
 import { requestIdHeader } from "../call/request-id.ts";
 import { checkPrefixOwner } from "./api-prefix.ts";
 import { inputParts } from "./open-api-input.ts";
@@ -176,7 +177,10 @@ export const toOpenApi = (
 ): OpenApiDocument => {
   checkPrefixOwner(endpoints, options.prefix, "toOpenApi");
   const converted = jsonSchemas(
-    endpoints.flatMap((shape) => [shape.contract.input, shape.contract.output]),
+    endpoints.flatMap((shape) => [
+      shape.contract.input,
+      bodySchemaOf(shape.contract, shape.session),
+    ]),
   );
   const ids = operationIds(endpoints);
   const used = new Set<string>();

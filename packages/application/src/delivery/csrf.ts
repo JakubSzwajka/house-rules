@@ -13,7 +13,7 @@ export const isHttpOrigin = (origin: string): boolean =>
   ["http:", "https:"].includes(new URL(origin).protocol) &&
   new URL(origin).origin === origin;
 
-const sourceOrigin = (request: Request): string | null => {
+export const sourceOrigin = (request: Request): string | null => {
   const origin = request.headers.get("origin");
   if (origin !== null) return origin;
   const referer = request.headers.get("referer");
@@ -27,8 +27,8 @@ export const csrfRefusal = (
   origins: ReadonlyArray<string> | undefined,
 ): Refused | undefined => {
   if (route.csrf !== "check" || !writeMethods.has(route.method)) return undefined;
-  // A browser attaches cookies to a cross-site write by itself, whoever the caller is.
-  if (!request.headers.has("cookie")) return undefined;
+  // A session route checks with no cookie too, so another site cannot sign a visitor in or out.
+  if (!request.headers.has("cookie") && route.session === "none") return undefined;
   const allowed = origins ?? [new URL(request.url).origin];
   const source = sourceOrigin(request);
   // An opaque source, such as a sandboxed frame or a data: URL, is never the app's own.

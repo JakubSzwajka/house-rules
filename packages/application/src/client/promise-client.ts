@@ -3,6 +3,8 @@ import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 import type { Api, ApiEndpoints } from "../contract/api.ts";
 import type { AnyContract } from "../contract/contract.ts";
 import type { EndpointShape, Method } from "../contract/endpoint.ts";
+import type { BodyOf, SessionRole } from "../contract/session.ts";
+import { requestIdHeader, requestIdOf } from "../call/request-id-header.ts";
 import { onBaseOrigin, type RequestBase, requestBaseOf } from "./base-origin.ts";
 import { callOf, type ClientFailureCode, HttpFailure, type HttpFailureOf } from "./http-client.ts";
 
@@ -13,6 +15,7 @@ export type CallEntry = Readonly<{
   status: number;
   ms: number;
   code?: string;
+  requestId?: string;
 }>;
 
 export type PromiseClientOptions = Readonly<{
@@ -22,12 +25,15 @@ export type PromiseClientOptions = Readonly<{
   fetch?: typeof globalThis.fetch;
 }>;
 
-export type PromiseCall<C extends AnyContract> = (
+export type PromiseCall<C extends AnyContract, Session extends SessionRole = "none"> = (
   input: C["input"]["Type"],
-) => Promise<C["output"]["Type"]>;
+) => Promise<BodyOf<C, Session>>;
 
 export type PromiseClientOf<Endpoints extends ApiEndpoints> = {
-  readonly [Key in keyof Endpoints]: PromiseCall<Endpoints[Key]["contract"]>;
+  readonly [Key in keyof Endpoints]: PromiseCall<
+    Endpoints[Key]["contract"],
+    Endpoints[Key]["session"]
+  >;
 };
 
 export type PromiseFailureOf<E extends EndpointShape> = HttpFailureOf<
@@ -47,7 +53,10 @@ const promiseCallOf = (
   const sameOrigin = (url: string | URL): URL | undefined => onBaseOrigin(String(url), base());
   const name = shape.contract.name;
   return (input: unknown): Promise<unknown> => {
-    const seen = { path: `${prefix}${shape.path}`, status: 0 };
+    const seen: { path: string; status: number; requestId?: string } = {
+      path: `${prefix}${shape.path}`,
+      status: 0,
+    };
     const fetch = (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
       const href = url instanceof Request ? url.url : String(url);
       const sent = sameOrigin(href);
@@ -62,6 +71,9 @@ const promiseCallOf = (
       return (options.fetch ?? globalThis.fetch)(url, { ...init, redirect: "manual" }).then(
         (response) => {
           seen.status = response.status;
+          // Only a plain id goes into the log: the header is the server's word, so it is checked like one.
+          const requestId = requestIdOf(response.headers.get(requestIdHeader));
+          if (requestId !== null) seen.requestId = requestId;
           return response;
         },
       );
@@ -110,6 +122,7 @@ const promiseCallOf = (
           status: seen.status,
           ms: ended - started,
           ...(code === undefined ? {} : { code }),
+          ...(seen.requestId === undefined ? {} : { requestId: seen.requestId }),
         }),
       );
       return yield* exit;

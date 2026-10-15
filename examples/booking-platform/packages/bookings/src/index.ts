@@ -4,6 +4,11 @@ export { Bookings } from "./facade.js";
 export { bookBookingContract } from "./booking/book-booking.js";
 export { type BookingRelation, bookingPolicy } from "./booking/booking-policy.js";
 export { cancelBookingContract } from "./booking/cancel-booking.js";
+export {
+  listMyBookingsContract,
+  MyBookings,
+  myBookingsLimit,
+} from "./booking/list-my-bookings.js";
 export { type BookingPermission, BookingPermissions } from "./booking/permissions.js";
 export { showBookingContract } from "./booking/show-booking.js";
 export { BookingStore } from "./storage.js";

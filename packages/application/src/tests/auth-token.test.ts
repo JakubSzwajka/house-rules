@@ -36,6 +36,19 @@ describe("tokenFrom", () => {
     );
   });
 
+  it("tries a list of places in order: the first that holds a token wins", () => {
+    const both = incoming({ authorization: "Bearer from-header", cookie: "sid=from-cookie" });
+    const order = ["bearer", { cookie: "sid" }] as const;
+    expect(tokenFrom(both, order)).toEqual(Option.some("from-header"));
+    expect(tokenFrom(incoming({ cookie: "sid=from-cookie" }), order)).toEqual(
+      Option.some("from-cookie"),
+    );
+    // A malformed bearer header holds no token, so the cookie is read.
+    const malformed = incoming({ authorization: "Bearer a b", cookie: "sid=c" });
+    expect(tokenFrom(malformed, order)).toEqual(Option.some("c"));
+    expect(tokenFrom(incoming({}), order)).toEqual(Option.none());
+  });
+
   it("does not read a cookie when the source is bearer", () => {
     expect(tokenFrom(incoming({ cookie: "__session=tok" }), "bearer")).toEqual(Option.none());
   });

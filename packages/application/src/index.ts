@@ -55,6 +55,12 @@ export {
   failureCodeHeader,
   type Method,
 } from "./contract/endpoint.ts";
+export type {
+  BodyOf,
+  SessionGrant,
+  SessionOption,
+  SessionRole,
+} from "./contract/session.ts";
 export {
   type ClientCall,
   type ClientFailureCode,
@@ -85,6 +91,7 @@ export {
   type FetchHandlerOptions,
   toFetchHandler,
 } from "./delivery/fetch-handler.ts";
+export type { SessionOptions } from "./delivery/session-cookie.ts";
 export { decodeInput, InputInvalid, type InputIssue, type InputSource } from "./delivery/input.ts";
 export type { ApprovalOption, Mountable, Outcome } from "./delivery/invoke.ts";
 export {
@@ -126,7 +133,7 @@ export {
   protectedResourceMetadataPath,
 } from "./auth/protected-resource.ts";
 export { TokenRejected, type TokenRejectedReason } from "./auth/token-rejected.ts";
-export { type TokenSource, tokenFrom } from "./auth/token-source.ts";
+export { type TokenPlace, type TokenSource, tokenFrom } from "./auth/token-source.ts";
 export { type Api, type ApiEndpoints, type ApiOptions, defineApi } from "./contract/api.ts";
 export {
   type CallEntry,

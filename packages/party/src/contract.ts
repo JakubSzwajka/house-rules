@@ -29,6 +29,14 @@ export const showPerson = defineContract("show_person", {
   permission: PartyPermissions.read,
   annotations: { readOnly: true },
 });
+export const showMe = defineContract("show_me", {
+  description: "Show the signed-in person: their id and display name.",
+  input: Schema.Struct({}),
+  output: Person,
+  failure: Schema.Union([PersonNotFound, PersonStoreUnavailable]),
+  permission: PartyPermissions.read,
+  annotations: { readOnly: true },
+});
 export const renamePerson = defineContract("rename_person", {
   description: "Change your own display name.",
   input: Schema.Struct({ id: ActorId, displayName: Schema.String }),

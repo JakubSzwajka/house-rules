@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import { addComment } from "../../../use-cases/comments/add-comment.js";
 import { bookBooking } from "../../../use-cases/book-booking.js";
 import { mcpRequest, openMcpSession } from "./mcp-client.js";
-import { bearer, incomingWith, signedInApp } from "./signed-in.js";
+import { bearer, incomingWith, mcpMemberCaller, signedInApp } from "./signed-in.js";
 
 const target = { kind: "booking", id: "b-1" };
 
@@ -20,13 +20,15 @@ const toolCall = (mcp: Handler, session: Record<string, string>, name: string, a
 
 const aliceBooksAndComments = Effect.gen(function* setUp() {
   const mounted = yield* signedInApp;
-  const incoming = incomingWith(yield* mounted.webToken("alice"));
+  // Alice's MCP identity writes, so her MCP session later reads her own comment.
+  const incoming = incomingWith(yield* mounted.mcpToken("alice"));
+  const options = { caller: mcpMemberCaller };
   const booked = yield* Effect.promise(() =>
-    call(mounted.app, bookBooking, { id: "b-1", guestName: "Ada" }, incoming),
+    call(mounted.app, bookBooking, { id: "b-1", guestName: "Ada" }, incoming, options),
   );
   expect(booked.ok).toBe(true);
   const commented = yield* Effect.promise(() =>
-    call(mounted.app, addComment, { target, body: "Late check-in, please." }, incoming),
+    call(mounted.app, addComment, { target, body: "Late check-in, please." }, incoming, options),
   );
   if (!commented.ok) return yield* Effect.die("Alice could not comment");
   return { ...mounted, aliceId: commented.value.authorId };

@@ -6,9 +6,10 @@ export default defineConfig({
     env: {
       DATABASE_URL: "",
       APP_ORIGIN: "",
-      AUTH_ISSUER: "",
-      AUTH_AUDIENCE: "",
-      DEV_ISSUER: "",
+      MCP_AUTH_ISSUER: "",
+      ACCOUNTS_ISSUER: "",
+      ACCOUNTS_SIGNING_KEY: "",
+      NODE_ENV: "",
       WEB_ROOT: "",
     },
   },

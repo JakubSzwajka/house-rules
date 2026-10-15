@@ -13,6 +13,7 @@ import {
   pathParamNames,
   writeMethods,
 } from "../contract/endpoint.ts";
+import { type BodyOf, bodySchemaOf, type SessionRole } from "../contract/session.ts";
 import { onBaseOrigin, pathStaysOn, type RequestBase, requestBaseOf } from "./base-origin.ts";
 
 export type ClientFailureCode<Code extends string> = Code | "Unknown";
@@ -25,10 +26,14 @@ export class HttpFailure extends Schema.TaggedError<HttpFailure>()("HttpFailure"
 
 export type HttpFailureOf<Code extends string> = HttpFailure & { readonly code: Code };
 
-export type ClientCall<C extends AnyContract, Code extends string = never> = (
+export type ClientCall<
+  C extends AnyContract,
+  Code extends string = never,
+  Session extends SessionRole = "none",
+> = (
   input: C["input"]["Type"],
 ) => Effect.Effect<
-  C["output"]["Type"],
+  BodyOf<C, Session>,
   HttpFailureOf<ClientFailureCode<Code>> | HttpClientError.HttpClientError,
   HttpClient.HttpClient
 >;
@@ -36,7 +41,8 @@ export type ClientCall<C extends AnyContract, Code extends string = never> = (
 export type HttpClientOf<Endpoints extends ReadonlyArray<EndpointShape>> = {
   readonly [E in Endpoints[number] as E["contract"]["name"]]: ClientCall<
     E["contract"],
-    E["codes"][number]
+    E["codes"][number],
+    E["session"]
   >;
 };
 
@@ -85,7 +91,8 @@ export const callOf = (shape: EndpointShape, options: CallOptions) => {
   const params = pathParamNames(shape);
   const json = Schema.toCodecJson(contract.input) as unknown as Codec;
   const strings = Schema.toCodecStringTree(contract.input) as unknown as Codec;
-  const output = Schema.toCodecJson(contract.output) as unknown as Codec;
+  // A session issue route answers without the token, which went into the cookie.
+  const output = Schema.toCodecJson(bodySchemaOf(contract, shape.session)) as unknown as Codec;
   const write = writeMethods.has(method);
   // Nothing went out: the same status 0 a network failure has.
   const unsent = (reason: string) =>

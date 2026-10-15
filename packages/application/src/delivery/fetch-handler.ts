@@ -21,6 +21,12 @@ import {
 import type { MountCheck } from "./mount-check.ts";
 import type { Route } from "./route.ts";
 import { rawInput } from "./route-input.ts";
+import {
+  checkSession,
+  clearedCookie,
+  issueSession,
+  type SessionOptions,
+} from "./session-cookie.ts";
 import { defaultViews, internalErrorView, safeViewOf, type View, type ViewTable } from "./views.ts";
 
 export const defaultMaxBodyBytes = 1024 * 1024;
@@ -37,6 +43,7 @@ export type FetchHandlerOptions<A, CA, Routes, AdapterViews> = Readonly<{
   origins?: ReadonlyArray<string>;
   cors?: CorsOptions;
   maxBodyBytes?: number;
+  session?: SessionOptions;
 }>;
 
 const publicHeaders = (route: Route, view: View): View["headers"] => {
@@ -85,6 +92,7 @@ export const toFetchHandler = <
     }
   }
   const cors = checkCors(options.cors);
+  const session = checkSession(options.session, options.routes);
   const serve = (route: Route) => {
     const arrayKeys = arrayKeysOf(route.capability.contract.input);
     return HttpRouter.add(route.method, `${options.prefix ?? ""}${route.path}`, (request) =>
@@ -111,19 +119,30 @@ export const toFetchHandler = <
                 // Plain HTTP has no way to ask the human, so approval fails closed.
                 defaultApproval: Approval.denyAll,
                 views,
-                encodeOutput: true,
+                // An issue route encodes after the token is taken out for the cookie.
+                encodeOutput: route.session !== "issue",
               }).pipe(withRequestId(requestId)),
             failed: (cause) => layerFailure(views, cause),
             closed: closedFailure(views),
           });
-          return outcome.ok
-            ? respond(route.status, outcome.value, requestId)
-            : respond(
-                outcome.view.status,
-                outcome.view.body,
-                requestId,
-                publicHeaders(route, outcome.view),
-              );
+          // A sign-out clears the cookie whatever the capability answered.
+          const cleared =
+            route.session === "clear" && session !== undefined
+              ? { "set-cookie": clearedCookie(session, web.success) }
+              : {};
+          if (!outcome.ok) {
+            const headers = { ...publicHeaders(route, outcome.view), ...cleared };
+            return respond(outcome.view.status, outcome.view.body, requestId, headers);
+          }
+          if (route.session !== "issue") {
+            return respond(route.status, outcome.value, requestId, cleared);
+          }
+          // checkSession refused this mount already; never fall back to a body with the token.
+          if (session === undefined) return yield* Effect.die("session route without a cookie");
+          const issued = yield* issueSession(session, route, web.success, outcome.value);
+          return issued === undefined
+            ? respond(internalErrorView.status, internalErrorView.body, requestId)
+            : respond(route.status, issued.body, requestId, { "set-cookie": issued.setCookie });
         });
         // One boundary for the whole request: a defect anywhere is the fixed 500 with this request id.
         return yield* answer.pipe(

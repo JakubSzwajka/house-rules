@@ -1,97 +1,130 @@
 import type { PublicBooking } from "@example/bookings/contract";
 import type { Comment } from "@house-rules/comments/contract";
 import type { Person } from "@house-rules/party/contract";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { Button } from "./components/ui/button.js";
+import { Input } from "./components/ui/input.js";
+import { Label } from "./components/ui/label.js";
+import { Separator } from "./components/ui/separator.js";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "./components/ui/sheet.js";
+import { EditCommentPanel } from "./edit-comment-panel.js";
+import { ProblemAlert } from "./problem-alert.js";
 import type { Member } from "./session.js";
+import { StatusBadge } from "./status-badge.js";
 import { useCall } from "./use-call.js";
 
-type Props = Readonly<{ member: Member; me: Person; bookingId: string }>;
+type Props = Readonly<{
+  member: Member;
+  me: Person;
+  bookingId: string | null;
+  onClose: () => void;
+}>;
 
-export function BookingPanel({ member, me, bookingId }: Props) {
-  const [id, setId] = useState(bookingId);
+const target = (bookingIdOf: string) => ({ kind: "booking", id: bookingIdOf });
+
+export function BookingPanel({ member, me, bookingId, onClose }: Props) {
+  return (
+    <Sheet open={bookingId !== null} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent>
+        {bookingId !== null && (
+          <BookingDetail key={bookingId} member={member} me={me} id={bookingId} />
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+type DetailProps = Readonly<{ member: Member; me: Person; id: string }>;
+
+function BookingDetail({ member, me, id }: DetailProps) {
   const [booking, setBooking] = useState<PublicBooking | null>(null);
   const [comments, setComments] = useState<ReadonlyArray<Comment> | null>(null);
-  const [draft, setDraft] = useState("Late check-in, around 22:00.");
+  const [draft, setDraft] = useState("");
   const { problem, run } = useCall();
 
-  const target = (bookingIdOf: string) => ({ kind: "booking", id: bookingIdOf });
+  const listComments = useCallback(
+    () =>
+      run(
+        () => member.listComments({ target: target(id), page: { size: 50 } }),
+        (list) => setComments(list.items),
+      ),
+    [member, run, id],
+  );
 
-  const listFor = (bookingIdOf: string) =>
+  useEffect(() => {
     run(
-      () => member.listComments({ target: target(bookingIdOf), page: { size: 20 } }),
-      (list) => setComments(list.items),
-    );
-
-  const open = (event: FormEvent) => {
-    event.preventDefault();
-    setBooking(null);
-    setComments(null);
-    run(
-      () => member.showBooking({ id: id.trim() }),
+      () => member.showBooking({ id }),
       (found) => {
         setBooking(found);
-        listFor(found.id);
+        listComments();
+      },
+    );
+  }, [member, run, id, listComments]);
+
+  const add = (event: FormEvent) => {
+    event.preventDefault();
+    run(
+      () => member.addComment({ target: target(id), body: draft }),
+      () => {
+        setDraft("");
+        listComments();
       },
     );
   };
 
-  const add = (event: FormEvent) => {
-    event.preventDefault();
-    if (booking === null) return;
-    run(
-      () => member.addComment({ target: target(booking.id), body: draft }),
-      () => listFor(booking.id),
-    );
-  };
-
-  const remove = (comment: Comment) =>
-    run(
-      () => member.removeComment({ id: comment.id }),
-      () => listFor(comment.target.id),
-    );
-
   return (
-    <section>
-      <h2>3. Open a booking and its comments</h2>
-      <form onSubmit={open}>
-        <label>
-          Booking id <input value={id} onChange={(event) => setId(event.target.value)} />
-        </label>
-        <button type="submit">Open</button>
-      </form>
-      {booking !== null && (
-        <div>
-          <p>
-            <strong>{booking.id}</strong>: {booking.guestName}, {booking.status}
-          </p>
-          {comments !== null && (
-            <ul className="comments">
-              {comments.map((comment) => (
-                <li key={comment.id}>
-                  <span>{comment.body}</span>
-                  <small>
-                    {comment.authorId === me.id ? "you" : comment.authorId} · id{" "}
-                    <code>{comment.id}</code>
-                  </small>
-                  {comment.authorId === me.id && (
-                    <button type="button" onClick={() => remove(comment)}>
-                      Remove
-                    </button>
-                  )}
-                </li>
-              ))}
-              {comments.length === 0 && <li className="empty">No comments yet.</li>}
-            </ul>
-          )}
-          <form onSubmit={add}>
-            <label>
-              Comment <input value={draft} onChange={(event) => setDraft(event.target.value)} />
-            </label>
-            <button type="submit">Add comment</button>
+    <>
+      <SheetHeader>
+        <SheetTitle>{booking?.guestName ?? "Booking"}</SheetTitle>
+        <SheetDescription>A stay you booked, and the notes on it.</SheetDescription>
+        {booking !== null && (
+          <div>
+            <StatusBadge status={booking.status} />
+          </div>
+        )}
+      </SheetHeader>
+      <div className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-4 pb-4">
+        <Separator />
+        <h3 className="text-sm font-medium">Comments</h3>
+        {comments?.length === 0 && (
+          <p className="text-sm text-muted-foreground">No comments yet.</p>
+        )}
+        {comments !== null && comments.length > 0 && (
+          <ul className="grid gap-3">
+            {comments.map((comment) => (
+              <EditCommentPanel
+                key={comment.id}
+                member={member}
+                comment={comment}
+                mine={comment.authorId === me.id}
+                onChanged={listComments}
+              />
+            ))}
+          </ul>
+        )}
+        {booking !== null && (
+          <form className="grid gap-2" onSubmit={add}>
+            <Label htmlFor="comment-draft">Add a comment</Label>
+            <div className="flex gap-2">
+              <Input
+                id="comment-draft"
+                placeholder="Late check-in, around 22:00."
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                required
+              />
+              <Button type="submit">Add</Button>
+            </div>
           </form>
-        </div>
-      )}
-      {problem !== null && <p className="problem">{problem}</p>}
-    </section>
+        )}
+        <ProblemAlert problem={problem} />
+      </div>
+    </>
   );
 }

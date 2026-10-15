@@ -1,27 +1,37 @@
 import type { AnyContract } from "./contract.ts";
+import { checkSessionPlace, type SessionOption, type SessionRole } from "./session.ts";
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-export type EndpointOptions<Code extends string = never> = Readonly<{
+export type EndpointOptions<
+  Code extends string = never,
+  Session extends "issue" | "clear" = "issue" | "clear",
+> = Readonly<{
   status?: number;
   codes?: ReadonlyArray<Code>;
+  session?: Session;
 }>;
 
 export type EndpointShape<
   C extends AnyContract = AnyContract,
   Code extends string = string,
+  Session extends SessionRole = SessionRole,
 > = Readonly<{
   contract: C;
   method: Method;
   path: `/${string}`;
   status: number;
   codes: ReadonlyArray<Code>;
+  session: Session;
 }>;
 
 export type Endpoint<
   C extends AnyContract = AnyContract,
   Code extends string = string,
-> = EndpointShape<C, Code> & Readonly<{ _tag: "Endpoint" }>;
+  Session extends SessionRole = SessionRole,
+> = EndpointShape<C, Code, Session> & Readonly<{ _tag: "Endpoint" }>;
+
+type SessionOf<S> = [S] extends [never] ? "none" : S;
 
 export const failureCodeHeader = "x-failure-code";
 
@@ -56,17 +66,27 @@ export const parseAt = (
   return { method: method as Method, path: path as `/${string}` };
 };
 
-export const endpoint = <C extends AnyContract, const Code extends string = never>(
+export const endpoint = <
+  C extends AnyContract,
+  const Code extends string = never,
+  const Session extends SessionOption<C> = never,
+>(
   contract: C,
   at?: `${Method} /${string}`,
-  options: EndpointOptions<Code> = {},
-): Endpoint<C, NoInfer<Code>> => ({
-  _tag: "Endpoint",
-  contract,
-  ...parseAt(contract.name, at),
-  status: options.status ?? 200,
-  codes: checkedCodes(contract.name, options.codes ?? []),
-});
+  options: EndpointOptions<Code, Session> = {},
+): Endpoint<C, NoInfer<Code>, SessionOf<Session>> => {
+  const place = parseAt(contract.name, at);
+  const session = (options.session ?? "none") as SessionOf<Session>;
+  checkSessionPlace(contract.name, place.method, session, contract.output);
+  return {
+    _tag: "Endpoint",
+    contract,
+    ...place,
+    status: options.status ?? 200,
+    codes: checkedCodes(contract.name, options.codes ?? []),
+    session,
+  };
+};
 
 const paramSegment = /^:([A-Za-z_][A-Za-z0-9_]*)$/u;
 

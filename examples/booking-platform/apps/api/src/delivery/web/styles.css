@@ -1,157 +1,125 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* shadcn's one-line form, (&:is(.dark *)), does not parse in @eslint/css; this block form is the same variant. */
+@custom-variant dark {
+  &:is(.dark *) {
+    @slot;
+  }
+}
+
 :root {
-  font-family: system-ui, sans-serif;
-  line-height: 1.4;
-  color: #1d2329;
-  background: #f6f7f9;
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
-body {
-  margin: 0;
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 }
 
-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1rem 1.5rem 3rem;
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
 
-h1 {
-  margin-bottom: 0.25rem;
-}
-
-h2 {
-  font-size: 1.05rem;
-  margin: 0 0 0.75rem;
-}
-
-.columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
-  gap: 1.5rem;
-  align-items: start;
-}
-
-section,
-aside {
-  background: #fff;
-  border: 1px solid #d9dde3;
-  border-radius: 6px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-}
-
-aside {
-  position: sticky;
-  top: 1rem;
-}
-
-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  align-items: end;
-  margin-bottom: 0.5rem;
-}
-
-label {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.85rem;
-  color: #4a5561;
-}
-
-input {
-  font: inherit;
-  padding: 0.3rem 0.45rem;
-  border: 1px solid #b8c0ca;
-  border-radius: 4px;
-  min-width: 10rem;
-}
-
-button {
-  font: inherit;
-  padding: 0.3rem 0.8rem;
-  border: 1px solid #2f5d8a;
-  border-radius: 4px;
-  background: #2f5d8a;
-  color: #fff;
-  cursor: pointer;
-}
-
-button[type="button"] {
-  background: #fff;
-  color: #2f5d8a;
-}
-
-dl {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0.25rem 1rem;
-}
-
-dd {
-  margin: 0;
-}
-
-code {
-  font-size: 0.85em;
-}
-
-.comments {
-  list-style: none;
-  padding: 0;
-}
-
-.comments li {
-  display: flex;
-  gap: 0.75rem;
-  align-items: baseline;
-  padding: 0.35rem 0;
-  border-bottom: 1px solid #eceff2;
-}
-
-.comments small {
-  color: #6b7682;
-}
-
-.empty {
-  color: #6b7682;
-}
-
-.problem {
-  color: #a1261d;
-  font-weight: 600;
-}
-
-.done {
-  color: #1f6b35;
-}
-
-.hint {
-  color: #6b7682;
-  font-size: 0.85rem;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-  margin-top: 0.75rem;
-}
-
-th,
-td {
-  text-align: left;
-  padding: 0.25rem 0.4rem;
-  border-bottom: 1px solid #eceff2;
-}
-
-tr.failed td {
-  color: #a1261d;
-}
-
-@media (max-width: 800px) {
-  .columns {
-    grid-template-columns: 1fr;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }

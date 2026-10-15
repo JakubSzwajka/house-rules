@@ -154,7 +154,7 @@ it.effect("onCall reports every call, with its failure code", () =>
     yield* Effect.promise(() => client.findBookings({ by: "guest", guest: "Ada" }));
     yield* failureOf(() => client.showBooking({ id: "missing" }));
     yield* failureOf(() => client.crash({}));
-    expect(entries.map(({ ms: _ms, ...entry }) => entry)).toEqual([
+    expect(entries.map(({ ms: _ms, requestId: _id, ...entry }) => entry)).toEqual([
       {
         name: "show_booking",
         method: "GET",
