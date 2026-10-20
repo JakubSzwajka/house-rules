@@ -96,19 +96,21 @@ const suite = <R, E, E2>(store: StoreUnderTest<R, E, E2>) => {
           expect(rows).toMatchObject([
             {
               capability: "read_trip",
+              target: "read_trip",
               viewerId: "user_ana",
               outcome: "TripNotFound",
               kind: "read",
-              targetId: "missing",
+              targetId: null,
               channel: "mcp:test-client",
               requestId: null,
             },
             {
               capability: "rename_trip",
+              target: "rename_trip",
               viewerId: "user_ana",
               outcome: "success",
               kind: "write",
-              targetId: "t-1",
+              targetId: null,
               channel: "web",
               requestId: "req-1",
             },

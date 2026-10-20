@@ -10,7 +10,7 @@ import type {
 } from "./binding/binding.js";
 import { makeIdentity } from "./binding/bindings.js";
 import { ActorResolver } from "./sign-in/actor-resolver.js";
-import { identityCaller } from "./sign-in/caller.js";
+import { identityWho } from "./sign-in/caller.js";
 import { FirstSignIn } from "./sign-in/first-sign-in.js";
 import { BindingStore } from "./storage.js";
 
@@ -65,6 +65,5 @@ export class Identity extends defineModule<
 
   static readonly refuse = FirstSignIn.refuse;
 
-  // `override` because every function already has a legacy `caller` property.
-  static override readonly caller = identityCaller;
+  static readonly who = identityWho;
 }

@@ -3,6 +3,7 @@ import { type Duration, type Effect, Schema } from "effect";
 
 export type AuditEntry = Readonly<{
   capability: string;
+  target: string;
   permission: string;
   viewerId: string | null;
   outcome: string;
@@ -15,6 +16,7 @@ export type AuditEntry = Readonly<{
 
 export const AuditRow = Schema.Struct({
   capability: Schema.String,
+  target: Schema.String,
   permission: Schema.String,
   viewerId: Schema.NullOr(Schema.String),
   outcome: Schema.String,
@@ -33,6 +35,7 @@ export type ReadRowsOptions = Readonly<{
 }>;
 
 export class AuditReadFailed extends Schema.TaggedError<AuditReadFailed>()("AuditReadFailed", {
+  kind: Schema.tag("unavailable"),
   message: Schema.String,
   cause: Schema.optional(Schema.Defect()),
 }) {}
@@ -40,6 +43,7 @@ export class AuditReadFailed extends Schema.TaggedError<AuditReadFailed>()("Audi
 export class AuditStoreUnavailable extends Schema.TaggedError<AuditStoreUnavailable>()(
   "AuditStoreUnavailable",
   {
+    kind: Schema.tag("unavailable"),
     message: Schema.String,
     cause: Schema.optional(Schema.Defect()),
   },

@@ -1,48 +1,7 @@
-# No hand-rolled surface rule
+# no-hand-rolled-surface
 
-Rule ID: `house-rules/no-hand-rolled-surface`
+Describe actions with domain defineNode, bind them once, choose app entries and expose those entries through defineWay. The application router builds the HTTP endpoints and MCP toolkit. Apps do not call Tool.make, Rpc.make or HttpApiEndpoint methods by hand.
 
-An MCP tool, an RPC, or an HTTP API endpoint is a surface an outside caller reaches. Build it from a capability's contract, so the name, the description, the input schema and the read and destructive flags are written once. The rule reports a surface built by hand outside the allowed paths. Enable it with `plugin.configs.capability`, which runs it on JavaScript and TypeScript files alike.
+The rule resolves actual Effect imports, including named aliases, namespace imports and the stable/RC paths. A local object with the same spelling is not an Effect builder. The default implementation exemption is packages/application only; a consumer can supply its documented allow list without broadening the plugin preset.
 
-```ts
-import { toTool } from "@house-rules/application";
-import { Tool } from "effect/ai";
-
-export const ShowBooking = toTool(showBooking.contract, {
-  title: "Show a booking",
-  idempotent: true,
-  openWorld: false,
-}); // passes
-
-export const Hand = Tool.make("show_booking", { parameters: Input }); // reported
-```
-
-The message is `Tool.make builds a surface by hand. Define the action once with defineContract and implement from @house-rules/application, then build the surface from its contract with toTool.`
-
-## What the rule checks
-
-It reports a call to:
-
-| Call | Imported from |
-| --- | --- |
-| `Tool.make` | `effect/ai`, or `effect/ai/Tool` as a namespace or as `make`; RC `effect/unstable/ai` paths too |
-| `Rpc.make` | `effect/rpc`, or `effect/rpc/Rpc`; RC `effect/unstable/rpc` paths too |
-| `HttpApiEndpoint.make`, `.get`, `.post`, `.put`, `.patch`, `.delete`, `.head`, `.options` | `effect/http-api`, or its `HttpApiEndpoint` module; RC `effect/unstable/http*` paths too |
-
-It follows aliases (`import { Tool as T }`), barrel namespaces (`Ai.Tool.make`), casts, and `.call`, `.apply` and `.bind`. It resolves names through scopes, so a local `Tool` or a type-only import is not reported. `Toolkit.make`, `RpcGroup.make` and `HttpApiGroup.make` are not reported: they group surfaces that came from contracts.
-
-## Options
-
-```ts
-type Options = [
-  {
-    allow?: string[]; // default: ["packages/application/**"]
-  },
-];
-```
-
-Globs are relative to ESLint's working directory. The application package builds surfaces with `Tool.make` inside `toTool`, so it is allowed by default. Setting `allow` replaces the default.
-
-## Limits
-
-`@house-rules/application` has `toTool` only. An app that needs an RPC or an HTTP endpoint today adds the projection to the application package, or allows its own adapter folder with a reason.
+Enable configs.nodes or nodesConfig({appsDir,packagesDir}). It checks the same JS/TS extensions as recommended. Toolkit.make is not one of the banned calls. no-hand-run-effect and testing-export restrictions remain separate checks in the nodes preset.

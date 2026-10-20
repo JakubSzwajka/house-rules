@@ -1,41 +1,27 @@
+import { defineNode } from "@house-rules/domain";
+import { answer, webRequest } from "./delivery-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import {
-  defineApi,
-  defineContract,
-  endpoint,
-  implement,
-  mount,
-  route,
-  toFetchHandler,
-  toOpenApi,
-} from "../index.ts";
-import {
-  cancelBooking,
-  crash,
-  findBookings,
-  makeApp,
-  renameGuest,
-  showBooking,
-} from "./delivery-fixtures.ts";
+import { defineApi, endpoint, admit, toFetchHandler, defineEntry, toOpenApi } from "../index.ts";
+import { cancelBooking, crash, findBookings, makeApp, showBooking } from "./delivery-fixtures.ts";
 
 const api = defineApi(
   { prefix: "/api" },
   {
-    showBooking: endpoint(showBooking.contract, "GET /bookings/:id", { codes: ["not_found"] }),
-    findBookings: endpoint(findBookings.contract, "GET /bookings"),
-    crash: endpoint(crash.contract),
+    showBooking: endpoint(showBooking, "GET /bookings/:id", { codes: ["not_found"] }),
+    findBookings: endpoint(findBookings, "GET /bookings"),
+    crash: endpoint(crash),
   },
 );
 
 const t = makeApp();
 afterAll(t.dispose);
 
-it("an endpoint with no address takes the one route() takes with none", () => {
-  const plain = route(crash);
+it("an endpoint with no address defaults to POST and its entry name", () => {
+  const plain = endpoint(crash);
   expect(api.endpoints.crash).toMatchObject({ method: "POST", path: "/crash", status: 200 });
   expect({ method: plain.method, path: plain.path }).toEqual({ method: "POST", path: "/crash" });
-  expect(endpoint(crash.contract, "GET /crashes", { status: 202 })).toMatchObject({
+  expect(endpoint(crash, "GET /crashes", { status: 202 })).toMatchObject({
     method: "GET",
     path: "/crashes",
     status: 202,
@@ -55,8 +41,8 @@ it("an API list refuses two entries on one address or one contract", () => {
     defineApi(
       {},
       {
-        one: endpoint(showBooking.contract, "GET /bookings/:id"),
-        two: endpoint(cancelBooking.contract, "GET /bookings/:key"),
+        one: endpoint(showBooking, "GET /bookings/:id"),
+        two: endpoint(cancelBooking, "GET /bookings/:key"),
       },
     ),
   ).toThrow(/two and one both answer GET \/bookings\/:key/u);
@@ -64,17 +50,17 @@ it("an API list refuses two entries on one address or one contract", () => {
     defineApi(
       {},
       {
-        one: endpoint(showBooking.contract, "GET /bookings/:id"),
-        two: endpoint(showBooking.contract, "GET /show/:id"),
+        one: endpoint(showBooking, "GET /bookings/:id"),
+        two: endpoint(showBooking, "GET /show/:id"),
       },
     ),
-  ).toThrow(/two and one both name the contract show_booking/u);
+  ).toThrow(/two and one both name the entry show_booking/u);
   expect(() =>
     defineApi(
       {},
       {
-        one: endpoint(showBooking.contract, "GET /bookings/:id"),
-        two: endpoint(cancelBooking.contract, "POST /bookings/:id"),
+        one: endpoint(showBooking, "GET /bookings/:id"),
+        two: endpoint(cancelBooking, "POST /bookings/:id"),
       },
     ),
   ).not.toThrow();
@@ -146,86 +132,93 @@ it("an endpoint path that is not plain segments is refused", () => {
     "GET /x\u0000",
   ] as const;
   for (const at of refused) {
-    expect(() => defineApi({}, { one: endpoint(showBooking.contract, at) }), at).toThrow(
+    expect(() => defineApi({}, { one: endpoint(showBooking, at) }), at).toThrow(
       /is not "\/<plain segments>"/u,
     );
   }
   for (const at of ["GET /", "GET /a-b/c_d/:id/e.f/~g", "GET /.well-known/x"] as const) {
-    expect(() => defineApi({}, { one: endpoint(showBooking.contract, at) }), at).not.toThrow();
+    expect(() => defineApi({}, { one: endpoint(showBooking, at) }), at).not.toThrow();
   }
 });
 
-it("mount puts the API prefix in every path and takes status and codes from the endpoint", () => {
-  const routes = mount(api, { showBooking, findBookings, crash });
-  expect(
-    routes.map(({ method, path, status, codes }) => ({ method, path, status, codes })),
-  ).toEqual([
-    { method: "GET", path: "/api/bookings/:id", status: 200, codes: ["not_found"] },
-    { method: "GET", path: "/api/bookings", status: 200, codes: [] },
-    { method: "POST", path: "/api/crash", status: 200, codes: [] },
-  ]);
-  expect(routes.map((each) => each.capability)).toEqual([showBooking, findBookings, crash]);
+it.effect("a way supplies the API prefix once and serves shared endpoint status and codes", () =>
+  Effect.gen(function* () {
+    const fixture = makeApp({ endpoints: Object.values(api.endpoints) });
+    const response = yield* answer(
+      fixture.router,
+      webRequest("https://app.example/api/bookings/b-1", {
+        headers: { authorization: "Bearer tok-ada" },
+      }),
+    );
+    expect(response.status).toBe(200);
+    const doubled = yield* Effect.promise(() =>
+      fixture.router(
+        webRequest("https://app.example/api/api/bookings/b-1", {
+          headers: { authorization: "Bearer tok-ada" },
+        }),
+      ),
+    );
+    expect(doubled.status).toBe(404);
+    expect(api.endpoints.showBooking.entry).toBe(showBooking);
+    yield* Effect.promise(fixture.dispose);
+  }),
+);
+it("a router takes no second entry-to-capability mapping", () => {
+  const invalid = () => {
+    // @ts-expect-error Entries are already bound in NodeRuntime; there is no route map.
+    return toFetchHandler(t.app, { routes: { showBooking, findBookings } });
+  };
+  expect(typeof invalid).toBe("function");
 });
-
-it("mount needs exactly one capability per key, each with that endpoint's contract", () => {
-  // @ts-expect-error crash has no capability.
-  expect(() => mount(api, { showBooking, findBookings })).toThrow(/crash has no capability/u);
-  expect(() =>
-    // @ts-expect-error renameGuest is not in the API list.
-    mount(api, { showBooking, findBookings, crash, renameGuest }),
-  ).toThrow(/renameGuest is not in the API list/u);
-  expect(() =>
-    // @ts-expect-error findBookings does not run the show_booking contract.
-    mount(api, { showBooking: findBookings, findBookings, crash }),
-  ).toThrow(/names show_booking, not find_bookings/u);
-});
-
-it("a fetch handler refuses its own prefix on routes from an API list", () => {
-  const routes = mount(api, { showBooking, findBookings, crash });
-  expect(() => toFetchHandler(t.app, { prefix: "/api", routes })).toThrow(
-    /comes from an API list, which owns the prefix/u,
-  );
-  const handler = toFetchHandler(t.app, { routes: [...routes, route(renameGuest)] });
-  expect(typeof handler).toBe("function");
-  return handler.dispose();
-});
-
-it("toOpenApi refuses its own prefix on routes from an API list, and documents them as mounted", () => {
-  const routes = mount(api, { showBooking, findBookings, crash });
-  const options = { title: "Bookings", version: "1.0.0" };
-  expect(() => toOpenApi(routes, { ...options, prefix: "/api" })).toThrow(
-    /toOpenApi: GET \/api\/bookings\/:id comes from an API list, which owns the prefix/u,
-  );
-  expect(Object.keys(toOpenApi(routes, options).paths)).toEqual([
+it.effect("a way whose path differs from its API prefix fails typed acquisition", () =>
+  Effect.gen(function* () {
+    const invalid = makeApp({ path: "/different", endpoints: Object.values(api.endpoints) });
+    const result = yield* Effect.promise(() =>
+      admit(invalid.app, { headers: new Headers(), url: "/" }, { way: "api" }),
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      error: { _tag: "GraphInvalid", reason: expect.stringMatching(/API prefix/u) },
+    });
+    yield* Effect.promise(invalid.dispose);
+  }),
+);
+it("OpenAPI derives a shared API prefix or accepts the same explicit prefix, never concatenating both", () => {
+  const endpoints = Object.values(api.endpoints);
+  const options = { title: "Bookings", version: "1" };
+  expect(Object.keys(toOpenApi(endpoints, options).paths)).toEqual([
     "/api/bookings/{id}",
     "/api/bookings",
     "/api/crash",
   ]);
-  expect(
-    Object.keys(toOpenApi(Object.values(api.endpoints), { ...options, prefix: "/api" }).paths),
-  ).toContain("/api/bookings/{id}");
-});
-
-const stricterShowBooking = implement(
-  defineContract("show_booking", {
-    description: "Show one booking by its id, for a stated reason.",
-    input: Schema.Struct({ id: Schema.String, reason: Schema.String }),
-    output: showBooking.contract.output,
-    failure: showBooking.contract.failure,
-    permission: "bookings:read",
-    annotations: { readOnly: true },
-  }),
-  () => Effect.die("never run"),
-);
-
-it("mount refuses a capability whose contract type is not the endpoint's, even under the same name", () => {
-  expect(stricterShowBooking.contract.name).toBe(showBooking.contract.name);
-  expect(() =>
-    // @ts-expect-error the capability needs a `reason` the endpoint's input does not carry.
-    mount(api, { showBooking: stricterShowBooking, findBookings, crash }),
-  ).toThrow(
-    /names show_booking, not another contract object named show_booking; contracts match by identity/u,
+  expect(Object.keys(toOpenApi(endpoints, { ...options, prefix: "/api" }).paths)).toEqual(
+    Object.keys(toOpenApi(endpoints, options).paths),
   );
-  // The capability that runs the endpoint's own contract still mounts.
-  expect(() => mount(api, { showBooking, findBookings, crash })).not.toThrow();
+  expect(() => toOpenApi(endpoints, { ...options, prefix: "/other" })).toThrow(/API prefix/u);
 });
+const stricterShowBooking = defineEntry(
+  defineNode("show_booking", {
+    description: "Show a booking for a stated reason.",
+    input: Schema.Struct({ id: Schema.String, reason: Schema.String }),
+    output: showBooking.node.output,
+    failure: showBooking.node.failure,
+    permission: "bookings:read",
+    readOnly: true,
+  }),
+);
+it.effect(
+  "an endpoint with an identically named but different entry is not exposed by identity",
+  () =>
+    Effect.gen(function* () {
+      expect(stricterShowBooking.node.name).toBe(showBooking.node.name);
+      const invalid = makeApp({ endpoints: [endpoint(stricterShowBooking, "GET /bookings/:id")] });
+      const result = yield* Effect.promise(() =>
+        admit(invalid.app, { headers: new Headers(), url: "/" }, { way: "api" }),
+      );
+      expect(result).toMatchObject({
+        ok: false,
+        error: { _tag: "GraphInvalid", reason: expect.stringMatching(/does not expose/u) },
+      });
+      yield* Effect.promise(invalid.dispose);
+    }),
+);

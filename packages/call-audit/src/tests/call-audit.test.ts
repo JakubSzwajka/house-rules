@@ -1,7 +1,6 @@
 import { expect, it } from "@effect/vitest";
 import { Cause, Effect, Exit, Fiber, Layer, Result } from "effect";
 import { TestClock } from "effect/testing";
-import { Grant } from "@house-rules/application";
 import { CallAudit, memoryAuditLog } from "../index.ts";
 import {
   ANA,
@@ -28,6 +27,7 @@ it.effect("records a success with capability, permission, viewer and duration", 
     expect(log.entries()).toEqual([
       {
         capability: "read_greeting",
+        target: "read_greeting",
         permission: "greetings:read",
         viewerId: "user_ana",
         outcome: "success",
@@ -68,14 +68,10 @@ it.effect("records Forbidden, and the handler never runs", () =>
   Effect.gen(function* recordsForbidden() {
     const log = memoryAuditLog();
     const error = yield* readGreeting
-      .handler({ name: "Ada" })
+      .handler({ name: "Ada" }, [])
       .pipe(
         Effect.provide(
-          Layer.mergeAll(
-            CallAudit.layerMemory(log, { who }),
-            Layer.succeed(Requester, ANA),
-            Grant.denyAll,
-          ),
+          Layer.mergeAll(CallAudit.layerMemory(log, { who }), Layer.succeed(Requester, ANA)),
         ),
         Effect.flip,
       );

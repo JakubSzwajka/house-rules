@@ -5,65 +5,58 @@ import test from "node:test";
 import { layout } from "../src/dependency-cruiser.cjs";
 import { FIXTURES, fromPaths, violatedRules } from "./dependency-cruiser-helpers.mjs";
 
-const ruleByName = (config, name) => config.forbidden.find((rule) => rule.name === name);
-
-// next-app: src/app/ pages, src/proxy.ts and src/instrumentation.ts, next-env.d.ts that imports
-// .next build output that is not there, and a .next chunk with an import that does not resolve.
-const NEXT_FILES_WITHOUT_HOST = [
-  "app-code-in-layers: apps/web/src/app/global-error.tsx",
-  "app-code-in-layers: apps/web/src/app/page.tsx",
-  "app-code-in-layers: apps/web/src/instrumentation.ts",
-  "app-code-in-layers: apps/web/src/proxy.ts",
-  "no-unresolved-imports: apps/web/.next/server/chunk.js -> ./missing-chunk",
-  "no-unresolved-imports: apps/web/next-env.d.ts -> ./.next/types/routes.d.ts",
-];
-
-test("a Next-shaped app needs no option or exclude with host: next", async () => {
-  assert.deepEqual(
-    fromPaths(await violatedRules("next-app", layout({ scope: "@acme/" }))),
-    NEXT_FILES_WITHOUT_HOST,
-  );
+const rule = (config, name) => config.forbidden.find((item) => item.name === name);
+test("Next owns app, proxy, instrumentation, declarations and build exclusions", async () => {
+  const ordinary = fromPaths(await violatedRules("next-app", layout({ scope: "@acme/" })));
+  assert.deepEqual(ordinary, [
+    "app-folders: apps/web/src/app/global-error.tsx",
+    "app-folders: apps/web/src/app/page.tsx",
+    "app-folders: apps/web/src/instrumentation.ts",
+    "app-folders: apps/web/src/proxy.ts",
+    "no-unresolved-imports: apps/web/.next/server/chunk.js -> ./missing-chunk",
+    "no-unresolved-imports: apps/web/next-env.d.ts -> ./.next/types/routes.d.ts",
+  ]);
   assert.deepEqual(await violatedRules("next-app", layout({ scope: "@acme/", host: "next" })), []);
 });
-
-test("with host: next, a page cannot reach the server through proxy.ts", async () => {
-  assert.deepEqual(
-    fromPaths(await violatedRules("next-bridge", layout({ scope: "@acme/", host: "next" }))),
-    [
-      "delivery-does-not-import-server: apps/web/src/app/page.tsx -> apps/web/src/server/runtime.ts",
-    ],
-  );
+test("Next page cannot use proxy as a bridge to module values", async () => {
+  const violations = await violatedRules("next-bridge", layout({ scope: "@acme/", host: "next" }));
+  assert.deepEqual(fromPaths(violations), [
+    "ways-in-import-app-folders-only: apps/web/src/app/page.tsx -> apps/web/src/proxy.ts",
+    "ways-in-import-contracts-only: apps/web/src/app/page.tsx -> apps/web/src/proxy.ts",
+  ]);
 });
-
-// node-app is also the valid wiring a reachability rule must keep: main.ts imports composition,
-// delivery and server; server and a use-case test import composition.
-test("a plain Node app with a composition folder passes with no host", async () => {
-  assert.deepEqual(await violatedRules("node-app", layout({ scope: "@acme/" })), []);
-});
-
-test("host: next changes only the delivery folder, entry files, generated declaration and exclude", () => {
+test("plain Node wiring still passes without a host", async () =>
+  assert.deepEqual(await violatedRules("node-app", layout({ scope: "@acme/" })), []));
+test("Next changes host-owned paths only and keeps every severity", () => {
   const plain = layout({ scope: "@acme/" });
   const next = layout({ scope: "@acme/", host: "next" });
   assert.deepEqual(layout({ scope: "@acme/", host: undefined }), plain);
   assert.deepEqual(
-    next.forbidden.map(({ name }) => name),
-    plain.forbidden.map(({ name }) => name),
+    next.forbidden.map(({ name, severity }) => [name, severity]),
+    plain.forbidden.map(({ name, severity }) => [name, severity]),
   );
-  const changed = next.forbidden
-    .filter((rule, index) => JSON.stringify(rule) !== JSON.stringify(plain.forbidden[index]))
-    .map(({ name }) => name);
-  assert.deepEqual(changed, [
-    "delivery-does-not-import-server",
-    "server-does-not-import-delivery",
-    "use-cases-do-not-import-outer-layers",
-    "no-unresolved-imports",
-    "app-code-in-layers",
-  ]);
-  assert.deepEqual(ruleByName(next, "app-code-in-layers").module.pathNot.slice(0, 2), [
-    "^apps/[^/]+/src/(?:app|server|use-cases|composition)/",
+  assert.deepEqual(
+    next.forbidden
+      .filter((item, index) => JSON.stringify(item) !== JSON.stringify(plain.forbidden[index]))
+      .map(({ name }) => name),
+    [
+      "contract-entry-is-browser-safe",
+      "features-do-not-import-outer-folders",
+      "ways-in-import-app-folders-only",
+      "ways-in-do-not-import-read-model-values",
+      "ways-in-import-contracts-only",
+      "ways-in-do-not-import-other-ways",
+      "composition-does-not-import-ways-in",
+      "no-unresolved-imports",
+      "app-folders",
+      "contract-entry-is-browser-safe",
+    ],
+  );
+  assert.deepEqual(rule(next, "app-folders").module.pathNot.slice(0, 2), [
+    "^apps/[^/]+/src/(?:features|read-models|app|composition)/",
     "^apps/[^/]+/src/(?:proxy[.]ts|instrumentation[.]ts)$",
   ]);
-  assert.deepEqual(ruleByName(next, "no-unresolved-imports").from, {
+  assert.deepEqual(rule(next, "no-unresolved-imports").from, {
     pathNot: "^apps/[^/]+/(?:next-env[.]d[.]ts)$",
   });
   assert.equal(
@@ -72,108 +65,86 @@ test("host: next changes only the delivery folder, entry files, generated declar
   );
   assert.deepEqual({ ...next.options, exclude: plain.options.exclude }, plain.options);
 });
-
-test("host: next adds its files to the app's own lists, and the app's layers still win", () => {
+test("explicit area overrides win and host lists add to consumer lists", () => {
   const config = layout({
     scope: "@acme/",
     host: "next",
-    layers: { delivery: "pages" },
+    layers: { waysIn: "pages" },
     appEntryFiles: ["proxy.ts", "sentry.server.config.ts"],
     generatedDeclarationFiles: ["src/routes.d.ts"],
   });
-  assert.deepEqual(ruleByName(config, "app-code-in-layers").module.pathNot.slice(0, 2), [
-    "^apps/[^/]+/src/(?:pages|server|use-cases|composition)/",
+  assert.deepEqual(rule(config, "app-folders").module.pathNot.slice(0, 2), [
+    "^apps/[^/]+/src/(?:features|read-models|pages|composition)/",
     "^apps/[^/]+/src/(?:proxy[.]ts|sentry[.]server[.]config[.]ts|instrumentation[.]ts)$",
   ]);
-  assert.deepEqual(ruleByName(config, "no-unresolved-imports").from, {
+  assert.deepEqual(rule(config, "no-unresolved-imports").from, {
     pathNot: "^apps/[^/]+/(?:src/routes[.]d[.]ts|next-env[.]d[.]ts)$",
   });
 });
-
-// next-generic-entry: a Next app with src/main.ts and src/index.ts next to its src/proxy.ts.
-test("host: next drops the generic main.ts and index.ts unless the app names them", async () => {
+test("Next omits generic main/index defaults unless named", async () => {
   assert.deepEqual(
     fromPaths(await violatedRules("next-generic-entry", layout({ scope: "@acme/", host: "next" }))),
-    ["app-code-in-layers: apps/web/src/index.ts", "app-code-in-layers: apps/web/src/main.ts"],
+    ["app-folders: apps/web/src/index.ts", "app-folders: apps/web/src/main.ts"],
   );
   assert.deepEqual(
     fromPaths(await violatedRules("next-generic-entry", layout({ scope: "@acme/" }))),
-    ["app-code-in-layers: apps/web/src/proxy.ts"],
+    ["app-folders: apps/web/src/proxy.ts"],
   );
-  const named = layout({ scope: "@acme/", host: "next", appEntryFiles: ["main.ts"] });
   assert.equal(
-    ruleByName(named, "app-code-in-layers").module.pathNot[1],
+    rule(layout({ scope: "@acme/", host: "next", appEntryFiles: ["main.ts"] }), "app-folders")
+      .module.pathNot[1],
     "^apps/[^/]+/src/(?:main[.]ts|proxy[.]ts|instrumentation[.]ts)$",
   );
 });
-
-test("an unknown host throws and names the known hosts", () => {
-  for (const host of ["remix", "Next", "", null, 1]) {
+test("unknown hosts still fail closed", () => {
+  for (const host of ["remix", "Next", "", null, 1])
     assert.throws(
       () => layout({ scope: "@acme/", host }),
       /^TypeError: layout\(\): unknown host .*\. Known hosts: next\.$/u,
     );
-  }
 });
-
-test("composition-imports-packages-only reports every app import from composition, tests included", async () => {
+test("composition may reach features/modules but never ways, including from tests", async () => {
   const violations = await violatedRules(
     "violations/composition-imports-packages-only",
     layout({ scope: "@acme/" }),
   );
   assert.deepEqual(fromPaths(violations), [
-    "composition-imports-packages-only: apps/web/src/composition/index.ts -> apps/web/src/delivery/route.ts",
-    "composition-imports-packages-only: apps/web/src/composition/index.ts -> apps/web/src/server/loop.ts",
-    "composition-imports-packages-only: apps/web/src/composition/index.ts -> apps/web/src/use-cases/show.ts",
-    "composition-imports-packages-only: apps/web/src/composition/tests/app.test.ts -> apps/web/src/use-cases/show.ts",
+    "composition-does-not-import-ways-in: apps/web/src/composition/index.ts -> apps/web/src/ways-in/route.ts",
   ]);
 });
-
-test("use-cases-do-not-import-composition reports a use-case, not its tests, delivery, server or app tests", async () => {
+test("nodes cannot reach composition, but their tests can", async () => {
   const violations = await violatedRules(
     "violations/use-cases-do-not-import-composition",
     layout({ scope: "@acme/" }),
   );
   assert.deepEqual(fromPaths(violations), [
-    "use-cases-do-not-import-composition: apps/web/src/use-cases/show.ts -> apps/web/src/composition/index.ts",
+    "features-do-not-import-outer-folders: apps/web/src/features/show/handler.ts -> apps/web/src/composition/index.ts",
   ]);
 });
-
-test("layers.composition renames the composition folder", () => {
+test("composition area rename updates both sides of the fence", () => {
   const config = layout({ scope: "@acme/", layers: { composition: "wiring" } });
-  assert.deepEqual(ruleByName(config, "composition-imports-packages-only").from, {
-    path: "^apps/[^/]+/src/wiring(?:/|$)",
-  });
-  assert.deepEqual(ruleByName(config, "use-cases-do-not-import-composition").to, {
-    path: "^apps/[^/]+/src/wiring(?:/|$)",
+  assert.equal(
+    rule(config, "composition-does-not-import-ways-in").from.path,
+    "^apps/[^/]+/src/wiring(?:/|$)",
+  );
+  assert.deepEqual(rule(config, "features-do-not-import-outer-folders").to, {
+    path: ["^apps/[^/]+/src/ways-in(?:/|$)", "^apps/[^/]+/src/wiring(?:/|$)"],
     reachable: true,
   });
 });
-
-// Refresh after an intentional rule change:
-// node -e 'console.log(JSON.stringify(require("./src/dependency-cruiser.cjs").layout({ scope: "@acme/", host: "next" }), null, 2))' > tests/fixtures/dependency-cruiser/layout-acme-next.snapshot.json
-test("layout() with host: next matches its snapshot", async () => {
-  const snapshot = JSON.parse(
-    await readFile(path.join(FIXTURES, "layout-acme-next.snapshot.json"), "utf8"),
-  );
-  assert.deepEqual(layout({ scope: "@acme/", host: "next" }), snapshot);
-});
-
-test("renaming layers.useCases moves the use-cases rules to the new folder", async () => {
-  assert.deepEqual(fromPaths(await violatedRules("renamed-layers", layout({ scope: "@acme/" }))), [
-    "app-code-in-layers: apps/web/src/application/show.ts",
-  ]);
+test("Next snapshot records the whole config", async () =>
   assert.deepEqual(
-    await violatedRules(
-      "renamed-layers",
-      layout({ scope: "@acme/", layers: { useCases: "application" } }),
-    ),
-    [
-      {
-        rule: "use-cases-do-not-import-outer-layers",
-        from: "apps/web/src/application/show.ts",
-        to: "apps/web/src/delivery/route.ts",
-      },
-    ],
+    layout({ scope: "@acme/", host: "next" }),
+    JSON.parse(await readFile(path.join(FIXTURES, "layout-acme-next.snapshot.json"), "utf8")),
+  ));
+test("nodes area rename moves the node fence", async () => {
+  const config = layout({ scope: "@acme/", layers: { features: "application" } });
+  assert.equal(
+    rule(config, "features-do-not-import-outer-folders").from.path,
+    "^(apps/[^/]+/src/application/[^/]+)/",
   );
+  const violations = await violatedRules("renamed-layers", config);
+  assert.deepEqual(fromPaths(violations), [
+    "features-do-not-import-outer-folders: apps/web/src/application/show/handler.ts -> apps/web/src/ways-in/route.ts",
+  ]);
 });

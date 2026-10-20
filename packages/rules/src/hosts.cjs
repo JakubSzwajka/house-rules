@@ -4,7 +4,7 @@
 // an app names none of them itself. layout() loads this file, so it stays CommonJS and loads nothing.
 const HOSTS = Object.freeze({
   next: Object.freeze({
-    deliveryLayer: "app",
+    waysInLayer: "app",
     appEntryFiles: Object.freeze(["proxy.ts", "instrumentation.ts"]),
     generatedDeclarationFiles: Object.freeze(["next-env.d.ts"]),
     buildOutputFolders: Object.freeze([".next"]),

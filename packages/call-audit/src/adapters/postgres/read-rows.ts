@@ -11,7 +11,7 @@ export const readRows = (options: ReadRowsOptions = {}) =>
       Request: Schema.Struct({ limit: Schema.Finite, viewerId: Schema.NullOr(Schema.String) }),
       Result: AuditRow,
       execute: ({ limit, viewerId }) =>
-        sql`select capability, permission, viewer_id as "viewerId", outcome, ms,
+        sql`select capability, target, permission, viewer_id as "viewerId", outcome, ms,
             kind, target_id as "targetId", channel, request_id as "requestId",
             recorded_at as "recordedAt"
           from call_audit
@@ -22,7 +22,6 @@ export const readRows = (options: ReadRowsOptions = {}) =>
     return yield* find({ limit: clampLimit(options.limit), viewerId: options.viewerId ?? null });
   }).pipe(
     Effect.mapError(
-      (cause) =>
-        new AuditReadFailed({ message: `Reading call_audit failed: ${cause.message}`, cause }),
+      (cause) => new AuditReadFailed({ message: "The audit store could not be read.", cause }),
     ),
   );

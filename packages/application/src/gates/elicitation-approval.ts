@@ -12,9 +12,9 @@ const inputAsJson = (input: unknown): string =>
     2,
   ) ?? "null";
 
-export const approvalMessage = (capabilityName: string, input: unknown): string =>
+export const approvalMessage = (entry: string, input: unknown): string =>
   [
-    `An agent asks to run "${capabilityName}".`,
+    `An agent asks to run "${entry}".`,
     "Its input, as data:",
     inputAsJson(input),
     "Approve this call?",
@@ -49,17 +49,17 @@ const failureReason = (error: unknown): string => {
 };
 
 const askHuman = (
-  capabilityName: string,
+  entry: string,
   input: unknown,
   client: McpSchema.McpServerClient["Service"],
 ): Effect.Effect<void, ApprovalDenied> => {
-  const denied = (reason: string) => new ApprovalDenied({ capabilityName, reason });
+  const denied = (reason: string) => new ApprovalDenied({ entry, reason });
   const failed = (error: unknown) => denied(failureReason(error));
   return Effect.gen(function* askHumanGate() {
     const reverse = yield* client.getClient;
     const request = new McpSchema.ElicitRequestFormParams({
       mode: "form",
-      message: approvalMessage(capabilityName, input),
+      message: approvalMessage(entry, input),
       requestedSchema: ApprovalForm,
     });
     const answer = yield* reverse.elicit(request).pipe(
@@ -83,10 +83,7 @@ const askHuman = (
   }).pipe(Effect.scoped);
 };
 
-const approveByElicitation = (
-  capabilityName: string,
-  input: unknown,
-): Effect.Effect<void, ApprovalDenied> =>
+const approveByElicitation = (entry: string, input: unknown): Effect.Effect<void, ApprovalDenied> =>
   Effect.gen(function* approveByElicitationGate() {
     const client = yield* Effect.serviceOption(McpSchema.McpServerClient);
     const formElicitation = Option.isSome(client) && canAskForForm(client.value.clientCapabilities);
@@ -94,15 +91,15 @@ const approveByElicitation = (
       Option.isNone(client) || !formElicitation
         ? Effect.fail(
             new ApprovalDenied({
-              capabilityName,
+              entry,
               reason: "The MCP client cannot ask a human for approval",
             }),
           )
-        : askHuman(capabilityName, input, client.value),
+        : askHuman(entry, input, client.value),
     );
     // Log the decision only. Never the input or anything the user wrote.
     const annotations = {
-      capability: capabilityName,
+      entry,
       clientName: Option.match(client, {
         onNone: () => "none",
         onSome: (value) => value.clientInfo.name,

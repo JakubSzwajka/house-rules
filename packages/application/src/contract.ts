@@ -1,3 +1,14 @@
+export { type Entry, type AnyEntry, type EntryFlags, defineEntry } from "./entry/entry.ts";
+export {
+  type Endpoint,
+  type EndpointOptions,
+  type Method,
+  type CsrfOptOut,
+  endpoint,
+  failureCodeHeader,
+} from "./contract/endpoint.ts";
+export { type Api, type ApiEndpoints, type ApiOptions, defineApi } from "./contract/api.ts";
+export type { BodyOf, SessionGrant, SessionOption, SessionRole } from "./contract/session.ts";
 export {
   type ClientCall,
   type ClientFailureCode,
@@ -8,43 +19,6 @@ export {
   toHttpClient,
 } from "./client/http-client.ts";
 export {
-  type Annotations,
-  type AnyContract,
-  type AuditDeclaration,
-  type AuditOptions,
-  type Contract,
-  type DefineContractOptions,
-  defineContract,
-  type FailureOf,
-  type FailureSchemaOf,
-  failureSchemaOf,
-  type InputSchema,
-  NoInput,
-  type PlainSchema,
-  type StringKeyOf,
-  type StructInput,
-  type UnionInput,
-} from "./contract/contract.ts";
-export {
-  type Endpoint,
-  type EndpointOptions,
-  type EndpointShape,
-  endpoint,
-  failureCodeHeader,
-  type Method,
-} from "./contract/endpoint.ts";
-export type {
-  BodyOf,
-  SessionGrant,
-  SessionOption,
-  SessionRole,
-} from "./contract/session.ts";
-export { InputInvalid, type InputIssue } from "./delivery/input.ts";
-export { Refused } from "./delivery/caller.ts";
-export { ApprovalDenied, Forbidden } from "./gates/gate-errors.ts";
-export type { PermissionDeclaration } from "./gates/permission.ts";
-export { type Api, type ApiEndpoints, type ApiOptions, defineApi } from "./contract/api.ts";
-export {
   type CallEntry,
   type PromiseCall,
   type PromiseClientOf,
@@ -52,3 +26,9 @@ export {
   type PromiseFailureOf,
   toPromiseClient,
 } from "./client/promise-client.ts";
+export { Forbidden, ApprovalDenied } from "./gates/gate-errors.ts";
+export { InputInvalid, type InputIssue } from "./ways-in/input.ts";
+export { Refused } from "./ways-in/caller.ts";
+export { NodeCallInvalid } from "./node/node-call-invalid.ts";
+export { GraphInvalid } from "./node/graph-invalid.ts";
+export { CompositionClosed } from "./ways-in/composition-closed.ts";

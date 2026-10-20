@@ -5,32 +5,22 @@ import {
   defineApi,
   endpoint,
   HttpFailure,
-  mount,
   type PromiseClientOptions,
   toFetchHandler,
   toPromiseClient,
 } from "../index.ts";
-import {
-  bearerCallerFor,
-  findBookings,
-  makeApp,
-  showBooking,
-  webRequest,
-} from "./delivery-fixtures.ts";
+import { findBookings, makeApp, showBooking, webRequest } from "./delivery-fixtures.ts";
 
 const api = defineApi(
   { prefix: "/api" },
   {
-    showBooking: endpoint(showBooking.contract, "GET /bookings/:id"),
-    findBookings: endpoint(findBookings.contract, "GET /bookings"),
+    showBooking: endpoint(showBooking, "GET /bookings/:id"),
+    findBookings: endpoint(findBookings, "GET /bookings"),
   },
 );
 
-const t = makeApp();
-const handler = toFetchHandler(t.app, {
-  caller: bearerCallerFor(t.work),
-  routes: mount(api, { showBooking, findBookings }),
-});
+const t = makeApp({ endpoints: Object.values(api.endpoints) });
+const handler = toFetchHandler(t.app);
 afterAll(() => handler.dispose().then(t.dispose));
 
 const inProcess: typeof globalThis.fetch = (url, init) => handler(webRequest(String(url), init));

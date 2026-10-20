@@ -1,233 +1,148 @@
 # Agent instructions
 
-This file is the law for agents and people working in this repo, and in any project made from its template, the stack. Read `VISION.md` for why. It does not override this file. Read `CONTEXT.md` for the words this repo uses.
+This file is the law for agents and people working in this repo and projects made from its template. Read `VISION.md` for why and `CONTEXT.md` for the words. Vision does not override the law.
 
-The house rules and the tool configs come from the plugin `@house-rules/rules`, which lives in `packages/rules`. The root uses it as `workspace:0.18.0`. This repo keeps thin configs that extend its presets, the project values such as the `@example/` scope and the example roots, and the files no tool can inherit. Change a house rule in `packages/rules`, not by copying a preset into a thin config.
+House rules and tool presets belong in `packages/rules`, the plugin `@house-rules/rules`. The root uses `workspace:0.18.0`. Keep consumer configs thin: extend presets and set project values. Never copy a preset into a thin config.
 
 ## Commands
 
-This repo is a pnpm workspace run by Turborepo. Use pnpm, at the version `packageManager` in `package.json` pins. Corepack picks it up: run `corepack enable` once per machine. Do not replace pnpm with npm, Yarn, or Bun, and do not add a second lockfile.
+Use the exact pnpm version in `package.json`. Do not replace it or add a second lockfile. Corepack selects the pinned version.
 
 | Command | What it does |
 | --- | --- |
-| `pnpm install --frozen-lockfile` | Install from `pnpm-lock.yaml`. The root `prepare` script then patches `tsc` with the Effect language service (`effect-tsgo patch`) and installs the lefthook pre-commit hook. |
-| `pnpm check` | Biome and ESLint warnings fail the check, and every Dependency Cruiser rule is severity `error`: `biome` runs `biome check . --error-on-warnings` and `lint` runs `eslint --max-warnings 0`. Exact pins in every workspace `package.json` (the plugin's `house-rules-pins` bin), module-owned SQL (its `house-rules-migrations` bin), environment schema, Biome, ESLint, Dependency Cruiser once at the root, production subject-folder and package cycles (the `house-rules-layout` bin), and `typecheck` in each workspace package through Turborepo. |
-| `pnpm run layout` | Checks production subject-folder and package cycles from Dependency Cruiser imports; test paths, adapters, and package-root files do not add subject-folder edges. |
-| `pnpm env:check` | `varlock load`: resolve and validate every variable in `.env.schema`. |
-| `pnpm exec varlock run -- <cmd>` | Run a command with the environment values injected. |
-| `pnpm test` | Node test runner over `tests/**/*.test.mjs`, then `test` (Vitest) in each workspace package through Turborepo. |
-| `pnpm fix` | Apply Biome formatting and safe lint fixes. |
-| `pnpm format` | Apply Biome formatting only. |
-| `docker compose up -d` | Start the local Postgres that database tests need. Each test file creates and drops its own database on it, through `TEST_DATABASE_ADMIN_URL` in `.env.schema`. CI runs the same server as a service. |
-| `pnpm acceptance` | Clone the committed HEAD into a temp dir and run `pnpm install --frozen-lockfile`, `check`, and `test` there. |
-| `pnpm build` | Build `dist/` in `packages/domain`, `packages/application`, `packages/auth-jwt`, `packages/identity`, `packages/party`, `packages/migrations`, `packages/call-audit`, `packages/comments`, and `packages/node-host` through Turborepo. Only packing needs it: in this repo every package and app reads `src/`. |
-| `pnpm run packed-consumer` | Pack the ten public packages as `pnpm publish` would, install them plus `@effect/platform-node` and its exactly pinned `@effect/platform-node-shared` with npm into a fresh temp app with no lockfile, check the shared Node version, and run plain `node`, `tsc`, and the layout rules there. Needs the npm registry. CI runs it on every pull request. |
-| `pnpm vendor:agent-sources` | Shallow-clone the Effect source at the pinned version into `.agent_sources/`. Not part of `check`. |
-| `pnpm --filter <package> add <dep>` | Add a dependency to one workspace package. `saveExact` writes an exact pin. |
-| `pnpm --filter @house-rules/site generate` | Rewrite the docs site's generated rule and skill pages. `build` and `dev` run it first. |
+| `pnpm install --frozen-lockfile` | Install the lockfile, patch tsc with `effect-tsgo patch`, install lefthook through prepare |
+| `pnpm check` | Exact pins, module-owned SQL, environment, Biome, ESLint, Dependency Cruiser, production folder/package cycles and workspace typechecks |
+| `pnpm test` | Root Node tests, then workspace tests through Turborepo |
+| `pnpm run layout` | Subject, package and app-feature cycles |
+| `pnpm env:check` | Resolve and validate `.env.schema` with Varlock |
+| `pnpm exec varlock run -- <cmd>` | Run with validated environment values |
+| `docker compose up -d` | Start Postgres; each database test creates and drops its own database through `TEST_DATABASE_ADMIN_URL` |
+| `pnpm fix` / `pnpm format` | Rewrite files with safe lint fixes / formatting only; run only when intended |
+| `pnpm build` | Build the nine TypeScript framework packages to dist for packing; workspace imports still read src |
+| `pnpm acceptance` | Clone committed HEAD into a temp folder and run frozen install, check and test |
+| `pnpm run packed-consumer` | Pack all ten public packages, install in a cold npm consumer and prove Node, TypeScript, browser contracts and layout behavior; needs the registry |
+| `pnpm vendor:agent-sources` | Clone the pinned Effect source into `.agent_sources/` |
+| `pnpm --filter <package> add <dep>` | Add an exact dependency pin to one workspace, after approval |
+| `pnpm --filter @house-rules/site generate` | Regenerate the existing rules page |
 
-Run `pnpm fix` or `pnpm format` only when you mean to rewrite files. Before you call a change ready, `pnpm check` and `pnpm test` must both exit 0.
+CI starts Postgres and runs frozen install, `pnpm check`, `pnpm test`, `pnpm run packed-consumer`, the booking API build and the site build. The booking example has no web page.
 
-## What check enforces
+Before calling work ready, `pnpm check` and `pnpm test` must both exit 0. Warnings fail Biome and ESLint; all Dependency Cruiser rules have severity error. The rules table in `packages/rules/README.md` is the checked-rule source. Do not duplicate it in the root README. Prose rules there still need review.
 
-The rules table in the house-rules README lists every checked rule, its tool, and its docs. That table is the source. Do not copy it here or into `README.md`. The "What the stack adds" section in `README.md` lists only what this repo adds on top: the fence, the install policy, the environment check, and Turborepo telemetry.
+## Kits, wiring and additions
 
-## Kits, wiring, and additions
+The kits are `@house-rules/domain` and `@house-rules/application`. Domain owns `defineNode`, descriptors and edges, `PersonCaller`, `SystemCaller`, their union `Caller`, kinds, pure graph checks, closures, modules, policy and units of work. It imports no house-rules package, including type-only imports or application/contract. Application owns `bindNode`, `defineEntry`, `runEntry`, `NodeRuntime`, `CallerContext`, sockets, ways, the router, clients, trace and registry. Import a name from the kit that owns it; no cross-kit aliases or re-exports.
 
-The framework has four parts. `CONTEXT.md` defines each word.
+Wiring is migrations, Node Host and the dev-only rules plugin. Additions are reusable domain modules such as comments, party and identity, and plugs such as auth-jwt and call-audit. A module keeps its own data; a plug fills a caller-owned port and passes the pull-out test. Removing a plug and its `Layer.provide` line must leave the rest building and passing. This is a review rule, not an automated check.
 
-| Part | Packages | Job |
-| --- | --- | --- |
-| Kits | `@house-rules/domain`, `@house-rules/application` | define domain modules; build the application layer on them |
-| Wiring | `@house-rules/migrations`, `@house-rules/node-host`, `@house-rules/rules` (dev only) | run every module's SQL; serve the app on Node; check the rules |
-| Additions | `@house-rules/comments`, `@house-rules/party` and `@house-rules/identity` (domain additions), `@house-rules/call-audit` and `@house-rules/auth-jwt` (plug-ins) | reusable modules and cartridges an app mounts |
-| The app | `apps/<name>` | its own modules, use-cases, delivery and one composition root |
+The four socket interfaces are `WhoSocket`, `MaySocket`, `MeanSocket`, `RecordSocket`. There is no export named Record. `Identity.who` answers Who using lower `Authenticator`, `ActorResolver` and `FirstSignIn` slots. `May.fixed` and `May.system` name exposed entry identities; `May.context` supplies the lists. `Mean.no`, `Mean.elicitation`, `Mean.allow` wrap lower Approval layers. `CallAudit.record.memory/postgres` supplies a RecordSocket over lower CallWatch. Keep Authenticator, Approval and CallWatch as separate slots.
 
-Slots are the seams an app fills. The composition root fills each one, except the per-request values delivery provides.
+## Workspace and package doors
 
-| Slot | Defined in | Filled by |
-| --- | --- | --- |
-| `Caller`, which sets `CurrentActor` | application | `@house-rules/identity` or the app |
-| `Authenticator` | application | `@house-rules/auth-jwt`, or nothing |
-| `ActorResolver`, `FirstSignIn` | identity | an `Identity` layer or `Identity.subject`; `Identity.refuse` or the app's composition root |
-| `Grant` | application | a permission list |
-| `Approval` | application | MCP elicitation; the click in the app |
-| `CallWatch` | application | call-audit, or nothing |
-| `UnitOfWork` | domain | `memoryUnitOfWork` (domain) or `sqlUnitOfWork` (application) |
-| Host ports, such as `CommentTargets` | each domain addition | the app's composition root |
+- Apps live in `apps/<name>`, shared packages in `packages/<name>`. The private showcase belongs in `examples/booking/apps/api`. Framework packages never import examples (`framework-does-not-import-examples`). New projects remove examples. Workspace roots are declared in `pnpm-workspace.yaml` and passed to both `layout()` and `nodesConfig()`.
+- A package never imports an app. An app never imports another app. Import another package by its declared name and an exact `workspace:<version>` pin, never a relative path. The production package graph has no cycles and no fixed levels.
+- A package exports `src/index.ts` under `.` and may export `src/contract.ts` under `./contract`. Everything else is private. No export patterns or other subpaths. `publishConfig.exports` may point to the corresponding dist JavaScript and declarations. `house-rules-layout` checks the manifest as well as imports.
+- Contract doors contain browser-safe descriptors, schemas, errors and permissions, never bindings, facades, storage or adapters. `contract-entry-is-browser-safe` follows every reachable import. It also starts at app node.ts and optional per-node entry.ts files, read-model contract.ts files and ways-in/*/endpoints.ts. Installed contract trust is explicit; built domain, application and identity contract doors are trusted. No computed production imports may hide an edge.
+- A name ending in Testing is for tests and testing code whose runtime exports all end in Testing. Path re-exports preserve that name. Production never imports tests. Tests sit directly inside a tests/ folder in the folder they test. A package's tests use its public entry; only adapter-local tests import adapter production files directly. Other tests may use adapters/tests support, not adapters themselves.
+- Each Effect workspace has its own tsconfig extending the root base and its own typecheck/test scripts. Rules is plain JavaScript, has no tsconfig, and checks each source with node --check. Its own layout and comment-rule exemptions stay.
+- Every framework package an app mounts ships its short AGENTS.md in files. It documents mounting, options, ports, migrations and fixed rules. Keep it in step with the package API.
+- Ten public packages publish only through `.github/workflows/publish.yml`: rules, domain, application, auth-jwt, identity, party, migrations, call-audit, comments, node-host. Never publish by hand. The TypeScript packages build to dist but use src in this workspace. A release bumps a package and every workspace pin together, with approval. Publish tags come only from pnpm-publish-summary.json and use GITHUB_TOKEN so tags cannot retrigger publishing.
 
-Authorization has three steps. `Grant` is action-level: may this caller run this action at all? `Approval` is consent: does a human mean this call, now? Both are fixed steps of `implement`; only their answers are slots. Policy is object-level: may this caller act on this one object? The module answers it with its own data. `CallWatch` is the only middleware: it wraps every call and never changes the result.
+## App folders and import directions
 
-## Workspace, apps, and packages
+```text
+src/
+  features/<name>/    node.ts + handler.ts + optional entry.ts + tests/
+  read-models/<name>/  index.ts + optional contract.ts + subjects + Postgres adapter
+  ways-in/<name>/      way, endpoints.ts, wording overrides, optional page
+  composition/        mount, link, plug, open ways, schedule
+  main.ts             Host and root/way join
+  index.ts            optional
+```
 
-- An app lives in `apps/<name>`. A package lives in `packages/<name>`. These are where a project keeps its own code. In this repo, `packages/` holds the framework packages and `apps/` is empty.
-- The showcase lives in `examples/`. `examples/booking-platform` is laid out like a regular project, with `apps/api` (`@example/api`) and `packages/bookings` (`@example/bookings`). It is private and never published. `pnpm-workspace.yaml` lists `apps/*`, `packages/*`, `examples/*/apps/*`, `examples/*/packages/*`, and `site`, the docs site. `.dependency-cruiser.cjs` and `eslint.config.mjs` name the example roots, so every rule checks the example like any app or package. A framework package under `packages/` never imports anything under `examples/` (`framework-does-not-import-examples`). A new project deletes `examples/`.
-- A package never imports an app. An app never imports another app.
-- An app or package imports another package by its name, such as `@example/bookings`, and declares it in its own `package.json` as `workspace:<exact version>`. Never import another package by a relative path.
-- A package may export helpers for tests under a name that ends in `Testing`, such as `MigrationsTesting`. Only test files, and testing code whose runtime exports are all named `*Testing`, may use one. A path re-export keeps the `Testing` name. `testing-exports-only-in-tests` checks this.
-- A package has one public entry, `src/index.ts`, and its `package.json` `exports` names only that entry. Every other file in the package is private: no other workspace imports it, by name or by path.
-- A package may also declare one contract entry, `src/contract.ts` exported as `"./contract"`, and everything it reaches must load in a browser, which `contract-entry-is-browser-safe` checks. `house-rules-layout` fails any other `exports` key or pattern, such as `./browser/*`, and a target or condition that points elsewhere.
-- Packages may import other packages only through their public entry. The package graph has no cycles and no prescribed levels. A package calls another package's service; it never reads its tables or SQL.
-- Each Effect workspace package has its own `tsconfig.json` that extends the root `tsconfig.base.json`, plus `typecheck` and `test` scripts.
-- The domain kit, `@house-rules/domain` in `packages/domain`, holds what a package needs to define its domain module: `defineModule`, `Actor`, `ActorId`, `Permission`, `definePolicy`, the `UnitOfWork` slot with its `memoryUnitOfWork` adapter, and the per-request marker `PerRequest`. It imports no house-rules package and never names `CurrentActor`.
-- The application kit, `@house-rules/application` in `packages/application`, holds what an app needs to build its application layer on those modules: `defineContract`, `implement`, `toTool`, `CurrentActor`, the `Caller`, the `Grant`, `Approval`, and `CallWatch` slots, the `sqlUnitOfWork` adapter, the delivery adapters `composition`, `toFetchHandler`, `toMcpHandler` and `call`, and the types. It depends on the domain kit; the domain kit never imports it. An app writes its own capabilities in its own code, as its use-cases, and imports the kits by name. A capability handler is an Effect: it yields services and lets typed errors flow.
-- Import each name from the kit that owns it. There are no re-exports or aliases between the kits. `@house-rules/capability` is retired: it stays at 0.16.0 on npm, and nothing here imports it.
-- Every framework package an app mounts, now `@house-rules/domain`, `@house-rules/application`, `@house-rules/auth-jwt`, `@house-rules/identity`, `@house-rules/party`, `@house-rules/call-audit`, the support module `@house-rules/comments`, `@house-rules/migrations`, and `@house-rules/node-host`, has an `AGENTS.md` in its root and lists it in its `package.json` `files`, so it ships into the app's `node_modules`. It says what the package does, how an app mounts it (the layer line, the `migrations.json` line, the hooks the app must wire), its options and presets, and its fixed rules. Keep it short. `tests/framework-agents.test.mjs` checks it.
-- Ten packages are public and configured for npm release: `@house-rules/rules`, `domain`, `application`, `auth-jwt`, `identity`, `party`, `migrations`, `call-audit`, `comments`, and `node-host`. Auth-jwt 0.1.0, identity 0.1.0 and party 0.1.0 are prepared for their first release, and application 0.2.0, comments 0.2.0 and call-audit 0.7.0 for their next; merge first, publish later. They have no `private` field, and `.github/workflows/publish.yml` publishes them; nobody publishes by hand. The nine TypeScript ones build to `dist/` with `tsconfig.build.json`. Their `exports` stays on `src/`, so this repo reads source, and `publishConfig.exports` points at `dist/` for the published manifest. `files` lists only `dist/`, docs, and the `migrations/` folders for call-audit, comments, identity and party. `pnpm run packed-consumer` proves the tarballs work, and CI runs it. A release bumps the version and every `workspace:` pin on it together. After a successful publish, the job tags only the packages in `pnpm-publish-summary.json` and pushes through `GITHUB_TOKEN`, so its tag pushes cannot start another workflow.
-- `packages/rules` is the exception. It is the plain-JavaScript house plugin, with many entries in `exports`, no `tsconfig.json`, and a `typecheck` script that runs `node --check` over each source file. The layout rules, the `comment-discipline` rule, and Biome on its test fixtures skip it. Its tests run in `pnpm test`.
+`app-folders` checks these areas. `layout({ layers })` accepts only features, readModels, waysIn and composition as area keys. There are no old layer aliases. A Next host keeps src/app as its way-in area through waysInLayer. `host: "next"` also owns proxy.ts, instrumentation.ts, next-env.d.ts, .next output and the shell-free global-error page. The design and TypeScript host presets keep their existing exemptions. Generic main/index defaults do not become Next entry files unless named.
 
-## Layers inside an app
+- `node-file` requires exactly one direct `defineNode` value export in node.ts and one direct own-node `bindNode` value export in handler.ts. Import each builder by name from its owning kit door; an import rename is allowed, a namespace or runtime alias is not. An optional entry.ts exports exactly one direct const `defineEntry` of its own node, imported by name from its own node.ts; all value and type imports are only that node.ts and `@house-rules/application/contract`. Type exports are allowed; tests are exempt. The ESLint node rules use the literal features/ area; custom layout node areas have no node-file coverage and cannot supply entry origins. A descriptor imports Schema from effect, domain/contract, other node.ts descriptors and contract doors only. No handler enters its dependency tree.
+- Features may import other features, packages, kits and read-model doors. They never reach ways or composition. Feature-folder cycles fail even when no individual files form a cycle.
+- Read models import packages and kits, not other app areas. Their index.ts and optional contract.ts are the only outside doors.
+- Ways may import values only from the kits, effect, package ./contract doors, the app's features and composition, and their own way folder; other package main entries and read-model doors allow only type-only imports, and ways never import other ways.
+- Composition may import features, read-model doors, packages and kits, never ways. main.ts joins root and ways by passing way values or a factory into the root. The root does not import ways to get that value.
+- No file or folder is named utils, helpers or misc. No import cycles or deep package imports.
 
-- An app is cut by layer first, on purpose: delivery, server, use-cases, composition, because the layer rules check the imports between them. A package is one module, and inside it is cut by subject: see "Inside a package".
-- Delivery and server never import each other, with no exception. A web app whose framework runs pages and routes in delivery reaches use-cases through `src/composition/` and the delivery adapters. A Next.js app sets `host: "next"` in `layout()`, `shadcn({ host: "next" })`, and extends `tsconfig/next.json`, so it names none of Next's files itself. `packages/rules/docs/dependency-cruiser.md` covers it, with the web tsconfig preset and Tailwind parsing.
-- An app has one **composition root**: `src/composition/`, the composition layer. It holds `composition({ layer, caller, views })`, the callers and the views, and imports packages only, never delivery, server or use-cases (`composition-imports-packages-only`). Delivery, server and every test may import it; a use-case may not (`use-cases-do-not-import-composition`). Only the root provides services and slots: module layers, storage adapters, cartridges, and a `Grant` or `Approval` that is the same for every request. Delivery provides only per-request values: the `CurrentActor`, the `CallChannel`, the request id through `withRequestId`, and the `Grant` and `Approval` an adapter fills for this one request. `examples/booking-platform/apps/api/src/composition/` is the example root. `app-layer.ts` provides `Bookings` and the accounts, and the member caller fills the `Grant`; the route provides nothing. `index.ts` wraps that layer with `composition(...)` and the views in `views.ts`, and its `src/main.ts`, the entry point, mounts the delivery's routes on it with `toFetchHandler`.
-- A **Host** runs delivery over HTTP. A Node app calls `serve` from `@house-rules/node-host` in `src/main.ts`, passing its fetch handler and `onClose: () => api.dispose().then(() => app.dispose())` to dispose the fetch handler before its composition. This one plain-TypeScript package extends the strict preset to own the Node socket bridge. Effect app code keeps `nodeBuiltinImport: error` and never imports `node:http`. A Next app already has a Host and does not need it. The reference API reads `PORT` through Effect Config, defaults to 3000, and enables signal handling. It reads optional, public `APP_ORIGIN` and passes `origins` to `toFetchHandler` only when set, so cookie writes work behind a TLS proxy.
-- The entry point joins delivery and the root. It runs a delivery handler over the root's layer. When the root needs a delivery value, such as an MCP toolkit, it takes the value as an argument and never imports it.
-- Use-cases import packages. They never import delivery, server, composition, or another use-case. A use-case's test may import composition to share the app's layers. Each top-level file or folder under `use-cases/` is one use-case for that import rule, so the files inside one folder may import each other. Each of those files is still one capability, so shared logic that is not a capability goes into a package.
-- Group use-cases by feature and delivery by mechanism, such as `delivery/http/` and `delivery/mcp/`.
-- Every use-case is a capability. Each non-test file under `use-cases/`, nested folders included, exports exactly one `implement(...)` capability from `@house-rules/application`, at most one `defineContract(...)` contract, and no other value. Types are fine. Delivery calls the capability through its `handler`. `use-case-is-capability` checks this.
-- Surfaces come from contracts. An MCP tool is built with `toTool(capability.contract, ...)`. No app or package calls `Tool.make`, `Rpc.make`, or `HttpApiEndpoint.<method>` by hand; only `packages/application` may. `no-hand-rolled-surface` checks this. An RPC or HTTP projection gets added to `packages/application` first. An HTTP route is `route(capability, "GET /x/:id")` mounted with `toFetchHandler`; it decodes the input from the contract and maps errors through the app's views.
-- App code sits in `src/delivery/`, `src/server/`, `src/use-cases/`, or `src/composition/`. Only `src/main.ts` and `src/index.ts` sit directly in `src/`. `src/main.ts`, an `appEntryFiles` entry, holds a plain Node app's Host call. `src/server/` holds background loops, such as an event dispatcher.
-- Never name a file or folder `utils`, `helpers`, or `misc`. Name it after what it owns.
-- No import cycles. No deep package imports. Production code never imports tests.
-- A test file sits directly in a `tests/` folder inside the folder it tests, such as `src/use-cases/tests/show-booking.test.ts`. A package's own tests import its `src/index.ts`. Only tests under `src/adapters/` import an adapter directly.
+## Nodes, entries and execution
 
-## Web delivery
+A node has schemas for input, output and failure, a description, optional title, permission (`resource:action` or explicit null), edges and literal flags. `defineNode` and `asSystem` construct data without throwing. A plain edge runs as the current caller. `asSystem(target, reason)` switches downward to SystemCaller with a nonblank reason, never back to person. No location marker or invented entry permission.
 
-Delivery is how the outside world reaches the use-cases. Each mechanism gets one folder: `delivery/http`, `delivery/mcp`, `delivery/web`.
+Only app nodes become entries. Call `defineNode`, `defineEntry`, `defineWay` and `endpoint` directly through named imports from their owning kit doors. Import renames are allowed; namespaces, destructuring, runtime aliases, builder barrels, value/callback passing and dynamic builder imports are forbidden. Non-kit production workspace packages may not import defineEntry, defineWay or endpoint, even unused. They may import defineNode and bindNode directly for descriptors and service-capturing binders. Non-kit production code cannot re-export any kit builder, including bindNode, under any name or star export. Finished descriptors and binders are values, not builders; public doors and app mounts such as bindComments(service) and bindParty(service) are allowed. Domain/application kit implementations, tests and top-level tooling are exempt. CommonJS require/createRequire of kit doors or builder-bearing relative/workspace sources and nonliteral require fail closed. Package-helper namespace, import = and default member calls follow builder identity too. Only real configured domain/application kit roots with matching package names are exempt, never a nested package.json. Kit named/star re-export files retain builder identity through relative and workspace doors. Unrelated APIs, including third-party endpoint imports, renames and re-exports, are not kit builders. Production app src and Effect workspace-package src, including both kits, are ESM-only: no require, module.require or node:module/module createRequire loading. Rules, tests and tooling outside src are outside that blanket ban; narrow builder-origin checks still apply to other production packages. Test exemptions are relative to the owning src, never a workspace named test/tests. `entry-from-app-node` follows descriptor and entry arguments through imports and barrels; unresolved, package, module, read-model and composition origins fail. Hooks and schedules use the same rule and a system start with reason and startedBy. They call Effect-returning runEntry with captured runtime services, never a second Who invocation or runtime.
 
-- A web page is `delivery/web`. It imports only browser-safe entries, such as `@house-rules/application/contract` and a package's `./contract`, and the app's API list in `delivery/http`.
-- Option A, the default: one service. The build writes the page to a folder, such as `dist/web`, and `src/main.ts` puts `staticFiles` from `@house-rules/node-host` before the API handler, with `exclude` naming every path the API owns. Page and API share one origin, and the client has no `baseUrl`. `examples/booking-platform/apps/api/src/main.ts` does this.
-- Option B, allowed: a separate web app or a CDN serves the page. The API mounts with `cors: { origins: [...] }` on `toFetchHandler`, and the client sets `baseUrl` to the API's origin. CORS is not access control; the caller and the gates still guard every call.
+An entry lifts readOnly with AND, and transactional, destructive and needsApproval with OR across its graph. Literal flags stay literal. Its person closure stops at system edges; its system closure includes every permission below them. System starts place all permissions in the system closure.
 
-## Inside a package
+Execution runs CallWatch once, checks exposed entry identity, checks person then system closures, asks Approval once if lifted, and opens one unit if transactional. Inner calls use only declared edges and add trace steps; they repeat none of those entry gates. `entryAndRecheck` is the default policy and checks inner own permissions too. `entryOnly` skips that recheck. Both stay until P2 is settled. Object policy stays inside the module and takes an explicit Actor.
 
-- Declare a package's root module with `defineModule<Self, Shape>()(id, { make })` from `@house-rules/domain`, in `facade.ts`. Keep one module per package. Its stable id is the service key; methods return Effects with no requirements. Construction captures long-lived services, never `CurrentActor` or another per-request service, and its Layer retains unmet ports and acquisition errors. An Effect `make` gives a Layer value; an options function gives `layer(options)`, with presets as plain data. Adapter statics stay in the class body. Effect owns lazy build, memoization and scope; no module-level cache, private nesting or registry.
-- Modules are cut by life cycle, not by noun. A module holds one consistency and access boundary: everything that only exists inside it. Trippy's `trips` keeps the trip, its days, its items and its shares, because an item's access is checked in the same SQL statement as the write, deleting a trip cascades in the database, and items change together. A thing with its own life becomes its own module. One module per noun is rejected: it would lose the in-statement guard and the cascades under the module-owns-its-tables rules.
-- Use-cases are the app's feature list. Each one is a thin feature exposed by delivery over HTTP, MCP, CLI, or another mechanism. It may call several packages and opens the unit of work.
-- Every package lays its code out as subject folders, even a package with one subject, such as `examples/booking-platform/packages/bookings/src/booking/`. A subject folder holds one subject's schema, errors and logic, in files named after what they own.
-- A package's `src/` holds only `index.ts`, `facade.ts`, `storage.ts`, `contract.ts`, `adapters/`, `tests/`, and subject folders. `package-root-files` fails any other loose file.
-- No file or folder in a package is named after a mechanism: `types`, `models`, `schemas`, `drafts`, `errors`, `validate`, `validation`, `constants`, `interfaces`, or `internal`, in any letter case, so `Types.ts` and `Errors/` fail too. `no-ownerless-files` checks this next to `utils`, `helpers`, and `misc`. A package needs no `internal/` folder, because every file but `index.ts` is private.
-- Only `index.ts` and `facade.ts` import the package's own `src/adapters/`, except tests may import support under `src/adapters/tests/` but never adapter production code; domain files may import neither. `index.ts` exports the adapters, and the facade wires the package's default adapter layers, such as `Bookings.fromRecords`. `domain-does-not-import-adapters` checks this.
-- Subject folders import each other in one direction. The root subject, such as Trippy's `trip/`, is the shared kernel for the ids and errors several subjects use. `house-rules-layout` checks `no-subject-folder-cycles` against production imports, even when a cycle crosses different files. It also checks `no-package-cycles` across production imports between packages. Test paths, adapters, and package-root files do not add subject-folder edges; test paths do not add package edges. A file in a subject folder never imports its own package's `index.ts` or `facade.ts`, because that barrel would hide a cycle between two subjects; `subjects-do-not-import-package-root` checks this. `storage.ts` stays importable.
-- Adapters mirror the subjects: `adapters/<kind>/<subject>.ts` holds that subject's SQL or memory code. That is a review rule; no check covers it.
-- `packages/rules` is exempt from these rules, as it is from the other layout rules.
+`NodeRuntime.layer` and composition acquisition reject cycles, missing bindings, invalid system reasons and duplicate exposures with typed GraphInvalid. Bindings capture long-lived module services. Only CallerContext may remain as a per-request handler requirement. Person execution installs CurrentActor from the same Actor; system execution cannot inherit person authority.
 
-## Modules own their data
+The root owns `composition({ layer, entries, ways, system, gatePolicy? })`. Acquire modules, unit, trace and record; capture services and bind nodes; acquire NodeRuntime; then acquire hooks that need it. The router from toFetchHandler owns dispatch, endpoints, MCP toolkit and metadata paths. Do not hand-build Tool.make, Rpc.make or HttpApiEndpoint calls outside application. Dispose the router before the composition. Lazy build retries, scoped sharing, interruption and final disposal stay intact.
 
-- A module owns its migrations and its tables. Its migrations live in `packages/<name>/migrations/*.sql`. A table belongs to the package whose migration creates it. A `.sql` file anywhere else fails, except test fixtures under a package's own `fixtures/` or `tests/` folder, which own no tables.
-- No cross-module foreign keys. Keep another module's id as a plain column, and ask that module's service for the record.
-- A module's domain code talks to its **storage port**, a service the module defines, such as `BookingStore` in `examples/booking-platform/packages/bookings/src/storage.ts`. The port answers facts and never decides a permission, a standing, or a limit. Only files under `src/adapters/**`, and the adapter packages the repo names, import `effect/sql`, a SQL driver (`@effect/sql-*`), or `@effect/platform-*`. `adapter-imports-only-in-adapters` checks it, always at error. A plumbing package, such as a `db` package with the SQL client, can join the fence by name in `adapterImports`.
-- Every module with storage ships two adapters, Postgres in `src/adapters/postgres/` and memory in `src/adapters/memory/`, and one shared store suite in `src/adapters/tests/` that runs every case against both. The public entry exports the port and both adapter layers, so an app picks one and the suite imports them from `src/index.ts`. Domain tests (policy, limits, validation) may run on memory only.
-- A module's SQL names only its own tables, in migrations and in adapters. To read another module's data, call its service through the package's public entry. A plumbing package, such as a `db` package with the connection, owns no tables a module queries.
-- Transactions belong to the use-case, never to a module. A use-case opens one **unit of work**: its contract sets `transactional: true`, and `implement` wraps the handler in `UnitOfWork.atomic` after `Grant` and `Approval`; or its handler calls `UnitOfWork.atomic` around only the part that must be atomic. For `transactional: true`, `implement` accepts `NoOpenUnit` from module writes, removes it from the handler's error type and turns it into a defect. Do not catch it by hand in that handler. Non-transactional handlers keep it as a typed error. A module's write method never opens one. It runs inside the open unit and fails with `NoOpenUnit` when none is open (`UnitOfWork.required`). Its adapters join the open unit: Postgres through the transaction, memory by registering an undo with `UnitOfWork.onRollback`. A script, a test, or the app's server process opens a unit itself. A background loop in `src/server/`, such as an event dispatcher, opens one unit per item.
-- One unit may span several modules, so a failure rolls back all their writes together. Each module's SQL still names only its own tables.
-- A module registers its migrations in the module list, `migrations.json` at the repository root: `{ "workspace": "packages/<name>" }`, or `{ "package": "<name>" }` for an installed framework package. A framework package names its folder in its `package.json` as `"houseRules": { "migrations": "migrations" }` and lists that folder in `files`. `@house-rules/migrations` runs every listed module, each into its own history table, `<module>_migrations` by default, in one transaction.
-- `pnpm run migrations` (the `house-rules-migrations` bin) checks that a migration sits in its module's `migrations/` folder, that no module holds a cross-module foreign key, and that a module's SQL names only its own tables; it also fails when a module with migrations is missing from the module list, and catches a raw `withTransaction` or `begin` outside an adapter package, and a module that calls `UnitOfWork.atomic`. It does not check storage ports or their imports: Dependency Cruiser's `adapter-imports-only-in-adapters` does. It reads text, so a review still checks that no module opens a unit another way.
-- No ORM and no query builder. A module's Postgres adapter writes plain SQL through `SqlClient` from `effect/sql`, decodes each row with a `Schema`, and is tested against a real Postgres, never a mock: `MigrationsTesting.database` from `@house-rules/migrations` gives each test file a throwaway database.
-- A cartridge passes the pull-out test, a review rule. It pushes in with one `Layer.provide` line. Deleting its package and that line leaves the rest building and passing. That holds only when the caller side owns the port: if a use-case imports the cartridge's package, the capability has to go with it.
+## Inside a module
 
-## Effect
+- Domain modules are packages, including app-owned domain modules. There are no folder modules. A package src/ holds only index.ts, facade.ts, storage.ts, optional contract.ts, adapters/, tests/ and subject folders. Migrations sit beside that code in the owning module's migrations/ directory.
+- Declare one root service with `defineModule<Self, Shape>()(id, { make })` in facade.ts. Its methods return Effects with no requirements. Capture long-lived ports, never CurrentActor, CallerContext or any PerRequest service. An Effect make gives layer; an options make gives layer(options). Presets are data and adapter statics stay in the class. Effect owns lazy build, memoization and scope. No global caches or registries.
+- Cut modules by consistency, access and life cycle, not one noun per module. Keep dependent children together when writes, SQL access guards and deletion cascades share a boundary. A thing with its own life becomes another module.
+- Use subject folders even for one subject. Name files after what they own, not types, models, schemas, drafts, errors, validate, validation, constants, interfaces or internal, in any letter case. Subjects import each other in one direction. Subject-folder cycles exclude tests, adapters and root files. Subjects never import their own index, facade or contract barrel; storage.ts remains importable.
+- Only index.ts, facade.ts and adapters import their own adapter production code. Tests outside adapters may import adapters/tests support only. Adapters mirror subjects as adapters/<kind>/<subject>.ts; this naming is a review rule.
+- Each Context.Service gets one file. Non-root service layers are static Layer.effect members beside their service. Storage-port implementations live in adapters.
 
-Before you edit Effect code, read `effect/AGENTS.md` and the docs under `effect/ai-docs/` in any workspace package's `node_modules`, such as `packages/domain/node_modules/effect/AGENTS.md`. pnpm does not install `effect` at the repo root. `ls -d packages/*/node_modules/effect` lists the copies. For API shape and examples, read the source mirror at `.agent_sources/github.com/Effect-TS/effect`. Run `pnpm vendor:agent-sources` if it is missing. Trust the installed version over memory: this repo pins stable Effect 4.0.3, and several modules still have unstable APIs. To start an app, add a module or add a use-case, load the `house-rules` skill, `skills/house-rules/SKILL.md`. It routes to the package guides.
+## Modules own data; read models consume views
 
-- Expected errors are typed. Define each one as a `Schema.TaggedError` class and put it in the error channel. Never fail with a global `Error`, and never `throw` inside Effect code.
-- A package's service methods return Effects with no requirements. The service captures its own dependencies.
-- One service per file. Each `Context.Service` class gets its own file, named after its job, such as `storage.ts` for `BookingStore` or `owner-standing.ts` for `OwnerStanding`. A root module's Layer comes from `defineModule`, as `Bookings.layer` does in `examples/booking-platform/packages/bookings/src/facade.ts`. Other service layers sit beside their service as static members built with `Layer.effect`. A storage port is the exception: its layers are the adapters under `src/adapters/`.
-- Delivery maps typed errors to responses once, in the handler or in the app's views table for `toFetchHandler`, `toMcpHandler` and `call`. Use-cases let them flow. A missing view is a compile error there. The app layer's own tagged errors, such as a database that is down, need a view in the composition's table too; `composition()` fails `tsc` without one.
-- Never run an Effect by hand inside Effect code or tests. No `Effect.run*` and no hand-built runtime. Tests use `it.effect` or `it.layer` from `@effect/vitest`. Only an application entry point runs Effects. `no-hand-run-effect` fails `Effect.run*` and `ManagedRuntime.make` in test files.
-- Pin all Effect packages together. `effect`, `@effect/vitest`, and any other `@effect/*` runtime package share one exact version, and a bump moves all of them in the same change. An app or package that installs `@effect/platform-node` also declares `@effect/platform-node-shared` as an exact direct dependency at the same version as `effect`, rather than relying on the Node package's transitive range. `@effect/tsgo` versions separately and must support the pinned TypeScript.
-- Never set an Effect diagnostic below `error` to make a change pass, and never override the plugin's Effect preset in `tsconfig.base.json` or a package's `tsconfig.json`. A `plugins` entry there replaces the whole Effect block. Fix the code.
+- A module owns its migrations, tables and views. CREATE VIEW publishes a view over only that module's own tables/views. SQL never names another module's tables/views; ask its service instead. No cross-module foreign keys. Keep foreign ids as plain columns.
+- A storage port answers facts, not permissions, standing or limits. Domain code owns those decisions. Only adapters and named adapter packages import effect/sql, @effect/sql-* or @effect/platform-*. The fence stays error severity. No ORM or query builder. Write plain SqlClient SQL, decode rows with Schema, and test Postgres against a real database through MigrationsTesting.database, never a mock.
+- Stored modules ship memory and Postgres adapters plus a shared store suite against both. Domain tests may use memory only. Memory registers undo with UnitOfWork.onRollback before changing state; Postgres joins the open transaction. Writes call UnitOfWork.required and fail NoOpenUnit outside a live unit. Modules never open a unit.
+- Only the entry runtime opens a production unit. Production app code, including feature handlers, read models and composition, never calls UnitOfWork.atomic. Entry transactions span every module write in the graph. A transactional entry treats unexpected NoOpenUnit as a defect; a plain entry keeps it typed. Tests and tooling outside src may open a unit explicitly: repository-root scripts/ or the workspace's own top-level scripts/ beside package.json. Production src/scripts, module scripts and node scripts have no exception. Kit runtime and unit adapters implement units. Background work is a system entry scheduled by composition, one unit per item.
+- The module list accepts exactly one nonempty workspace or package key per entry. Folder locations are rejected. The package's real identity is unique across locations and names. Every location kind's migrations directory must not be a symlink or resolve outside its real owning module. Normal workspace and installed-package module-root symlinks remain valid; validate migrations against that resolved root. SQL migration files themselves must not be symlinks, even to targets inside the owner. Name defaults to the slugged basename, history table to <name>_migrations. Existing name/table uniqueness and adopt {from,ids,rehash?} rules apply to every location kind. Installed packages declare houseRules.migrations and ship it. Workspace migrations remain in migrations/. The runner applies the whole list atomically and only reads old adoption history. Runner and checker mirror a private canonical breakpoint split before SQL lexing, with one shared fixture. Breakpoint lines are reserved even inside quotes/comments; the pinned driver requires one command per chunk. The runner's first transaction statement and the statement before every migration chunk are SET LOCAL standard_conforming_strings = on. Module migration and read-model SQL forbid the case-insensitive whole words standard_conforming_strings, backslash_quote, set_config and pg_settings anywhere, including literals, comments and dollar bodies. Unrelated JavaScript prose and the runner's internal pin are outside this guard.
+- Register every module with migrations in migrations.json. Modules own SQL as packages; read-model SQL selects their published views. The checker preserves raw transaction checks and bans production module/app UnitOfWork.atomic calls. Test SQL is allowed only under the owning workspace's fixtures/ or tests/ folders. Applied migrations are append-only; never edit, rename or remove one.
+- A read model has no migrations and no required memory adapter. Its Postgres SQL is exactly one static SELECT or WITH...SELECT over known published views, never tables, schema-qualified relations, writes, unknown names, SQL functions or raw/dynamic fragments. Use the checker's documented bounded grammar; unsupported SQL fails rather than being guessed. Read-model SQL and the view-DDL ownership scan reject non-ASCII outside strings or quoted identifiers, including comments; Unicode-escaped identifier values are unsupported. Plain/N SQL strings with backslashes fail in read models and the view-DDL ownership scan; use E strings or dollar quotes. Only parameter values may interpolate. Unreadable source fails closed. Without a database, wire a named read-unavailable port with an unavailable error. Person filtering stays in SQL and needs an A/B privacy test.
 
-## Agent adapters (MCP and CLI)
+Limits: the checker does not semantically analyse PL/pgSQL, DO bodies or dynamic EXECUTE. Their ownership is a review rule. The legacy table-ownership scan uses the shared PostgreSQL lexer and blanks ordinary strings. Dollar bodies get a best-effort nested lexical scan, with raw body text as fallback when body lexing fails. A SELECT-only database role granted access to published views is a planned follow-up, not implemented in phase 1.
 
-An app can let agents call its use-cases over MCP, and later over a CLI. Write each capability once, in a module and a use-case, and let each adapter reach it. `docs/mcp-adapter.md` records why. For the tool steps, load the `house-rules` skill; it routes to the application kit's `AGENTS.md`.
+## Effect and errors
 
-- A service method that acts for a user takes that user as an explicit `Actor` argument. Rules about one object, such as owner or shared, live inside the module, so no adapter can skip them.
-- Every contract declares a `permission`, a `resource:action` string the owning module names, or `"public"` on purpose. The type requires it. `implement` runs the `Grant` check, then `Approval` when the contract sets `needsApproval: true`, then the handler. The gates add `Grant` and `Approval` to the capability's requirements and `Forbidden` and `ApprovalDenied` to its failures.
-- A use-case that acts for a user yields the `CurrentActor` service, which holds the `Actor`, and passes it to the module. `Actor` and its branded `ActorId` come from `@house-rules/domain`, and `CurrentActor` from `@house-rules/application`. `yield* CurrentActor` returns the Actor directly; delivery provides it for one request.
-- An adapter decides who the `CurrentActor` is, provides the `Grant` and `Approval` slots for that request, runs one use-case, and maps its typed errors, gate errors included, to its own response. It holds no business logic and no access rule.
-- The MCP adapter fills `Approval` with `elicitationApproval`. It asks the human through the client and fails closed when the client declines, cancels, answers no, or cannot elicit. An agent never answers its own approval.
-- Each adapter owns its error mapper. The MCP adapter does not reuse the web error view.
-- An MCP tool is one entry in the app's tool catalogue, in the delivery layer, such as `src/delivery/mcp/tools.ts`. Build it from the use-case's contract with `toTool`, which takes the name, the description, the input `Schema`, and the `Tool.Readonly` and `Tool.Destructive` annotations from the contract. The entry's options add the title and the `idempotent` and `openWorld` hints. Its handler runs the capability.
-- A tool handler calls a use-case. It never calls a module service, the database, or another adapter.
-- Every tool has a test that runs it with a fake `CurrentActor`. The tests include an access test: user B cannot read user A's data through the tool.
-- The first tools an app exposes are read-only. Every write or destructive tool is annotated as one and needs owner approval before it ships.
-- An agent gets the same access as the user has in the app. The module enforces what the `CurrentActor` may do, so an agent never gets more than the user has. A token scope is optional and only narrows access.
-- Tools that only the owner may run, or that are hard to undo, such as delete, share, and unshare, stay out of the catalogue until the owner approves each one by name. Such a tool's contract sets `needsApproval: true`.
-- Keep the catalogue small. Each tool does one specific job and returns structured output. A big record gets a summary tool plus a separate read tool.
-- Tool output never carries instructions to the model. Text a user wrote goes out as a data field.
-- Use `McpServer`, `Tool`, and `Toolkit` from `effect/ai` in the pinned `effect` before any other MCP library.
-- A remote MCP endpoint is an OAuth resource server under the [MCP authorization spec 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization). It answers a call with no valid token with 401 and a `WWW-Authenticate` header that names `resource_metadata`. It serves `/.well-known/oauth-protected-resource`, naming the authorization server.
-- The MCP route checks that the token is valid and was issued for this resource (its audience, RFC 8707) before it builds the `CurrentActor`. It never passes the token on to another service.
-- The identity provider is the authorization server. Prefer Client ID Metadata Documents to Dynamic Client Registration.
-- When auth is not configured, the MCP routes refuse every call. They fail closed. Unconfigured, `/mcp` answers 503 `not_configured` with no challenge, and the metadata paths answer GET and HEAD with 503 `not_configured` and other methods with 405, because there is no authorization server to name; the 401 challenge and the metadata document apply once auth is configured.
-- The session middleware treats the MCP route and the metadata paths as public. The MCP route does its own bearer check.
-- The app's canonical public URL is an environment variable declared in `.env.schema`.
-- Tests cover the 401 challenge, the metadata document, and the fail-closed path.
+Before editing Effect code, read the installed effect/AGENTS.md and relevant ai-docs under a workspace node_modules, then the source mirror `.agent_sources/github.com/Effect-TS/effect`. There is no root Effect install. Trust pinned stable 4.0.3 over memory. Use the house-rules skill for app/module work and the live package guides for final APIs.
+
+- Expected failures are Schema.TaggedError classes in the error channel, never global Error or throw inside Effect code. Every node failure member declares `kind: errorKind(...)`: not_found, conflict, forbidden, unavailable or invalid. Schema.Never is valid.
+- Application maps kinds to fixed status/code pairs: 404, 409, 403, 503 and 400. Module user-facing errors retain their message; unavailable and plumbing messages must be fixed text. Keep cause, permissions, reasons and driver text in internal values/logs, never public message fields. Defects use generic 500 internal_error.
+- WordingOverrides in a way's folder change message only. No status, code, headers, response body or actor-aware mapper. Composition holds no views table. Gate, unit, SQL, graph, node-call and closed-composition failures get fixed public text; overrides run on top.
+- Tests use it.effect or it.layer from @effect/vitest. Never Effect.run* or ManagedRuntime.make in tests; only application entry points run Effects.
+- Pin all Effect runtime packages together, including direct @effect/platform-node-shared wherever platform-node is installed. @effect/tsgo versions separately. Never lower diagnostics below error, override the Effect plugins block, or weaken a hook to pass.
+
+## Ways, web and agent access
+
+`defineWay` names protocol, path, entries, Who, May, Mean and optional message overrides. HTTP uses browser-safe `endpoint(entry, at?, options?)` descriptors and defineApi. Export client endpoints from ways-in/<name>/endpoints.ts. Clients use application/contract and module contract doors, never bindings. Page/API may share one service with Node Host staticFiles, or use a separate origin with explicit CORS and a client baseUrl. CORS is not access control. Cookie writes still require CSRF, including session issuance before a cookie exists.
+
+A Node Host call lives in main.ts, uses @house-rules/node-host and a plain fetch handler, never node:http in Effect app code. Next already has a Host. Preserve session token omission, exact origin checks, request ids, failure-code opt-in, codecs and disposal. `call(app, entry, input, incoming, {way, admitted?})` selects a named way and uses Mean.allow. Opaque admitted state stays within one request, composition and way, never cached beyond token validity.
+
+- The agent gets the same module access as the user. Every exposed tool needs an A/B access test under a fake actor. Tools call app entries, never services or databases directly. Tool output is structured data; user text never carries model instructions.
+- Start with read-only MCP tools. Write/destructive tools, token scopes and owner-only tools need named owner approval. Hard-to-undo actions set needsApproval. Keep catalogues small, with summary/read splits for large records.
+- MCP tool definitions belong to ways and are built by the router from entries, descriptions and lifted flags. Tools add title, idempotent and openWorld hints. Prefer pinned Effect McpServer/Tool/Toolkit over a new library.
+- Mean.elicitation asks the human. Decline, cancel, no, missing support and failed elicitation fail closed. An agent never supplies its own approval.
+- Remote MCP is an OAuth resource server under spec 2025-11-25. Validate signature, issuer, expiry and this resource's audience before resolving Actor. Never forward the token. Missing/invalid tokens get 401 and WWW-Authenticate naming resource_metadata. Serve protected-resource metadata naming the authorization server. Prefer Client ID Metadata Documents over Dynamic Client Registration.
+- Auth unset fails closed: /mcp returns 503 not_configured without a challenge; metadata GET/HEAD return 503, other methods 405. Once configured, bearer admission runs on every MCP request, including existing sessions. Session middleware leaves only MCP and its metadata public; adding other paths needs approval. The canonical public URL is declared in .env.schema. Test challenge, metadata and unset-auth behavior.
+
+StepTrace is bounded FIFO memory, default 1000 requests. Reads do not allocate or refresh buckets; finishes do not revive evicted buckets. Each inner step carries entry, target, caller, reason, order and outcome. Each entry writes one audit row, refusals included, with entry-name target; inner calls never write rows. renderRegistry is pure. App registry scripts write REGISTRY.md; freshness tests compare without writing.
 
 ## Docs site
 
-- The docs site lives in `site/`, the private workspace package `@house-rules/site`, built with Astro and Starlight. `site/README.md` says how it is built and served.
-- It is neither an app nor a package, so the layout rules do not apply to it. Its `tsconfig.json` extends the plugin's `strict.json`, not the Effect preset, because its code is plain Node. Every other check runs on it.
-- The site has two pages besides the home page: `site/src/content/docs/start/index.md`, written by hand, and `site/src/content/docs/rules/index.md`, generated from the rules table in `packages/rules/README.md` and the ESLint rules' `meta`. Never edit the rules page by hand. When you change a row of the rules table or a rule's `meta.docs.description`, run `pnpm --filter @house-rules/site generate` and commit the regenerated page in the same change. `pnpm test` fails while it is stale.
-- The site is two pages on purpose. Ask the owner before you add a third.
-- Each rule's row has the anchor `/rules/#<rule id>`, such as `/rules/#comment-discipline`. Error messages link there, so a rule's anchor never changes.
-- A page links to another page, or to a repo file, by its relative file path, such as `../rules/index.md`. ESLint checks the path, and the build turns it into a route or a GitHub URL. Never link by a hand-written site URL.
-- The site explains; this file is the law. A page that disagrees with this file is wrong.
-- A page is `.md`, not `.mdx`, because ESLint checks only `.md`. Keep the frontmatter `title`, a one-sentence `description` and `sidebar.order`. Start sections with `##`: the home page links to their slugs, and `site/scripts/tests/home.test.ts` checks them.
+The private Astro/Starlight site is neither app nor package and extends strict.json, not Effect. Other checks still apply. It has the home page plus the handwritten start page and generated rules page. Ask before adding a page. Generate rules from the plugin README table and ESLint meta in the same change. Do not edit generated output by hand. Stable rule anchors are /rules/#<id>. Markdown pages link by relative file paths, not hand-written site URLs; the build rewrites them. Keep .md, title, one-sentence description, sidebar.order and ## section starts. The site explains; this file is law.
 
-## Prose rules
+## Environment and pins
 
-The "Prose rules" section in `README.md` lists what no tool here checks. A green `pnpm check` says nothing about those. Point them out in review instead of claiming a check covers them.
+Declare every variable read by code in .env.schema, without secrets. Secrets live only in .env.local or .env.*.local and are never committed. Varlock telemetry stays off in .varlock/config.json. Turbo commands set TURBO_TELEMETRY_DISABLED=1 through repo scripts and CI; otherwise disable telemetry once before running Turbo directly.
 
-## Environment
+Every root/workspace dependency is exact, including workspace:<exact>. Git dependencies pin a full 40-character SHA, with optional pnpm subpath. packageManager is exact, Node is pinned in .nvmrc and CI reads it. Keep saveExact/saveWorkspaceProtocol, minimumReleaseAge 1440, per-version approved exclusions and allowBuilds false for every dependency install script. New scripts must be listed before installing. Never force install, shamefully-hoist, nodeLinker hoisted or broad publicHoistPattern. Keep the ESLint plugin's TypeScript 6.0.3 packageExtensions entry.
 
-- Declare every environment variable the code reads in `.env.schema`. Put no secret values there.
-- Secrets live only in `.env.local`. Never commit `.env.local` or any `.env.*.local` file.
-- Varlock telemetry stays off through `.varlock/config.json`. Check with `DEBUG=varlock:telemetry pnpm exec varlock load`.
-- Turborepo telemetry stays off because every script that runs `turbo` sets `TURBO_TELEMETRY_DISABLED=1`, and so does CI. Run `turbo` only through those scripts, or run `pnpm exec turbo telemetry disable` once per machine.
+## Hooks and approval
 
-## Pins
+Lefthook runs check then test before every commit. Fix failures; never bypass or weaken hooks. Never git --no-verify, git commit -n, LEFTHOOK=0 or change core.hooksPath. Pi's git interceptor and scripts/vcs-command-policy.mjs enforce this. .agents/settings.json carries the Claude-format hook but Claude does not load it there.
 
-Every dependency in the root `package.json` and in each workspace `package.json` is an exact version. A GitHub dependency is pinned to a full 40-character commit SHA, optionally followed by a pnpm subpath such as `&path:/packages/rules`. A workspace dependency is `workspace:` plus the exact version, such as `workspace:0.0.0`. `packageManager` names an exact pnpm version. `pnpm-workspace.yaml` sets `saveExact: true` and `saveWorkspaceProtocol: true`, so `pnpm add <pkg>` writes an exact pin, and `pnpm add <workspace package>` writes `workspace:<exact version>`. `pnpm check` runs the plugin's `house-rules-pins` bin, which fails on `^`, `~`, ranges, tags, branch names, and `workspace:*`. Node is pinned in `.nvmrc`, and CI reads it from there.
+Safe without asking: code/docs edits that keep check/test green, new or tighter tests/rules, declared environment variables, and read-only MCP tools calling existing entries with tests.
 
-`pnpm-workspace.yaml` also holds the install policy:
-
-- `minimumReleaseAge: 1440` refuses a version younger than one day. Any exact pin younger than that fails `pnpm install`. Either wait a day, or add a `minimumReleaseAgeExclude` entry for that exact version, with owner approval. One entry per version. A bump replaces its entry. Effect 4.0.3 needs no exception: every pinned runtime release is over a day old.
-- `allowBuilds` lists every dependency that has an install script, each set to `false`. No dependency runs a build script. A new dependency with a script fails the install until you add it here.
-- `packageExtensions` gives the ESLint comment plugin its own TypeScript 6.0.3.
-
-Never add `shamefully-hoist`, `nodeLinker: hoisted`, or a broad `publicHoistPattern`, and never install with `--force`.
-
-## Hooks
-
-- lefthook runs `pnpm check` and then `pnpm test` before each commit.
-- If a hook fails, fix the failure. Never weaken or bypass a hook.
-- Never run `git ... --no-verify`, `git commit -n`, `LEFTHOOK=0`, or change `core.hooksPath`.
-- Pi (`.pi/extensions/git-interceptor.ts`) blocks those commands through `scripts/vcs-command-policy.mjs`. `.agents/settings.json` holds the same hook in Claude Code format. Claude Code does not load it from there.
-
-## Safe vs needs approval
-
-Safe without asking:
-
-- code changes that keep `pnpm check` and `pnpm test` green;
-- new or tighter tests;
-- docs edits in `README.md`, `AGENTS.md`, and `CONTEXT.md`;
-- tightening a lint or dependency rule;
-- adding a variable to `.env.schema`;
-- adding a read-only MCP tool that calls an existing use-case, with its test.
-
-Ask the owner first:
-
-- adding any MCP or OAuth dependency;
-- exposing a write or destructive MCP tool, or adding a token scope;
-- making another path public in the session middleware;
-- adding, removing, or bumping a dependency, the TypeScript version, the Node version, pnpm, or Turborepo;
-- adding an entry to `minimumReleaseAgeExclude`, or setting an `allowBuilds` entry to `true`;
-- removing the TypeScript 6 `packageExtensions` entry for the ESLint plugin, or narrowing the files ESLint checks;
-- inlining a copy of a plugin preset into a thin config, or any change to `biome.json`, `eslint.config.mjs`, `.dependency-cruiser.cjs`, `tsconfig*.json`, `turbo.json`, `pnpm-workspace.yaml`, `lefthook.yml`, CI, or the hook policy that loosens a rule;
-- deleting tests;
-- changing how secrets are handled: `@sensitive`, `.env.local`, the `.gitignore` env lines, or `.varlock/config.json`;
-- changing `VISION.md`;
-- commit, push, or anything that writes outside this repo.
+Ask the owner before dependencies or runtime/tool version changes; MCP/OAuth dependencies; write/destructive tools or scopes; new public session paths; release-age exclusions or allowBuilds true; narrowing lint scope or weakening any thin config, CI, preset or hook; removing the TypeScript package extension; deleting tests; changing secret handling, VISION.md, committing, pushing or writing outside this repo. Never publish by hand.

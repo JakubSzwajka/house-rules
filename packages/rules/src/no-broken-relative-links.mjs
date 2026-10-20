@@ -1,4 +1,4 @@
-import { relativeLinkPath, resolveLink } from "./relative-links.mjs";
+import { linkRoot, relativeLinkPath, resolveLink } from "./relative-links.mjs";
 import { repositoryPathsFor } from "./repository-paths.mjs";
 import { ruleDocsUrl } from "./rule-docs.mjs";
 
@@ -8,10 +8,10 @@ export const noBrokenRelativeLinksRule = {
     docs: {
       url: ruleDocsUrl("no-broken-relative-links"),
       description:
-        "Require relative Markdown links, images, and definitions to point at a git-tracked path.",
+        "Require relative Markdown links, images, and definitions to name existing tracked or non-ignored untracked files inside the repository.",
     },
     messages: {
-      broken: 'Broken relative link "{{target}}": no tracked file or directory at that path.',
+      broken: 'Broken relative link "{{target}}": no eligible file at that path.',
     },
     schema: [
       {
@@ -40,7 +40,8 @@ export const noBrokenRelativeLinksRule = {
       repository ??= repositoryPathsFor(filename, context.cwd) ?? false;
       if (!repository) return;
       const resolved = resolveLink(repository.fromFile, linked, roots);
-      if (resolved !== null && repository.has(resolved)) return;
+      if (resolved !== null && repository.has(resolved, linkRoot(repository.fromFile, roots)))
+        return;
       context.report({ loc: node.position, messageId: "broken", data: { target: node.url } });
     }
 

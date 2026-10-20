@@ -4,10 +4,10 @@ import { Linter } from "eslint";
 import plugin from "../src/index.mjs";
 
 const RULE = "house-rules/testing-exports-only-in-tests";
-const PRODUCTION_FILE = "apps/web/src/server/event-dispatcher.ts";
+const PRODUCTION_FILE = "apps/web/src/composition/event-dispatcher.ts";
 
 function lint(code, filename = PRODUCTION_FILE) {
-  const messages = new Linter().verify(code, plugin.configs.capability, { filename });
+  const messages = new Linter().verify(code, plugin.configs.nodes, { filename });
   assert.equal(
     messages.some((message) => message.fatal),
     false,
@@ -258,7 +258,7 @@ export { DbTesting } from "./db.ts";
 export { DbTesting as TestDbTesting } from "./db.ts";
 export { Db as DbTesting2, Db as live2 } from "./db.ts";`;
   const messages = new Linter()
-    .verify(code, plugin.configs.capability, { filename: "packages/db/src/index.ts" })
+    .verify(code, plugin.configs.nodes, { filename: "packages/db/src/index.ts" })
     .filter(({ ruleId }) => ruleId === RULE)
     .map(({ messageId, message, line }) => [messageId, message.split(".")[0], line]);
   assert.deepEqual(messages, [
@@ -347,7 +347,7 @@ test("test files may import testing exports, by the same paths the other checks 
 export { EventLogTesting } from "@board/event-log";
 export const layer = DbTesting.layer({ label: "x" });`;
   for (const filename of [
-    "apps/web/src/use-cases/tests/support.ts",
+    "apps/web/src/features/show/tests/support.ts",
     "packages/work/src/adapters/tests/support.ts",
     "packages/db/src/test/fixtures.ts",
     "src/__tests__/deep/x.ts",
@@ -359,7 +359,7 @@ export const layer = DbTesting.layer({ label: "x" });`;
     assert.deepEqual(lint(code, filename), [], filename);
   }
   for (const filename of [
-    "apps/web/src/server/event-dispatcher.ts",
+    "apps/web/src/composition/event-dispatcher.ts",
     "packages/db/src/testing/x.ts",
     "packages/db/src/test-database/testing.ts",
     "src/contest/x.ts",
@@ -376,12 +376,12 @@ export const layer = DbTesting.layer({ label: "x" });`;
   }
 });
 
-test("the testing preset holds the rule, and the capability preset includes it", () => {
+test("the testing preset holds the rule, and the nodes preset includes it", () => {
   assert.equal(plugin.configs.testing.length, 1);
   assert.deepEqual(plugin.configs.testing[0].files, ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]);
   assert.equal(plugin.configs.testing[0].plugins["house-rules"], plugin);
   assert.deepEqual(plugin.configs.testing[0].rules, { [RULE]: "error" });
-  assert.equal(plugin.configs.capability[0].rules[RULE], "error");
+  assert.equal(plugin.configs.nodes[0].rules[RULE], "error");
   assert.equal(
     plugin.configs.recommended.some((entry) => RULE in (entry.rules ?? {})),
     false,

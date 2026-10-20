@@ -2,13 +2,7 @@ import { expect, layer } from "@effect/vitest";
 import { Cause, Deferred, Effect, Exit, Fiber } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
 import { UnitOfWork, UnitOfWorkFailed } from "@house-rules/domain";
-import {
-  causeShape,
-  outliveUnit,
-  raceUnitEnd,
-  sqlWorld,
-  WorkFailed,
-} from "./unit-of-work-fixtures.ts";
+import { causeShape, raceUnitEnd, sqlWorld, WorkFailed } from "./unit-of-work-fixtures.ts";
 
 layer(sqlWorld, { excludeTestServices: true, timeout: "30 seconds" })(
   "UnitOfWork, sql adapter only",

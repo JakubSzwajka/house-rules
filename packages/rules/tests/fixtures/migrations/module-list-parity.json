@@ -1,0 +1,1118 @@
+[
+  {
+    "label": "a workspace entry and a package entry",
+    "kind": "package",
+    "accepts": true,
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "names and tables of the allowed length",
+    "kind": "package",
+    "accepts": true,
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"name\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}, {\"package\": \"@vendor/audit\", \"table\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}]}"
+    }
+  },
+  {
+    "label": "a workspace that declares ./migrations",
+    "kind": "package",
+    "accepts": true,
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"./migrations\"}}",
+      "packages/trips/./migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a framework folder other than migrations",
+    "kind": "package",
+    "accepts": true,
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"sql\"}}",
+      "node_modules/@vendor/audit/sql/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a nested framework folder",
+    "kind": "package",
+    "accepts": true,
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"db/sql\"}}",
+      "node_modules/@vendor/audit/db/sql/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a repeated name",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "listed twice",
+    "runnerReason": "listed twice",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"name\": \"same\"}, {\"package\": \"@vendor/audit\", \"name\": \"same\"}]}"
+    }
+  },
+  {
+    "label": "a repeated history table",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "listed twice",
+    "runnerReason": "listed twice",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"table\": \"same\"}, {\"package\": \"@vendor/audit\", \"table\": \"same\"}]}"
+    }
+  },
+  {
+    "label": "a name that is no slug",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "not a lowercase slug",
+    "runnerReason": "not a lowercase slug",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"name\": \"NOT A SLUG\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a history table that is no SQL name",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "not a lowercase SQL name",
+    "runnerReason": "not a lowercase SQL name",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"table\": \"BAD TABLE\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a name of 49 characters",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "not a lowercase slug",
+    "runnerReason": "not a lowercase slug",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"name\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a table of 64 characters",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "not a lowercase SQL name",
+    "runnerReason": "not a lowercase SQL name",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"table\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "an empty name",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "not a lowercase slug",
+    "runnerReason": "not a lowercase slug",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"name\": \"\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a null name",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "string",
+    "runnerReason": "not {",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"name\": null}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a number as table",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "string",
+    "runnerReason": "not {",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"table\": 42}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "both workspace and package",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "must name exactly one of",
+    "runnerReason": "must name exactly one non-empty",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"package\": \"@vendor/audit\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a workspace entry with package 42",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "must be a string",
+    "runnerReason": "is not {",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"package\": 42}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a workspace entry with package null",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "must be a string",
+    "runnerReason": "is not {",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\", \"package\": null}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a package entry with workspace null",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "must be a string",
+    "runnerReason": "is not {",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\", \"workspace\": null}]}"
+    }
+  },
+  {
+    "label": "a package entry with workspace 42",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "must be a string",
+    "runnerReason": "is not {",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\", \"workspace\": 42}]}"
+    }
+  },
+  {
+    "label": "an entry with neither",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "must name exactly one of",
+    "runnerReason": "must name exactly one non-empty",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}, {}]}"
+    }
+  },
+  {
+    "label": "an empty workspace",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "must not be empty",
+    "runnerReason": "must name exactly one non-empty",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "an empty package",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "must not be empty",
+    "runnerReason": "must name exactly one non-empty",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"\"}]}"
+    }
+  },
+  {
+    "label": "a null entry",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "must be an object",
+    "runnerReason": "is not {",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}, null]}"
+    }
+  },
+  {
+    "label": "a string entry",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "must be an object",
+    "runnerReason": "is not {",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}, \"packages/trips\"]}"
+    }
+  },
+  {
+    "label": "a package that is not installed",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "not installed",
+    "runnerReason": "not installed",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/nowhere\"}]}"
+    }
+  },
+  {
+    "label": "a workspace outside the repository",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "not a folder below",
+    "runnerReason": "not a folder below",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"../elsewhere\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a workspace outside the repository that pnpm discovers",
+    "kind": "package",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "not a folder below",
+    "runnerReason": "not a folder below",
+    "files": {
+      "app/pnpm-workspace.yaml": "packages:\n  - \"../external/*\"\n",
+      "app/package.json": "{}",
+      "external/trips/package.json": "{}",
+      "external/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "app/migrations.json": "{\"modules\": [{\"workspace\": \"../external/trips\", \"name\": \"trips\", \"table\": \"db_migrations\"}]}"
+    }
+  },
+  {
+    "label": "a workspace that declares another folder",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "declares the migrations folder",
+    "runnerReason": "declares the migrations folder",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"sql\"}}",
+      "packages/trips/sql/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a framework folder that escapes the package",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "not a folder inside its package",
+    "runnerReason": "not a folder inside its package",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"../foreign\"}}",
+      "node_modules/@vendor/audit/../foreign/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a framework folder of .",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "not a folder inside its package",
+    "runnerReason": "not a folder inside its package",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \".\"}}",
+      "node_modules/@vendor/audit/./0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "an empty framework folder",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "not a folder inside its package",
+    "runnerReason": "not a folder inside its package",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"\"}}",
+      "node_modules/@vendor/audit//0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "an absolute framework folder",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "not a folder inside its package",
+    "runnerReason": "not a folder inside its package",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"/tmp\"}}",
+      "node_modules/@vendor/audit//tmp/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a framework folder that is a number",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "does not declare",
+    "runnerReason": "not a valid package.json",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": 7}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a framework package without houseRules.migrations",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "does not declare",
+    "runnerReason": "does not declare",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\"}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a framework houseRules that is a string",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "does not declare",
+    "runnerReason": "not a valid package.json",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": \"migrations\"}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "a framework name that is a number",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "cannot read",
+    "runnerReason": "not a valid package.json",
+    "files": {
+      "package.json": "{\"dependencies\": {\"@vendor/audit\": \"1.0.0\"}}",
+      "packages/trips/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "packages/trips/migrations/0001_trip.sql": "create table trip (id integer);\n",
+      "node_modules/@vendor/audit/package.json": "{\"name\": 7, \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/0001_audit.sql": "create table audit (id integer);\n",
+      "migrations.json": "{\"modules\": [{\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "folder outside workspace",
+    "kind": "folder",
+    "accepts": false,
+    "files": {
+      "apps/api/package.json": "{}",
+      "local/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"local/orders\"}]}"
+    },
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported"
+  },
+  {
+    "label": "duplicate outside-workspace identity",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "local/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"local/orders\"}, {\"folder\": \"local/orders\"}]}"
+    }
+  },
+  {
+    "label": "folder workspace and installed package",
+    "kind": "folder",
+    "accepts": false,
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "packages/trips/package.json": "{}",
+      "packages/trips/migrations/001_trip.sql": "create table trip(id text);",
+      "node_modules/@vendor/audit/package.json": "{\"houseRules\":{\"migrations\":\"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/001_audit.sql": "create table audit(id text);",
+      "migrations.json": "{\"modules\": [{\"folder\": \"apps/api/src/modules/orders\"}, {\"workspace\": \"packages/trips\"}, {\"package\": \"@vendor/audit\"}]}"
+    },
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported"
+  },
+  {
+    "label": "cross-location duplicate table",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "packages/trips/package.json": "{}",
+      "packages/trips/migrations/001_trip.sql": "create table trip(id text);",
+      "node_modules/@vendor/audit/package.json": "{\"houseRules\":{\"migrations\":\"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/001_audit.sql": "create table audit(id text);",
+      "migrations.json": "{\"modules\": [{\"folder\": \"apps/api/src/modules/orders\", \"table\": \"shared_history\"}, {\"workspace\": \"packages/trips\", \"table\": \"shared_history\"}, {\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "folder without package manifest",
+    "kind": "folder",
+    "accepts": false,
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"apps/api/src/modules/orders\"}]}"
+    },
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported"
+  },
+  {
+    "label": "custom folder identity",
+    "kind": "folder",
+    "accepts": false,
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"apps/api/src/modules/orders\", \"name\": \"orders_v2\", \"table\": \"order_history\"}]}"
+    },
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported"
+  },
+  {
+    "label": "folder plus workspace",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"apps/api/src/modules/orders\", \"workspace\": \"packages/orders\"}, {\"folder\": \"apps/api/src/modules/orders\"}]}"
+    }
+  },
+  {
+    "label": "folder plus package",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"apps/api/src/modules/orders\", \"package\": \"@vendor/orders\"}, {\"folder\": \"apps/api/src/modules/orders\"}]}"
+    }
+  },
+  {
+    "label": "empty folder",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"\"}, {\"folder\": \"apps/api/src/modules/orders\"}]}"
+    }
+  },
+  {
+    "label": "blank folder",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \" \"}, {\"folder\": \"apps/api/src/modules/orders\"}]}"
+    }
+  },
+  {
+    "label": "folder outside root",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"../orders\"}, {\"folder\": \"apps/api/src/modules/orders\"}]}"
+    }
+  },
+  {
+    "label": "missing folder",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"missing\"}, {\"folder\": \"apps/api/src/modules/orders\"}]}"
+    }
+  },
+  {
+    "label": "no migrations directory",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"apps/api/src/modules\"}, {\"folder\": \"apps/api/src/modules/orders\"}]}"
+    }
+  },
+  {
+    "label": "duplicate identity",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"apps/api/src/modules/orders\"}, {\"folder\": \"apps/api/src/modules/orders\"}]}"
+    }
+  },
+  {
+    "label": "bad name",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"apps/api/src/modules/orders\", \"name\": \"Bad Name\"}]}"
+    }
+  },
+  {
+    "label": "bad table",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"apps/api/src/modules/orders\", \"table\": \"Bad Table\"}]}"
+    }
+  },
+  {
+    "label": "folder adoption",
+    "kind": "folder",
+    "accepts": false,
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"apps/api/src/modules/orders\", \"adopt\": {\"from\": \"legacy\", \"ids\": [1]}}]}"
+    },
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported"
+  },
+  {
+    "label": "invalid folder adoption",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "apps/api/package.json": "{}",
+      "apps/api/src/modules/orders/migrations/001_orders.sql": "create table orders(id text); create view orders_read as select id from orders;",
+      "migrations.json": "{\"modules\": [{\"folder\": \"apps/api/src/modules/orders\", \"adopt\": {\"from\": \"legacy\", \"ids\": []}}]}"
+    }
+  },
+  {
+    "label": "folder symlink outside list",
+    "kind": "folder",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "outside/orders/migrations/001.sql": "select 1;",
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+      "app/migrations.json": "{\"modules\": [{\"folder\": \"local/orders\"}]}"
+    },
+    "links": {
+      "app/local/orders": "../../outside/orders"
+    }
+  },
+  {
+    "label": "migrations symlink outside list",
+    "kind": "folder",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "outside/001.sql": "select 1;",
+      "app/local/orders/contract.ts": "",
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+      "app/migrations.json": "{\"modules\": [{\"folder\": \"local/orders\"}]}"
+    },
+    "links": {
+      "app/local/orders/migrations": "../../../outside"
+    }
+  },
+  {
+    "label": "migrations symlink to sibling",
+    "kind": "folder",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "app/local/billing/migrations/001.sql": "select 1;",
+      "app/local/orders/contract.ts": "",
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+      "app/migrations.json": "{\"modules\": [{\"folder\": \"local/orders\"}]}"
+    },
+    "links": {
+      "app/local/orders/migrations": "../billing/migrations"
+    }
+  },
+  {
+    "label": "same folder two identities",
+    "kind": "folder",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "app/local/orders/migrations/001.sql": "select 1;",
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+      "app/migrations.json": "{\"modules\": [{\"folder\": \"local/orders\"}, {\"folder\": \"local/orders\", \"name\": \"other\"}]}"
+    },
+    "links": {}
+  },
+  {
+    "label": "folder and workspace same directory",
+    "kind": "folder",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "app/packages/trips/package.json": "{}",
+      "app/packages/trips/migrations/001.sql": "select 1;",
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+      "app/migrations.json": "{\"modules\": [{\"folder\": \"packages/trips\"}, {\"workspace\": \"packages/trips\", \"name\": \"other\"}]}"
+    },
+    "links": {}
+  },
+  {
+    "label": "same real folder through two paths",
+    "kind": "folder",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+      "app/local/orders/migrations/001.sql": "select 1;",
+      "app/migrations.json": "{\"modules\": [{\"folder\": \"local/orders\"}, {\"folder\": \"local/alias\", \"name\": \"different\"}]}"
+    },
+    "links": {
+      "app/local/alias": "orders"
+    }
+  },
+  {
+    "label": "workspace migrations symlink to sibling",
+    "kind": "workspace",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "not a symlink",
+    "runnerReason": "not a symlink",
+    "files": {
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - \"apps/*\"\n  - packages/*\n",
+      "app/packages/linked/package.json": "{}",
+      "app/local/foreign/migrations/001_foreign.sql": "select 1;",
+      "app/migrations.json": "{\"modules\": [{\"workspace\": \"packages/linked\"}]}"
+    },
+    "links": {
+      "app/packages/linked/migrations": "../../local/foreign/migrations"
+    }
+  },
+  {
+    "label": "workspace migrations symlink to outside",
+    "kind": "workspace",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "not a symlink",
+    "runnerReason": "not a symlink",
+    "files": {
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - \"apps/*\"\n  - packages/*\n",
+      "app/packages/linked/package.json": "{}",
+      "outside/migrations/001_foreign.sql": "select 1;",
+      "app/migrations.json": "{\"modules\": [{\"workspace\": \"packages/linked\"}]}"
+    },
+    "links": {
+      "app/packages/linked/migrations": "../../../outside/migrations"
+    }
+  },
+  {
+    "label": "package migrations symlink to sibling",
+    "kind": "package",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "not a symlink",
+    "runnerReason": "not a symlink",
+    "files": {
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - \"apps/*\"\n  - packages/*\n",
+      "app/node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "app/local/foreign/migrations/001_foreign.sql": "select 1;",
+      "app/migrations.json": "{\"modules\": [{\"package\": \"@vendor/audit\"}]}"
+    },
+    "links": {
+      "app/node_modules/@vendor/audit/migrations": "../../../local/foreign/migrations"
+    }
+  },
+  {
+    "label": "package migrations symlink to outside",
+    "kind": "package",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "not a symlink",
+    "runnerReason": "not a symlink",
+    "files": {
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - \"apps/*\"\n  - packages/*\n",
+      "app/node_modules/@vendor/audit/package.json": "{\"name\": \"@vendor/audit\", \"houseRules\": {\"migrations\": \"migrations\"}}",
+      "outside/migrations/001_foreign.sql": "select 1;",
+      "app/migrations.json": "{\"modules\": [{\"package\": \"@vendor/audit\"}]}"
+    },
+    "links": {
+      "app/node_modules/@vendor/audit/migrations": "../../../../outside/migrations"
+    }
+  },
+  {
+    "label": "package nested migrations physically outside module",
+    "kind": "package",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "resolves outside its own module",
+    "runnerReason": "resolves outside its own module",
+    "files": {
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+      "app/node_modules/@vendor/audit/package.json": "{\"houseRules\":{\"migrations\":\"db/sql\"}}",
+      "outside/db/sql/001_audit.sql": "select 1;",
+      "app/migrations.json": "{\"modules\":[{\"package\":\"@vendor/audit\"}]}"
+    },
+    "links": {
+      "app/node_modules/@vendor/audit/db": "../../../../outside/db"
+    }
+  },
+  {
+    "label": "folder module root symlink with owned migrations",
+    "kind": "folder",
+    "accepts": false,
+    "cwd": "app",
+    "files": {
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - \"apps/*\"\n  - packages/*\n",
+      "app/local/orders/package.json": "{}",
+      "app/local/orders/migrations/001_linked.sql": "create table linked_item(id integer); create view linked_read as select id from linked_item;",
+      "app/apps/api/package.json": "{}",
+      "app/apps/api/src/read-models/report/adapters/postgres/report.ts": "sql`select * from linked_read`;",
+      "app/migrations.json": "{\"modules\": [{\"folder\": \"local/alias\"}]}"
+    },
+    "links": {
+      "app/local/alias": "orders"
+    },
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported"
+  },
+  {
+    "label": "workspace module root symlink with owned migrations",
+    "kind": "workspace",
+    "accepts": true,
+    "cwd": "app",
+    "files": {
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - \"apps/*\"\n  - packages/*\n",
+      "outside/linked/package.json": "{}",
+      "outside/linked/migrations/001_linked.sql": "create table linked_item(id integer); create view linked_read as select id from linked_item;",
+      "app/apps/api/package.json": "{}",
+      "app/apps/api/src/read-models/report/adapters/postgres/report.ts": "sql`select * from linked_read`;",
+      "app/migrations.json": "{\"modules\": [{\"workspace\": \"packages/linked\"}]}"
+    },
+    "links": {
+      "app/packages/linked": "../../outside/linked"
+    }
+  },
+  {
+    "label": "package module root symlink with owned migrations",
+    "kind": "package",
+    "accepts": true,
+    "cwd": "app",
+    "files": {
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - \"apps/*\"\n  - packages/*\n",
+      "outside/audit/package.json": "{\"houseRules\": {\"migrations\": \"migrations\"}}",
+      "outside/audit/migrations/001_linked.sql": "create table linked_item(id integer); create view linked_read as select id from linked_item;",
+      "app/apps/api/package.json": "{}",
+      "app/apps/api/src/read-models/report/adapters/postgres/report.ts": "sql`select * from linked_read`;",
+      "app/migrations.json": "{\"modules\": [{\"package\": \"@vendor/audit\"}]}"
+    },
+    "links": {
+      "app/node_modules/@vendor/audit": "../../../outside/audit"
+    }
+  },
+  {
+    "label": "workspace missing migrations directory",
+    "kind": "workspace",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "cannot resolve its own migrations/ directory",
+    "runnerReason": "Cannot resolve",
+    "files": {
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+      "app/packages/linked/package.json": "{\"houseRules\":{\"migrations\":\"migrations\"}}",
+      "app/migrations.json": "{\"modules\": [{\"workspace\": \"packages/linked\"}]}"
+    }
+  },
+  {
+    "label": "package missing migrations directory",
+    "kind": "package",
+    "accepts": false,
+    "cwd": "app",
+    "checkerReason": "cannot resolve its own migrations/ directory",
+    "runnerReason": "Cannot resolve",
+    "files": {
+      "app/package.json": "{}",
+      "app/pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+      "app/node_modules/@vendor/audit/package.json": "{\"houseRules\":{\"migrations\":\"migrations\"}}",
+      "app/migrations.json": "{\"modules\": [{\"package\": \"@vendor/audit\"}]}"
+    }
+  },
+  {
+    "label": "workspace SQL file symlink inside owner",
+    "kind": "workspace",
+    "accepts": false,
+    "checkerReason": "migration file 002_link.sql must not be a symlink.",
+    "runnerReason": "migration file 002_link.sql must not be a symlink.",
+    "files": {
+      "packages/trips/package.json": "{}",
+      "packages/trips/migrations/payload.txt": "select 1;",
+      "migrations.json": "{\"modules\":[{\"workspace\":\"packages/trips\"}]}"
+    },
+    "links": {
+      "packages/trips/migrations/002_link.sql": "payload.txt"
+    }
+  },
+  {
+    "label": "package SQL file symlink inside owner",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "migration file 002_link.sql must not be a symlink.",
+    "runnerReason": "migration file 002_link.sql must not be a symlink.",
+    "files": {
+      "node_modules/@vendor/audit/package.json": "{\"houseRules\":{\"migrations\":\"migrations\"}}",
+      "node_modules/@vendor/audit/migrations/payload.txt": "select 1;",
+      "migrations.json": "{\"modules\":[{\"package\":\"@vendor/audit\"}]}"
+    },
+    "links": {
+      "node_modules/@vendor/audit/migrations/002_link.sql": "payload.txt"
+    }
+  },
+  {
+    "label": "folder SQL file symlink inside owner",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "local/orders/migrations/payload.txt": "select 1;",
+      "migrations.json": "{\"modules\":[{\"folder\":\"local/orders\"}]}"
+    },
+    "links": {
+      "local/orders/migrations/002_link.sql": "payload.txt"
+    }
+  },
+  {
+    "label": "workspace SQL file symlink outside owner",
+    "kind": "workspace",
+    "accepts": false,
+    "checkerReason": "migration file 002_link.sql must not be a symlink.",
+    "runnerReason": "migration file 002_link.sql must not be a symlink.",
+    "files": {
+      "packages/trips/package.json": "{}",
+      "outside/payload.txt": "drop view orders_read;",
+      "migrations.json": "{\"modules\":[{\"workspace\":\"packages/trips\"}]}"
+    },
+    "links": {
+      "packages/trips/migrations/002_link.sql": "../../../outside/payload.txt"
+    }
+  },
+  {
+    "label": "package SQL file symlink outside owner",
+    "kind": "package",
+    "accepts": false,
+    "checkerReason": "migration file 002_link.sql must not be a symlink.",
+    "runnerReason": "migration file 002_link.sql must not be a symlink.",
+    "files": {
+      "node_modules/@vendor/audit/package.json": "{\"houseRules\":{\"migrations\":\"migrations\"}}",
+      "outside/payload.txt": "drop view orders_read;",
+      "migrations.json": "{\"modules\":[{\"package\":\"@vendor/audit\"}]}"
+    },
+    "links": {
+      "node_modules/@vendor/audit/migrations/002_link.sql": "../../../../outside/payload.txt"
+    }
+  },
+  {
+    "label": "folder SQL file dangling symlink",
+    "kind": "folder",
+    "accepts": false,
+    "checkerReason": "\"folder\" locations are not supported",
+    "runnerReason": "\"folder\" locations are not supported",
+    "files": {
+      "migrations.json": "{\"modules\":[{\"folder\":\"local/orders\"}]}"
+    },
+    "links": {
+      "local/orders/migrations/002_link.sql": "missing.txt"
+    }
+  }
+]

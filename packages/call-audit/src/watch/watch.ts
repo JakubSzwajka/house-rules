@@ -21,9 +21,9 @@ export const makeWatch = (
   who: Effect.Effect<string | null>,
   record: (entry: AuditEntry) => Effect.Effect<void>,
 ): CallWatchService => ({
-  around: (contract, _input, run, given) =>
+  around: (entry, _input, run, given) =>
     Effect.gen(function* auditedCall() {
-      const facts = given ?? unknownCallFacts(contract);
+      const facts = given ?? unknownCallFacts(entry);
       // Snapshot before run: a handler may swap the caller in context, and a broken `who` becomes null.
       const viewerId = yield* who.pipe(Effect.catchCause(() => Effect.succeed(null)));
       const start = yield* Clock.currentTimeMillis;
@@ -33,8 +33,9 @@ export const makeWatch = (
           Effect.gen(function* recordCall() {
             const end = yield* Clock.currentTimeMillis;
             yield* record({
-              capability: contract.name,
-              permission: contract.permission,
+              capability: entry.node.name,
+              target: entry.node.name,
+              permission: entry.node.permission ?? "",
               viewerId,
               outcome: outcomeOf(exit),
               ms: end - start,

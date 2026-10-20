@@ -21,6 +21,12 @@ const verifyWith = (
 const rejected = (reason: TokenRejected["reason"]) => Exit.fail(new TokenRejected({ reason }));
 
 describe("AuthJwt.layer", () => {
+  it("config errors supply their unavailable kind without a constructor argument", () => {
+    expect(new AuthJwtConfigInvalid({ option: "issuer", message: "Invalid issuer." }).kind).toBe(
+      "unavailable",
+    );
+  });
+
   it.effect("turns a valid token into a Principal", () =>
     Effect.gen(function* () {
       const keys = yield* AuthJwtTesting.keys;

@@ -1,13 +1,9 @@
 import { execFileSync } from "node:child_process";
-import { readdirSync, realpathSync, statSync } from "node:fs";
+import { lstatSync, readdirSync, readlinkSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
-import { trackedPaths } from "./relative-links.mjs";
 
 const GIT_OUTPUT_LIMIT = 512 * 1024 * 1024;
 const topLevelByDirectory = new Map();
-const indexPathByTopLevel = new Map();
-const trackedByTopLevel = new Map();
-const EMPTY_TRACKED = trackedPaths([]);
 
 // Git hooks export GIT_DIR (and sometimes GIT_INDEX_FILE, GIT_PREFIX), which pins every call to one repo and
 // makes `--show-toplevel` return the cwd. Drop the repo-local variables, the list `git rev-parse --local-env-vars`
@@ -70,46 +66,22 @@ function gitTopLevel(directory) {
   return topLevelByDirectory.get(directory);
 }
 
-// Worktrees and submodules keep the index outside `<top-level>/.git`, so ask git where it is.
-function gitIndexPath(topLevel) {
-  if (!indexPathByTopLevel.has(topLevel)) {
-    indexPathByTopLevel.set(
-      topLevel,
-      path.resolve(topLevel, git(["rev-parse", "--git-path", "index"], topLevel).trim()),
+// Untracked files and ignore rules can change without touching the index. Read once per linted file.
+function gitCandidateFiles(topLevel) {
+  try {
+    const files = new Set(
+      git(["ls-files", "--cached", "--others", "--exclude-standard", "-z"], topLevel)
+        .split("\0")
+        .filter(Boolean),
     );
-  }
-  return indexPathByTopLevel.get(topLevel);
-}
-
-function indexStamp(indexPath) {
-  try {
-    const stats = statSync(indexPath);
-    return `${stats.mtimeMs}:${stats.size}:${stats.ino}`;
+    const ignored = git(
+      ["ls-files", "--cached", "--ignored", "--exclude-standard", "-z"],
+      topLevel,
+    ).split("\0");
+    for (const file of ignored) files.delete(file);
+    return files;
   } catch {
-    return null;
-  }
-}
-
-// `git add`, `git mv` and `git rm` rewrite the index, so a long-lived process re-reads it only when it changed.
-function gitTrackedPaths(topLevel) {
-  const stamp = indexStamp(gitIndexPath(topLevel));
-  if (stamp === null) {
-    trackedByTopLevel.delete(topLevel);
-    return EMPTY_TRACKED;
-  }
-  const cached = trackedByTopLevel.get(topLevel);
-  if (cached?.stamp === stamp) return cached.paths;
-  const files = git(["ls-files", "-z"], topLevel).split("\0").filter(Boolean);
-  const paths = trackedPaths(files);
-  trackedByTopLevel.set(topLevel, { stamp, paths });
-  return paths;
-}
-
-function gitTrackedPathsOrNull(topLevel) {
-  try {
-    return gitTrackedPaths(topLevel);
-  } catch {
-    return null;
+    return new Set();
   }
 }
 
@@ -130,6 +102,42 @@ function toPosix(relativePath) {
   return relativePath.split(path.sep).join("/");
 }
 
+function inside(root, absolute) {
+  const relative = path.relative(root, absolute);
+  return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+}
+
+function candidateFile(root, relativePath, files, boundary = "", seen = new Set()) {
+  if (!files.has(relativePath) || seen.has(relativePath)) return false;
+  seen.add(relativePath);
+  const absolute = path.resolve(root, relativePath);
+  const limit = path.resolve(root, boundary);
+  if (!inside(limit, absolute) || !existsWithExactCase(root, relativePath)) return false;
+  try {
+    // Resolve on disk before normalizing symlink text: `alias/..` can cross a real boundary.
+    const canonical = realpathSync.native(absolute);
+    if (!inside(limit, canonical) || !statSync(absolute).isFile()) return false;
+    if (!files.has(toPosix(path.relative(root, canonical)))) return false;
+    let current = root;
+    const parts = relativePath.split("/");
+    for (const [index, segment] of parts.entries()) {
+      current = path.join(current, segment);
+      if (!lstatSync(current).isSymbolicLink()) continue;
+      if (!files.has(toPosix(path.relative(root, current)))) return false;
+      const target = path.resolve(
+        path.dirname(current),
+        readlinkSync(current),
+        ...parts.slice(index + 1),
+      );
+      if (!inside(limit, target)) return false;
+      return candidateFile(root, toPosix(path.relative(root, target)), files, boundary, seen);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function repositoryPathsFor(filename, cwd) {
   const absolute = path.resolve(cwd, filename);
   const directory = realDirectory(path.dirname(absolute));
@@ -139,7 +147,12 @@ export function repositoryPathsFor(filename, cwd) {
   if (!fromFile || fromFile === ".." || fromFile.startsWith("../") || path.isAbsolute(fromFile))
     return null;
 
-  const tracked = topLevel ? gitTrackedPathsOrNull(topLevel) : null;
-  if (tracked) return { fromFile, has: (relativePath) => tracked.has(relativePath) };
+  if (topLevel) {
+    const files = gitCandidateFiles(topLevel);
+    return {
+      fromFile,
+      has: (relativePath, boundary) => candidateFile(root, relativePath, files, boundary),
+    };
+  }
   return { fromFile, has: (relativePath) => existsWithExactCase(root, relativePath) };
 }

@@ -1,67 +1,74 @@
-# Module-owned SQL checker
+# Module-owned migrations and SQL
 
-Bin: `house-rules-migrations` (`bin/migrations.mjs`)
+house-rules-migrations checks SQL ownership and migrations.json. It never executes SQL. @house-rules/migrations runs the list against Postgres. Runner and checker consume one shared workspace/package fixture file, with failure reasons on each side.
 
-A module owns its migrations and its tables. The bin reads every SQL migration and every SQL string in the workspace, and fails when one module reaches into another module's tables. It also checks the module list, `migrations.json`, against the modules that have migrations. A repository with no SQL and no module with migrations passes.
+## Locations
 
-```json
-// package.json
-{
-  "scripts": {
-    "migrations": "house-rules-migrations"
-  }
-}
-```
-
-`--adapter-package <name>`, repeatable, names another package that may open a raw transaction, such as a plumbing package that wraps the database: `house-rules-migrations --adapter-package @trippy/db`. Any other argument fails.
-
-## Ownership
-
-The bin finds the workspace packages from the `packages:` list in `pnpm-workspace.yaml`, or `apps/*` and `packages/*` when there is none. A workspace package is a matching folder with a `package.json`. Its migrations are the `.sql` files directly in `<package>/migrations/`.
-
-The apps roots come from `layout()` in `.dependency-cruiser.cjs`, the file `house-rules-layout` reads, so `appsDir: ["apps", "examples/*/apps"]` makes `examples/shop/apps/api` an app here too. Without that file, the apps root is `apps/`. A file that fails to load, or that has no `packages-do-not-import-apps` rule from `layout()`, fails the check with a message. A module list entry may name a nested workspace, such as `{ "workspace": "examples/shop/packages/orders" }`, when `pnpm-workspace.yaml` lists it, such as with `examples/*/packages/*`.
-
-A table belongs to the package whose migration runs `create table` for it. `create table if not exists`, `temporary`, `unlogged`, quoted names (a doubled `""` inside one included), and a schema prefix such as `public.place` or `"auth"."user"` are read. Names compare without the schema and without case.
-
-## The module list
-
-`migrations.json` at the repository root names every module whose migrations the app runs. The runner, `@house-rules/migrations`, reads the same file, and its README describes every key.
+Each entry names exactly one nonempty workspace or package location. Workspace migrations stay in migrations/ and retain manifest checks. Installed packages declare houseRules.migrations and resolve from node_modules. Folder locations are rejected.
 
 ```json
-{
-  "modules": [
-    { "workspace": "packages/trips", "table": "db_migrations" },
-    { "package": "@house-rules/call-audit" }
-  ]
-}
+{"modules":[
+  {"workspace":"packages/comments"},
+  {"package":"@house-rules/call-audit"}
+]}
 ```
 
-A module must be listed when it is:
+The default name is the package's slugged basename; table defaults to <name>_migrations. Name/table syntax, length, uniqueness and adopt {from,ids,rehash?} validation apply to every location. A real folder cannot be listed twice with different names or location kinds. For both location kinds, migrations/ cannot be a symlink or resolve outside its real owning module. Normal workspace/installed module-root symlinks remain valid; declared workspace roots are followed through them, and SQL is still owned/scanned. A .sql file must be a regular file, never a symlink, even when its target stays inside the module. Both checker and runner reject linked and dangling SQL files under the same policy and shared parity fixtures.
 
-- a workspace package with a `migrations/` folder. A workspace package keeps its migrations there and nowhere else; a `houseRules.migrations` field that names another folder fails (item 7);
-- a package in the `dependencies` of the root `package.json` or of a workspace package, not a `workspace:` one, whose installed `package.json` declares `"houseRules": { "migrations": "<folder>" }`. The bin finds it by walking up from the depending package to the first `node_modules` that holds it.
+Every module with migrations must be listed. Read-model discovery under src/read-models applies only to configured app workspaces, not shared packages. Read models cannot own migrations.
 
-A listed package's migrations count like a workspace package's: the package owns the tables they create, and no workspace SQL may name them. Its `.sql` files are the ones directly in the declared folder, and its shipped `src/` is read like a workspace package's `src/` (item 4): its SQL may name only the tables it owns.
+## Chunks and session settings
 
-## What fails
+The runner and checker mirror one private split algorithm. Both suites read tests/fixtures/migrations/chunk-parity.json in the rules package. A line matching `^--> statement-breakpoint[ \t]*$` is reserved, even inside a quoted body or comment. Splitting happens before SQL lexing. Chunks are trimmed and empty chunks omitted; semicolons inside strings, dollar quotes and comments never split a runner chunk. With the pinned PostgreSQL Effect driver, each chunk must contain one command: unprepared execution still rejects multiple commands. The checker additionally splits each chunk at tokenized semicolons to inspect every DDL statement. It does not promise that admitted SQL will execute.
 
-1. **A cross-module foreign key.** A migration `references` a table another package owns. Keep the id as a plain column and ask the other module's service for the record.
-2. **A migration that touches another package's table**: `alter table`, `drop table`, `truncate`, or `insert into`, `update`, `from`, `join`, `using` naming it.
-3. **A table two packages create.** The second creator is reported.
-4. **Module SQL that names another package's table.** In every `src/**/*.{ts,tsx,mts,cts}` of every workspace package, apps included, and of every listed installed package, the bin reads string literals and template literals that hold a SQL keyword (`select`, `insert`, `update`, `delete`, `alter`, `drop`, `truncate`, `merge`). A name after `from`, `join`, `into`, `update`, `using`, `truncate`, or `alter/drop table` that another package owns fails, with or without `only`, and so does every table in a comma list such as `from trip t, "user" u`. JavaScript escapes such as `\"` are decoded first, and each `${...}` reads as a placeholder. This also fails when a plumbing package, such as `db`, owns tables a module queries: move the migration into the module.
-5. **A `.sql` file outside a `<package>/migrations/` folder**, nested folders under `migrations/` included. `node_modules` and dot folders are skipped. A `.sql` file under a `fixtures/` or `tests/` folder inside a workspace package, such as `packages/db/fixtures/bad-name/0001-bad-name.sql`, is test data: it is neither a migration nor a problem, and its tables have no owner.
-6. **A module the list leaves out.** No `migrations.json` while a module has migrations, or a list that does not name a module it must name. The message gives the entry to add.
-7. **A list entry the runner cannot use.** The file is not JSON with a `modules` array; an entry names both or neither of `workspace` and `package`; a `workspace` that is not a workspace package or has no migrations; a `package` the repository root cannot resolve in `node_modules`, or one that does not declare `houseRules.migrations`; two entries that share a module name or a history table; a `name` that is not a lowercase slug, or a `table` that is not a lowercase SQL name, or either one that is not a string; a workspace package whose `houseRules.migrations` names a folder other than `migrations/`. List problems are reported at `migrations.json:1`.
-8. **A raw transaction outside an adapter package** (heuristic). Any `src/**` file of a workspace package or a listed installed package, tests included, that calls `withTransaction`, or sends `begin` or `start transaction` in SQL text. SQL text is a template tagged like `sql` (`sql`, `this.sql`), or the first argument of a raw query call (`.unsafe(`, `.execute(`, `.executeUnprepared(`, `.executeRaw(`, `.query(`). There any statement that starts with one of them fails, in any case, after comments, and after a `;`. A dollar-quoted body, such as `DO $$ ... BEGIN ... END $$`, is skipped here, since its `BEGIN` opens a PL/pgSQL block. One scan reads strings, quoted identifiers, comments and dollar bodies together, as Postgres does, so a `"$$"`, a `'$$'` or a `-- $$` neither opens a body nor hides its closing delimiter, and a `begin` after the body still fails. Block comments nest, as in Postgres. This scan also blanks quoted identifiers, so `select 1 as "x; begin"` passes. In a use-case, any string or template part that starts with one fails, SQL text included, so `` sql`${sql.literal("")}begin` `` fails there. Any other string fails only when it is a whole transaction control statement: `begin`, `BEGIN`, `start transaction`, optionally followed by `transaction`, `work`, `isolation ...` or `read ...`, and `;`. So UI text such as `"Begin"` or `"Begin your trip"` passes, and so does SQL behind another tag name or in a plain variable. A use-case opens a unit of work instead: `transactional: true` on its contract, or `UnitOfWork.atomic` from `@house-rules/domain` in its handler. Adapter packages are exempt: `@house-rules/domain`, which defines `UnitOfWork.atomic` itself, `@house-rules/application`, whose `sqlUnitOfWork` adapter calls `withTransaction`, `@house-rules/migrations`, and every package named with `--adapter-package <name>`, matched by the `name` in its `package.json`.
-9. **A module that opens a unit of work** (heuristic). A non-test `src/**` file of a workspace package outside the apps roots, or of a listed installed package, whose code calls `UnitOfWork.atomic` or `unitOfWork.atomic`. A module never opens a unit: its writes run inside the one the use-case opened, and fail with `NoOpenUnit` without one (`UnitOfWork.required`). Apps may open one: in a use-case, in a script, or in the app's server process, such as a background loop like an event dispatcher that opens one unit per item. So may tests (a file under a `test`, `tests` or `__tests__` folder, or a `.test.` or `.spec.` file). Adapter packages are exempt.
+The runner's first statement inside its transaction is SET LOCAL standard_conforming_strings = on. It repeats that pin before every migration chunk, including chunks in later files. The checker forbids the case-insensitive whole words standard_conforming_strings, backslash_quote, set_config and pg_settings anywhere in module migration/read-model SQL. This raw guard intentionally includes strings, comments and dollar bodies; those words have no module use. It does not flag unrelated JavaScript prose or the runner's internal pin.
 
-SQL comments (`--` and `/* */`) and string constants (`'...'` with `''` escapes, and `E'...'` with backslash escapes) are blanked first, in migrations and in SQL strings alike. Nested block comments count as one comment. Quoted identifiers stay for the table checks. TypeScript comments and code are never read as SQL.
+Plain and N strings containing backslashes fail in read models and the view-DDL scan. Use E strings or dollar quotes instead. Their boundaries do not depend on the session's standard_conforming_strings mode.
+
+## Ownership and units
+
+CREATE TABLE and supported CREATE VIEW forms assign an owner. A view's SELECT names only that module's tables/views, not another module's objects, unknown relations or schema-qualified look-alikes. ALTER/DROP VIEW, MATERIALIZED VIEW and TABLE may change only owned objects. Cross-module foreign keys fail, including compact quoted references. Keep foreign ids as plain columns and ask the other module's service instead.
+
+Domain modules own SQL as packages. Ordinary module SQL cannot name another owner's objects. SQL files sit directly in the owner's migrations/ directory. Test SQL under a workspace's fixtures/ or tests/ is exempt. Applied migrations are append-only.
+
+Only the entry runtime opens a production unit. Production node handlers, modules, read models and composition cannot call UnitOfWork.atomic. Their writes join the entry's unit through UnitOfWork.required. Tests and tooling outside src may open explicit units: repository-root scripts/ and each workspace's own top-level scripts/ beside package.json. A scripts/ folder inside production src, a module or a node has no exemption. Kit runtime and unit adapters implement units. No partial-handler unit exception exists.
+
+Raw withTransaction and SQL begin/start transaction remain allowed only in unit adapters or named adapter packages. --adapter-package adds project plumbing. The raw transaction scan keeps its comment/string/nested-comment/dollar-body behavior. It treats node handlers as transactional entry work, not scripts allowed to open raw transactions.
+
+## SELECT grammar
+
+Read models use direct SQL client template tags. Acquire a client with a direct yield from an imported SQL service into an unmodified const binding. A bare sql tag is also checked. Client aliases, passing clients to helpers/Reflect, callbacks on SQL services, computed/extracted methods, raw/unsafe calls, connection execute APIs and Statement fragment/identifier APIs fail. SQL-typed client parameters, including local type aliases/generic wrappers, are unsupported and fail when used. Dynamic SQL imports and read-model SQL re-exports fail too. Named imports and star barrels through declared workspace package doors are traced to their SQL import identity. Exported client tags need a SQL client type annotation; imported service tags use the same direct-yield rule. Tags from unrecognized yields, including destructured yields, fail. Unrelated tags and untagged English descriptions are not SQL sources, even when their text says SELECT or Update. An untyped callback on a non-SQL import is not proof of SQL access. A callback on an actual imported or workspace-reexported SQL service is rejected.
+
+The token scanner accepts exactly one SELECT or nonrecursive WITH...SELECT, with an optional final semicolon. Its bounded grammar supports:
+
+- Static unqualified view names, quoted names, aliases, comma lists and inner/left/right/full/cross joins. Subqueries and nonrecursive SELECT CTEs use the same grammar and relation checks.
+- Column names, qualified columns, stars, string/numeric/boolean/null literals, arithmetic/comparisons, AND/OR/NOT, IS NULL/boolean, LIKE/ILIKE, IN lists/subqueries, BETWEEN and EXISTS.
+- WHERE, GROUP BY, HAVING, ORDER BY with direction/null ordering, and numeric LIMIT/OFFSET. There are no allowed SQL functions, including special current-user/time value functions.
+
+Only comparison values, IN values and LIMIT/OFFSET may interpolate. Values must be scalar literals, const aliases of proven scalars, primitive-typed function parameters, primitive members of structurally typed parameters, or Actor.id/ActorId from domain's own door. Unknown imports, objects, calls, query fragments, identifier values and unproven parameter types fail. Parameters cannot sit inside SQL quotes/comments or supply ORDER BY structure.
+
+```ts
+const read = (ownerId: string) =>
+  sql`select * from booking_read where owner_id = ${ownerId}`;
+```
+
+TABLE subqueries, parenthesized table joins, schema-qualified relations, locking clauses, writes, functions, extra statements and unsupported syntax fail. A query may use at most 10000 tokens and 32 nested parser levels. With standard_conforming_strings on, the lexer follows PostgreSQL scan.l boundaries: only ASCII space, tab, newline, CR, form feed and vertical tab are whitespace. Identifier starts include non-ASCII code units, and identifier continuations include digits and $, so a dollar quote cannot start inside an identifier. It separates standard, E, B, X, N and U& strings, tagged dollar strings, quoted identifiers, line comments and nested block comments. String contents never act as keywords or punctuation. It lexes multi-character PostgreSQL operators in ordinary migrations; unsupported SELECT operators produce a grammar diagnostic. U& quoted-identifier syntax and UESCAPE clauses, typed literals, adjacent string concatenation, casts, recursive queries, set operations and window syntax are outside this SELECT grammar. Literal values are not decoded or type-checked; PostgreSQL checks their values. Real Postgres tests still prove syntax, A/B filtering and behavior. Without a database, composition provides a named read-unavailable port, not a memory store.
+
+## View DDL grammar
+
+The checker reads CREATE [OR REPLACE] [TEMP|TEMPORARY] VIEW and CREATE MATERIALIZED VIEW [IF NOT EXISTS], optional column lists, then AS and the SELECT grammar above. Materialized modifier combinations not in that form fail. RECURSIVE VIEW is rejected explicitly, never registered under a guessed name. View options and WITH [NO] DATA are unsupported. Ordinary views may end with WITH [LOCAL|CASCADED] CHECK OPTION. ALTER/DROP object checks parse their target names, including IF EXISTS, ALTER TABLE ONLY and comma-separated drops; Postgres validates the remaining DDL syntax.
 
 ## Output and exit codes
 
-- `0`: prints `migrations: no SQL migrations found`, or `migrations: <n> table(s) owned by <m> package(s); no cross-module foreign keys or SQL; <k> module(s) listed in migrations.json`.
-- `1`: prints `migrations: <n> problem(s) with module-owned SQL or the module list:` one `  <path>:<line>: <message>` line per problem, then `See https://stack.kubaszwajka.com/rules/#house-rules-migrations`, to stderr.
+- 0 prints `migrations: no SQL migrations found`, or `migrations: <n> table/view object(s) owned by <m> module(s); no cross-module foreign keys or SQL; <k> module(s) listed in migrations.json`.
+- 1 prints the problem count, one `  <path>:<line>: <message>` line per problem and the rule link to stderr. List problems use migrations.json:1.
 
 ## Limits
 
-This is a text check, not a SQL parser. The transaction checks read code text: they miss a transaction opened through an alias, such as `const { withTransaction: tx } = sql`, or a unit opened through a renamed service. It does not see SQL a query builder generates, a table name built at run time inside `${...}`, or a table only a different database creates. A column that shares a name with another package's table, read after `from` (as in `extract(epoch from ...)`), is a false positive. Rename the column or the table. A comma list is followed only while each item is a name with an optional call, alias and column list: a table after a subquery or a `join ... on` condition, as in `from (select ...) s, place`, is missed. Dollar-quoted bodies are read as SQL, not blanked, by the table checks. The list check does not read `devDependencies` or `peerDependencies`, so a package that ships migrations and is only a dev or peer dependency is not required in the list.
+The SELECT/view checks use tokens plus a bounded grammar, not a complete PostgreSQL parser or a type checker. Unsupported syntax fails. Read-model SQL and the view-DDL ownership scan reject any non-ASCII text outside string literals or quoted identifiers with an explicit diagnostic, including comments and unquoted names. Unicode inside strings and quoted names remains valid; U& quoted-identifier syntax is recognized lexically but remains outside the supported ownership/SELECT grammar. This deliberate restriction prevents scanner disagreements from hiding relations or DDL. SQL-source and parameter proof use local AST provenance, not runtime validation or whole-program type inference. Imported SQL APIs and acquired clients cannot escape that proof; an arbitrary unrelated tag or untyped unused wrapper is not presumed to be a database API. Keep module schema types and Postgres privacy tests; this check does not prove the person filter itself. Read-model source is parsed throughout the folder, excluding tests, so moving a query out of adapters does not evade it.
+
+Ordinary module table ownership still uses the older text scan, not this SELECT grammar. It cannot see generated SQL, runtime identifiers or tables created only by another database. ON-table forms such as CREATE INDEX ON, COMMENT ON and GRANT ON are known gaps in that scan. extract(epoch from column) can resemble a table read. Compact quoted names without whitespace after FROM/JOIN and comma lists after a subquery or join condition can be missed by that legacy table scan. The legacy scan uses the shared PostgreSQL lexer per migration chunk and blanks ordinary string literals. DO, LANGUAGE sql and plpgsql dollar bodies get a best-effort nested lexical scan, with raw body text as fallback when body lexing fails. These are not exceptions to the ownership law.
+
+PL/pgSQL, DO bodies and dynamic EXECUTE are not semantically analysed. Their ownership is a review rule, not proved by this checker. A SELECT-only database role granted access to published views is a planned follow-up, not implemented in phase 1.
+
+Transaction/unit scans read code text. Aliased withTransaction, renamed UnitOfWork services and calls hidden by wrappers can evade those scans. The module-list requirement discovers installed runtime dependencies, not devDependencies or peerDependencies. A green checker is not a substitute for review or real database tests.

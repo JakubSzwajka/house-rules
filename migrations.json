@@ -1,10 +1,10 @@
 {
   "modules": [
     { "workspace": "packages/call-audit" },
-    { "workspace": "examples/booking-platform/packages/bookings" },
-    { "workspace": "examples/booking-platform/packages/accounts" },
     { "workspace": "packages/comments" },
     { "workspace": "packages/identity" },
-    { "workspace": "packages/party" }
+    { "workspace": "packages/party" },
+    { "workspace": "examples/booking/packages/bookings", "table": "bookings_migrations" },
+    { "workspace": "examples/booking/packages/billing", "table": "billing_migrations" }
   ]
 }

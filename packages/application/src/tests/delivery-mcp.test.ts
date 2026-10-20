@@ -155,11 +155,24 @@ it.effect("a contract failure over MCP is isError with the same view body", () =
   }),
 );
 
-it.effect("Forbidden over MCP is isError with scope_too_wide, from the caller", () =>
+it.effect("a read credential is refused by the mutable MCP way before any node work", () =>
   Effect.gen(function* forbidden() {
-    const result = yield* callTool("tok-ada-read", "cancel_booking", { id: "b-1" });
-    expect(result.isError).toBe(true);
-    expect(result.content[0]?.text).toMatch(/scope_too_wide/u);
+    const before = t.work.calls;
+    const result = yield* rpc(
+      "tok-ada-read",
+      {},
+      { jsonrpc: "2.0", id: 1, method: "initialize", params: {} },
+    );
+    expect(result.status).toBe(403);
+    expect(t.work.calls).toBe(before);
+    const read = yield* Effect.promise(() =>
+      t.router(
+        webRequest("https://app.example/read/bookings/b-1", {
+          headers: { authorization: "Bearer tok-ada-read" },
+        }),
+      ),
+    );
+    expect(read.status).toBe(200);
   }),
 );
 
@@ -167,7 +180,7 @@ it.effect("needsApproval over MCP, with a client that cannot elicit, is approval
   Effect.gen(function* approvalDenied() {
     const result = yield* callTool("tok-ada", "cancel_booking", { id: "b-1" });
     expect(result.isError).toBe(true);
-    expect(result.content[0]?.text).toMatch(/approval_denied/u);
+    expect(result.content[0]?.text).toMatch(/forbidden/u);
   }),
 );
 

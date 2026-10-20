@@ -61,36 +61,54 @@ function layout(options = {}) {
           pathNot: p.browserSafe,
         },
       ),
-      // The layer rules below check reachability, not just direct imports: an app's entry files may
-      // import every layer, so a layer that imports `src/index.ts`, or any other file that re-exports
-      // a forbidden layer, would otherwise reach it in two hops. A valid graph never has such a path.
       rule(
-        "delivery-does-not-import-server",
-        { path: p.deliveryRoot },
-        { path: p.serverRoot, reachable: true },
+        "features-do-not-import-outer-folders",
+        { path: p.featureFolder, pathNot: p.testPath },
+        { path: [p.waysInRoot, p.compositionRoot], reachable: true },
       ),
       rule(
-        "server-does-not-import-delivery",
-        { path: p.serverRoot },
-        { path: p.deliveryRoot, reachable: true },
+        "read-models-import-packages-only",
+        { path: p.readModelFolder, pathNot: p.testPath },
+        { path: p.appFolder, pathNot: "^$1/" },
       ),
       rule(
-        "use-cases-do-not-import-outer-layers",
-        { path: p.useCasesRoot },
-        { path: [p.deliveryRoot, p.serverRoot], reachable: true },
+        "ways-in-import-app-folders-only",
+        { path: p.waysInRoot, pathNot: p.testPath },
+        {
+          path: p.appFolder,
+          pathNot: [p.waysInRoot, p.featuresRoot, p.compositionRoot, p.readModelsRoot],
+        },
       ),
-      // The composition root wires packages only. Delivery, server and tests import it; it imports
-      // no other app file, so it cannot reach a route, a server loop or a use-case.
       rule(
-        "composition-imports-packages-only",
+        "ways-in-do-not-import-read-model-values",
+        { path: p.waysInRoot, pathNot: p.testPath },
+        { path: p.readModelsRoot, dependencyTypesNot: ["type-only"] },
+      ),
+      // Check every way file, including barrels. Do not follow composition into its captured services.
+      rule(
+        "ways-in-import-contracts-only",
+        { path: p.waysInImporter, pathNot: p.testPath },
+        { pathNot: p.waysInValues, dependencyTypesNot: ["type-only"] },
+      ),
+      rule(
+        "ways-in-do-not-import-other-ways",
+        { path: p.wayFolder, pathNot: p.testPath },
+        { path: p.waysInRoot, pathNot: "^$1/", reachable: true },
+      ),
+      rule(
+        "composition-does-not-import-ways-in",
         { path: p.compositionRoot },
-        { path: p.appFolder, pathNot: p.compositionRoot },
+        { path: p.waysInRoot, reachable: true },
       ),
-      // A use-case's test may share the composition's layers; the use-case itself may not.
       rule(
-        "use-cases-do-not-import-composition",
-        { path: p.useCasesRoot, pathNot: p.testPath },
-        { path: p.compositionRoot, reachable: true },
+        "read-models-public-entry-only",
+        { path: `(?:${p.folderCode}|^)` },
+        { path: `${p.folderSource}(?!(?:index|contract)[.]ts$)`, pathNot: "^$1/" },
+      ),
+      rule(
+        "domain-imports-no-house-rules",
+        { path: p.domainPackage },
+        { path: p.houseRulesImport },
       ),
       rule(
         "no-unresolved-deep-package-imports",
@@ -110,18 +128,15 @@ function layout(options = {}) {
         p.generatedDeclaration ? { pathNot: p.generatedDeclaration } : {},
         { couldNotResolve: true },
       ),
-      moduleRule("app-code-in-layers", {
+      moduleRule("app-folders", {
         path: p.appSource,
         pathNot: [...p.appLayerOrEntry, p.testPath],
       }),
-      // $1 is the importing use-case's top-level entry under use-cases/, a file or a folder. Reachable,
-      // so an entry file that re-exports another use-case is no bridge either.
-      rule(
-        "use-cases-do-not-import-use-cases",
-        { path: p.useCaseEntry, pathNot: p.testPath },
-        { path: p.useCaseAny, pathNot: ["^$1(?:/|$)", p.testPath], reachable: true },
-      ),
       moduleRule("no-ownerless-files", { path: p.ownerlessPath }),
+      moduleRule("package-root-files", {
+        path: p.folderRootFile,
+        pathNot: [p.folderRootFileAllowed, p.testPath],
+      }),
       moduleRule("package-root-files", {
         path: p.packageRootFile,
         pathNot: [p.packageRootFileAllowed, p.testPath, p.contractEntryFile],
@@ -155,6 +170,38 @@ function layout(options = {}) {
         { path: p.packageSourceRoot, pathNot: p.adapterCode },
         { path: p.adapterImports.installed },
       ),
+      rule(
+        "contract-entry-is-browser-safe",
+        { path: p.appDescriptorEntry },
+        { reachable: true, pathNot: p.browserSafe },
+      ),
+      rule(
+        "domain-does-not-import-adapters",
+        { path: p.folderCode, pathNot: p.folderAdapterImporters },
+        { path: "^$1/adapters/", pathNot: "^$1/adapters/tests/" },
+      ),
+      rule(
+        "domain-does-not-import-adapters",
+        { path: p.folderCode, pathNot: [p.folderAdapterImporters, p.testPath] },
+        { path: "^$1/adapters/tests/" },
+      ),
+      rule(
+        "subjects-do-not-import-package-root",
+        { path: p.folderSubject, pathNot: p.testPath },
+        { path: "^$1/(?:index|facade|contract)[.]ts$" },
+      ),
+      rule(
+        "adapter-imports-only-in-adapters",
+        { path: p.folderSource, pathNot: p.folderAdapters },
+        { path: p.adapterImports.installed },
+      ),
+      ...p.adapterImports.workspace.map(({ path }) =>
+        rule(
+          "adapter-imports-only-in-adapters",
+          { path: p.folderSource, pathNot: p.folderAdapters },
+          { path },
+        ),
+      ),
       ...p.adapterImports.workspace.map(({ folder, path }) =>
         rule(
           "adapter-imports-only-in-adapters",
@@ -179,7 +226,10 @@ function layout(options = {}) {
 
 function subjectFolderPatterns(config) {
   const rules = config?.forbidden;
-  const sourceRule = rules?.find(({ name }) => name === "domain-does-not-import-adapters");
+  const sourceRule = rules?.find(
+    ({ name, from }) =>
+      name === "domain-does-not-import-adapters" && /^\^\((.*)\)\/src\//u.test(from.path),
+  );
   const testRule = rules?.find(({ name }) => name === "production-does-not-import-tests");
   const packageMatch = sourceRule?.from?.path?.match(/^\^\((.*)\)\/src\//u);
   const adapterPath = sourceRule?.to?.path;
@@ -188,6 +238,10 @@ function subjectFolderPatterns(config) {
   }
   return {
     package: sourceRule.from.path,
+    folder: rules.find(
+      ({ name, from }) =>
+        name === "domain-does-not-import-adapters" && from.path !== sourceRule.from.path,
+    )?.from.path,
     adapter: adapterPath.replace(/^\^\$1\//u, `^${packageMatch[1]}/`),
     test: testRule.to.path,
   };

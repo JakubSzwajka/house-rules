@@ -62,7 +62,7 @@ export const noHandRolledSurfaceRule = {
     },
     messages: {
       handRolled:
-        "{{call}} builds a surface by hand. Define the action once with defineContract and implement from @house-rules/application, then build the surface from its contract with toTool.",
+        "{{call}} builds a surface by hand. Describe a node with defineNode, expose its app entry through defineWay, and let the router build the surface.",
     },
     schema: [
       {

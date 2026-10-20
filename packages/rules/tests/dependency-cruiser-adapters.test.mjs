@@ -78,7 +78,10 @@ test("a scoped adapterImports entry matches its workspace folder and its node_mo
     scope: "@acme",
     packagesDir: "libs",
     adapterImports: ["@acme/db", "@acme/sql-*/pool", "@other/db"],
-  }).forbidden.filter(({ name }) => name === "adapter-imports-only-in-adapters");
+  }).forbidden.filter(
+    ({ name, from }) =>
+      name === "adapter-imports-only-in-adapters" && from.path.startsWith("^libs/"),
+  );
   assert.deepEqual(
     rule.map(({ to }) => to),
     [

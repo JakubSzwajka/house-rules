@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmodSync, existsSync, readFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, renameSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { repositoryPathsFor } from "../src/repository-paths.mjs";
@@ -24,51 +24,59 @@ function withRepository(tracked, run) {
 
 const MOVE_LINKS = "[o](./old.md) [n](./new.md)";
 
-test("a file staged with git add mid-process stops being broken", () => {
-  withRepository({ "README.md": "# Readme\n" }, (repository, git) => {
+test("a non-ignored file created mid-process passes without staging", () => {
+  withRepository({ "README.md": "# Readme\n" }, (repository) => {
     assert.deepEqual(brokenTargets(lintMarkdown(repository, "README.md", "[n](./new.md)")), [
       "1:./new.md",
     ]);
     writeFiles(repository, { "new.md": "# New\n" });
-    git("add", "new.md");
+    assert.deepEqual(brokenTargets(lintMarkdown(repository, "README.md", "[n](./new.md)")), []);
+    writeFiles(repository, { ".gitignore": "new.md\n" });
+    assert.deepEqual(brokenTargets(lintMarkdown(repository, "README.md", "[n](./new.md)")), [
+      "1:./new.md",
+    ]);
+    writeFiles(repository, { ".gitignore": "" });
     assert.deepEqual(brokenTargets(lintMarkdown(repository, "README.md", "[n](./new.md)")), []);
   });
 });
 
-test("a file renamed with git mv mid-process moves the broken link to the old name", () => {
-  withRepository({ "README.md": "# Readme\n", "old.md": "# Old\n" }, (repository, git) => {
+test("a tracked file renamed on disk mid-process moves the broken link to the old name", () => {
+  withRepository({ "README.md": "# Readme\n", "old.md": "# Old\n" }, (repository) => {
     assert.deepEqual(brokenTargets(lintMarkdown(repository, "README.md", MOVE_LINKS)), [
       "1:./new.md",
     ]);
-    git("mv", "old.md", "new.md");
+    renameSync(path.join(repository, "old.md"), path.join(repository, "new.md"));
     assert.deepEqual(brokenTargets(lintMarkdown(repository, "README.md", MOVE_LINKS)), [
       "1:./old.md",
     ]);
   });
 });
 
-test("a file removed with git rm mid-process becomes broken", () => {
-  withRepository({ "README.md": "# Readme\n", "gone.md": "# Gone\n" }, (repository, git) => {
+test("a tracked file removed from disk mid-process fails even while listed in the index", () => {
+  withRepository({ "README.md": "# Readme\n", "gone.md": "# Gone\n" }, (repository) => {
     assert.deepEqual(brokenTargets(lintMarkdown(repository, "README.md", "[g](./gone.md)")), []);
-    git("rm", "--quiet", "-f", "gone.md");
+    unlinkSync(path.join(repository, "gone.md"));
     assert.deepEqual(brokenTargets(lintMarkdown(repository, "README.md", "[g](./gone.md)")), [
       "1:./gone.md",
     ]);
   });
 });
 
-test("a repository with no index yet has an empty tracked set until the first git add", () => {
-  withRepository({}, (repository, git) => {
-    writeFiles(repository, { "README.md": "# Readme\n" });
-    assert.deepEqual(brokenTargets(lintMarkdown(repository, "page.md", "[r](./README.md)")), [
-      "1:./README.md",
-    ]);
-    git("add", "README.md");
-    assert.deepEqual(brokenTargets(lintMarkdown(repository, "page.md", "[r](./README.md)")), []);
+test("a repository with no index yet admits only non-ignored files", () => {
+  withRepository({}, (repository) => {
+    writeFiles(repository, {
+      "README.md": "# Readme\n",
+      ".gitignore": "secret.md\n",
+      "secret.md": "private\n",
+    });
+    assert.deepEqual(
+      brokenTargets(lintMarkdown(repository, "page.md", "[r](./README.md) [s](./secret.md)")),
+      ["1:./secret.md"],
+    );
   });
 });
 
-test("git ls-files runs once per repository root while the index is unchanged", {
+test("git refreshes candidates and tracked ignores once per linted file, not per link", {
   skip: process.platform === "win32",
 }, () => {
   const shim = createDirectory("house-rules-git-shim-");
@@ -94,12 +102,14 @@ test("git ls-files runs once per repository root while the index is unchanged", 
             [],
           );
         }
-        assert.equal(lsFilesCalls(), 1);
+        assert.equal(lsFilesCalls(), 8);
         writeFiles(repository, { "new.md": "# New\n" });
-        git("add", "new.md");
+        const index = git("rev-parse", "--git-path", "index").toString().trim();
+        const before = readFileSync(path.resolve(repository, index));
         assert.deepEqual(brokenTargets(lintMarkdown(repository, "README.md", "[n](./new.md)")), []);
         assert.deepEqual(brokenTargets(lintMarkdown(repository, "README.md", "[n](./new.md)")), []);
-        assert.equal(lsFilesCalls(), 2);
+        assert.equal(lsFilesCalls(), 12);
+        assert.deepEqual(readFileSync(path.resolve(repository, index)), before);
       },
     );
   } finally {
@@ -132,11 +142,12 @@ test("a linked worktree linted with GIT_DIR set, as in a git hook, resolves link
     git(main, "worktree", "add", "--quiet", "-b", "wt", worktree);
     const gitDir = git(worktree, "rev-parse", "--absolute-git-dir").trim();
     assert.match(gitDir, /[/\\]worktrees[/\\]wt$/);
-    // draft.md exists but is untracked: only a git-backed check reports it.
+    // Ignored files distinguish Git policy from the no-Git filesystem fallback.
     writeFiles(worktree, {
       "docs/page.md": "",
       "docs/api/page.md": "",
       "docs/draft.md": "# Draft\n",
+      ".gitignore": "docs/draft.md\n",
     });
 
     // Each case lints a different folder so the per-directory top-level cache cannot hide a failure.

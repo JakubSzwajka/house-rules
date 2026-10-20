@@ -1,4 +1,4 @@
-import { ActorId } from "@house-rules/domain";
+import { ActorId, errorKind } from "@house-rules/domain/contract";
 import { Schema } from "effect";
 
 export const BindingKey = Schema.Struct({
@@ -14,11 +14,18 @@ export const Binding = Schema.Struct({
 });
 export type Binding = typeof Binding.Type;
 
+export class IdentityCallerDenied extends Schema.TaggedError<IdentityCallerDenied>()(
+  "IdentityCallerDenied",
+  { kind: errorKind("forbidden") },
+) {}
+
 export class BindingInvalid extends Schema.TaggedError<BindingInvalid>()("BindingInvalid", {
+  kind: errorKind("invalid"),
   message: Schema.String,
 }) {}
 
 export class BindingTaken extends Schema.TaggedError<BindingTaken>()("BindingTaken", {
+  kind: errorKind("conflict"),
   issuer: Schema.String,
   subject: Schema.String,
 }) {
@@ -29,5 +36,9 @@ export class BindingTaken extends Schema.TaggedError<BindingTaken>()("BindingTak
 
 export class IdentityStoreUnavailable extends Schema.TaggedError<IdentityStoreUnavailable>()(
   "IdentityStoreUnavailable",
-  { cause: Schema.Defect() },
-) {}
+  { kind: errorKind("unavailable"), cause: Schema.Defect() },
+) {
+  override get message(): string {
+    return "Login bindings are unavailable. Try again shortly.";
+  }
+}

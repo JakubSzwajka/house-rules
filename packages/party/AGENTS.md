@@ -2,42 +2,36 @@
 
 ## What it does
 
-A domain addition: the people an app knows. A `Person` is `{ id, displayName, createdAt }`, and its `id` is the `ActorId`. When Party is mounted, the acting user is a Person. `Party` uses `defineModule` from `@house-rules/domain`, captures `PersonStore`, and takes an explicit Actor on user methods. It ships three browser-safe contracts at `@house-rules/party/contract`, built with `@house-rules/application/contract`. It has no email, no external ids and no identity bindings, and it never imports `@house-rules/identity` or `@house-rules/auth-jwt`. Organisations are out of scope. Version 0.1.0 is ready for its first npm release, not yet published. It peers on exact `@house-rules/domain` 0.1.0, `@house-rules/application` 0.2.0 and Effect 4.0.3, and ships built JavaScript and declarations in `dist/`.
+Party owns the people an app knows. A `Person` is `{ id, displayName, createdAt }`; its id is the `ActorId`. It holds no email, issuer, subject, organisation or identity binding. Version 0.1.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published entries load built `dist/`; this workspace loads source.
 
-## How an app mounts it
+## Mount and bind
 
-1. [ ] Provide the module beside the app's SQL client:
+1. [ ] Mount `Party.layerPostgres.pipe(Layer.provide(database))`, or `Party.layerMemory` in tests. Raw `Party.layer` needs `PersonStore`. Both storage adapters are public.
+2. [ ] Register `{ "package": "@house-rules/party" }` in `migrations.json`, or `{ "workspace": "packages/party" }` in this repo.
+3. [ ] Share the app's SQL client and unit adapter with other modules. Acquire `Party` once and pass it to `bindParty(service)`. Add those bindings to the app's `NodeRuntime`.
+4. [ ] App nodes declare edges to the shipped descriptors. Only app nodes become entries. First sign-in uses a system edge to `createPerson`, then binds the returned id through identity in the same entry unit.
+5. [ ] Call `party.erase(id)` in the account-deletion unit. This hook is trusted service code, not an exposed node.
 
-   ```ts
-   const party = Party.layerPostgres.pipe(Layer.provide(database));
-   ```
+`@house-rules/party/contract` exports browser-safe schemas, errors, permissions and these nodes. Main exports them beside `Party` and `bindParty`, storage and policy. The contract door never loads bindings or application values.
 
-   Tests and apps with no database use `Party.layerMemory`. The raw `Party.layer` needs `PersonStore`. Both adapters are exported.
+| Node identifier / name | Permission | Caller | Flags |
+| --- | --- | --- | --- |
+| `createPerson` / `Party.createPerson` | `party:create` | system only | transactional |
+| `showPerson` / `show_person` | `party:read` | person | readOnly |
+| `showMe` / `show_me` | `party:read` | person | readOnly |
+| `renamePerson` / `rename_person` | `party:update` | person | transactional |
 
-2. [ ] Add the module to the root `migrations.json`:
+All have empty edges and no approval flag. Non-system creation fails with forbidden `PersonCallerDenied`. System reads fail with `PersonNotFound`; system rename fails with `PersonUpdateRefused`. The binder captures the built service, not per-request identity.
 
-   ```json
-   { "package": "@house-rules/party" }
-   ```
+## Service and fixed rules
 
-   Use `{ "workspace": "packages/party" }` only for this repo's source workspace.
+Methods remain `createPerson({ displayName, id? })`, `get(actor, id)`, `me(actor)`, `rename(actor, id, displayName)`, `erase(id)`. User methods take an explicit Actor and return Effects with no requirements. Creation can adopt an id or generate one; a taken id fails with `PersonAlreadyExists`. Display names trim to 1..120 characters; timestamps use epoch milliseconds.
 
-3. [ ] Give `Party` the same `SqlClient` layer, and the same `sqlUnitOfWork`, as the app's other stores. One unit then covers all their writes.
-4. [ ] Fill the app's first-sign-in port with `Party.createPerson({ displayName })` inside `UnitOfWork.atomic`. It takes no Actor, since nobody is signed in yet. Pass `{ id }` to adopt an id you already have; leave it out and Party makes one. A taken id fails with `PersonAlreadyExists`.
-5. [ ] Use `implement(showPerson, handler)`, `implement(showMe, handler)` and `implement(renamePerson, handler)` from `@house-rules/application` in thin use-cases. Yield `CurrentActor` and pass the Actor to `Party`; `show_me` calls `Party.me(actor)`. Keep the app's Grant at the request boundary: `party:read` for `show_person` and `show_me`, `party:update` for `rename_person`.
-6. [ ] Add a view for each failure tag the shipped contracts declare: `PersonNotFound`, `PersonUpdateRefused`, `PersonInputInvalid`, `PersonStoreUnavailable`. A missing view fails `tsc`.
-7. [ ] Call `Party.erase(id)` when the app deletes a user, in the same unit.
+- Any person can read another person's display name. Only that person may rename it. Refusal happens before reading the row.
+- `me` reads only the actor's own Person and fails not-found when none exists.
+- Writes join an open unit and fail `NoOpenUnit` outside one. The module and its binders never open units; application lifts the transactional flags.
+- No cross-module foreign keys. Storage answers facts, not permission decisions.
+- Errors declare kinds at definition: not_found, conflict, invalid, forbidden or unavailable. Ways may override messages only; no app error-view table is needed.
+- Module user-facing errors keep their messages; unavailable and plumbing errors use fixed public text, with diagnostic details kept in separate fields or causes.
 
-On rules 0.17.0, a consumer contract that imports this package needs `trustedContractPackages: ["@house-rules/party"]` in its existing `layout(...)` options. Only `/contract` is trusted.
-
-Methods: `createPerson({ displayName, id? })`, `get(actor, id)`, `me(actor)`, `rename(actor, id, displayName)`, `erase(id)`. Times are epoch milliseconds. A display name is trimmed and 1 to 120 characters; anything else fails with `PersonInputInvalid`.
-
-## Fixed rules
-
-- The Person id is the ActorId. Party stores no other identity: no email, no issuer, no subject. Bindings from a login to an ActorId belong to another package.
-- `me(actor)` reads the actor's own Person and fails with `PersonNotFound` when the actor has none. `show_me` takes no input, so it can only ever show the caller.
-- Anyone may read a person's display name. Only the person may rename themselves; another actor gets `PersonUpdateRefused`, before any row is read. The policy has two relations, `self` and `other`.
-- `createPerson`, `rename` and `erase` join an open unit; none starts one. Each fails with `NoOpenUnit` outside it. `rename_person` sets `transactional: true`.
-- `createPerson` and `erase` are the two writes with no Actor, and no contract exposes either. The app's first-sign-in filler calls `createPerson`. `erase(id)` is an account-deletion hook, like `Comments.erase`: the app calls it when it deletes a user. It applies no policy, so only trusted app code may call it.
-- `PartyPermissions` is `{ read: "party:read", update: "party:update" }`. Deletes are hard.
-- The storage port answers facts only. It decides no permission and no limit.
+On consumers whose rules preset needs an explicit contract trust list, add `@house-rules/party` to `trustedContractPackages`. Only `/contract` is trusted. Run package `typecheck`, `test` and `build`; the shared store suite uses memory and real Postgres.

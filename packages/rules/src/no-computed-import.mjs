@@ -11,7 +11,7 @@ export const noComputedImportRule = {
     docs: {
       url: ruleDocsUrl("no-computed-import"),
       description:
-        "Forbid an import() or require() whose specifier is computed in a package's source, so every import stays visible to the graph checks, contract-entry-is-browser-safe among them.",
+        "Forbid an import() or require() whose specifier is computed in production package or app source, so every import stays visible to the graph checks, contract-entry-is-browser-safe among them.",
     },
     messages: {
       computed:

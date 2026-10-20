@@ -1,61 +1,45 @@
 import { expect, expectTypeOf, it } from "@effect/vitest";
+import { defineNode, NoInput } from "@house-rules/domain";
 import { Effect, Schema } from "effect";
-import { McpServer, Tool, Toolkit } from "effect/ai";
-import { defineContract, implement, NoInput } from "../index.ts";
-
-const pingContract = defineContract("ping", {
-  description: "Answer pong.",
-  input: NoInput,
-  output: Schema.String,
-  failure: Schema.Never,
-  permission: "public",
-  annotations: { readOnly: true },
-});
-
-const ping = implement(pingContract, () => Effect.succeed("pong"));
-
-it.effect("a handler with no input is called with an empty object", () =>
-  Effect.gen(function* callsWithEmptyObject() {
-    expectTypeOf(ping.handler).parameter(0).toEqualTypeOf<{ readonly [x: string]: never }>();
-    expect(yield* ping.handler({})).toBe("pong");
-  }),
-);
-
-it.effect("NoInput accepts only an empty object", () =>
-  Effect.sync(() => {
-    expect(Schema.is(NoInput)({})).toBe(true);
-    expect(Schema.is(NoInput)({ name: "Ada" })).toBe(false);
-  }),
-);
-
-it.effect("NoInput renders to JSON Schema as an object, like Tool.EmptyParams", () =>
-  Effect.sync(() => {
-    const rendered = Schema.toJsonSchemaDocument(NoInput).schema;
-
-    expect(rendered).toEqual({ type: "object", additionalProperties: false });
-    expect(rendered).toEqual(Schema.toJsonSchemaDocument(Tool.EmptyParams).schema);
-  }),
-);
-
-const PingTools = Toolkit.make(
-  Tool.make(pingContract.name, {
-    description: pingContract.description,
-    parameters: pingContract.input,
-    success: pingContract.output,
-  }),
-);
-
-const pingHandlers = PingTools.toLayer({ ping: () => ping.handler({}) });
-
-it.layer(McpServer.McpServer.layer)("an MCP server", (test) => {
-  test.effect("lists a tool whose parameters are a NoInput contract input", () =>
-    Effect.gen(function* listsNoInputTool() {
-      yield* McpServer.registerToolkit(PingTools).pipe(Effect.provide(pingHandlers));
-      const server = yield* McpServer.McpServer;
-
-      expect(server.tools.map(({ tool }) => [tool.name, tool.inputSchema])).toEqual([
-        ["ping", { type: "object", additionalProperties: false }],
-      ]);
+import { Tool } from "effect/ai";
+import { defineEntry } from "../index.ts";
+import { bindFixture, runFixture } from "./entry-fixtures.ts";
+import { mcpProbe } from "./mcp-probe.ts";
+const ping = bindFixture(
+  defineEntry(
+    defineNode("ping", {
+      description: "Answer pong.",
+      input: NoInput,
+      output: Schema.String,
+      failure: Schema.Never,
+      permission: null,
+      readOnly: true,
     }),
-  );
+  ),
+  () => Effect.succeed("pong"),
+);
+it.effect("a bound node with no input is called with an empty object", () =>
+  Effect.gen(function* () {
+    expectTypeOf<typeof ping.node.input.Type>().toEqualTypeOf<{ readonly [x: string]: never }>();
+    expect(yield* runFixture(ping, {})).toBe("pong");
+  }),
+);
+it("NoInput accepts only an empty object", () => {
+  expect(Schema.is(NoInput)({})).toBe(true);
+  expect(Schema.is(NoInput)({ name: "Ada" })).toBe(false);
 });
+it("NoInput renders an object like Effect's EmptyParams", () => {
+  const rendered = Schema.toJsonSchemaDocument(NoInput).schema;
+  expect(rendered).toEqual({ type: "object", additionalProperties: false });
+  expect(rendered).toEqual(Schema.toJsonSchemaDocument(Tool.EmptyParams).schema);
+});
+const probe = mcpProbe("ping", NoInput);
+it.effect("the MCP router lists NoInput as an empty object and accepts omitted arguments", () =>
+  Effect.gen(function* () {
+    expect((yield* probe.schema).inputSchema).toEqual({
+      type: "object",
+      additionalProperties: false,
+    });
+    expect(yield* probe.decode(undefined)).toEqual({});
+  }),
+);

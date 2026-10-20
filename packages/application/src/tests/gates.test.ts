@@ -1,266 +1,205 @@
 import { expect, expectTypeOf, it } from "@effect/vitest";
-import { Context, Effect, Layer, Schema } from "effect";
-import { Approval, ApprovalDenied, defineContract, Forbidden, Grant, implement } from "../index.ts";
-
-class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {}) {}
-
-class Greetings extends Context.Service<
-  Greetings,
-  { readonly greet: (name: string) => Effect.Effect<string> }
->()("test/Greetings") {}
-
-const GreetInput = Schema.Struct({ name: Schema.String });
-
+import { defineNode, errorKind, type UnitOfWork } from "@house-rules/domain";
+import { Effect, Layer, Schema } from "effect";
+import {
+  Approval,
+  ApprovalDenied,
+  CallPermissions,
+  defineEntry,
+  type EntryFailure,
+  type EntryRequirements,
+  Forbidden,
+  May,
+} from "../index.ts";
+import { bindFixture, runFixture } from "./entry-fixtures.ts";
+class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {
+  kind: errorKind("invalid"),
+}) {}
 const base = {
   description: "Greet someone by name.",
-  input: GreetInput,
+  input: Schema.Struct({ name: Schema.String }),
   output: Schema.String,
   failure: NameIsEmpty,
 };
-
-const greetHandler = ({ name }: { readonly name: string }) =>
+const greet = ({ name }: { readonly name: string }) =>
   name === "" ? Effect.fail(new NameIsEmpty()) : Effect.succeed(`Hello, ${name}`);
-
-const readGreeting = implement(
-  defineContract("read_greeting", { ...base, permission: "greetings:read" }),
-  greetHandler,
+const read = bindFixture(
+  defineEntry(defineNode("read_greeting", { ...base, permission: "greetings:read" })),
+  greet,
 );
-
-const publicGreeting = implement(
-  defineContract("public_greeting", { ...base, permission: "public" }),
-  greetHandler,
+const open = bindFixture(
+  defineEntry(defineNode("public_greeting", { ...base, permission: null })),
+  greet,
 );
-
-const approvedGreeting = implement(
-  defineContract("approved_greeting", { ...base, permission: "public", needsApproval: true }),
-  greetHandler,
+const approved = bindFixture(
+  defineEntry(defineNode("approved_greeting", { ...base, permission: null, needsApproval: true })),
+  greet,
 );
-
-const sendGreeting = implement(
-  defineContract("send_greeting", { ...base, permission: "greetings:send", needsApproval: true }),
-  greetHandler,
+const send = bindFixture(
+  defineEntry(
+    defineNode("send_greeting", { ...base, permission: "greetings:send", needsApproval: true }),
+  ),
+  greet,
 );
-
-it.effect("a contract records its permission and defaults needsApproval to false", () =>
-  Effect.sync(() => {
-    expect(readGreeting.contract.permission).toBe("greetings:read");
-    expect(readGreeting.contract.needsApproval).toBe(false);
-    expect(sendGreeting.contract.needsApproval).toBe(true);
-    expectTypeOf(readGreeting.contract.permission).toEqualTypeOf<"greetings:read">();
-    expectTypeOf(readGreeting.contract.needsApproval).toEqualTypeOf<false>();
+it("a descriptor records its own permission and defaults approval to false", () => {
+  expect(read.node.permission).toBe("greetings:read");
+  expect(read.needsApproval).toBe(false);
+  expect(send.needsApproval).toBe(true);
+  expectTypeOf(read.needsApproval).toEqualTypeOf<false>();
+});
+it("every node requires an explicit permission or null", () => {
+  const invalid = () => {
+    // @ts-expect-error Permission must be explicit on every node.
+    return defineNode("missing", base);
+  };
+  expect(typeof invalid).toBe("function");
+});
+it("a permission must be resource:action, with null replacing the public pseudo-permission", () => {
+  const invalid = () => {
+    // @ts-expect-error A permission is resource:action, not an arbitrary verb.
+    return defineNode("loose", { ...base, permission: "delete" });
+  };
+  expect(typeof invalid).toBe("function");
+});
+it.effect("a null-permission entry runs without any held permission", () =>
+  Effect.gen(function* () {
+    expect(yield* runFixture(open, { name: "Ada" }, May.fixed([open], []))).toBe("Hello, Ada");
   }),
 );
-
-it.effect("the types reject a contract without a permission", () =>
-  Effect.sync(() => {
-    // @ts-expect-error permission is required on every contract
-    const missing = defineContract("no_permission", base);
-
-    expect(missing.name).toBe("no_permission");
-  }),
-);
-
-it.effect("the types reject a permission that is not resource:action or public", () =>
-  Effect.sync(() => {
-    // @ts-expect-error a permission is a resource:action string
-    const loose = defineContract("loose", { ...base, permission: "delete" });
-
-    expect(loose.permission).toBe("delete");
-  }),
-);
-
-it.effect("a public contract adds no requirement and no failure", () =>
-  Effect.gen(function* publicNeedsNoGrant() {
-    expectTypeOf(publicGreeting.handler).returns.toEqualTypeOf<
-      Effect.Effect<string, NameIsEmpty>
-    >();
-    expect(yield* publicGreeting.handler({ name: "Ada" })).toBe("Hello, Ada");
-  }),
-);
-
-it.effect("a permission adds Grant and Forbidden", () =>
-  Effect.sync(() => {
-    expectTypeOf(readGreeting.handler).returns.toEqualTypeOf<
-      Effect.Effect<string, NameIsEmpty | Forbidden, Grant>
-    >();
-  }),
-);
-
-it.effect("needsApproval adds Approval and ApprovalDenied", () =>
-  Effect.sync(() => {
-    expectTypeOf(approvedGreeting.handler).returns.toEqualTypeOf<
-      Effect.Effect<string, NameIsEmpty | ApprovalDenied, Approval>
-    >();
-  }),
-);
-
-it.effect("both gates add both requirements and both failures to the handler's own", () =>
-  Effect.sync(() => {
-    const withService = implement(sendGreeting.contract, ({ name }) =>
-      Effect.gen(function* greetWithService() {
-        const greetings = yield* Greetings;
-        return yield* greetings.greet(name);
-      }),
-    );
-
-    expectTypeOf(sendGreeting.handler).returns.toEqualTypeOf<
-      Effect.Effect<string, NameIsEmpty | Forbidden | ApprovalDenied, Grant | Approval>
-    >();
-    expectTypeOf(withService.handler).returns.toEqualTypeOf<
-      Effect.Effect<string, NameIsEmpty | Forbidden | ApprovalDenied, Greetings | Grant | Approval>
-    >();
-  }),
-);
-
-it.effect("a contract whose flags are only known as wide types needs both gates", () =>
-  Effect.sync(() => {
-    const unsureGreeting = (needsApproval: boolean) =>
-      implement(
-        defineContract("unsure", { ...base, permission: "greetings:read", needsApproval }),
-        greetHandler,
-      );
-    const unsure = unsureGreeting(false);
-
-    expectTypeOf(unsure.handler).returns.toEqualTypeOf<
-      Effect.Effect<string, NameIsEmpty | Forbidden | ApprovalDenied, Grant | Approval>
-    >();
-  }),
-);
-
-it.effect("Grant passes a caller who holds the permission", () =>
-  Effect.gen(function* grantPasses() {
-    const result = yield* readGreeting
-      .handler({ name: "Ada" })
-      .pipe(Effect.provide(Grant.layerFromPermissions(["greetings:read"])));
-
-    expect(result).toBe("Hello, Ada");
-  }),
-);
-
-it.effect("Grant.fromPermissions is a value for Effect.provideService", () =>
-  Effect.gen(function* grantValue() {
-    const result = yield* readGreeting
-      .handler({ name: "Ada" })
-      .pipe(Effect.provideService(Grant, Grant.fromPermissions(["greetings:read"])));
-
-    expect(result).toBe("Hello, Ada");
-  }),
-);
-
-it.effect("Grant.allowAll passes every permission", () =>
-  Effect.gen(function* grantAllowAll() {
-    expect(yield* readGreeting.handler({ name: "Ada" }).pipe(Effect.provide(Grant.allowAll))).toBe(
+it("entry types always retain real closure and invocation failures", () => {
+  expectTypeOf<Extract<EntryFailure<typeof read>, Forbidden>>().toEqualTypeOf<Forbidden>();
+  expectTypeOf<
+    Extract<EntryRequirements<typeof read>, CallPermissions>
+  >().toEqualTypeOf<CallPermissions>();
+});
+it("approval flags add the lower slot and its kinded failure", () => {
+  expectTypeOf<Extract<EntryRequirements<typeof approved>, Approval>>().toEqualTypeOf<Approval>();
+  expectTypeOf<
+    Extract<EntryFailure<typeof approved>, ApprovalDenied>
+  >().toEqualTypeOf<ApprovalDenied>();
+  expectTypeOf<Extract<EntryFailure<typeof open>, ApprovalDenied>>().toEqualTypeOf<never>();
+});
+it("both gates are retained without opening a unit for a nontransactional node", () => {
+  expectTypeOf<Extract<EntryRequirements<typeof send>, Approval | CallPermissions>>().toEqualTypeOf<
+    Approval | CallPermissions
+  >();
+  expectTypeOf<Extract<EntryRequirements<typeof send>, UnitOfWork>>().toEqualTypeOf<never>();
+});
+it("a widened approval flag conservatively requires approval", () => {
+  const unsure = (needsApproval: boolean) =>
+    defineEntry(defineNode("unsure", { ...base, permission: null, needsApproval }));
+  expectTypeOf<
+    Extract<EntryRequirements<ReturnType<typeof unsure>>, Approval>
+  >().toEqualTypeOf<Approval>();
+});
+it.effect("May passes the caller whose fixed list holds the closure", () =>
+  Effect.gen(function* () {
+    expect(yield* runFixture(read, { name: "Ada" }, May.fixed([read], ["greetings:read"]))).toBe(
       "Hello, Ada",
     );
   }),
 );
-
-it.effect("Grant fails with Forbidden when the caller lacks the permission", () =>
-  Effect.gen(function* grantForbids() {
-    const other = yield* Effect.flip(
-      readGreeting
-        .handler({ name: "Ada" })
-        .pipe(Effect.provide(Grant.layerFromPermissions(["greetings:send"]))),
-    );
-    const denied = yield* Effect.flip(
-      readGreeting.handler({ name: "Ada" }).pipe(Effect.provide(Grant.denyAll)),
-    );
-
-    expect(other).toEqual(
-      new Forbidden({ capabilityName: "read_greeting", permission: "greetings:read" }),
-    );
-    expect(denied._tag).toBe("Forbidden");
+it.effect("May.context supplies exposure, person/system lists and via independently", () =>
+  Effect.gen(function* () {
+    const context = May.context(May.fixed([read], ["greetings:read"]), {
+      system: ["system:work"],
+      via: "web",
+    });
+    const held = yield* CallPermissions.pipe(Effect.provideContext(context));
+    expect(held.entries).toEqual([read]);
+    expect(held.person).toEqual(["greetings:read"]);
+    expect(held.system).toEqual(["system:work"]);
+    expect(held.via).toBe("web");
   }),
 );
-
-it.effect("Approval.allowAll lets the handler run", () =>
-  Effect.gen(function* approvalAllows() {
+it.effect("a complete explicit fixed list allows its entry", () =>
+  Effect.gen(function* () {
     expect(
-      yield* approvedGreeting.handler({ name: "Ada" }).pipe(Effect.provide(Approval.allowAll)),
+      yield* runFixture(
+        read,
+        { name: "Ada" },
+        May.fixed([read], ["greetings:read", "greetings:send"]),
+      ),
     ).toBe("Hello, Ada");
   }),
 );
-
-it.effect("Approval.denyAll fails with ApprovalDenied", () =>
-  Effect.gen(function* approvalDenies() {
-    const error = yield* Effect.flip(
-      approvedGreeting.handler({ name: "Ada" }).pipe(Effect.provide(Approval.denyAll)),
+it.effect("a missing closure permission fails with its real permission and caller kind", () =>
+  Effect.gen(function* () {
+    const other = yield* Effect.flip(
+      runFixture(read, { name: "Ada" }, May.fixed([read], ["greetings:send"])),
     );
-
+    const denied = yield* Effect.flip(runFixture(read, { name: "Ada" }, May.fixed([read], [])));
+    expect(other).toEqual(
+      new Forbidden({ entry: "read_greeting", permission: "greetings:read", caller: "person" }),
+    );
+    expect(denied.kind).toBe("forbidden");
+  }),
+);
+it.effect("Approval.allowAll lets the handler run", () =>
+  Effect.gen(function* () {
+    expect(
+      yield* runFixture(approved, { name: "Ada" }).pipe(Effect.provide(Approval.allowAll)),
+    ).toBe("Hello, Ada");
+  }),
+);
+it.effect("Approval.denyAll fails with the entry name and kind", () =>
+  Effect.gen(function* () {
+    const error = yield* Effect.flip(
+      runFixture(approved, { name: "Ada" }).pipe(Effect.provide(Approval.denyAll)),
+    );
     expect(error).toEqual(
-      new ApprovalDenied({ capabilityName: "approved_greeting", reason: "Approval is required" }),
+      new ApprovalDenied({ entry: "approved_greeting", reason: "Approval is required" }),
     );
   }),
 );
-
-const recordingGates = (calls: Array<string>, grantHolds: boolean, approvalPasses: boolean) =>
-  Layer.mergeAll(
-    Layer.succeed(Grant, {
-      holds: (permission) =>
-        Effect.sync(() => {
-          calls.push(`grant ${permission}`);
-          return grantHolds;
-        }),
-    }),
-    Layer.succeed(Approval, {
-      approve: (capabilityName, input) =>
-        Effect.suspend(() => {
-          calls.push(`approval ${capabilityName} ${JSON.stringify(input)}`);
-          return approvalPasses
-            ? Effect.void
-            : Effect.fail(new ApprovalDenied({ capabilityName, reason: "no" }));
-        }),
-    }),
-  );
-
-const recordedSend = (calls: Array<string>) =>
-  implement(sendGreeting.contract, ({ name }) =>
+const recorded = (calls: string[]) =>
+  bindFixture(defineEntry(defineNode("recorded_send", { ...send.node })), ({ name }) =>
     Effect.sync(() => {
       calls.push("handler");
       return `Sent to ${name}`;
     }),
   );
-
-it.effect("runs Grant, then Approval, then the handler", () =>
-  Effect.gen(function* runsInOrder() {
-    const calls: Array<string> = [];
-    const result = yield* recordedSend(calls)
-      .handler({ name: "Ada" })
-      .pipe(Effect.provide(recordingGates(calls, true, true)));
-
-    expect(result).toBe("Sent to Ada");
-    expect(calls).toEqual([
-      "grant greetings:send",
-      'approval send_greeting {"name":"Ada"}',
-      "handler",
-    ]);
+const approval = (calls: string[], allowed: boolean) =>
+  Layer.succeed(Approval, {
+    approve: (entry: string, input: unknown) =>
+      Effect.suspend(() => {
+        calls.push(`approval ${entry} ${JSON.stringify(input)}`);
+        return allowed ? Effect.void : Effect.fail(new ApprovalDenied({ entry, reason: "no" }));
+      }),
+  });
+it.effect("closure checks happen before approval and approval before the handler", () =>
+  Effect.gen(function* () {
+    const calls: string[] = [];
+    const entry = recorded(calls);
+    expect(
+      yield* runFixture(entry, { name: "Ada" }, May.fixed([entry], ["greetings:send"])).pipe(
+        Effect.provide(approval(calls, true)),
+      ),
+    ).toBe("Sent to Ada");
+    expect(calls).toEqual(['approval recorded_send {"name":"Ada"}', "handler"]);
   }),
 );
-
-it.effect("a refused Grant never asks for approval", () =>
-  Effect.gen(function* grantBeforeApproval() {
-    const calls: Array<string> = [];
+it.effect("a refused closure never asks approval", () =>
+  Effect.gen(function* () {
+    const calls: string[] = [];
+    const entry = recorded(calls);
     const error = yield* Effect.flip(
-      recordedSend(calls)
-        .handler({ name: "Ada" })
-        .pipe(Effect.provide(recordingGates(calls, false, true))),
+      runFixture(entry, { name: "Ada" }, May.fixed([entry], [])).pipe(
+        Effect.provide(approval(calls, true)),
+      ),
     );
-
     expect(error._tag).toBe("Forbidden");
-    expect(calls).toEqual(["grant greetings:send"]);
+    expect(calls).toEqual([]);
   }),
 );
-
-it.effect("a denied Approval never runs the handler", () =>
-  Effect.gen(function* approvalBeforeHandler() {
-    const calls: Array<string> = [];
+it.effect("a refused approval never runs the handler", () =>
+  Effect.gen(function* () {
+    const calls: string[] = [];
+    const entry = recorded(calls);
     const error = yield* Effect.flip(
-      recordedSend(calls)
-        .handler({ name: "Ada" })
-        .pipe(Effect.provide(recordingGates(calls, true, false))),
+      runFixture(entry, { name: "Ada" }).pipe(Effect.provide(approval(calls, false))),
     );
-
     expect(error._tag).toBe("ApprovalDenied");
-    expect(calls).toEqual(["grant greetings:send", 'approval send_greeting {"name":"Ada"}']);
+    expect(calls).toEqual(['approval recorded_send {"name":"Ada"}']);
   }),
 );

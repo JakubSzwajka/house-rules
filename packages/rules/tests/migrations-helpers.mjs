@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,7 +39,7 @@ const listFor = (files) => {
 };
 
 // With `cwd`, the defaults and the run happen in that folder of the scratch root, so a test can put files beside it.
-export const run = (files, { list = true, cwd = ".", args = [] } = {}) => {
+export const run = (files, { list = true, cwd = ".", args = [], links = {} } = {}) => {
   const dir = mkdtempSync(join(tmpdir(), "house-rules-migrations-"));
   const inCwd = (entries) =>
     Object.fromEntries(Object.entries(entries).map(([path, text]) => [join(cwd, path), text]));
@@ -51,6 +51,10 @@ export const run = (files, { list = true, cwd = ".", args = [] } = {}) => {
     for (const [path, content] of Object.entries({ ...inCwd(WORKSPACE), ...withList, ...files })) {
       mkdirSync(join(dir, path, ".."), { recursive: true });
       writeFileSync(join(dir, path), content);
+    }
+    for (const [link, target] of Object.entries(links)) {
+      mkdirSync(join(dir, link, ".."), { recursive: true });
+      symlinkSync(target, join(dir, link));
     }
     return spawnSync(process.execPath, [script, ...args], {
       cwd: join(dir, cwd),

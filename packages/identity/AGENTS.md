@@ -2,55 +2,41 @@
 
 ## What it does
 
-Turns a verified `Principal` into an `ActorId`, and fills the app's `Caller`. It is provider-neutral: an `Authenticator`, such as `@house-rules/auth-jwt`, checks the token; this package decides who the caller is. The `Identity` module owns the `identity_binding` table, which binds a login, its `(issuer, subject)` pair, to an `ActorId`. One actor may have many bindings. Version 0.1.0 is ready for its first npm release, not yet published. It peers on exact `@house-rules/domain` 0.1.0, `@house-rules/application` 0.2.0 and Effect 4.0.3, and ships built JavaScript and declarations in `dist/`.
+Identity maps a verified login, its `(issuer, subject)` pair, to an `ActorId`. It owns `identity_binding`. One actor may have many bindings. It never links by email or stores claims. An `Authenticator` verifies tokens; `Identity.who` resolves the Actor for a way. Version 0.1.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published entries load built `dist/`; the workspace loads source.
 
-Exports: `Identity` (module, with `resolve`, `bind`, `unbind`, `bindingsOf`, `unbindAll`), the `ActorResolver` and `FirstSignIn` slots, the `ForeignIssuer` error an `ActorResolver` fails with for an issuer it does not own, the `BindingStore` port with `memoryBindingStore()` and `postgresBindingStore`, `identityCaller`, and the errors `BindingTaken`, `BindingInvalid` and `IdentityStoreUnavailable`.
+## Mount and bind
 
-## How an app mounts it
+1. [ ] Pick an actor resolver. `Identity.layerPostgres` needs the shared SQL client; `layerMemory` is for tests. Both provide `Identity` and `ActorResolver`. Raw `Identity.layer` needs `BindingStore`. For one issuer with no table, `Identity.subject({ issuer })` treats its subject as the ActorId. A foreign issuer is refused before the new-login hook.
+2. [ ] With bindings, register `{ "package": "@house-rules/identity" }` in `migrations.json`, or `{ "workspace": "packages/identity" }` in this repo.
+3. [ ] Acquire `Identity` once and call `bindIdentity(service)`. Add its binding to the app's `NodeRuntime`. The browser-safe `/contract` door exports binding schemas/errors and `bindLogin`; main adds services, ports, adapters and the binder.
+4. [ ] Fill `FirstSignIn`. `Identity.refuse` answers 403 `not_invited`. For open signup, capture the app's runtime, trace, watch and unit after runtime acquisition. The hook runs the app's system-start first-sign-in entry with `May.system`, system permissions and approval. That entry calls the system-only shared creation/binding nodes. Return its ActorId and map hook failures to `Refused`.
+5. [ ] Provide an `Authenticator` and the resolver/hook in the final root layer. Fill a way's Who with `Identity.who({ token: "bearer", audience?, challenge? })`. Cookie sources and ordered token sources work too. May owns permissions separately.
+6. [ ] Call `identity.unbindAll(actorId)` in the account-deletion unit.
 
-1. [ ] Pick how a principal becomes an actor:
-   - With bindings: `Identity.layerPostgres` (needs `SqlClient`) or `Identity.layerMemory`. Both provide `Identity` and `ActorResolver`.
-   - With no table: `Identity.subject({ issuer })`. The subject is the `ActorId`, for exactly that issuer. Any other issuer is refused 401 `token_invalid` (with the `invalid_token` challenge when one is set) before `FirstSignIn` runs.
-2. [ ] Fill `FirstSignIn`, which runs when a login resolves to none:
-   - Invite-only: `Identity.refuse`, which answers 403 `not_invited`.
-   - Create on first sign-in: write your own filler in the composition root. It opens its own unit, creates the actor id, binds it and returns it. Map every failure to `Refused`.
+## Who contract
 
-   ```ts
-   const firstSignIn = Layer.effect(FirstSignIn, Effect.gen(function* () {
-     const identity = yield* Identity;
-     const unitOfWork = yield* UnitOfWork;
-     return (principal) =>
-       unitOfWork.atomic(Effect.gen(function* () {
-         const id = yield* createActorId; // for example Party.createPerson(...)
-         yield* identity.bind(principal, id);
-         return id;
-       })).pipe(Effect.mapError(() => new Refused({ status: 503, code: "sign_in_failed", message: "Try again." })));
-   }));
-   ```
+`IdentityWhoOptions` is `{ token: TokenSource, audience?: string, challenge?: (error?: "invalid_token") => string }`. There is no grant callback.
 
-3. [ ] Provide an `Authenticator`, and build the caller in the composition root:
+`Identity.who(options)` returns `WhoSocket<Authenticator | ActorResolver | FirstSignIn>`. Its `resolve(incoming)` returns an Actor, not an Effect Context. It reads the token, verifies once, resolves the actor and calls the hook only for an unknown login. Construction captures neither request services nor `FirstSignIn`. The application installs request services and permissions. A hook must not authenticate again or build another runtime.
 
-   ```ts
-   const caller = Identity.caller({
-     token: "bearer",                 // or { cookie: "session" }
-     audience: resource,              // optional, passed to Authenticator.verify
-     grant: (actor, principal) => Grant.fromPermissions(permissionsFor(actor, principal)),
-     challenge: mcp.challenge,        // optional, from protectedResource(...)
-   });
-   ```
+| Refusal | Status / code |
+| --- | --- |
+| missing token | 401 `token_missing`, optional bare challenge |
+| invalid, expired, wrong issuer/audience | 401 `token_invalid`, optional invalid_token challenge |
+| authenticator unavailable | 503 `auth_unavailable`, no challenge |
+| binding lookup unavailable | 503 `identity_unavailable`, no challenge |
+| invite-only unknown login | 403 `not_invited` |
 
-   The caller needs `Authenticator | ActorResolver | FirstSignIn` from the app layer. It returns `CurrentActor` and `Grant`. `grant` may return a `GrantService` or an `Effect<GrantService, Refused>`.
+## Service and fixed rules
 
-4. [ ] With bindings, add the module to the root `migrations.json`: `{ "package": "@house-rules/identity" }`. Use `{ "workspace": "packages/identity" }` only in this repo.
-5. [ ] Call `Identity.unbindAll(actorId)` when the app deletes an account, in the same unit.
-6. [ ] Add views for `Refused` codes your clients see: 401 `token_missing`, 401 `token_invalid`, 503 `auth_unavailable`, 503 `identity_unavailable`, 403 `not_invited`.
+Methods stay `resolve`, `bind`, `unbind`, `bindingsOf`, `unbindAll`. They return Effects with no requirements. Writes join an open unit and fail `NoOpenUnit` outside one; the module never opens a unit.
 
-## Fixed rules
+`bindLogin`, named `Identity.bindLogin`, takes `{ issuer, subject, personId }` and returns that ActorId after binding. Permission is `identity:bind`; flags are transactional true, all others false; edges are empty. A person caller gets forbidden `IdentityCallerDenied`. Only app nodes become entries; the shared node is an edge.
 
-- Never looks up or links by email. Only `issuer` and `subject` reach storage; claims never do.
-- The package never opens a unit of work. `bind`, `unbind` and `unbindAll` join the open unit and fail with `NoOpenUnit` outside one.
-- `bind` to the actor that already holds the login is a no-op; to another actor it fails with `BindingTaken`. An empty issuer or subject fails with `BindingInvalid` and never resolves.
-- `unbind(actorId, login)` removes the binding only when that actor holds it.
-- Deleting a binding never deletes anything in another module. No cross-module foreign keys: `actor_id` is a plain column.
-- A missing token: 401 `token_missing`, with `challenge()` when given. A rejected token: 401 `token_invalid`, with `challenge("invalid_token")`. An `unavailable` rejection: 503 `auth_unavailable`. A store failure while resolving: 503 `identity_unavailable`.
-- `Identity.caller` is the static name in the class body; it overrides the legacy `Function.caller` on purpose.
+- Binding the same login to its current actor is a no-op. Binding it to another fails with conflict `BindingTaken`.
+- Empty issuer/subject fails with invalid `BindingInvalid` and never resolves. `unbind(actorId, login)` removes only that actor's binding.
+- `actor_id` is a plain column, not a cross-module foreign key. Deleting a binding never deletes another module's data.
+- Storage failures have unavailable kind; `ForeignIssuer` has forbidden kind but Who preserves its 401 auth translation.
+- Module user-facing errors keep their messages; unavailable and plumbing errors use fixed public text, with diagnostic details kept in separate fields or causes.
+
+Run package `typecheck`, `test` and `build`. The store suite covers memory and real Postgres; Who tests cover token security, hook behavior and rollback.

@@ -88,8 +88,13 @@ export const toMigrationRecord = (
   Object.fromEntries(
     files.map((file) => [
       `${file.id}_${file.name}`,
-      Effect.forEach(file.statements, (statement) => sql.unsafe(statement).unprepared, {
-        discard: true,
-      }).pipe(Effect.andThen(storeDigest(sql, table, file))),
+      Effect.forEach(
+        file.statements,
+        (statement) =>
+          sql`SET LOCAL standard_conforming_strings = on`.pipe(
+            Effect.andThen(sql.unsafe(statement).unprepared),
+          ),
+        { discard: true },
+      ).pipe(Effect.andThen(storeDigest(sql, table, file))),
     ]),
   );

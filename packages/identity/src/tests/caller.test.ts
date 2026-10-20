@@ -2,14 +2,19 @@ import { expect, it } from "@effect/vitest";
 import {
   Authenticator,
   CurrentActor,
-  Grant,
   type Principal,
   Refused,
   TokenRejected,
 } from "@house-rules/application";
 import { ActorId, memoryUnitOfWork, UnitOfWork } from "@house-rules/domain";
-import { Context, Effect, Layer, Option } from "effect";
-import { FirstSignIn, Identity, type IdentityCallerOptions } from "../index.js";
+import { Effect, Layer, Option } from "effect";
+import {
+  ActorResolver,
+  FirstSignIn,
+  Identity,
+  IdentityStoreUnavailable,
+  type IdentityWhoOptions,
+} from "../index.js";
 
 const issuer = "https://issuer.test";
 const audience = "https://api.test";
@@ -51,14 +56,12 @@ const incoming = (headers: Record<string, string> = {}) => ({
 });
 const bearer = (token: string) => incoming({ authorization: `Bearer ${token}` });
 
-const options: IdentityCallerOptions = {
+const options: IdentityWhoOptions = {
   token: "bearer",
   audience,
-  grant: (_actor, verified) =>
-    Grant.fromPermissions(verified.scopes.includes("read") ? ["things:read"] : []),
   challenge: (error) => (error === undefined ? "Bearer realm" : `Bearer error="${error}"`),
 };
-const caller = Identity.caller(options);
+const caller = Identity.who(options).resolve;
 
 const knownActor = ActorId.make("actor-known");
 const seedKnown = Effect.gen(function* () {
@@ -104,7 +107,7 @@ const subjectMode = Layer.mergeAll(
   fakeAuthenticator,
 );
 
-it.layer(inviteOnly)("Identity.caller with bindings and Identity.refuse", (test) => {
+it.layer(inviteOnly)("Identity.who with bindings and Identity.refuse", (test) => {
   test.effect("a missing token is 401 token_missing with the bare challenge", () =>
     Effect.gen(function* () {
       const refused = yield* Effect.flip(caller(incoming()));
@@ -118,8 +121,8 @@ it.layer(inviteOnly)("Identity.caller with bindings and Identity.refuse", (test)
 
   test.effect("without a challenge option no challenge is sent", () =>
     Effect.gen(function* () {
-      const plain = Identity.caller({ token: "bearer", grant: () => Grant.fromPermissions([]) });
-      const refused = yield* Effect.flip(plain(incoming()));
+      const plain = Identity.who({ token: "bearer" });
+      const refused = yield* Effect.flip(plain.resolve(incoming()));
       expect(refused.status).toBe(401);
       expect(refused.challenge).toBeUndefined();
     }),
@@ -138,8 +141,8 @@ it.layer(inviteOnly)("Identity.caller with bindings and Identity.refuse", (test)
 
   test.effect("the audience option reaches the Authenticator", () =>
     Effect.gen(function* () {
-      const elsewhere = Identity.caller({ ...options, audience: "https://elsewhere.test" });
-      const refused = yield* Effect.flip(elsewhere(bearer("known")));
+      const elsewhere = Identity.who({ ...options, audience: "https://elsewhere.test" });
+      const refused = yield* Effect.flip(elsewhere.resolve(bearer("known")));
       expect(refused).toMatchObject({ status: 401, code: "token_invalid" });
     }),
   );
@@ -152,46 +155,68 @@ it.layer(inviteOnly)("Identity.caller with bindings and Identity.refuse", (test)
     }),
   );
 
-  test.effect("a bound login becomes the CurrentActor with the Grant the app chose", () =>
+  test.effect("an unavailable identity lookup is 503 and never calls the new-login hook", () =>
     Effect.gen(function* () {
-      yield* seedKnown;
-      const context = yield* caller(bearer("known"));
-      expect(Context.get(context, CurrentActor)).toEqual({ id: knownActor });
-      expect(yield* Context.get(context, Grant).holds("things:read")).toBe(true);
-      expect(yield* Context.get(context, Grant).holds("things:write")).toBe(false);
+      const calls: string[] = [];
+      const broken = Layer.succeed(ActorResolver, {
+        resolve: () =>
+          Effect.fail(new IdentityStoreUnavailable({ cause: "private database detail" })),
+      });
+      const hook = Layer.succeed(FirstSignIn, (verified: Principal) =>
+        Effect.sync(() => {
+          calls.push(verified.subject);
+          return knownActor;
+        }),
+      );
+      const refused = yield* Effect.flip(
+        caller(bearer("known")).pipe(Effect.provide(Layer.merge(broken, hook))),
+      );
+      expect(refused).toMatchObject({ status: 503, code: "identity_unavailable" });
+      expect(refused.challenge).toBeUndefined();
+      expect(refused.message).not.toContain("private database detail");
+      expect(calls).toEqual([]);
     }),
   );
 
-  test.effect("an Effect grant is run, and its Refused is the caller's", () =>
+  test.effect("a bound login returns an Actor without installing request services", () =>
     Effect.gen(function* () {
       yield* seedKnown;
+      expect(yield* caller(bearer("known"))).toEqual({ id: knownActor });
+      expect(yield* Effect.serviceOption(CurrentActor)).toEqual(Option.none());
+    }),
+  );
+
+  test.effect("the effectful new-login hook runs once and preserves its Refused", () =>
+    Effect.gen(function* () {
       const seen: Array<string> = [];
-      const effectful = Identity.caller({
-        ...options,
-        grant: (actor) =>
-          Effect.sync(() => {
-            seen.push(actor.id);
-            return Grant.fromPermissions(["things:write"]);
-          }),
+      const hook = Layer.succeed(FirstSignIn, (verified: Principal) =>
+        Effect.sync(() => {
+          seen.push(verified.subject);
+          return ActorId.make("hook-actor");
+        }),
+      );
+      expect(yield* caller(bearer("stranger")).pipe(Effect.provide(hook))).toEqual({
+        id: "hook-actor",
       });
-      const context = yield* effectful(bearer("known"));
-      expect(seen).toEqual([knownActor]);
-      expect(yield* Context.get(context, Grant).holds("things:write")).toBe(true);
-      const refusing = Identity.caller({
-        ...options,
-        grant: () => Effect.fail(new Refused({ status: 403, code: "scope", message: "No." })),
-      });
-      expect(yield* Effect.flip(refusing(bearer("known")))).toMatchObject({ code: "scope" });
+      expect(seen).toEqual(["user-stranger"]);
+      const refusing = Layer.succeed(FirstSignIn, () =>
+        Effect.fail(new Refused({ status: 403, code: "scope", message: "No." })),
+      );
+      expect(
+        yield* Effect.flip(caller(bearer("stranger")).pipe(Effect.provide(refusing))),
+      ).toMatchObject({ code: "scope" });
     }),
   );
 
   test.effect("a cookie token source reads the named cookie", () =>
     Effect.gen(function* () {
       yield* seedKnown;
-      const cookies = Identity.caller({ ...options, token: { cookie: "session" } });
-      const context = yield* cookies(incoming({ cookie: "other=x; session=known" }));
-      expect(Context.get(context, CurrentActor).id).toBe(knownActor);
-      expect(yield* Effect.flip(cookies(bearer("known")))).toMatchObject({ code: "token_missing" });
+      const cookies = Identity.who({ ...options, token: { cookie: "session" } });
+      const actor = yield* cookies.resolve(incoming({ cookie: "other=x; session=known" }));
+      expect(actor.id).toBe(knownActor);
+      expect(yield* Effect.flip(cookies.resolve(bearer("known")))).toMatchObject({
+        code: "token_missing",
+      });
     }),
   );
 
@@ -205,28 +230,27 @@ it.layer(inviteOnly)("Identity.caller with bindings and Identity.refuse", (test)
   );
 });
 
-it.layer(openSignUp)("Identity.caller with an app FirstSignIn filler", (test) => {
+it.layer(openSignUp)("Identity.who with an app FirstSignIn filler", (test) => {
   test.effect("an unknown login is bound inside the filler's unit, then resolves", () =>
     Effect.gen(function* () {
       const expected = ActorId.make("actor-user-new");
       const first = yield* caller(bearer("newcomer"));
-      expect(Context.get(first, CurrentActor)).toEqual({ id: expected });
+      expect(first).toEqual({ id: expected });
       const identity = yield* Identity;
       expect(yield* identity.resolve(principals.newcomer ?? principal("x"))).toEqual(
         Option.some(expected),
       );
       const again = yield* caller(bearer("newcomer"));
-      expect(Context.get(again, CurrentActor)).toEqual({ id: expected });
+      expect(again).toEqual({ id: expected });
       expect(yield* identity.bindingsOf(expected)).toHaveLength(1);
     }),
   );
 });
 
-it.layer(subjectMode)("Identity.caller with Identity.subject", (test) => {
+it.layer(subjectMode)("Identity.who with Identity.subject", (test) => {
   test.effect("the subject is the ActorId for the configured issuer", () =>
     Effect.gen(function* () {
-      const context = yield* caller(bearer("known"));
-      expect(Context.get(context, CurrentActor)).toEqual({ id: "user-known" });
+      expect(yield* caller(bearer("known"))).toEqual({ id: "user-known" });
     }),
   );
 
@@ -251,8 +275,8 @@ it.layer(subjectMode)("Identity.caller with Identity.subject", (test) => {
 
   test.effect("another issuer without a challenge option is 401 with no challenge", () =>
     Effect.gen(function* () {
-      const plain = Identity.caller({ token: "bearer", grant: () => Grant.fromPermissions([]) });
-      const refused = yield* Effect.flip(plain(bearer("foreign")));
+      const plain = Identity.who({ token: "bearer" });
+      const refused = yield* Effect.flip(plain.resolve(bearer("foreign")));
       expect(refused).toMatchObject({ status: 401, code: "token_invalid" });
       expect(refused.challenge).toBeUndefined();
     }),

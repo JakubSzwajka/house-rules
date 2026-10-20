@@ -1,9 +1,5 @@
-import houseRules, { capabilityConfig } from "@house-rules/rules";
-import design from "@house-rules/rules/design";
+import houseRules, { nodesConfig } from "@house-rules/rules";
 import houseRulesMarkdown from "@house-rules/rules/markdown";
-import shadcn from "@house-rules/rules/shadcn";
-
-const exampleApps = "examples/booking-platform/apps/*";
 
 export default [
   {
@@ -18,20 +14,11 @@ export default [
     ],
   },
   ...houseRules.configs.recommended,
-  ...capabilityConfig({
-    appsDir: ["apps", "examples/*/apps"],
-    packagesDir: ["packages", "examples/*/packages"],
+  ...nodesConfig({
+    appsDir: ["apps", "examples/booking/apps"],
+    packagesDir: ["packages", "examples/booking/packages"],
   }),
   ...houseRulesMarkdown,
-  ...design({
-    tokenFiles: ["examples/booking-platform/apps/api/src/delivery/web/styles.css"],
-    css: { files: [`${exampleApps}/src/**/*.css`] },
-    source: { files: [`${exampleApps}/src/**/*.{ts,tsx}`] },
-  }),
-  ...shadcn({
-    files: [`${exampleApps}/src/**/*.{jsx,tsx}`],
-    components: [`${exampleApps}/src/delivery/web/components/ui/**`],
-  }),
   {
     files: ["packages/rules/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
     rules: { "house-rules/comment-discipline": "off" },

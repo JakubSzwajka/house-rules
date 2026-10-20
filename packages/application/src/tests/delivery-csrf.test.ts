@@ -1,15 +1,16 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { route, toFetchHandler } from "../index.ts";
-import { answer, makeApp, renameGuest, sessionCallerFor, webRequest } from "./delivery-fixtures.ts";
+import { admit, endpoint } from "../index.ts";
+import { answer, makeApp, renameGuest, webRequest } from "./delivery-fixtures.ts";
 
 const t = makeApp();
-const session = sessionCallerFor(t.work);
-const plain = toFetchHandler(t.app, {
-  caller: (incoming) => session(incoming),
-  routes: [route(renameGuest, "PATCH /plain/:id")],
+const plainApp = makeApp({
+  path: "/",
+  who: "session",
+  endpoints: [endpoint(renameGuest, "PATCH /plain/:id")],
 });
-afterAll(() => plain.dispose().then(t.dispose));
+const plain = plainApp.router;
+afterAll(() => plainApp.dispose().then(t.dispose));
 
 const write = (path: string, headers: Record<string, string>, method = "PATCH") =>
   answer(
@@ -119,16 +120,18 @@ it.effect("an opaque Referer never passes", () =>
   }),
 );
 
-it("a configured origin must be a plain http(s) origin, and null never is", () => {
-  for (const origin of ["null", "https://app.example/path", "ftp://app.example", "*"]) {
-    expect(() =>
-      toFetchHandler(t.app, {
-        origins: [origin],
-        routes: [route(renameGuest, "PATCH /bookings/:id")],
-      }),
-    ).toThrow(/not an http\(s\) origin/u);
-  }
-});
+it.effect("a configured origin must be a plain http(s) origin, and null never is", () =>
+  Effect.gen(function* () {
+    for (const origin of ["null", "https://app.example/path", "ftp://app.example", "*"]) {
+      const invalid = makeApp({ origins: [origin] });
+      const result = yield* Effect.promise(() =>
+        admit(invalid.app, { headers: new Headers(), url: "/" }, { way: "api" }),
+      );
+      expect(result).toMatchObject({ ok: false, error: { _tag: "GraphInvalid" } });
+      yield* Effect.promise(invalid.dispose);
+    }
+  }),
+);
 
 it.effect("a write with no Cookie is not checked: no session rides along cross-site", () =>
   Effect.gen(function* bearerPasses() {
@@ -145,7 +148,7 @@ it.effect("a write with no Cookie is not checked: no session rides along cross-s
 );
 
 it("an opt-out needs a reason", () => {
-  expect(() => route(renameGuest, "POST /x", { csrf: { skip: true, reason: " " } })).toThrow(
-    /without a reason/u,
+  expect(() => endpoint(renameGuest, "POST /x", { csrf: { skip: true, reason: " " } })).toThrow(
+    /needs a reason/u,
   );
 });

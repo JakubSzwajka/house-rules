@@ -1,4 +1,4 @@
-import { CallWatch } from "@house-rules/application";
+import { CallWatch, type RecordSocket } from "@house-rules/application";
 import { Effect, Layer } from "effect";
 import { postgresAuditStore } from "./adapters/postgres/postgres-audit-store.ts";
 import { readRows } from "./adapters/postgres/read-rows.ts";
@@ -71,15 +71,27 @@ const layerTable = (options: CallAuditTableOptions) =>
     }),
   ).pipe(Layer.provide(postgresAuditStore));
 
+const layerMemory = (log: MemoryAuditLog, options: CallAuditOptions = nobody) =>
+  Layer.succeed(CallWatch, makeWatch(options.who, log.record));
+
 export const CallAudit = {
+  record: {
+    memory: (log: MemoryAuditLog, options?: CallAuditOptions): RecordSocket => ({
+      layer: layerMemory(log, options),
+    }),
+    postgres: (
+      options: CallAuditLayerOptions,
+    ): RecordSocket<never, Layer.Services<typeof postgresAuditStore>> => ({
+      layer: layer(options).pipe(Layer.provide(postgresAuditStore)),
+    }),
+  },
   layer,
   layerPostgres: (options: CallAuditLayerOptions) =>
     layer(options).pipe(Layer.provideMerge(postgresAuditStore)),
   layerLog: (options: CallAuditOptions) =>
     Layer.succeed(CallWatch, makeWatch(options.who, logLine)),
   layerTable,
-  layerMemory: (log: MemoryAuditLog, options: CallAuditOptions = nobody) =>
-    Layer.succeed(CallWatch, makeWatch(options.who, log.record)),
+  layerMemory,
   readRows,
   erase: (viewerId: string) => AuditStore.use((store) => store.erase(viewerId)),
   runRetention,

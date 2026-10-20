@@ -1,57 +1,61 @@
+import { defineNode, errorKind } from "@house-rules/domain";
+import { bindFixture } from "./entry-fixtures.ts";
+import { httpFixture } from "./router-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
-import { Context, Effect, Schema } from "effect";
-import {
-  defaultMaxBodyBytes,
-  defineContract,
-  implement,
-  once,
-  route,
-  toFetchHandler,
-  type View,
-} from "../index.ts";
-import { answer, bearerCallerFor, findBookings, makeApp, webRequest } from "./delivery-fixtures.ts";
+import { Effect, Schema, Logger, References } from "effect";
+import { defaultMaxBodyBytes, defineEntry, once, endpoint } from "../index.ts";
+import { answer, findBookings, makeApp, webRequest } from "./delivery-fixtures.ts";
 
 const t = makeApp();
-const small = toFetchHandler(t.app, {
-  caller: bearerCallerFor(t.work),
-  maxBodyBytes: 64,
-  routes: [route(findBookings)],
-});
+const smallApp = makeApp({ path: "/", maxBodyBytes: 64, endpoints: [endpoint(findBookings)] });
+const small = smallApp.router;
 
-const badOutput = implement(
-  defineContract("bad_output", {
-    description: "Returns a value its output schema cannot encode.",
-    input: Schema.Struct({}),
-    output: Schema.Struct({ n: Schema.Int }),
-    failure: Schema.Never,
-    permission: "public",
-  }),
+const badOutput = bindFixture(
+  defineEntry(
+    defineNode("bad_output", {
+      description: "Returns a value its output schema cannot encode.",
+      input: Schema.Struct({}),
+      output: Schema.Struct({ n: Schema.Int }),
+      failure: Schema.Never,
+      permission: null,
+    }),
+  ),
   () => Effect.succeed({ n: "not a number" } as unknown as { n: number }),
 );
 
-class Broken extends Schema.TaggedError<Broken>()("Broken", { n: Schema.Int }) {}
+class Broken extends Schema.TaggedError<Broken>()("Broken", {
+  kind: errorKind("invalid"),
+  n: Schema.Int,
+}) {}
 
-const brokenView = implement(
-  defineContract("broken_view", {
-    description: "Fails with an error whose view throws.",
-    input: Schema.Struct({}),
-    output: Schema.Struct({}),
-    failure: Broken,
-    permission: "public",
-  }),
+const brokenView = bindFixture(
+  defineEntry(
+    defineNode("broken_view", {
+      description: "Fails with an error whose view throws.",
+      input: Schema.Struct({}),
+      output: Schema.Struct({}),
+      failure: Broken,
+      permission: null,
+    }),
+  ),
   () => Effect.fail(new Broken({ n: 1 })),
 );
 
-const strict = toFetchHandler(t.app, {
-  caller: () => Effect.succeed(Context.empty()),
-  views: {
-    Broken: (_error: Broken): View => {
+const strictApp = httpFixture([badOutput, brokenView], {
+  endpoints: [endpoint(badOutput), endpoint(brokenView)],
+  overrides: {
+    Broken: () => {
       throw new TypeError("INTERNAL_VIEW_DEFECT");
     },
   },
-  routes: [route(badOutput), route(brokenView)],
+  extra: Logger.layer([
+    Logger.make(({ message, fiber }) => {
+      t.logs.push({ message, annotations: fiber.getRef(References.CurrentLogAnnotations) });
+    }),
+  ]),
 });
-afterAll(() => Promise.all([small.dispose(), strict.dispose()]).then(t.dispose));
+const strict = strictApp.handler;
+afterAll(() => Promise.all([smallApp.dispose(), strictApp.dispose(), t.dispose()]));
 
 const post = (
   handler: (request: Request) => Promise<Response>,
@@ -138,7 +142,7 @@ it.effect("a JSON member given twice is a 400, even spelled with an escape", () 
       const r = yield* post(t.api, "/api/find_bookings", body);
       expect(r.status).toBe(400);
       expect(r.body).toEqual({
-        error: { code: "invalid_input", message: "Give guest once.", field: "guest" },
+        error: { code: "invalid", message: "Give guest once." },
       });
     }
   }),
@@ -153,7 +157,7 @@ it.effect("a __proto__ key is undeclared input like any other", () =>
       }),
     );
     expect(query.status).toBe(400);
-    expect(query.body).toMatchObject({ error: { code: "invalid_input" } });
+    expect(query.body).toMatchObject({ error: { code: "invalid" } });
     expect(JSON.stringify(query.body)).not.toMatch(/SECRET/u);
     const body = yield* post(
       t.api,
@@ -198,7 +202,9 @@ it.effect("a view that throws is a logged 500 with the request id", () =>
 it.effect("a body that is not a JSON object is a 400 on the body field", () =>
   Effect.gen(function* notAnObject() {
     const broken = yield* post(t.api, "/api/find_bookings", "{");
-    expect(broken.body).toMatchObject({ error: { code: "invalid_input", field: "body" } });
+    expect(broken.body).toMatchObject({
+      error: { code: "invalid", message: "The body is not valid JSON." },
+    });
     const list = yield* post(t.api, "/api/find_bookings", "[]");
     expect(list.status).toBe(400);
   }),
@@ -208,7 +214,7 @@ it.effect("a query key on a write is a 400", () =>
   Effect.gen(function* queryOnWrite() {
     const r = yield* post(t.api, "/api/find_bookings?by=guest", JSON.stringify({ guest: "Ada" }));
     expect(r.status).toBe(400);
-    expect(r.body).toMatchObject({ error: { field: "by" } });
+    expect(r.body).toMatchObject({ error: { message: "by is not a field here." } });
   }),
 );
 
@@ -234,8 +240,8 @@ it.effect("a defect is a 500 internal_error, logged with the request id", () =>
     });
     expect(JSON.stringify(r.body)).not.toMatch(/a bug in the handler/u);
     expect(t.logs).toContainEqual({
-      message: expect.arrayContaining(["Capability died"]),
-      annotations: { capability: "crash", requestId: "req-crash" },
+      message: expect.arrayContaining(["Entry died"]),
+      annotations: { entry: "crash", requestId: "req-crash" },
     });
   }),
 );

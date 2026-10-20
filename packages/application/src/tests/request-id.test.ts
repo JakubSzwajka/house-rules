@@ -1,31 +1,31 @@
+import { defineNode, NoInput } from "@house-rules/domain";
+import { bindFixture, runFixture } from "./entry-fixtures.ts";
 import { expect, it } from "@effect/vitest";
-import { Context, Effect, Layer, Logger, Random, References, Schema } from "effect";
+import { Effect, Layer, Logger, Random, References, Schema } from "effect";
 import {
   type CallFacts,
   CallRequestId,
   CallWatch,
   call,
-  composition,
-  defineContract,
-  implement,
-  NoInput,
+  defineEntry,
   newRequestId,
   requestIdHeader,
   requestIdOf,
-  toMcpHandler,
-  tool,
   withRequestId,
 } from "../index.ts";
+import { mcpFixture } from "./router-fixtures.ts";
 import { mcpInitialize, mcpPost } from "./delivery-mcp-client.ts";
 
-const loggingPing = implement(
-  defineContract("ping", {
-    description: "Answer pong.",
-    input: NoInput,
-    output: Schema.String,
-    failure: Schema.Never,
-    permission: "public",
-  }),
+const loggingPing = bindFixture(
+  defineEntry(
+    defineNode("ping", {
+      description: "Answer pong.",
+      input: NoInput,
+      output: Schema.String,
+      failure: Schema.Never,
+      permission: null,
+    }),
+  ),
   () => Effect.log("inside the handler").pipe(Effect.as("pong")),
 );
 
@@ -96,7 +96,7 @@ it.effect("withRequestId sets the call's request id and annotates every log line
     const seen: Array<CallFacts> = [];
     const lines: Array<Line> = [];
     yield* Effect.log("before the call").pipe(
-      Effect.andThen(loggingPing.handler({})),
+      Effect.andThen(runFixture(loggingPing, {})),
       withRequestId("req-42"),
       Effect.provide(Layer.mergeAll(recordingWatch(seen), capture(lines))),
     );
@@ -126,14 +126,16 @@ const zeroRandom = Layer.succeed(Random.Random, {
 
 const zeroId = "0".repeat(32);
 
-const idPing = implement(
-  defineContract("id_ping", {
-    description: "Answer the request id.",
-    input: NoInput,
-    output: Schema.String,
-    failure: Schema.Never,
-    permission: "public",
-  }),
+const idPing = bindFixture(
+  defineEntry(
+    defineNode("id_ping", {
+      description: "Answer the request id.",
+      input: NoInput,
+      output: Schema.String,
+      failure: Schema.Never,
+      permission: null,
+    }),
+  ),
   () =>
     Effect.gen(function* idOfCall() {
       return (yield* CallRequestId) ?? "none";
@@ -142,19 +144,26 @@ const idPing = implement(
 
 it.effect("a built app's Random makes the fresh request id on call() and MCP", () =>
   Effect.gen(function* seededAdapters() {
-    const app = composition({ layer: zeroRandom, caller: () => Effect.succeed(Context.empty()) });
+    const fixture = mcpFixture([idPing], {
+      extra: zeroRandom,
+      tools: [{ entry: idPing, title: "Id", idempotent: true, openWorld: false }],
+    });
     const outcome = yield* Effect.promise(() =>
-      call(app, idPing, {}, { headers: new Headers(), url: "https://a.test/" }),
+      call(
+        fixture.app,
+        idPing,
+        {},
+        { headers: new Headers(), url: "https://a.test/" },
+        { way: "mcp" },
+      ),
     );
     expect(outcome).toEqual({ ok: true, value: zeroId });
-    const mcp = toMcpHandler(app, {
-      path: "/mcp",
-      name: "t",
-      version: "0",
-      tools: [tool(idPing, { title: "Id", idempotent: true, openWorld: false })],
-    });
-    const init = yield* mcpPost(mcp, {}, mcpInitialize);
+    const init = yield* mcpPost(
+      fixture.handler,
+      { authorization: "Bearer fixture" },
+      mcpInitialize,
+    );
     expect(init.headers.get(requestIdHeader)).toBe(zeroId);
-    yield* Effect.promise(() => mcp.dispose().then(app.dispose));
+    yield* Effect.promise(fixture.dispose);
   }),
 );

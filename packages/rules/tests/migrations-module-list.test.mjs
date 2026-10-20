@@ -67,7 +67,10 @@ describe("house-rules-migrations, the module list", () => {
     };
     const clean = run(listed);
     assert.equal(clean.status, 0, clean.stderr);
-    assert.match(clean.stdout, /3 table\(s\) owned by 2 package\(s\).*2 module\(s\) listed/);
+    assert.match(
+      clean.stdout,
+      /3 table\/view object\(s\) owned by 2 module\(s\).*2 module\(s\) listed/,
+    );
 
     const reaching = run({
       ...listed,

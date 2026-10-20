@@ -1,6 +1,6 @@
 import { Option } from "effect";
 import { Cookies } from "effect/http";
-import type { Incoming } from "../delivery/caller.ts";
+import type { Incoming } from "./incoming.ts";
 
 export type TokenPlace = "bearer" | Readonly<{ cookie: string }>;
 

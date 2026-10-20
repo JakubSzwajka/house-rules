@@ -1,5 +1,7 @@
 import * as fs from "node:fs";
 import path from "node:path";
+import { migrationsLocationProblem } from "./folder-location.mjs";
+import { shapeProblem } from "./module-entry.mjs";
 
 // The module list: every module whose migrations the app runs. The runner, @house-rules/migrations, reads the same file.
 export const LIST_FILE = "migrations.json";
@@ -60,6 +62,15 @@ export const checkModuleList = (workspaces) => {
     }
   }
 
+  const locations = new Set();
+  const rememberLocation = (label, directory) => {
+    const real = fs.realpathSync(directory);
+    if (locations.has(real))
+      listProblems.push(
+        `${label}: module folder is listed twice under different locations or identities.`,
+      );
+    locations.add(real);
+  };
   const listedWorkspaces = new Set();
   const listedPackages = new Set();
   const installedMigrations = [];
@@ -112,39 +123,6 @@ export const checkModuleList = (workspaces) => {
       }
     }
     return undefined;
-  };
-  // The runner's schema for "adopt": { from: string, ids: integer[], rehash?: integer[] }.
-  const adoptShapeProblem = (label, adopt) => {
-    const integers = (value) => Array.isArray(value) && value.every(Number.isInteger);
-    return typeof adopt === "object" &&
-      adopt !== null &&
-      !Array.isArray(adopt) &&
-      typeof adopt.from === "string" &&
-      integers(adopt.ids) &&
-      (adopt.rehash === undefined || integers(adopt.rehash))
-      ? undefined
-      : `${label}: "adopt" must be { "from": "<table>", "ids": [<integer>], "rehash"?: [<integer>] }.`;
-  };
-  // The runner's entry schema: each key is a string when present, and exactly one of "workspace" or "package" is a non-empty one.
-  const shapeProblem = (label, entry) => {
-    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
-      return `${label} must be an object.`;
-    }
-    for (const key of ["workspace", "package"]) {
-      if (entry[key] !== undefined && typeof entry[key] !== "string") {
-        return `${label} "${key}" must be a string.`;
-      }
-    }
-    const named = ["workspace", "package"].filter((key) => entry[key] !== undefined);
-    if (named.length !== 1) return `${label} must name exactly one of "workspace" or "package".`;
-    if (entry[named[0]] === "") return `${label} "${named[0]}" must not be empty.`;
-    if (
-      (entry.name !== undefined && typeof entry.name !== "string") ||
-      (entry.table !== undefined && typeof entry.table !== "string")
-    ) {
-      return `${label}: "name" and "table" must be strings.`;
-    }
-    return entry.adopt === undefined ? undefined : adoptShapeProblem(label, entry.adopt);
   };
   // A package.json the runner can read, and a migrations folder that is a folder inside its package.
   const manifestProblem = (directory, manifest) => {
@@ -203,9 +181,14 @@ export const checkModuleList = (workspaces) => {
           normalized,
           readJson(path.join(normalized, "package.json")),
         );
-        if (unreadable !== undefined) {
-          listProblems.push(`${label} names workspace "${workspace}", which ${unreadable}`);
+        const physical =
+          unreadable === undefined ? migrationsLocationProblem(normalized) : undefined;
+        if (unreadable !== undefined || physical !== undefined) {
+          listProblems.push(
+            `${label} names workspace "${workspace}", which ${unreadable ?? physical}`,
+          );
         }
+        rememberLocation(label, normalized);
         listedWorkspaces.add(normalized);
         checkIdentity(label, entry, path.basename(normalized));
       }
@@ -225,9 +208,12 @@ export const checkModuleList = (workspaces) => {
           directory,
           readJson(path.join(directory, "package.json")),
         );
-        if (unreadable !== undefined) {
-          listProblems.push(`${label} names package "${name}", which ${unreadable}`);
+        const physical =
+          unreadable === undefined ? migrationsLocationProblem(directory, folder) : undefined;
+        if (unreadable !== undefined || physical !== undefined) {
+          listProblems.push(`${label} names package "${name}", which ${unreadable ?? physical}`);
         }
+        rememberLocation(label, directory);
         listedPackages.add(name);
         checkIdentity(label, entry, name.split("/").at(-1) ?? name);
         installedSources.push({ owner: name, directory: path.join(directory, "src") });
@@ -236,6 +222,7 @@ export const checkModuleList = (workspaces) => {
           ? fs.readdirSync(migrationsFolder).filter((file) => file.endsWith(".sql"))
           : [];
         for (const file of files) {
+          if (fs.lstatSync(path.join(migrationsFolder, file)).isSymbolicLink()) continue;
           installedMigrations.push({ file: path.join(migrationsFolder, file), owner: name });
         }
       }

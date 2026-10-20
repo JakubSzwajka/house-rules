@@ -38,7 +38,7 @@ describe("house-rules-migrations", () => {
       "packages/auth/src/internal/users.ts": 'export const q = "select id from \\"user\\"";\n',
     });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /3 table\(s\) owned by 2 package\(s\)/);
+    assert.match(result.stdout, /3 table\/view object\(s\) owned by 2 module\(s\)/);
   });
 
   it("fails a cross-module foreign key", () => {
@@ -173,7 +173,7 @@ describe("house-rules-migrations", () => {
       "packages/trips/src/tests/fixtures/rows.sql": "select * from trip;\n",
     });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /1 table\(s\) owned by 1 package\(s\)/);
+    assert.match(result.stdout, /1 table\/view object\(s\) owned by 1 module\(s\)/);
   });
 
   it("still fails SQL test data outside a workspace package", () => {
@@ -184,12 +184,12 @@ describe("house-rules-migrations", () => {
 
   it("fails a raw transaction anywhere outside an adapter package", () => {
     const result = run({
-      "apps/web/src/use-cases/trips/move-trip.ts": [
+      "apps/web/src/features/move-trip/handler.ts": [
         'import { SqlClient } from "effect/unstable/sql";',
         "export const run = (sql) => sql.withTransaction(work);",
       ].join("\n"),
-      "apps/web/src/use-cases/begin.ts": "export const q = sql`begin`;\n",
-      "apps/web/src/delivery/copy.ts": 'export const cta = "Begin your trip";\n',
+      "apps/web/src/features/begin/handler.ts": "export const q = sql`begin`;\n",
+      "apps/web/src/ways-in/web/copy.ts": 'export const cta = "Begin your trip";\n',
       "packages/trips/src/facade.ts": "export const run = (sql) => sql.withTransaction(work);\n",
       "packages/trips/src/adapters/postgres/store.ts":
         "export const run = (sql) => sql.withTransaction(work);\n",
@@ -197,16 +197,13 @@ describe("house-rules-migrations", () => {
     });
     assert.equal(result.status, 1);
     assert.deepEqual(problemLines(result).sort(), [
-      "apps/web/src/use-cases/begin.ts:1",
-      "apps/web/src/use-cases/trips/move-trip.ts:2",
+      "apps/web/src/features/begin/handler.ts:1",
+      "apps/web/src/features/move-trip/handler.ts:2",
       "packages/trips/src/adapters/postgres/store.ts:1",
       "packages/trips/src/facade.ts:1",
       "packages/trips/src/tests/store.test.ts:1",
     ]);
-    assert.match(
-      result.stderr,
-      /opens a raw transaction\. A use-case opens a unit of work instead/,
-    );
+    assert.match(result.stderr, /opens a raw transaction\. A transactional entry opens one unit/);
   });
 
   it("passes a raw transaction in an adapter package, named by default or by --adapter-package", () => {
@@ -259,10 +256,11 @@ describe("house-rules-migrations", () => {
     assert.match(result.stderr, /unknown argument "--adapter-packages"/);
   });
 
-  it("lets a use-case open a unit of work, and fails a module that opens one", () => {
+  it("allows explicit script/test units, but forbids node handlers and modules opening them", () => {
     const result = run({
-      "apps/web/src/use-cases/move-trip.ts": "export const run = UnitOfWork.atomic(work);\n",
-      "apps/web/src/server/seed.ts": "export const seed = UnitOfWork.atomic(rows);\n",
+      "apps/web/src/features/move-trip/handler.ts": "export const run = UnitOfWork.atomic(work);\n",
+      "apps/web/scripts/seed.ts": "export const seed = UnitOfWork.atomic(rows);\n",
+      "apps/web/src/features/move-trip/tests/handler.test.ts": "UnitOfWork.atomic(work);\n",
       "packages/trips/src/facade.ts": [
         "export const move = Effect.gen(function* () {",
         "  const unitOfWork = yield* UnitOfWork;",
@@ -274,7 +272,10 @@ describe("house-rules-migrations", () => {
       "packages/trips/src/tests/facade.test.ts": "export const t = UnitOfWork.atomic(work);\n",
     });
     assert.equal(result.status, 1);
-    assert.deepEqual(problemLines(result), ["packages/trips/src/facade.ts:3"]);
+    assert.deepEqual(problemLines(result), [
+      "apps/web/src/features/move-trip/handler.ts:1",
+      "packages/trips/src/facade.ts:3",
+    ]);
     assert.match(result.stderr, /a module opens a unit of work/);
   });
 });

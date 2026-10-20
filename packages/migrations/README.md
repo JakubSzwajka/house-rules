@@ -8,6 +8,8 @@ It depends on `effect` only. The app provides the driver (`SqlClient`, for examp
 
 ## The module list
 
+Domain modules are packages, never app folders. App areas are features, read-models, ways-in and composition. Folder locations are rejected; read models own no migrations.
+
 The app names every module it runs in one checked-in file, `migrations.json`, at the repository root:
 
 ```json
@@ -27,21 +29,21 @@ The app names every module it runs in one checked-in file, `migrations.json`, at
 | `table` | Optional. The history table. Defaults to `<name>_migrations`. Name an existing table to adopt it. |
 | `adopt` | Optional. `{ "from": "<old table>", "ids": [...], "rehash"?: [...] }`: copy this module's rows out of an older, shared history table once. See [Splitting one history table into modules](#splitting-one-history-table-into-modules). |
 
-Each entry names exactly one of `workspace` or `package`. Two entries may not share a name or a table, and `Migrations.run` refuses such a list built in code before it runs any SQL. `house-rules-migrations` in `@house-rules/rules` reads the same file and fails when a module with migrations is missing from it.
+Each entry names exactly one nonempty `workspace` or `package`. Two entries may not share a name, a table or a real folder identity, even across location kinds. For every location kind, the migrations directory cannot be a symlink or resolve outside its real module root. Workspace and installed-package module-root symlinks remain valid; only their migrations directory is constrained to that resolved root. `Migrations.run` also rejects duplicate names/tables in a code-built list before any SQL. Physical folder checks run while reading the module list. `house-rules-migrations` in `@house-rules/rules` reads the same file and fails when a module with migrations is missing from it.
 
 ## Files
 
-A migration file is named `<id>_<name>.sql`, such as `0001_call_audit.sql`, with `name` in `a-z`, `0-9` and `_`. A line `--> statement-breakpoint` splits a file into statements. Migrations are append-only: the runner fails when an applied file was edited, removed, or renamed, or when a new file has an id at or below the latest applied one.
+A migration file is named `<id>_<name>.sql`, such as `0001_call_audit.sql`, with `name` in `a-z`, `0-9` and `_`. Every .sql file must be a regular file, not a symlink, even when the target stays inside the owner. Module-list acquisition and code-built Migrations.run lists both reject linked SQL files before executing SQL. The checker and runner consume the same file-link parity fixtures. A reserved line matching `^--> statement-breakpoint[ \t]*$` splits a file into trimmed nonempty chunks before SQL lexing, even inside quotes or comments. Semicolons alone do not split chunks. With the pinned Effect PostgreSQL driver each chunk must contain one command; unprepared execution still rejects multiple commands. The checker mirrors this private algorithm and both suites read the same chunk-parity fixture. Migrations are append-only: the runner fails when an applied file was edited, removed, or renamed, or when a new file has an id at or below the latest applied one.
 
 ## One run
 
 1. Read every module's files and compute each file's SHA-256.
-2. Open one transaction for the whole run.
+2. Open one transaction for the whole run, then first execute SET LOCAL standard_conforming_strings = on. The checker reserves the case-insensitive whole words standard_conforming_strings, backslash_quote, set_config and pg_settings anywhere in migration/read-model SQL, including literals, comments and dollar bodies.
 3. Take a Postgres advisory lock per history table, and per table named in `adopt.from`, in sorted order, so two runners queue instead of racing.
 4. Create each history table if it is missing, and add the `sha256` column to an older table that has none.
 5. Copy the rows a module adopts, when its history is still empty.
 6. Check every applied row against its file. A row with no digest gets one (backfilled). A row whose digest differs fails the run.
-7. Apply the pending files of each module, in list order, through `Migrator` from `effect/sql`.
+7. Apply the pending files of each module, in list order, through `Migrator` from `effect/sql`. Repeat SET LOCAL standard_conforming_strings = on before every migration chunk, including later files.
 
 Any failure rolls back the whole run: no module applies or backfills anything. The run returns one report per module, and `Migrations.formatReport` turns it into one line per module:
 
@@ -49,6 +51,10 @@ Any failure rolls back the whole run: no module applies or backfills anything. T
 Migrations trips (db_migrations): digest verified 1_trips, 2_places; digest backfilled none; applied 3_spots.
 Migrations call_audit (call_audit_migrations): digest verified none; digest backfilled none; applied 1_call_audit.
 ```
+
+## Limits
+
+The checker does not semantically analyse PL/pgSQL, DO bodies or dynamic EXECUTE; their ownership is a review rule. The runner executes SQL, not the checker policy, so run the checker before migrations. A SELECT-only database role granted access to published views is a planned follow-up, not implemented in phase 1.
 
 ## Adopting a single-module table
 

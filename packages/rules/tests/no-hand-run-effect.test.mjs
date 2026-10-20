@@ -3,10 +3,10 @@ import test from "node:test";
 import { Linter } from "eslint";
 import plugin from "../src/index.mjs";
 
-const TEST_FILE = "apps/api/src/use-cases/tests/show-booking.test.ts";
+const TEST_FILE = "apps/api/src/features/show-booking/tests/show-booking.test.ts";
 
 function lint(code, filename = TEST_FILE) {
-  const messages = new Linter().verify(code, plugin.configs.capability, { filename });
+  const messages = new Linter().verify(code, plugin.configs.nodes, { filename });
   assert.equal(
     messages.some((message) => message.fatal),
     false,
@@ -161,7 +161,7 @@ function shadow() {
   assert.deepEqual(lint(code), []);
 });
 
-test("the capability preset covers every test folder the cruiser names", () => {
+test("the nodes preset covers every test folder the cruiser names", () => {
   const code =
     'import { Effect } from "effect";\nexport const run = () => Effect.runPromise(Effect.void);';
   for (const filename of [
@@ -171,7 +171,7 @@ test("the capability preset covers every test folder the cruiser names", () => {
     "test/x.ts",
     "__tests__/x.ts",
     "tests/x.ts",
-    "apps/api/src/use-cases/__tests__/deep/nested/show.ts",
+    "apps/api/src/features/show/__tests__/deep/nested/show.ts",
     "packages/bookings/src/test/fixtures.ts",
     "src/x.test.ts",
     "src/x.spec.mts",
@@ -210,11 +210,11 @@ function inner(Effect) {
   assert.deepEqual(lint(code), []);
 });
 
-test("the capability preset runs it on test files only", () => {
+test("the nodes preset runs it on test files only", () => {
   const code =
     'import { Effect } from "effect";\nexport const run = () => Effect.runPromise(Effect.void);';
   for (const filename of [
-    "apps/api/src/use-cases/tests/show-booking.test.ts",
+    "apps/api/src/features/show-booking/tests/show-booking.test.ts",
     "packages/bookings/src/tests/bookings.test.ts",
     "packages/bookings/src/tests/fixtures.ts",
     "tests/wiring.test.mjs",
@@ -223,7 +223,7 @@ test("the capability preset runs it on test files only", () => {
   ]) {
     assert.deepEqual(lint(code, filename), [["Effect.runPromise", 2]], filename);
   }
-  for (const filename of ["apps/api/src/main.ts", "apps/api/src/server/runtime.ts"]) {
+  for (const filename of ["apps/api/src/main.ts", "apps/api/src/composition/runtime.ts"]) {
     assert.deepEqual(lint(code, filename), [], filename);
   }
 });

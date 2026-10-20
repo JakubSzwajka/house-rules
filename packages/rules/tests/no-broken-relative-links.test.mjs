@@ -14,6 +14,7 @@ before(() => {
   root = createGitRepository({
     tracked: {
       "README.md": "# Readme\n",
+      ".gitignore": ".env\n",
       "docs/setup.md": "# Setup\n",
       "docs/setup_(legacy).md": "# Legacy\n",
       "docs/a_((b)).md": "# Nested\n",
@@ -22,7 +23,7 @@ before(() => {
       "blocks-sdk/README.md": "# SDK\n",
       "blocks-sdk/docs/guide.md": "# Guide\n",
     },
-    untracked: { ".env": "SECRET=placeholder\n" },
+    untracked: { ".env": "SECRET=placeholder\n", "docs/new-guide.md": "# New guide\n" },
   });
 });
 
@@ -62,8 +63,12 @@ test("a target outside the repository is broken", () => {
   assert.deepEqual(broken("[out](../../outside.md)"), ["1:../../outside.md"]);
 });
 
-test("only tracked paths count, so an untracked file on disk is still broken", () => {
-  assert.deepEqual(broken("[env](../.env) [dir](../docs) [root](/)"), ["1:../.env"]);
+test("non-ignored untracked files pass, ignored files and directories fail", () => {
+  assert.deepEqual(broken("[new](./new-guide.md) [env](../.env) [dir](../docs) [root](/)"), [
+    "1:../.env",
+    "1:../docs",
+    "1:/",
+  ]);
 });
 
 test("backslash-escaped parentheses resolve without the backslashes", () => {
@@ -224,8 +229,8 @@ test("reference definitions are checked, footnotes are not", () => {
   assert.deepEqual(broken(markdown), ["1:./missing.md"]);
 });
 
-test("directory targets pass, with or without a trailing slash", () => {
-  assert.deepEqual(broken("[guides](./guides/) and [guides](guides)"), []);
+test("directory targets fail, with or without a trailing slash", () => {
+  assert.deepEqual(broken("[guides](./guides/) and [guides](guides)"), ["1:./guides/", "1:guides"]);
   assert.deepEqual(broken("[nope](./nope/)"), ["1:./nope/"]);
 });
 

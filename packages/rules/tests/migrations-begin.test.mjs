@@ -30,9 +30,9 @@ describe("house-rules-migrations, begin in SQL text", () => {
     );
   });
 
-  it("passes begin as UI copy or as data inside SQL, and keeps the use-case prefix check", () => {
+  it("passes begin as UI copy or as data inside SQL, and keeps the node prefix check", () => {
     const result = run({
-      "apps/web/src/delivery/copy.ts": [
+      "apps/web/src/ways-in/web/copy.ts": [
         'export const a = "Begin";',
         'export const b = "Begin your trip";',
         "export const c = `Begin ${name}`;",
@@ -42,19 +42,19 @@ describe("house-rules-migrations, begin in SQL text", () => {
         "export const g = sql`select * from trip -- begin\n`;",
         "export const h = sql`select begin_at from trip`;",
       ].join("\n"),
-      "apps/web/src/use-cases/start-trip.ts": 'export const label = "Begin work now";\n',
+      "apps/web/src/features/start-trip/handler.ts": 'export const label = "Begin work now";\n',
     });
     assert.equal(result.status, 1);
-    assert.deepEqual(problemLines(result), ["apps/web/src/use-cases/start-trip.ts:1"]);
+    assert.deepEqual(problemLines(result), ["apps/web/src/features/start-trip/handler.ts:1"]);
   });
 
-  it("fails, in a use-case, SQL text whose part starts with begin after an interpolation", () => {
+  it("fails, in a node, SQL text whose part starts with begin after an interpolation", () => {
     // Effect compiles `${sql.literal("")}begin` to exactly "begin". Main rejected both forms.
     const cases = [
       'export const q = sql`${sql.literal("")}begin`;',
       'export const q = sql`${sql.literal("/* unit */")}begin`;',
     ];
-    const file = (index) => `apps/web/src/use-cases/open-${index}.ts`;
+    const file = (index) => `apps/web/src/features/open-${index}/handler.ts`;
     const result = run(
       Object.fromEntries(cases.map((source, index) => [file(index), `${source}\n`])),
     );
@@ -102,20 +102,20 @@ describe("house-rules-migrations, begin in SQL text", () => {
   it("counts nested block comments, so a dollar sign inside one opens no body", () => {
     // Postgres reads one comment from the outer /* to the last */, then runs BEGIN.
     const result = run({
-      "apps/web/src/use-cases/nested.ts":
+      "apps/web/src/features/nested/handler.ts":
         "export const q = sql`DO $$ BEGIN NULL; END $$; /* outer /* inner */ $$ */; begin; select $$x$$`;\n",
       "packages/trips/src/nested.ts":
         "export const q = sql`select 1 /* outer /* inner */ ; begin; */ as one`;\n",
     });
     assert.equal(result.status, 1);
-    assert.deepEqual(problemLines(result), ["apps/web/src/use-cases/nested.ts:1"]);
+    assert.deepEqual(problemLines(result), ["apps/web/src/features/nested/handler.ts:1"]);
   });
 
   it("passes a quoted identifier that holds a semicolon and begin", () => {
     // Postgres returns 1: the identifier is one name, not a statement.
     const result = run({
       "packages/trips/src/quoted.ts": 'export const q = sql`select 1 as "$$; begin; $$"`;\n',
-      "apps/web/src/use-cases/quoted.ts": 'export const q = sql`select 1 as "x; begin"`;\n',
+      "apps/web/src/features/quoted/handler.ts": 'export const q = sql`select 1 as "x; begin"`;\n',
     });
     assert.equal(result.status, 0, result.stdout + result.stderr);
   });

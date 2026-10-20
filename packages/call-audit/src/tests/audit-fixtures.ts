@@ -1,5 +1,14 @@
-import { CallChannel, defineContract, implement, withRequestId } from "@house-rules/application";
-import { Context, DateTime, Duration, Effect, Option, Schema } from "effect";
+import {
+  bindNode,
+  CallChannel,
+  defineEntry,
+  May,
+  NodeRuntime,
+  runEntry,
+  StepTrace,
+  withRequestId,
+} from "@house-rules/application";
+import { Context, DateTime, Duration, Effect, Layer, Option, Schema } from "effect";
 import { McpSchema } from "effect/ai";
 import { AuditStore } from "../index.ts";
 import type { AuditPolicy, AuditRow } from "../index.ts";
@@ -7,41 +16,46 @@ import type { AuditPolicy, AuditRow } from "../index.ts";
 export const secret = "Secret honeymoon in Lisbon";
 
 export class TripNotFound extends Schema.TaggedError<TripNotFound>()("TripNotFound", {
+  kind: Schema.tag("not_found"),
   message: Schema.String,
 }) {}
 
 const TripInput = Schema.Struct({ tripId: Schema.String, title: Schema.String });
 
-export const readTrip = implement(
-  defineContract("read_trip", {
-    description: "Read a trip.",
+const trip = (name: string, readOnly: boolean) => {
+  const node = {
+    name,
+    description: "Read or rename a trip.",
     input: TripInput,
     output: Schema.String,
     failure: TripNotFound,
-    permission: "public",
-    annotations: { readOnly: true },
-    audit: { target: "tripId" },
-  }),
-  ({ tripId, title }) =>
+    permission: null,
+    edges: [],
+    readOnly,
+    destructive: false,
+    transactional: false,
+    needsApproval: false,
+  } as const;
+  const entry = defineEntry(node, {
+    start: { kind: "system", reason: "audit test", startedBy: "test" },
+  });
+  const binding = bindNode(node, ({ tripId, title }) =>
     tripId === "missing"
       ? Effect.fail(new TripNotFound({ message: `No trip called ${title}` }))
       : Effect.succeed(tripId),
-);
-
-export const renameTrip = implement(
-  defineContract("rename_trip", {
-    description: "Rename a trip.",
-    input: TripInput,
-    output: Schema.String,
-    failure: TripNotFound,
-    permission: "public",
-    audit: { target: "tripId" },
-  }),
-  ({ tripId, title }) =>
-    tripId === "missing"
-      ? Effect.fail(new TripNotFound({ message: `No trip called ${title}` }))
-      : Effect.succeed(tripId),
-);
+  );
+  const runtime = Layer.mergeAll(
+    NodeRuntime.layer({ bindings: [binding], entries: [entry], ways: [] }),
+    StepTrace.layer(),
+    Layer.succeedContext(May.context(May.system([entry]), { system: [], via: "test" })),
+  );
+  return {
+    entry,
+    handler: (input: typeof TripInput.Type) => runEntry(entry, input).pipe(Effect.provide(runtime)),
+  };
+};
+export const readTrip = trip("read_trip", true);
+export const renameTrip = trip("rename_trip", false);
 
 export class Requester extends Context.Service<Requester, { readonly userId: string }>()(
   "test/Requester",
@@ -79,6 +93,7 @@ export const daysAgo = (days: number) =>
 
 const blankRow = {
   capability: "seeded",
+  target: "seeded",
   permission: "public",
   viewerId: null,
   outcome: "success",

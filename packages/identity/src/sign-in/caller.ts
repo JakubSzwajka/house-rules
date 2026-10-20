@@ -1,42 +1,26 @@
 import {
   Authenticator,
-  type Caller,
-  CurrentActor,
-  Grant,
-  type GrantService,
-  type Principal,
+  type WhoSocket,
   Refused,
   type TokenSource,
   tokenFrom,
 } from "@house-rules/application";
 import type { Actor } from "@house-rules/domain";
-import { Context, Effect, Option } from "effect";
+import { Effect, Option } from "effect";
 import { ActorResolver } from "./actor-resolver.js";
 import { FirstSignIn } from "./first-sign-in.js";
 
-export type IdentityCallerOptions = Readonly<{
+export type IdentityWhoOptions = Readonly<{
   token: TokenSource;
   audience?: string;
-  grant: (
-    actor: Actor,
-    principal: Principal,
-  ) => GrantService | Effect.Effect<GrantService, Refused>;
   challenge?: (error?: "invalid_token") => string;
 }>;
 
-export type IdentityCaller = Caller<
-  CurrentActor | Grant,
-  Authenticator | ActorResolver | FirstSignIn
->;
-
-const isEffect = (
-  granted: GrantService | Effect.Effect<GrantService, Refused>,
-): granted is Effect.Effect<GrantService, Refused> => Effect.isEffect(granted);
-
-export const identityCaller =
-  (options: IdentityCallerOptions): IdentityCaller =>
-  (incoming) =>
-    Effect.gen(function* identityCallerOf() {
+export const identityWho = (
+  options: IdentityWhoOptions,
+): WhoSocket<Authenticator | ActorResolver | FirstSignIn> => ({
+  resolve: (incoming) =>
+    Effect.gen(function* identityWhoOf() {
       const challenge = (error?: "invalid_token") =>
         options.challenge === undefined ? {} : { challenge: options.challenge(error) };
       const token = tokenFrom(incoming, options.token);
@@ -84,10 +68,13 @@ export const identityCaller =
               }),
         ),
       );
-      const firstSignIn = yield* FirstSignIn;
-      const id = Option.isSome(known) ? known.value : yield* firstSignIn(principal);
+      const id = Option.isSome(known)
+        ? known.value
+        : yield* Effect.gen(function* () {
+            const firstSignIn = yield* FirstSignIn;
+            return yield* firstSignIn(principal);
+          });
       const actor: Actor = { id };
-      const granted = options.grant(actor, principal);
-      const grant = isEffect(granted) ? yield* granted : granted;
-      return Context.make(CurrentActor, actor).pipe(Context.add(Grant, grant));
-    });
+      return actor;
+    }),
+});

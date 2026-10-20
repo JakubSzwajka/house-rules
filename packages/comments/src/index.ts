@@ -1,3 +1,4 @@
+export { bindComments } from "./comment/bind-comments.js";
 export { Comments, type CommentFailure } from "./facade.js";
 export { CommentStore } from "./storage.js";
 export { CommentTargets, type CommentRelation } from "./comment/comment-targets.js";

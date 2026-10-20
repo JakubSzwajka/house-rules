@@ -50,6 +50,7 @@ const seedRow = (capability: string, ageInDays: number) =>
     daysAgo(ageInDays),
     (recordedAt): AuditRow => ({
       capability,
+      target: capability,
       permission: "public",
       viewerId: null,
       outcome: "success",

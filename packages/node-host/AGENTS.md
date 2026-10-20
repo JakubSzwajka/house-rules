@@ -6,16 +6,30 @@ It is a Host for a Web fetch handler on Node 24.21.0 or later. It exports `serve
 
 ## How an app mounts it
 
-In `src/main.ts`, call `serve(api, { port, onClose: () => api.dispose().then(() => app.dispose()), handleSignals: true })`, where `api` is the function returned by `toFetchHandler` and `app` is the composition. Dispose the fetch handler before the app. The reference API reads PORT through Effect Config, defaulting to 3000, and optional APP_ORIGIN for its public origin. Tests use port 0 and close the returned Host.
+In `src/main.ts`, call `serve(api, { port, onClose: () => api.dispose().then(() => app.dispose()), handleSignals: true })`, where `api` is the function returned by `toFetchHandler` and `app` is the composition. Dispose the fetch handler before the app. The booking API reads PORT through Effect Config, defaulting to 3000. Its APP_ORIGIN configures the MCP resource URL, not HTTP origins. Tests use port 0 and close the returned Host.
 
-Behind a TLS proxy, cookie writes get 403 `cross_origin` unless the app sets its public origin:
+Behind a TLS proxy, cookie writes get 403 `cross_origin` unless the HTTP way sets its public origin. Configure the way before passing it to the composition:
 
 ```ts
-const PUBLIC_ORIGIN = "https://public.example";
-const api = toFetchHandler(app, { routes, origins: [PUBLIC_ORIGIN] });
+const webWay = defineWay({
+  name: "web",
+  path: "/api",
+  protocol: "http",
+  entries,
+  endpoints,
+  who,
+  may,
+  mean,
+  origins: ["https://public.example"],
+});
+// In main.ts, pass webWay to the app's composition factory.
+const app = createApp([webWay]);
+const api = toFetchHandler(app);
 ```
 
-Set explicit `origins` for local and internal apps too, and restrict Host at their proxy or listener to guard against DNS rebinding. See the [application kit's CSRF check](../application/README.md#csrf).
+`defineWay` and `toFetchHandler` come from `@house-rules/application`; entries, endpoints, sockets and `createApp` are app-owned wiring. `toFetchHandler` takes only the app. HTTP `origins`, `cors`, `session` and `maxBodyBytes` belong to `defineWay({ protocol: "http", ... })`. The booking example's web way currently leaves those options unset.
+
+Set explicit HTTP-way `origins` for local and internal apps too, and restrict Host at their proxy or listener to guard against DNS rebinding. See the [application kit's session and CSRF options](../application/README.md#shared-endpoints-and-clients).
 
 To serve the built page from the same origin, the default for a web app, put `staticFiles` before the API handler:
 
@@ -24,7 +38,7 @@ const site = staticFiles({ root: "dist/web", exclude: ["/api", "/mcp", "/.well-k
 await serve(async (request) => (await site(request)) ?? api(request), { port, onClose, handleSignals: true });
 ```
 
-`exclude` is required and names every path prefix the API owns; `staticFiles` returns `undefined` for those, for any method but GET and HEAD, and for nothing else. Options: `root`, `exclude`, `index` (default `index.html`), `immutable(path)` (default: a hashed `name-[hash].ext` under `/assets/`). A page on another origin uses the application kit's `cors` option instead.
+`exclude` is required and names every path prefix the API owns; `staticFiles` returns `undefined` for those, for any method but GET and HEAD, and for nothing else. Options: `root`, `exclude`, `index` (default `index.html`), `immutable(path)` (default: a hashed `name-[hash].ext` under `/assets/`). A page on another origin uses the HTTP way's `cors` option instead.
 
 No layer or `migrations.json` line is needed. A Next app already has a Host.
 
@@ -33,8 +47,8 @@ Options are `port`, optional `hostname`, optional `onClose`, and optional `handl
 ## Fixed rules
 
 - This package alone uses the strict TypeScript preset for the Node socket bridge. Keep Effect app code on the Effect preset with `nodeBuiltinImport: error`.
-- Never buffer whole bodies here. Body limits belong to `toFetchHandler`.
-- Build the request's HTTP origin from Host, not forwarded headers. Behind a TLS proxy the app sets its public `origins` in `toFetchHandler`.
+- Never buffer whole bodies here. Body limits belong to the HTTP way's `maxBodyBytes` option.
+- Build the request's HTTP origin from Host, not forwarded headers. Behind a TLS proxy the app sets its public `origins` on the HTTP way.
 - Drain for at most five seconds before disposing the app. Repeated closes and signals share one promise; keep signal hooks until disposal ends.
 - Reject malformed Host and non-origin-form request targets with plain 400 before the handler; OPTIONS *, TRACE and CONNECT answer 501. Keep IPv6 authorities working.
 - A thrown handler or a stream failure before its first byte returns a plain 500 without details.

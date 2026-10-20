@@ -1,9 +1,19 @@
 # @house-rules/party
 
-A domain addition: the people an app knows. A `Person` has an `id` that is the `ActorId`, a trimmed `displayName` of 1 to 120 characters, and a `createdAt` in epoch milliseconds. When Party is mounted, the acting user is a Person.
+Party owns the people an app knows. A `Person` has an `ActorId`, a trimmed display name of 1..120 characters and a creation time in epoch milliseconds. Any person may read a display name; only its owner may rename it. Party holds no logins or email addresses.
 
-`Party` comes from `@house-rules/domain` and exposes `createPerson`, `get`, `me`, `rename` and `erase`. `me(actor)` reads the actor's own Person. Any actor may read a person; only the person may rename themselves. Writes need an open unit of work. `createPerson` and `erase` take no Actor: the app fills its first-sign-in port with `createPerson`, and calls `erase` when it deletes a user.
+Mount `Party.layerPostgres` with the app's SQL client, or `Party.layerMemory`. Register the package in `migrations.json`. Acquire the service once and pass it to `bindParty(service)` when building the app's node runtime.
 
-Version 0.1.0 is release-ready for its first public release, not yet live on npm. Pin `@house-rules/domain` 0.1.0, `@house-rules/application` 0.2.0 and Effect 4.0.3 exactly. The package ships built JavaScript and declarations in `dist/`, this guide, `AGENTS.md` and its SQL migration. The workspace still imports `src/`.
+```text
+app node -> showPerson / showMe / renamePerson -> captured Party service
+new-login system entry -> createPerson -> Person.id
+account-deletion unit -> party.erase(id)
+```
 
-Mount `Party.layerPostgres` or `Party.layerMemory` in composition. The browser-safe `/contract` entry exports `showPerson`, `showMe` and `renamePerson`, their schemas, errors and permissions. Party has no email, no external ids and no knowledge of identity bindings or JWT verification; it never imports those packages. See `AGENTS.md` for mounting.
+The browser-safe `/contract` door exports `createPerson`, `showPerson`, `showMe`, `renamePerson`, schemas, errors and permissions. These descriptors have empty edges. Creation is system-only and transactional with `party:create`; rename is person-only and transactional with `party:update`. Reads require a person and `party:read`. No node asks for approval. App nodes use these as edges; only app nodes become entries.
+
+Service methods stay `createPerson`, `get`, `me`, `rename` and `erase`. User methods take an explicit Actor. Writes require an open unit; modules never open one. The application entry opens the shared unit, so creating a Person and binding a login can commit or roll back together. `erase` is a trusted deletion hook, not an exposed node.
+
+Expected errors carry their kind at definition. Non-system creation fails with `PersonCallerDenied`; system reads use `PersonNotFound` and system rename uses `PersonUpdateRefused`. Module privacy and self-rename policy still apply beneath the bindings.
+
+Version 0.1.0 is prepared for its first release. Pin domain 0.1.0, application 0.2.0 and Effect 4.0.3 exactly. Published packages load built `dist/`; the workspace loads `src/`. See [AGENTS.md](AGENTS.md) for mounting, storage and verification.

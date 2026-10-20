@@ -41,6 +41,7 @@ const run = Effect.fnUntraced(function* run(modules: ReadonlyArray<MigrationModu
   const reports = yield* sql
     .withTransaction(
       Effect.gen(function* checkThenApply() {
+        yield* sql`SET LOCAL standard_conforming_strings = on`;
         // Sorted, so two runs over overlapping module lists take the locks in one order; an old table too.
         const histories = new Set(modules.map((module) => module.table));
         const locked = new Set([

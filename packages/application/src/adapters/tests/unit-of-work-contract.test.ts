@@ -1,125 +1,102 @@
 import { expect } from "@effect/vitest";
-import { Cause, Effect, Exit, Layer } from "effect";
-import { NoOpenUnit } from "@house-rules/domain";
-import { Approval, CallWatch, Grant, implement } from "../../index.ts";
+import { Cause, Effect, Exit } from "effect";
+import { defineNode, NoOpenUnit } from "@house-rules/domain";
+import { Approval, CallWatch, defineEntry, May } from "../../index.ts";
+import { bindFixture, runFixture } from "../../tests/entry-fixtures.ts";
 import {
   Opens,
   reset,
   contents,
   writeBoth,
-  writeBothCapability,
-  writeContract,
+  writeBothEntry,
+  writeEntry,
   WorkFailed,
 } from "./unit-of-work-fixtures.ts";
 import { onBothAdapters } from "./unit-of-work-suite.ts";
-
-onBothAdapters("UnitOfWork with contracts", (it) => {
-  it.effect("transactional: true runs the handler inside one unit", () =>
-    Effect.gen(function* transactionalHandler() {
+onBothAdapters("UnitOfWork with entries", (it) => {
+  it.effect("a transactional entry runs all nodes inside one unit", () =>
+    Effect.gen(function* () {
       yield* reset;
-      const caller = Grant.layerFromPermissions(["rows:write"]);
-      yield* writeBothCapability.handler({ fail: false }).pipe(Effect.provide(caller));
+      yield* runFixture(writeBothEntry, { fail: false });
       expect(yield* contents).toEqual({ alpha: ["a1"], beta: ["b1"] });
-
       yield* reset;
-      const error = yield* Effect.flip(
-        writeBothCapability.handler({ fail: true }).pipe(Effect.provide(caller)),
-      );
+      const error = yield* Effect.flip(runFixture(writeBothEntry, { fail: true }));
       expect(error).toBeInstanceOf(WorkFailed);
       expect(yield* contents).toEqual({ alpha: [], beta: [] });
       expect((yield* Opens).calls).toEqual(["atomic"]);
     }),
   );
-
-  it.effect("a transactional NoOpenUnit is a defect and rolls the writes back", () =>
-    Effect.gen(function* brokenInvariant() {
+  it.effect("a transactional NoOpenUnit is a defect and rolls all writes back", () =>
+    Effect.gen(function* () {
       yield* reset;
-      const broken = implement(writeContract(true), () =>
+      const broken = bindFixture(writeEntry(true), () =>
         writeBoth.pipe(Effect.andThen(new NoOpenUnit())),
       );
-      const exit = yield* broken
-        .handler({ fail: false })
-        .pipe(Effect.provide(Grant.allowAll), Effect.exit);
+      const exit = yield* Effect.exit(runFixture(broken, { fail: false }));
       expect(exit).toEqual(Exit.die(new NoOpenUnit()));
       if (Exit.isFailure(exit)) expect(Cause.hasFails(exit.cause)).toBe(false);
       expect(yield* contents).toEqual({ alpha: [], beta: [] });
     }),
   );
-
-  it.effect("transactional: true opens no unit when a gate refuses the call", () =>
-    Effect.gen(function* gatesFirst() {
+  it.effect("a refused closure opens no unit", () =>
+    Effect.gen(function* () {
       yield* reset;
       const error = yield* Effect.flip(
-        writeBothCapability.handler({ fail: false }).pipe(Effect.provide(Grant.denyAll)),
+        runFixture(writeBothEntry, { fail: false }, May.fixed([writeBothEntry], [])),
       );
       expect(error._tag).toBe("Forbidden");
       expect((yield* Opens).calls).toEqual([]);
       expect(yield* contents).toEqual({ alpha: [], beta: [] });
     }),
   );
-
-  it.effect("without transactional, the handler runs with no unit open", () =>
-    Effect.gen(function* notTransactional() {
+  it.effect("a nontransactional entry has no open unit", () =>
+    Effect.gen(function* () {
       yield* reset;
-      const plain = implement(writeContract(false), () => writeBoth);
-      const error = yield* Effect.flip(
-        plain.handler({ fail: false }).pipe(Effect.provide(Grant.allowAll)),
-      );
-      expect(error).toBeInstanceOf(NoOpenUnit);
+      const plain = bindFixture(writeEntry(false), () => writeBoth);
+      expect(yield* Effect.flip(runFixture(plain, { fail: false }))).toBeInstanceOf(NoOpenUnit);
       expect((yield* Opens).calls).toEqual([]);
     }),
   );
-
-  it.effect("transactional: true opens no unit when Approval is denied", () =>
-    Effect.gen(function* approvalFirst() {
+  it.effect("a denied approval opens no unit", () =>
+    Effect.gen(function* () {
       yield* reset;
-      const approved = implement(
-        { ...writeContract(true), needsApproval: true as const },
+      const approved = bindFixture(
+        defineEntry(
+          defineNode("approved_write", { ...writeEntry(true).node, needsApproval: true }),
+        ),
         () => writeBoth,
       );
       const error = yield* Effect.flip(
-        approved
-          .handler({ fail: false })
-          .pipe(Effect.provide(Layer.merge(Grant.allowAll, Approval.denyAll))),
+        runFixture(approved, { fail: false }).pipe(Effect.provide(Approval.denyAll)),
       );
       expect(error._tag).toBe("ApprovalDenied");
       expect((yield* Opens).calls).toEqual([]);
       expect(yield* contents).toEqual({ alpha: [], beta: [] });
     }),
   );
-
-  it.effect("CallWatch encloses the gates and the unit", () =>
-    Effect.gen(function* watchEncloses() {
+  it.effect("CallWatch encloses the entry gates and its unit", () =>
+    Effect.gen(function* () {
       yield* reset;
       const { calls } = yield* Opens;
-      const record = (step: string) => Effect.sync(() => void calls.push(step));
-      const watched = implement({ ...writeContract(true), needsApproval: true as const }, () =>
-        record("handler").pipe(Effect.andThen(writeBoth)),
+      const record = (step: string) =>
+        Effect.sync(() => {
+          calls.push(step);
+        });
+      const watched = bindFixture(
+        defineEntry(defineNode("watched_write", { ...writeEntry(true).node, needsApproval: true })),
+        () => record("handler").pipe(Effect.andThen(writeBoth)),
       );
-      const gates = Layer.merge(
-        Layer.succeed(Grant, {
-          holds: () => record("grant").pipe(Effect.as(true)),
-        }),
-        Layer.succeed(Approval, { approve: () => record("approval") }),
-      );
-      yield* watched.handler({ fail: false }).pipe(
-        Effect.provide(gates),
+      yield* runFixture(watched, { fail: false }).pipe(
+        Effect.provideService(Approval, { approve: () => record("approval") }),
         Effect.provideService(CallWatch, {
-          around: (_contract, _input, run) =>
+          around: (_entry, _input, run) =>
             record("watch-before").pipe(
               Effect.andThen(run),
               Effect.ensuring(record("watch-after")),
             ),
         }),
       );
-      expect(calls).toEqual([
-        "watch-before",
-        "grant",
-        "approval",
-        "atomic",
-        "handler",
-        "watch-after",
-      ]);
+      expect(calls).toEqual(["watch-before", "approval", "atomic", "handler", "watch-after"]);
       expect(yield* contents).toEqual({ alpha: ["a1"], beta: ["b1"] });
     }),
   );

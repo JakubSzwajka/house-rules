@@ -5,16 +5,12 @@ import {
   defineApi,
   endpoint,
   HttpFailure,
-  mount,
   type PromiseClientOptions,
   type PromiseFailureOf,
-  problemView,
   toFetchHandler,
   toPromiseClient,
 } from "../index.ts";
 import {
-  bearerCallerFor,
-  type BookingNotFound,
   crash,
   findBookings,
   makeApp,
@@ -26,26 +22,15 @@ import {
 const api = defineApi(
   { prefix: "/api" },
   {
-    showBooking: endpoint(showBooking.contract, "GET /bookings/:id", { codes: ["not_found"] }),
-    findBookings: endpoint(findBookings.contract, "GET /bookings"),
-    renameGuest: endpoint(renameGuest.contract, "PATCH /bookings/:id"),
-    crash: endpoint(crash.contract),
+    showBooking: endpoint(showBooking, "GET /bookings/:id", { codes: ["not_found"] }),
+    findBookings: endpoint(findBookings, "GET /bookings"),
+    renameGuest: endpoint(renameGuest, "PATCH /bookings/:id"),
+    crash: endpoint(crash),
   },
 );
 
-const t = makeApp();
-const handler = toFetchHandler(t.app, {
-  caller: bearerCallerFor(t.work),
-  views: {
-    BookingNotFound: problemView(
-      404,
-      "not_found",
-      (error: BookingNotFound) => `Booking ${error.id} was not found.`,
-      { exposeCode: true },
-    ),
-  },
-  routes: mount(api, { showBooking, findBookings, renameGuest, crash }),
-});
+const t = makeApp({ endpoints: Object.values(api.endpoints) });
+const handler = toFetchHandler(t.app);
 afterAll(() => handler.dispose().then(t.dispose));
 
 const seen: Array<Headers> = [];

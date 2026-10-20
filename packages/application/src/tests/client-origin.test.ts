@@ -1,30 +1,35 @@
+import { defineNode } from "@house-rules/domain";
 import { expect, it, vi } from "@effect/vitest";
 import { Effect, Layer, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 import {
   defineApi,
-  defineContract,
+  defineEntry,
   endpoint,
   HttpFailure,
   toHttpClient,
   toPromiseClient,
 } from "../index.ts";
 
-const read = defineContract("read_value", {
-  description: "Read one value by id.",
-  input: Schema.Struct({ id: Schema.String }),
-  output: Schema.String,
-  failure: Schema.Never,
-  permission: "public",
-});
+const read = defineEntry(
+  defineNode("read_value", {
+    description: "Read one value by id.",
+    input: Schema.Struct({ id: Schema.String }),
+    output: Schema.String,
+    failure: Schema.Never,
+    permission: null,
+  }),
+);
 
-const write = defineContract("write_value", {
-  description: "Write one value.",
-  input: Schema.Struct({ value: Schema.String }),
-  output: Schema.String,
-  failure: Schema.Never,
-  permission: "public",
-});
+const write = defineEntry(
+  defineNode("write_value", {
+    description: "Write one value.",
+    input: Schema.Struct({ value: Schema.String }),
+    output: Schema.String,
+    failure: Schema.Never,
+    permission: null,
+  }),
+);
 
 type Hit = Readonly<{ url: string; method: string; bearer: boolean; init?: RequestInit }>;
 

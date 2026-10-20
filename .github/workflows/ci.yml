@@ -39,7 +39,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm test
-      # The example's web page builds only through Vite and Tailwind, so a broken page fails here.
-      - run: pnpm --filter @example/api build:web
       # The only check that loads the built dist/ that npm consumers get.
       - run: pnpm run packed-consumer
+      - run: pnpm --filter @example/api build
+      - run: pnpm --filter @house-rules/site build

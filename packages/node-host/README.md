@@ -2,15 +2,14 @@
 
 A Host listens on a socket and passes Web Requests to a fetch handler. `serve` is the Node Host for House Rules. It uses Node's built-in HTTP server with no runtime dependencies.
 
-Install `@house-rules/node-host` at exact version `0.2.0`, on Node 24.21.0 or later. Call it in the app's `src/main.ts`, an `appEntryFiles` entry, where the entry joins delivery and composition. `src/server/` holds background loops, not the Host call:
+Install `@house-rules/node-host` at exact version `0.2.0`, on Node 24.21.0 or later. Call it in the app's `src/main.ts`, an `appEntryFiles` entry, where main joins the ways and composition. Scheduled work starts through system entries, not a separate server area:
 
 ```ts
 import { toFetchHandler } from "@house-rules/application";
 import { serve } from "@house-rules/node-host";
-import { bookingRoutes } from "./delivery/http/routes.js";
 import { app } from "./composition/index.js";
 
-const api = toFetchHandler(app, { prefix: "/api", routes: bookingRoutes });
+const api = toFetchHandler(app);
 const host = await serve(api, {
   port: 3000,
   onClose: () => api.dispose().then(() => app.dispose()),
@@ -24,7 +23,28 @@ await host.close();
 
 The Host itself needs no Effect runtime. An app that also installs `@effect/platform-node` must declare `@effect/platform-node-shared` as an exact direct dependency at the same version as `effect`, now `4.0.3`. Pin all Effect runtime packages together, even the shared Node package.
 
-The handler takes a `Request` and returns a `Promise<Response>`. Use the function that `toFetchHandler` returns. A Next app already has a Host, so it does not need this package. The reference API reads `PORT` through Effect Config, with a default of 3000.
+The handler takes a `Request` and returns a `Promise<Response>`. `toFetchHandler(app)` takes only the composition and returns that handler. Configure `origins`, `cors`, `session` and `maxBodyBytes` on the HTTP way, not on the Host or `toFetchHandler`:
+
+```ts
+// In ways-in/web/way.ts, using the app's entries, endpoints and sockets:
+const webWay = defineWay({
+  name: "web",
+  path: "/api",
+  protocol: "http",
+  entries,
+  endpoints,
+  who,
+  may,
+  mean,
+  origins: ["https://public.example"],
+  maxBodyBytes: 1024 * 1024,
+});
+// In main.ts, using the app's composition factory:
+const app = createApp([webWay]);
+const api = toFetchHandler(app);
+```
+
+Import `defineWay` and `toFetchHandler` from `@house-rules/application`. `createApp` is app-owned, as in the booking example. That example's web way leaves these HTTP options unset; its main passes the ways to `createApp` and calls `toFetchHandler(app)`. A Next app already has a Host, so it does not need this package. The reference API reads `PORT` through Effect Config, with a default of 3000.
 
 ## Socket behaviour
 
@@ -32,24 +52,19 @@ The handler takes a `Request` and returns a `Promise<Response>`. Use the functio
 
 The request URL uses HTTP and the incoming Host header. Forwarded headers do not change it. Missing, empty or malformed Host headers and invalid targets answer plain 400 `Bad Request`, without details. Only origin-form targets are accepted, including IPv6 authorities such as `[::1]:3000`. Absolute-form targets answer 400, even when they match Host. `OPTIONS *`, TRACE and CONNECT answer 501 `Not Implemented` before the handler runs.
 
-Behind a TLS proxy, cookie writes get 403 `cross_origin` unless the app sets its public origin:
+Behind a TLS proxy, cookie writes get 403 `cross_origin` unless the HTTP way sets `origins` to its public origin, such as `https://public.example`. The booking API reads `APP_ORIGIN` through Effect Config for the MCP resource URL; it does not pass that value to HTTP `origins`.
 
-```ts
-const PUBLIC_ORIGIN = "https://public.example";
-const api = toFetchHandler(app, { routes: bookingRoutes, origins: [PUBLIC_ORIGIN] });
-```
-
-See [the application kit's CSRF check](../application/README.md#csrf). The reference API reads optional `APP_ORIGIN` through Effect Config and passes it as `origins` when set.
+See [the application kit's session and CSRF options](../application/README.md#shared-endpoints-and-clients).
 
 The Host has no allowed-host guard against DNS rebinding; local and internal apps must restrict Host at their proxy or listener and set explicit `origins` for cookie writes.
 
-Uploads go through `Readable.toWeb`; responses stream with backpressure. The Host does not buffer bodies or add a body limit. Set `maxBodyBytes` in `toFetchHandler`. Status and headers pass through, including separate Set-Cookie headers. The request signal aborts when a client leaves before the response ends. A normal upload finishing does not abort it.
+Uploads go through `Readable.toWeb`; responses stream with backpressure. The Host does not buffer bodies or add a body limit. Set `maxBodyBytes` on the HTTP way. Status and headers pass through, including separate Set-Cookie headers. The request signal aborts when a client leaves before the response ends. A normal upload finishing does not abort it.
 
 A thrown handler or a body stream failure before the response headers are flushed gives a plain 500 `Internal Server Error` without details. Node may prefetch the first chunks before flushing headers. If a response stream fails after headers went out, the Host closes that connection instead.
 
 ## Static files
 
-`staticFiles` serves a built single-page app from the same Node service as the API, so the page and `/api` share one origin and the client needs no `baseUrl` and no CORS. That is the default way to ship a web page. A page on another origin is the alternative; see [the application kit's CORS option](../application/README.md#cors).
+`staticFiles` serves a built single-page app from the same Node service as the API, so the page and `/api` share one origin and the client needs no `baseUrl` and no CORS. That is the default way to ship a web page. A page on another origin is the alternative; see [the HTTP way's CORS option](../application/README.md#http-and-mcp-behavior).
 
 ```ts
 import { serve, staticFiles } from "@house-rules/node-host";

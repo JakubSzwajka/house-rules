@@ -5,7 +5,12 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { layout } from "../src/dependency-cruiser.cjs";
-import { cruiseFixture, fromPaths, violatedRules } from "./dependency-cruiser-helpers.mjs";
+import {
+  cruiseFixture,
+  fromPaths,
+  ruleNames,
+  violatedRules,
+} from "./dependency-cruiser-helpers.mjs";
 
 const layoutBin = fileURLToPath(new URL("../bin/layout.mjs", import.meta.url));
 
@@ -82,6 +87,10 @@ test("contract-entry-is-browser-safe refuses effect's adapter imports", () => {
   assert.equal(allowed("node_modules/@house-rules/domain/src/contract.ts"), true);
   assert.equal(allowed("node_modules/@house-rules/domain/dist/contract.js"), true);
   assert.equal(allowed("node_modules/@house-rules/domain/src/index.ts"), false);
+  assert.equal(allowed("node_modules/@house-rules/identity/src/contract.ts"), true);
+  assert.equal(allowed("node_modules/@house-rules/identity/dist/contract.js"), true);
+  assert.equal(allowed("node_modules/@house-rules/identity/dist/contract.d.ts"), true);
+  assert.equal(allowed("node_modules/@house-rules/identity/dist/index.js"), false);
   assert.equal(allowed("node_modules/@house-rules/capability/src/contract.ts"), false);
   // Installed from the registry, the entry is its build in dist/.
   const built =
@@ -96,9 +105,7 @@ test("contract-entry-is-browser-safe refuses effect's adapter imports", () => {
   assert.equal(allowed("packages/a/src/booking/booking.ts"), true);
 });
 
-// node_modules is never followed, so whatever an installed entry or an effect module imports is unseen.
-// The rule refuses all of them but a vouched-for list; the stack's example app, in examples/booking-platform,
-// bundles the effect allowlist for a browser in its browser-bundle test as the second guard.
+// Installed dependencies are not followed. Their browser contract trust is explicit.
 test("contract-entry-is-browser-safe trusts only allowlisted effect modules and vouched-for installed contract entries", async () => {
   const lines = (violations) =>
     fromPaths(violations).map((line) => line.replace(/node_modules\/.*?node_modules\//u, ""));
@@ -126,6 +133,20 @@ test("contract-entry-is-browser-safe trusts only allowlisted effect modules and 
     () => layout({ scope: "@acme/", trustedContractPackages: ["../escape"] }),
     /trustedContractPackages/u,
   );
+});
+
+test("installed identity contract is trusted, not its main door", async () => {
+  const at = "packages/a/src/contract.ts";
+  const tree = {
+    "packages/a/package.json": '{"name":"@acme/a","exports":"./src/index.ts"}',
+    [at]: 'export { bindLogin } from "@house-rules/identity/contract";',
+  };
+  assert.deepEqual(await violatedRules(tree, layout({ scope: "@acme/" })), []);
+  const bad = await violatedRules(
+    { ...tree, [at]: 'export { bindLogin } from "@house-rules/identity";' },
+    layout({ scope: "@acme/" }),
+  );
+  assert.deepEqual(ruleNames(bad), ["contract-entry-is-browser-safe"]);
 });
 
 const runLayoutBin = (config) =>

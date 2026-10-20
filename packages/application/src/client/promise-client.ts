@@ -1,8 +1,8 @@
 import { Cause, Clock, Effect, Exit, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 import type { Api, ApiEndpoints } from "../contract/api.ts";
-import type { AnyContract } from "../contract/contract.ts";
-import type { EndpointShape, Method } from "../contract/endpoint.ts";
+import type { AnyEntry } from "../entry/entry.ts";
+import type { Endpoint, Method } from "../contract/endpoint.ts";
 import type { BodyOf, SessionRole } from "../contract/session.ts";
 import { requestIdHeader, requestIdOf } from "../call/request-id-header.ts";
 import { onBaseOrigin, type RequestBase, requestBaseOf } from "./base-origin.ts";
@@ -25,25 +25,25 @@ export type PromiseClientOptions = Readonly<{
   fetch?: typeof globalThis.fetch;
 }>;
 
-export type PromiseCall<C extends AnyContract, Session extends SessionRole = "none"> = (
-  input: C["input"]["Type"],
-) => Promise<BodyOf<C, Session>>;
+export type PromiseCall<E extends AnyEntry, Session extends SessionRole = "none"> = (
+  input: E["node"]["input"]["Type"],
+) => Promise<BodyOf<E, Session>>;
 
 export type PromiseClientOf<Endpoints extends ApiEndpoints> = {
   readonly [Key in keyof Endpoints]: PromiseCall<
-    Endpoints[Key]["contract"],
+    Endpoints[Key]["entry"],
     Endpoints[Key]["session"]
   >;
 };
 
-export type PromiseFailureOf<E extends EndpointShape> = HttpFailureOf<
+export type PromiseFailureOf<E extends Endpoint> = HttpFailureOf<
   ClientFailureCode<E["codes"][number]>
 >;
 
 const isHttpFailure = Schema.is(HttpFailure);
 
 const promiseCallOf = (
-  shape: EndpointShape,
+  shape: Endpoint,
   prefix: "" | `/${string}`,
   options: PromiseClientOptions,
   base: () => RequestBase | undefined,
@@ -51,7 +51,7 @@ const promiseCallOf = (
   const run = callOf(shape, { ...(prefix === "" ? {} : { prefix }), base });
   const { method } = shape;
   const sameOrigin = (url: string | URL): URL | undefined => onBaseOrigin(String(url), base());
-  const name = shape.contract.name;
+  const name = shape.entry.node.name;
   return (input: unknown): Promise<unknown> => {
     const seen: { path: string; status: number; requestId?: string } = {
       path: `${prefix}${shape.path}`,

@@ -36,7 +36,10 @@ describe("house-rules-migrations, with apps and packages in several roots", () =
       }),
     });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /3 table\(s\) owned by 2 package\(s\).*2 module\(s\) listed/u);
+    assert.match(
+      result.stdout,
+      /3 table\/view object\(s\) owned by 2 module\(s\).*2 module\(s\) listed/u,
+    );
   });
 
   it("fails a nested module with migrations that the list does not name", () => {
@@ -67,22 +70,25 @@ describe("house-rules-migrations, with apps and packages in several roots", () =
     );
   });
 
-  it("reads the apps roots from the layout config, so a nested app's use-case may open a unit", () => {
+  it("forbids nested production app units with configured roots as well as defaults", () => {
     const files = {
       ...EXAMPLE,
-      "examples/shop/apps/api/src/use-cases/place-order.ts":
+      "examples/shop/apps/api/src/composition/place-order.ts":
         "export const run = UnitOfWork.atomic(work);\n",
       "examples/shop/packages/orders/src/facade.ts":
         "export const place = UnitOfWork.atomic(work);\n",
     };
     const withRoots = run({ ...files, ".dependency-cruiser.cjs": layoutConfig(ROOTS) });
     assert.equal(withRoots.status, 1);
-    assert.deepEqual(problemLines(withRoots), ["examples/shop/packages/orders/src/facade.ts:1"]);
+    assert.deepEqual(problemLines(withRoots), [
+      "examples/shop/apps/api/src/composition/place-order.ts:1",
+      "examples/shop/packages/orders/src/facade.ts:1",
+    ]);
 
-    // With the default roots, examples/ holds no app, so its use-case counts as module code.
+    // Without configured app roots, the app is treated as module code.
     const withDefaults = run({ ...files, ".dependency-cruiser.cjs": layoutConfig({}) });
     assert.deepEqual(problemLines(withDefaults), [
-      "examples/shop/apps/api/src/use-cases/place-order.ts:1",
+      "examples/shop/apps/api/src/composition/place-order.ts:1",
       "examples/shop/packages/orders/src/facade.ts:1",
     ]);
     // No layout config: apps/ only, as before.

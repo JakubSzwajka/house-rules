@@ -2,15 +2,15 @@
 
 Rule ID: `house-rules/testing-exports-only-in-tests`
 
-A package may export helpers for tests, such as `MigrationsTesting` from `@house-rules/migrations`, which gives each test file a throwaway database. Such an export's name ends in `Testing`. It is for tests. Production code that imports one can reach testing-only behavior, such as test setup or a read that exists only for tests, and every other check stays green. The rule reports that use. Enable it with `plugin.configs.testing`, a one-rule preset that runs it on every JS and TS file. `plugin.configs.capability` includes it; `plugin.configs.recommended` does not.
+A package may export helpers for tests, such as `MigrationsTesting` from `@house-rules/migrations`, which gives each test file a throwaway database. Such an export's name ends in `Testing`. It is for tests. Production code that imports one can reach testing-only behavior, such as test setup or a read that exists only for tests, and every other check stays green. The rule reports that use. Enable it with `plugin.configs.testing`, a one-rule preset that runs it on every JS and TS file. `plugin.configs.nodes` includes it; `plugin.configs.recommended` does not.
 
 A test file may import a testing export. A test file is any file under a `tests/`, `test/`, or `__tests__/` folder, or named `*.test.*` or `*.spec.*`. These are the same test paths Dependency Cruiser and the migrations bin treat as tests. A layout with a custom `testsDir` passes the same name to this rule, as the `testsDir` option below.
 
 ```ts
-// apps/web/src/use-cases/tests/support.ts: passes, a test file
+// apps/web/src/features/show/tests/support.ts: passes, a test file
 import { MigrationsTesting } from "@house-rules/migrations";
 
-// apps/web/src/server/event-dispatcher.ts: reported
+// apps/web/src/composition/event-dispatcher.ts: reported
 import { EventLogTesting } from "@acme/event-log";
 ```
 
@@ -59,7 +59,7 @@ A layout that sets `testsDir: "spec"` sets the same value here, after the preset
 
 ```js
 export default [
-  ...houseRules.configs.capability,
+  ...houseRules.configs.nodes,
   { rules: { "house-rules/testing-exports-only-in-tests": ["error", { testsDir: "spec" }] } },
 ];
 ```
@@ -72,7 +72,7 @@ Nothing to change. 0.13.1 adds the `testsDir` option. Without it the rule behave
 
 ## Upgrading to 0.13.0
 
-The rule is new in 0.13.0. It is on in `configs.capability` and in the new `configs.testing`, and off in `configs.recommended`. A production file that uses a `*Testing` name now fails. Move the code that needs it into a test folder, or, when it builds a testing helper, make the file testing code: export the helper under a `*Testing` name, and export nothing else at runtime. For example, a `packages/db/src/test-database/testing.ts` that imports `MigrationsTesting` and exports `makeDbTestingLayer` fails. It passes once it exports `DbTesting` in place of `makeDbTestingLayer`, or moves into a test folder.
+The rule is new in 0.13.0. It is on in `configs.nodes` and in the new `configs.testing`, and off in `configs.recommended`. A production file that uses a `*Testing` name now fails. Move the code that needs it into a test folder, or, when it builds a testing helper, make the file testing code: export the helper under a `*Testing` name, and export nothing else at runtime. For example, a `packages/db/src/test-database/testing.ts` that imports `MigrationsTesting` and exports `makeDbTestingLayer` fails. It passes once it exports `DbTesting` in place of `makeDbTestingLayer`, or moves into a test folder.
 
 ## Limits
 

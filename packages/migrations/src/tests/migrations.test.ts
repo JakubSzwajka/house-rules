@@ -1,7 +1,7 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { PgClient } from "@effect/sql-pg";
 import { expect, layer } from "@effect/vitest";
-import { Effect, Layer, Path } from "effect";
+import { Effect, FileSystem, Layer, Path } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
 import { Migrations, MigrationsTesting } from "../index.ts";
 import { alphaAndBeta, BETA_ENTRY, scratchApp, TRIPS_ITEM, TRIPS_NOTE } from "./scratch-app.ts";
@@ -95,6 +95,23 @@ layer(testDatabase("two"), options)("Migrations, two modules", (it) => {
 });
 
 layer(testDatabase("identity"), options)("Migrations, a module list built in code", (it) => {
+  it.effect("rejects a linked SQL file before executing any module SQL", () =>
+    Effect.gen(function* () {
+      const app = yield* scratchApp(alphaAndBeta);
+      const path = yield* Path.Path;
+      const fs = yield* FileSystem.FileSystem;
+      const directory = path.join(path.dirname(app.list), "packages/alpha/migrations");
+      yield* fs.symlink("0001_alpha_item.sql", path.join(directory, "0003_link.sql"));
+      const error = yield* Migrations.run([
+        { name: "alpha", directory, table: "alpha_migrations" },
+      ]).pipe(Effect.flip);
+      expect(error.message).toBe(
+        "Module alpha: migration file 0003_link.sql must not be a symlink.",
+      );
+      expect(yield* tableExists("alpha_item")).toBe(false);
+      expect(yield* tableExists("alpha_migrations")).toBe(false);
+    }),
+  );
   it.effect("refuses two modules on one history table before any SQL", () =>
     Effect.gen(function* sameTable() {
       const app = yield* scratchApp(alphaAndBeta);

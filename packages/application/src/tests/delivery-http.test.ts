@@ -52,7 +52,7 @@ it.effect("bad input is a 400 that names the field and never quotes the value", 
     const r = yield* http("GET", "/api/bookings?by=nights&minNights=five", "tok-ada");
     expect(r.status).toBe(400);
     expect(r.body).toEqual({
-      error: { code: "invalid_input", message: "minNights is not valid.", field: "minNights" },
+      error: { code: "invalid", message: "minNights is not valid." },
     });
     expect(JSON.stringify(r.body)).not.toContain("five");
   }),
@@ -67,7 +67,7 @@ it.effect("an undeclared field is a 400", () =>
     });
     expect(r.status).toBe(400);
     expect(r.body).toEqual({
-      error: { code: "invalid_input", message: "admin is not a field here.", field: "admin" },
+      error: { code: "invalid", message: "admin is not a field here." },
     });
   }),
 );
@@ -76,12 +76,12 @@ it.effect("a key given twice is a 400", () =>
   Effect.gen(function* duplicateKey() {
     const fromQuery = yield* http("GET", "/api/bookings?by=nights&by=guest", "tok-ada");
     expect(fromQuery.status).toBe(400);
-    expect(fromQuery.body).toMatchObject({ error: { field: "by", message: "Give by once." } });
+    expect(fromQuery.body).toMatchObject({ error: { message: "Give by once." } });
     const pathAndQuery = yield* http("GET", "/api/bookings/b-1?id=b-2", "tok-ada");
     expect(pathAndQuery.status).toBe(400);
     const pathAndBody = yield* http("POST", "/api/bookings/b-1/cancel", "tok-ada", { id: "b-2" });
     expect(pathAndBody.status).toBe(400);
-    expect(pathAndBody.body).toMatchObject({ error: { field: "id" } });
+    expect(pathAndBody.body).toMatchObject({ error: { message: "Give id once." } });
   }),
 );
 
@@ -95,15 +95,15 @@ it.effect("no token is a 401 with a WWW-Authenticate challenge", () =>
   }),
 );
 
-it.effect("Forbidden reads the caller in the app's view: a read token gets scope_too_wide", () =>
+it.effect("a read credential cannot enter the mutable way", () =>
   Effect.gen(function* forbiddenByScope() {
     const r = yield* http("POST", "/api/bookings/b-1/cancel", "tok-ada-read");
     expect(r.status).toBe(403);
-    expect(r.body).toMatchObject({ error: { code: "scope_too_wide" } });
+    expect(r.body).toMatchObject({ error: { code: "forbidden" } });
   }),
 );
 
-it.effect("a contract failure goes through the app's view: BookingNotFound is a 404", () =>
+it.effect("a node's not_found kind is a 404 with the way's message", () =>
   Effect.gen(function* notFound() {
     const r = yield* http("GET", "/api/bookings/b-3", "tok-ada");
     expect(r.status).toBe(404);
@@ -111,11 +111,11 @@ it.effect("a contract failure goes through the app's view: BookingNotFound is a 
   }),
 );
 
-it.effect("needsApproval over plain HTTP fails closed with 403 approval_denied", () =>
+it.effect("needsApproval over plain HTTP fails closed with kind forbidden", () =>
   Effect.gen(function* approvalFailsClosed() {
     const r = yield* http("POST", "/api/bookings/b-1/cancel", "tok-ada");
     expect(r.status).toBe(403);
-    expect(r.body).toMatchObject({ error: { code: "approval_denied" } });
+    expect(r.body).toMatchObject({ error: { code: "forbidden" } });
     const still = yield* http("GET", "/api/bookings/b-1", "tok-ada");
     expect(still.status).toBe(200);
   }),

@@ -1,45 +1,21 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import {
-  defineApi,
-  endpoint,
-  HttpFailure,
-  mount,
-  problemView,
-  toFetchHandler,
-  toPromiseClient,
-} from "../index.ts";
-import {
-  bearerCallerFor,
-  type BookingNotFound,
-  makeApp,
-  renameGuest,
-  showBooking,
-  webRequest,
-} from "./delivery-fixtures.ts";
+import { defineApi, endpoint, HttpFailure, toFetchHandler, toPromiseClient } from "../index.ts";
+import { makeApp, renameGuest, showBooking, webRequest } from "./delivery-fixtures.ts";
 
 const api = defineApi(
   { prefix: "/api" },
   {
-    showBooking: endpoint(showBooking.contract, "GET /bookings/:id", { codes: ["not_found"] }),
-    renameGuest: endpoint(renameGuest.contract, "PATCH /bookings/:id"),
+    showBooking: endpoint(showBooking, "GET /bookings/:id", { codes: ["not_found"] }),
+    renameGuest: endpoint(renameGuest, "PATCH /bookings/:id"),
   },
 );
 
-const t = makeApp();
-const handler = toFetchHandler(t.app, {
-  caller: bearerCallerFor(t.work),
+const t = makeApp({
+  endpoints: Object.values(api.endpoints),
   cors: { origins: ["https://web.example"] },
-  views: {
-    BookingNotFound: problemView(
-      404,
-      "not_found",
-      (error: BookingNotFound) => `Booking ${error.id} was not found.`,
-      { exposeCode: true },
-    ),
-  },
-  routes: mount(api, { showBooking, renameGuest }),
 });
+const handler = toFetchHandler(t.app);
 afterAll(() => handler.dispose().then(t.dispose));
 
 const safelistedResponse = new Set([

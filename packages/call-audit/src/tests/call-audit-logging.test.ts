@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { withRequestId, Grant } from "@house-rules/application";
+import { withRequestId } from "@house-rules/application";
 import { Effect, Exit, Layer, Logger, References, Result, Cause } from "effect";
 import { TestConsole } from "effect/testing";
 import { type AuditRow, CallAudit, memoryAuditLog, memoryAuditStore } from "../index.ts";
@@ -22,7 +22,6 @@ const throwingLogger = Logger.layer([
 const withBrokenLogger = Layer.mergeAll(
   CallAudit.layerLog({ who }),
   Layer.succeed(Requester, ANA),
-  Grant.layerFromPermissions(["greetings:read"]),
   throwingLogger,
 );
 
@@ -67,12 +66,7 @@ it.effect("never keeps input values, in the entry or in the log line", () =>
       .handler({ name: secret })
       .pipe(
         Effect.provide(
-          Layer.mergeAll(
-            CallAudit.layerLog({ who }),
-            Layer.succeed(Requester, ANA),
-            Grant.layerFromPermissions(["greetings:read"]),
-            capture,
-          ),
+          Layer.mergeAll(CallAudit.layerLog({ who }), Layer.succeed(Requester, ANA), capture),
         ),
       );
     expect(Object.keys(log.entries()[0] ?? {}).sort()).toEqual([
@@ -83,6 +77,7 @@ it.effect("never keeps input values, in the entry or in the log line", () =>
       "outcome",
       "permission",
       "requestId",
+      "target",
       "targetId",
       "viewerId",
     ]);
@@ -96,19 +91,13 @@ it.effect("the production layer writes one physical line per call", () =>
     yield* readGreeting
       .handler({ name: "Ada" })
       .pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            CallAudit.layerLog({ who }),
-            Layer.succeed(Requester, ANA),
-            Grant.layerFromPermissions(["greetings:read"]),
-          ),
-        ),
+        Effect.provide(Layer.mergeAll(CallAudit.layerLog({ who }), Layer.succeed(Requester, ANA))),
       );
     const written = [...(yield* TestConsole.logLines), ...(yield* TestConsole.errorLines)];
     expect(written.every((part) => typeof part === "string" && !part.includes("\n"))).toBe(true);
     const rendered = written.join(" ");
     expect(rendered).toContain(
-      'capability call {"capability":"read_greeting","permission":"greetings:read","viewerId":"user_ana","outcome":"success","ms":0,"kind":"write","targetId":null,"channel":"unknown","requestId":null}',
+      'capability call {"capability":"read_greeting","target":"read_greeting","permission":"greetings:read","viewerId":"user_ana","outcome":"success","ms":0,"kind":"write","targetId":null,"channel":"unknown","requestId":null}',
     );
     expect(rendered.match(/capability call/g)).toHaveLength(1);
   }).pipe(Effect.provide(TestConsole.layer)),

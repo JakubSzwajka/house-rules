@@ -1,7 +1,7 @@
 const config = require("@house-rules/rules/dependency-cruiser").layout({
   scope: "@example/",
-  appsDir: ["apps", "examples/*/apps"],
-  packagesDir: ["packages", "examples/*/packages"],
+  appsDir: ["apps", "examples/booking/apps"],
+  packagesDir: ["packages", "examples/booking/packages"],
   adapterPackages: ["migrations"],
 });
 

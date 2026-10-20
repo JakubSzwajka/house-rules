@@ -1,29 +1,28 @@
-import { Context, Effect, Layer, Logger, Option, References, Schema } from "effect";
-import { type Permission } from "@house-rules/domain";
+import { defineNode, type Permission } from "@house-rules/domain";
+import { Effect, Layer, Logger, References, Schema } from "effect";
 import {
-  type Caller,
   composition,
-  defineContract,
-  type Forbidden,
-  Grant,
-  implement,
-  type Incoming,
-  Refused,
-  route,
+  defineEntry,
+  defineWay,
+  endpoint,
+  May,
+  Mean,
+  protectedResource,
   toFetchHandler,
-  toMcpHandler,
-  tool,
-  type View,
+  type Endpoint,
+  type CorsOptions,
+  type SessionOptions,
 } from "../index.ts";
+import { bearerWhoFor, sessionWhoFor } from "./delivery-auth-fixtures.ts";
+export { bearerWhoFor, sessionWhoFor, metadataUrl } from "./delivery-auth-fixtures.ts";
+import { bindFixture, fixtureLayer } from "./entry-fixtures.ts";
 import {
   type Actor,
   Booking,
   BookingNotFound,
   Bookings,
-  Requester,
   type Work,
 } from "./delivery-bookings-fixtures.ts";
-
 export {
   type Actor,
   Booking,
@@ -33,173 +32,124 @@ export {
   type Work,
 } from "./delivery-bookings-fixtures.ts";
 
-export const showBooking = implement(
-  defineContract("show_booking", {
-    description: "Show one booking by its id.",
-    input: Schema.Struct({ id: Schema.String }),
-    output: Booking,
-    failure: BookingNotFound,
-    permission: "bookings:read",
-    annotations: { readOnly: true },
-  }),
-  ({ id }) =>
-    Effect.gen(function* showBookingHandler() {
-      const viewer = yield* Requester;
-      return yield* (yield* Bookings).get(viewer, id);
+const viewerOf = (id: string): Actor => ({ userId: id, scope: "write" });
+export const showBooking = bindFixture(
+  defineEntry(
+    defineNode("show_booking", {
+      description: "Show one booking by its id.",
+      input: Schema.Struct({ id: Schema.String }),
+      output: Booking,
+      failure: BookingNotFound,
+      permission: "bookings:read",
+      readOnly: true,
+    }),
+  ),
+  ({ id }, scope) =>
+    Effect.gen(function* () {
+      const bookings = yield* Bookings;
+      if (scope.caller.kind !== "person") return yield* new BookingNotFound({ id });
+      return yield* bookings.get(viewerOf(scope.caller.actor.id), id);
     }),
 );
-
-export const findBookings = implement(
-  defineContract("find_bookings", {
-    description: "Find your bookings by guest name, or by a minimum number of nights.",
-    input: Schema.Union([
-      Schema.Struct({ by: Schema.Literal("guest"), guest: Schema.String }),
-      Schema.Struct({ by: Schema.Literal("nights"), minNights: Schema.Int }),
-    ]),
-    output: Schema.Struct({ bookings: Schema.Array(Booking) }),
-    failure: Schema.Never,
-    permission: "bookings:read",
-    annotations: { readOnly: true },
-  }),
-  (input) =>
-    Effect.gen(function* findBookingsHandler() {
-      const viewer = yield* Requester;
-      const filter = input.by === "guest" ? { guest: input.guest } : { minNights: input.minNights };
-      return { bookings: yield* (yield* Bookings).find(viewer, filter) };
+export const findBookings = bindFixture(
+  defineEntry(
+    defineNode("find_bookings", {
+      description: "Find your bookings by guest name, or by a minimum number of nights.",
+      input: Schema.Union([
+        Schema.Struct({ by: Schema.Literal("guest"), guest: Schema.String }),
+        Schema.Struct({ by: Schema.Literal("nights"), minNights: Schema.Int }),
+      ]),
+      output: Schema.Struct({ bookings: Schema.Array(Booking) }),
+      failure: Schema.Never,
+      permission: "bookings:read",
+      readOnly: true,
+    }),
+  ),
+  (input, scope) =>
+    Effect.gen(function* () {
+      const bookings = yield* Bookings;
+      if (scope.caller.kind !== "person") return { bookings: [] };
+      return {
+        bookings: yield* bookings.find(
+          viewerOf(scope.caller.actor.id),
+          input.by === "guest" ? { guest: input.guest } : { minNights: input.minNights },
+        ),
+      };
     }),
 );
-
-export const cancelBooking = implement(
-  defineContract("cancel_booking", {
-    description: "Cancel one of your bookings.",
-    input: Schema.Struct({ id: Schema.String }),
-    output: Schema.Struct({ cancelled: Schema.String }),
-    failure: BookingNotFound,
-    permission: "bookings:write",
-    needsApproval: true,
-    annotations: { destructive: true },
-  }),
-  ({ id }) =>
-    Effect.gen(function* cancelBookingHandler() {
-      const viewer = yield* Requester;
-      yield* (yield* Bookings).cancel(viewer, id);
+export const cancelBooking = bindFixture(
+  defineEntry(
+    defineNode("cancel_booking", {
+      description: "Cancel one of your bookings.",
+      input: Schema.Struct({ id: Schema.String }),
+      output: Schema.Struct({ cancelled: Schema.String }),
+      failure: BookingNotFound,
+      permission: "bookings:write",
+      needsApproval: true,
+      destructive: true,
+    }),
+  ),
+  ({ id }, scope) =>
+    Effect.gen(function* () {
+      const bookings = yield* Bookings;
+      if (scope.caller.kind !== "person") return yield* new BookingNotFound({ id });
+      yield* bookings.cancel(viewerOf(scope.caller.actor.id), id);
       return { cancelled: id };
     }),
 );
-
-export const renameGuest = implement(
-  defineContract("rename_guest", {
-    description: "Rename the guest on one of your bookings.",
-    input: Schema.Struct({ id: Schema.String, guestName: Schema.String }),
-    output: Schema.Struct({ id: Schema.String }),
-    failure: BookingNotFound,
-    permission: "bookings:write",
-  }),
-  ({ id }) =>
-    Effect.gen(function* renameGuestHandler() {
-      const viewer = yield* Requester;
-      yield* (yield* Bookings).get(viewer, id);
+export const renameGuest = bindFixture(
+  defineEntry(
+    defineNode("rename_guest", {
+      description: "Rename the guest on one of your bookings.",
+      input: Schema.Struct({ id: Schema.String, guestName: Schema.String }),
+      output: Schema.Struct({ id: Schema.String }),
+      failure: BookingNotFound,
+      permission: "bookings:write",
+    }),
+  ),
+  ({ id }, scope) =>
+    Effect.gen(function* () {
+      const bookings = yield* Bookings;
+      if (scope.caller.kind !== "person") return yield* new BookingNotFound({ id });
+      yield* bookings.get(viewerOf(scope.caller.actor.id), id);
       return { id };
     }),
 );
-
-export const crash = implement(
-  defineContract("crash", {
-    description: "Dies, to show the defect view.",
-    input: Schema.Struct({}),
-    output: Schema.Struct({}),
-    failure: Schema.Never,
-    permission: "public",
-  }),
+export const crash = bindFixture(
+  defineEntry(
+    defineNode("crash", {
+      description: "Dies to show the defect response.",
+      input: Schema.Struct({}),
+      output: Schema.Struct({}),
+      failure: Schema.Never,
+      permission: null,
+    }),
+  ),
   () => Effect.die("a bug in the handler"),
 );
-
-const permissionsOf = (actor: Actor): ReadonlyArray<Permission> =>
-  actor.scope === "write" ? ["bookings:read", "bookings:write"] : ["bookings:read"];
-
-const callerOf = (actor: Actor) =>
-  Context.make(Requester, actor).pipe(
-    Context.add(Grant, Grant.fromPermissions(permissionsOf(actor))),
-  );
-
-const sessions: Readonly<Record<string, Actor>> = { "s-ada": { userId: "ada", scope: "write" } };
-
-const tokens: Readonly<Record<string, Actor>> = {
-  "tok-ada": { userId: "ada", scope: "write" },
-  "tok-ada-read": { userId: "ada", scope: "read" },
+export const entries = [showBooking, findBookings, cancelBooking, renameGuest, crash] as const;
+const permissions: readonly Permission[] = ["bookings:read", "bookings:write"];
+export const overrides = {
+  BookingNotFound: (error: BookingNotFound) => `Booking ${error.id} was not found.`,
 };
-
-export const metadataUrl = "https://app.example/.well-known/oauth-protected-resource/mcp";
-
-const cookieOf = (incoming: Incoming, name: string): string | undefined =>
-  (incoming.headers.get("cookie") ?? "")
-    .split(";")
-    .map((part) => part.trim().split("="))
-    .find(([key]) => key === name)?.[1];
-
-export const sessionCallerFor =
-  (work: Work): Caller<Requester | Grant, Bookings> =>
-  (incoming) =>
-    Effect.gen(function* sessionCaller() {
-      work.callers += 1;
-      const session = cookieOf(incoming, "session");
-      const actor = session === undefined ? undefined : sessions[session];
-      if (actor === undefined) {
-        return yield* new Refused({
-          status: 401,
-          code: "session_invalid",
-          message: "Sign in again.",
-        });
-      }
-      return callerOf(actor);
-    });
-
-export const bearerCallerFor =
-  (work: Work): Caller<Requester | Grant, Bookings> =>
-  (incoming) =>
-    Effect.gen(function* bearerCaller() {
-      work.callers += 1;
-      const token = /^Bearer\s+(\S+)$/iu.exec(incoming.headers.get("authorization") ?? "")?.[1];
-      const actor = token === undefined ? undefined : tokens[token];
-      if (actor === undefined) {
-        return yield* new Refused({
-          status: 401,
-          code: token === undefined ? "token_missing" : "token_invalid",
-          message: "Send a valid token as Authorization: Bearer <token>.",
-          challenge: `Bearer resource_metadata="${metadataUrl}"`,
-        });
-      }
-      return callerOf(actor);
-    });
-
-export const views = {
-  BookingNotFound: (error: BookingNotFound): View => ({
-    status: 404,
-    body: { error: { code: "not_found", message: `Booking ${error.id} was not found.` } },
-  }),
-  Forbidden: (_error: Forbidden, caller: Context.Context<Requester> | undefined): View => {
-    const viewer = caller === undefined ? Option.none() : Context.getOption(caller, Requester);
-    const readScope = Option.isSome(viewer) && viewer.value.scope === "read";
-    return {
-      status: 403,
-      body: {
-        error: readScope
-          ? { code: "scope_too_wide", message: "A read token cannot change anything." }
-          : { code: "not_permitted", message: "You may not do that." },
-      },
-    };
-  },
-};
-
 export type LogLine = Readonly<{
   message: unknown;
   annotations: Readonly<Record<string, unknown>>;
 }>;
-
-export const makeApp = () => {
+type HttpFixtureOptions = Readonly<{
+  path?: `/${string}`;
+  endpoints?: readonly Endpoint[];
+  who?: "bearer" | "session";
+  cors?: CorsOptions;
+  origins?: readonly string[];
+  session?: SessionOptions;
+  maxBodyBytes?: number;
+  overrides?: Readonly<Record<string, (error: never) => string>>;
+}>;
+export const makeApp = (options: HttpFixtureOptions = {}) => {
   const work: Work = { calls: 0, callers: 0 };
-  const logs: Array<LogLine> = [];
-  const layer = Layer.merge(
+  const logs: LogLine[] = [];
+  const modules = Layer.merge(
     Bookings.fromRecords(
       [
         { id: "b-1", owner: "ada", guestName: "Ada", nights: 3 },
@@ -214,50 +164,91 @@ export const makeApp = () => {
       }),
     ]),
   );
-  const app = composition({ layer, caller: sessionCallerFor(work), views });
-  const bearer = bearerCallerFor(work);
-  const api = toFetchHandler(app, {
-    prefix: "/api",
-    caller: bearer,
-    routes: [
-      route(showBooking, "GET /bookings/:id"),
-      route(findBookings, "GET /bookings"),
-      route(findBookings),
-      route(cancelBooking, "POST /bookings/:id/cancel"),
-      route(crash),
-    ],
+  const selectedEndpoints = options.endpoints ?? [
+    endpoint(showBooking, "GET /bookings/:id"),
+    endpoint(findBookings, "GET /bookings"),
+    endpoint(findBookings),
+    endpoint(cancelBooking, "POST /bookings/:id/cancel"),
+    endpoint(crash),
+  ];
+  const selectedEntries = entries.filter((entry) =>
+    selectedEndpoints.some((shape) => shape.entry === entry),
+  );
+  const apiWay = defineWay({
+    name: "api",
+    path: options.path ?? "/api",
+    protocol: "http",
+    entries: selectedEntries,
+    endpoints: selectedEndpoints,
+    who: options.who === "session" ? sessionWhoFor(work) : bearerWhoFor(work),
+    may: May.fixed(selectedEntries, permissions),
+    mean: Mean.no,
+    overrides: { ...overrides, ...options.overrides },
+    ...(options.cors === undefined ? {} : { cors: options.cors }),
+    ...(options.origins === undefined ? {} : { origins: options.origins }),
+    ...(options.session === undefined ? {} : { session: options.session }),
+    ...(options.maxBodyBytes === undefined ? {} : { maxBodyBytes: options.maxBodyBytes }),
   });
-  const web = toFetchHandler(app, {
-    prefix: "/web",
-    origins: ["https://app.example"],
-    routes: [
-      route(renameGuest, "PATCH /bookings/:id"),
-      route(renameGuest, "POST /hooks/rename", {
+  const webWay = defineWay({
+    name: "web",
+    path: "/web",
+    protocol: "http",
+    entries: [renameGuest, showBooking],
+    endpoints: [
+      endpoint(renameGuest, "PATCH /bookings/:id"),
+      endpoint(renameGuest, "POST /hooks/rename", {
         csrf: { skip: true, reason: "A signed webhook, not a browser form." },
       }),
-      route(showBooking, "GET /bookings/:id"),
+      endpoint(showBooking, "GET /bookings/:id"),
     ],
+    origins: ["https://app.example"],
+    who: sessionWhoFor(work),
+    may: May.fixed([renameGuest, showBooking], permissions),
+    mean: Mean.no,
+    overrides,
   });
-  const mcp = toMcpHandler(app, {
+  const readWay = defineWay({
+    name: "read",
+    path: "/read",
+    protocol: "http",
+    entries: [showBooking, findBookings],
+    endpoints: [
+      endpoint(showBooking, "GET /bookings/:id"),
+      endpoint(findBookings, "GET /bookings"),
+    ],
+    who: bearerWhoFor(work, true),
+    may: May.fixed([showBooking, findBookings], ["bookings:read"]),
+    mean: Mean.no,
+    overrides,
+  });
+  const mcpWay = defineWay({
+    name: "mcp",
     path: "/mcp",
-    name: "test",
-    version: "0.0.0",
-    caller: bearer,
+    protocol: "mcp",
+    entries: [showBooking, findBookings, cancelBooking],
+    who: bearerWhoFor(work),
+    may: May.fixed([showBooking, findBookings, cancelBooking], permissions),
+    mean: Mean.elicitation,
+    overrides,
+    resource: protectedResource({
+      resource: "https://app.example/mcp",
+      authorizationServers: ["https://issuer.example"],
+    }),
+    server: { name: "test", version: "0.0.0" },
     tools: [
-      tool(showBooking, { title: "Show a booking", idempotent: true, openWorld: false }),
-      tool(findBookings, { title: "Find bookings", idempotent: true, openWorld: false }),
-      tool(cancelBooking, { title: "Cancel a booking", idempotent: false, openWorld: false }),
+      { entry: showBooking, title: "Show a booking", idempotent: true, openWorld: false },
+      { entry: findBookings, title: "Find bookings", idempotent: true, openWorld: false },
+      { entry: cancelBooking, title: "Cancel a booking", idempotent: false, openWorld: false },
     ],
   });
-  const dispose = () =>
-    Promise.all([api.dispose(), web.dispose(), mcp.dispose()]).then(() => app.dispose());
-  return { app, api, web, mcp, work, logs, dispose };
+  const layer = fixtureLayer(entries).pipe(Layer.provideMerge(modules));
+  const app = composition({ layer, entries, ways: [apiWay, webWay, readWay, mcpWay], system: [] });
+  const router = toFetchHandler(app);
+  const dispose = () => router.dispose().then(() => app.dispose());
+  return { app, api: router, web: router, mcp: router, router, work, logs, dispose };
 };
-
 export type TestApp = ReturnType<typeof makeApp>;
-
 export type JsonAnswer = Readonly<{ status: number; headers: Headers; body: unknown }>;
-
 export const answer = (
   handler: (request: Request) => Promise<Response>,
   request: Request,
@@ -269,7 +260,5 @@ export const answer = (
       ),
     ),
   );
-
 export const webRequest = (url: string, init?: RequestInit): Request =>
-  // This workspace loads two @types/node versions, so tsc sees the Request constructor and the Request type differ.
   new Request(url, init) as Request;

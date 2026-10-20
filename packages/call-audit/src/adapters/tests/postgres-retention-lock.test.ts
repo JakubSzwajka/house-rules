@@ -167,7 +167,13 @@ layer(migratedDatabase("audit_lock"), { excludeTestServices: true, timeout: "30 
           asRequester("user_ana"),
         );
         expect(yield* allRows).toMatchObject([
-          { capability: "rename_trip", viewerId: "user_ana", targetId: "t-1", channel: "web" },
+          {
+            capability: "rename_trip",
+            target: "rename_trip",
+            viewerId: "user_ana",
+            targetId: null,
+            channel: "web",
+          },
         ]);
         expect(yield* CallAudit.erase("user_ana")).toBe(1);
         expect(yield* allRows).toEqual([]);

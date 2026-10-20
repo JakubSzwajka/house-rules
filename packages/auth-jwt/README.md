@@ -9,7 +9,9 @@ const authenticator = AuthJwt.layer({ issuer: "https://auth.example.com" });
 const clerk = AuthJwt.clerk({ publishableKey: "pk_live_..." });
 ```
 
-`verify(token, { audience? })` returns a `Principal` or fails with `TokenRejected`. Keys come from `<issuer>/.well-known/jwks.json` by default, or from `jwksUrl` (https only), or from a fixed `jwks` set. `AuthJwtTesting.keys` gives a local key pair and a signer for tests.
+The layer fills the lower `Authenticator` slot, not a way's Who socket. Pair it with `Identity.who({ token, audience?, challenge? })` from identity, or a custom `WhoSocket` that resolves an Actor. Application never imports this plug.
+
+`AuthJwtConfigInvalid` carries unavailable kind for acquisition failures. `verify(token, { audience? })` returns a `Principal` or fails with `TokenRejected`. Keys come from `<issuer>/.well-known/jwks.json` by default, or from `jwksUrl` (https only), or from a fixed `jwks` set. `AuthJwtTesting.keys` gives a local key pair and a signer for tests.
 
 For dev and demos only, never production, `AuthJwtLocal` is a local issuer: an in-memory key pair whose tokens the normal verify path accepts.
 

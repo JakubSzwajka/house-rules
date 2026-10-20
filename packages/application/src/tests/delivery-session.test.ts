@@ -1,97 +1,50 @@
+import { api, signIn, signOut, leaky } from "./session-fixtures.ts";
+import { httpFixture } from "./router-fixtures.ts";
 import { afterAll, describe, expect, it } from "@effect/vitest";
-import { Clock, Context, Effect, Schema } from "effect";
-import {
-  defineApi,
-  defineContract,
-  endpoint,
-  implement,
-  mount,
-  route,
-  toFetchHandler,
-  toOpenApi,
-  toPromiseClient,
-} from "../index.ts";
-import { answer, makeApp, renameGuest, sessionCallerFor, webRequest } from "./delivery-fixtures.ts";
-
-const SignedIn = Schema.Struct({
-  token: Schema.String,
-  expiresAt: Schema.Int,
-  name: Schema.String,
-});
-
-const signInContract = defineContract("sign_in", {
-  description: "Sign in and get a token.",
-  input: Schema.Struct({ name: Schema.String }),
-  output: SignedIn,
-  failure: Schema.Never,
-  permission: "public",
-});
-
-const signIn = implement(signInContract, ({ name }) =>
-  Clock.currentTimeMillis.pipe(
-    Effect.map((now) => ({ token: `tok.${name}`, expiresAt: now + 3_600_000, name })),
-  ),
-);
-
-const signOut = implement(
-  defineContract("sign_out", {
-    description: "Sign out.",
-    input: Schema.Struct({}),
-    output: Schema.Struct({}),
-    failure: Schema.Never,
-    permission: "public",
-  }),
-  () => Effect.succeed({}),
-);
-
-const leaky = implement(
-  defineContract("leaky_sign_in", {
-    description: "A sign-in whose token is not cookie-safe.",
-    input: Schema.Struct({}),
-    output: SignedIn,
-    failure: Schema.Never,
-    permission: "public",
-  }),
-  () => Effect.succeed({ token: "has a space secret-123", expiresAt: 0, name: "x" }),
-);
-
-const api = defineApi(
-  { prefix: "/auth" },
-  {
-    signIn: endpoint(signInContract, "POST /sign-in", { session: "issue" }),
-    signOut: endpoint(signOut.contract, "POST /sign-out", { session: "clear" }),
-  },
-);
+import { Effect } from "effect";
+import { endpoint, admit, toFetchHandler, toOpenApi, toPromiseClient } from "../index.ts";
+import { answer, makeApp, renameGuest, webRequest } from "./delivery-fixtures.ts";
 
 const t = makeApp();
-const visitor = () => Effect.succeed(Context.empty());
+const entries = [signIn, signOut, leaky] as const;
 const routes = [
-  ...mount(api, { signIn, signOut }),
-  route(leaky, "POST /auth/leaky", { session: "issue" }),
-  route(signIn, "POST /auth/token"),
+  ...Object.values(api.endpoints),
+  endpoint(leaky, "POST /leaky", { session: "issue" }),
+  endpoint(signIn, "POST /token"),
 ];
-const plain = toFetchHandler(t.app, { caller: visitor, session: { cookie: "sid" }, routes });
-const proxied = toFetchHandler(t.app, {
-  caller: visitor,
+const plainApp = httpFixture(entries, {
+  path: "/auth",
+  session: { cookie: "sid" },
+  endpoints: routes,
+});
+const proxiedApp = httpFixture(entries, {
+  path: "/auth",
   session: { cookie: "sid" },
   origins: ["https://app.example"],
-  routes,
+  endpoints: routes,
 });
-const prefixed = toFetchHandler(t.app, {
-  caller: visitor,
+const prefixedApp = httpFixture(entries, {
+  path: "/auth",
   session: { cookie: "__Host-sid" },
-  routes,
+  endpoints: routes,
 });
-const member = sessionCallerFor(t.work);
-const writes = toFetchHandler(t.app, {
-  caller: member,
-  session: { cookie: "session" },
-  routes: [route(renameGuest, "PATCH /bookings/:id")],
+const writesApp = makeApp({
+  path: "/",
+  who: "session",
+  endpoints: [endpoint(renameGuest, "PATCH /bookings/:id")],
 });
+const plain = plainApp.handler;
+const proxied = proxiedApp.handler;
+const prefixed = prefixedApp.handler;
+const writes = writesApp.router;
 afterAll(() =>
-  Promise.all([plain.dispose(), proxied.dispose(), prefixed.dispose(), writes.dispose()]).then(
-    t.dispose,
-  ),
+  Promise.all([
+    plainApp.dispose(),
+    proxiedApp.dispose(),
+    prefixedApp.dispose(),
+    writesApp.dispose(),
+    t.dispose(),
+  ]),
 );
 
 const maxAgeWithin10s = (cookie: string | null): string => {
@@ -229,35 +182,57 @@ describe("session cookie issue, clear and CSRF", () => {
 });
 
 describe("mount-time checks", () => {
-  it("a session route needs the handler's session option", () => {
-    expect(() => toFetchHandler(t.app, { caller: visitor, routes })).toThrow(
-      /sets a session cookie; give toFetchHandler session/u,
-    );
-  });
-
-  it("refuses a cookie name a browser would not accept", () => {
-    for (const cookie of ["", "s id", "sid;", "a=b"]) {
-      expect(() => toFetchHandler(t.app, { caller: visitor, session: { cookie }, routes })).toThrow(
-        /is not a cookie name/u,
+  it.effect("a session endpoint needs the way's session option at acquisition", () =>
+    Effect.gen(function* () {
+      const invalid = httpFixture(entries, { path: "/auth", endpoints: routes });
+      const result = yield* Effect.promise(() =>
+        admit(invalid.app, { headers: new Headers(), url: "/" }, { way: "web" }),
       );
-    }
-  });
+      expect(result).toMatchObject({
+        ok: false,
+        error: { _tag: "GraphInvalid", reason: expect.stringMatching(/sets a session cookie/u) },
+      });
+      yield* Effect.promise(invalid.dispose);
+    }),
+  );
+
+  it.effect("refuses a cookie name a browser would not accept", () =>
+    Effect.gen(function* () {
+      for (const cookie of ["", "s id", "sid;", "a=b"]) {
+        const invalid = httpFixture(entries, {
+          path: "/auth",
+          endpoints: routes,
+          session: { cookie },
+        });
+        const result = yield* Effect.promise(() =>
+          admit(invalid.app, { headers: new Headers(), url: "/" }, { way: "web" }),
+        );
+        expect(result).toMatchObject({
+          ok: false,
+          error: { _tag: "GraphInvalid", reason: expect.stringMatching(/is not a cookie name/u) },
+        });
+        yield* Effect.promise(invalid.dispose);
+      }
+    }),
+  );
 
   it("refuses a GET session route, a CSRF opt-out, a second session source and an output without a token", () => {
-    expect(() => endpoint(signOut.contract, "GET /sign-out", { session: "clear" })).toThrow(
+    expect(() => endpoint(signOut, "GET /sign-out", { session: "clear" })).toThrow(
       /cannot be a GET/u,
     );
     expect(() =>
-      route(signIn, "POST /sign-in", {
+      endpoint(signIn, "POST /sign-in", {
         session: "issue",
         csrf: { skip: true, reason: "A test." },
       }),
-    ).toThrow(/cannot skip CSRF/u);
-    expect(() => route(signIn, api.endpoints.signIn, { session: "issue" } as never)).toThrow(
-      /takes its session from the endpoint/u,
-    );
+    ).toThrow(/cannot set a session/u);
+    const secondSource = () => {
+      // @ts-expect-error The router takes session settings only from its ways.
+      return toFetchHandler(plainApp.app, { session: { cookie: "other" } });
+    };
+    expect(typeof secondSource).toBe("function");
     // @ts-expect-error: a session issue route needs a token and expiresAt in its output
-    expect(() => route(signOut, "POST /sign-out", { session: "issue" })).toThrow(
+    expect(() => endpoint(signOut, "POST /sign-out", { session: "issue" })).toThrow(
       /needs a Struct output with token and expiresAt/u,
     );
   });

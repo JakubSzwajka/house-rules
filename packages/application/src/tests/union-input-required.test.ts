@@ -1,23 +1,10 @@
 import { expect, expectTypeOf, it } from "@effect/vitest";
-import { Effect, Layer, Schema, SchemaGetter, SchemaTransformation } from "effect";
-import { McpSchema, McpServer, Tool, Toolkit } from "effect/ai";
-import { defineContract, type InputSchema, toTool } from "../index.ts";
+import { Effect, Schema, SchemaGetter, SchemaTransformation } from "effect";
+import { mcpProbe, ProbeRejected } from "./mcp-probe.ts";
 
 const strict = { onExcessProperty: "error" } as const;
 
-const options = { title: "Probe", idempotent: true, openWorld: false };
-
-const makeTool = <Input extends InputSchema>(name: string, input: Input) =>
-  toTool(
-    defineContract(name, {
-      description: "A Union input probe.",
-      input,
-      output: Schema.String,
-      failure: Schema.Never,
-      permission: "public",
-    }),
-    options,
-  );
+const makeTool = mcpProbe;
 
 const accepts = <A, E>(result: Effect.Effect<A, E>) =>
   Effect.map(Effect.result(result), (settled) => settled._tag === "Success");
@@ -108,83 +95,43 @@ for (const [name, { input, required }] of Object.entries(cases)) {
 
   it.effect(`${name}: the advertisement never calls a key optional the Union requires`, () =>
     Effect.gen(function* requiredness() {
-      const listed = Tool.getJsonSchema(tool).required as ReadonlyArray<string> | undefined;
+      const listed = (yield* tool.schema).inputSchema["required"] as
+        | ReadonlyArray<string>
+        | undefined;
       expect(listed?.includes("value") ?? false).toBe(required);
       const omissions: Array<boolean> = [];
       for (const kind of ["probe", "text"]) {
         const real = yield* accepts(Schema.decodeUnknownEffect(input, strict)({ kind }));
-        const merged = yield* accepts(
-          Schema.decodeUnknownEffect(tool.parametersSchema, strict)({ kind }),
-        );
+        const merged = yield* accepts(tool.decode({ kind }));
         expect(merged, kind).toBe(real);
         omissions.push(real);
       }
       if (!required) expect(omissions).toContain(true);
-      expect(
-        yield* accepts(
-          Schema.decodeUnknownEffect(tool.parametersSchema, strict)({ kind: "text", value: "v" }),
-        ),
-      ).toBe(true);
+      expect(yield* accepts(tool.decode({ kind: "text", value: "v" }))).toBe(true);
     }),
   );
 }
 
-it("the static wire type keeps the encoded side while the JSON errs strict", () => {
-  const tool = makeTool("wire_type", OptionalWireRequiredOutput);
-  expectTypeOf(tool.parametersSchema.Encoded).toEqualTypeOf<{
-    readonly kind: "probe" | "text";
-    readonly value?: string;
-  }>();
-  expect(Tool.getJsonSchema(tool).required).toEqual(["kind", "value"]);
-});
-
-const ReverseTool = makeTool("optional_wire_required_output", OptionalWireRequiredOutput);
-
-const Tools = Toolkit.make(ReverseTool);
-
-const calls: Array<unknown> = [];
-
-const server = McpServer.toolkit(Tools).pipe(
-  Layer.provide(
-    Tools.toLayer({
-      optional_wire_required_output: (input) =>
-        Effect.sync(() => {
-          calls.push(input);
-          return "ok";
-        }),
-    }),
-  ),
-  Layer.provideMerge(McpServer.McpServer.layer),
+it.effect("the descriptor wire type stays optional while the advertised JSON errs strict", () =>
+  Effect.gen(function* () {
+    const tool = makeTool("wire_type", OptionalWireRequiredOutput);
+    expectTypeOf<typeof OptionalWireRequiredOutput.Encoded>().toExtend<{
+      readonly kind: "probe" | "text";
+      readonly value?: string;
+    }>();
+    expect((yield* tool.schema).inputSchema["required"]).toEqual(["kind", "value"]);
+  }),
 );
 
-const client = McpSchema.McpServerClient.of({
-  clientId: 1,
-  protocolVersion: "2025-11-25",
-  clientCapabilities: new McpSchema.ClientCapabilities({}),
-  clientInfo: { name: "test-client", version: "1.0.0" },
-  initializePayload: {
-    protocolVersion: "2025-11-25",
-    capabilities: new McpSchema.ClientCapabilities({}),
-    clientInfo: { name: "test-client", version: "1.0.0" },
-  },
-  getClient: Effect.die("getClient is not used"),
-});
-
-it.layer(server)("an MCP server with a key the Union always needs", (test) => {
-  test.effect("lists the key as required and refuses its omission in every member", () =>
-    Effect.gen(function* overMcp() {
-      const mcp = yield* McpServer.McpServer;
-      expect(mcp.tools[0]?.tool.inputSchema.required).toEqual(["kind", "value"]);
-      calls.length = 0;
-      for (const kind of ["probe", "text"]) {
-        const error = yield* Effect.flip(
-          mcp
-            .callTool({ name: "optional_wire_required_output", arguments: { kind } })
-            .pipe(Effect.provideService(McpSchema.McpServerClient, client)),
-        );
-        expect(error).toBeInstanceOf(McpSchema.InvalidParams);
-      }
-      expect(calls).toEqual([]);
-    }),
-  );
-});
+const reverse = makeTool("optional_wire_required_output", OptionalWireRequiredOutput);
+it.effect("an MCP server lists the key as required and refuses its omission in every member", () =>
+  Effect.gen(function* () {
+    expect((yield* reverse.schema).inputSchema["required"]).toEqual(["kind", "value"]);
+    for (const kind of ["probe", "text"]) {
+      const error = yield* Effect.flip(reverse.decode({ kind }));
+      expect(error).toBeInstanceOf(ProbeRejected);
+      expect(error.message).toContain("Invalid parameters");
+    }
+    expect(reverse.calls).toEqual([]);
+  }),
+);

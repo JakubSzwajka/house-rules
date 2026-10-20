@@ -1,13 +1,12 @@
+import { defineNode } from "@house-rules/domain";
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import { FetchHttpClient, type HttpClientError } from "effect/http";
 import {
-  defineContract,
+  defineEntry,
   endpoint,
   failureCodeHeader,
   HttpFailure,
-  problemView,
-  route,
   toFetchHandler,
   toHttpClient,
 } from "../index.ts";
@@ -23,31 +22,18 @@ import {
 } from "./delivery-fixtures.ts";
 
 const at = {
-  show: endpoint(showBooking.contract, "GET /bookings/:id", { codes: ["not_found"] }),
-  find: endpoint(findBookings.contract, "GET /bookings"),
-  rename: endpoint(renameGuest.contract, "PATCH /bookings/:id", { codes: ["not_found"] }),
-  crash: endpoint(crash.contract),
+  show: endpoint(showBooking, "GET /bookings/:id", { codes: ["not_found"] }),
+  find: endpoint(findBookings, "GET /bookings"),
+  rename: endpoint(renameGuest, "PATCH /bookings/:id", { codes: ["not_found"] }),
+  crash: endpoint(crash),
 } as const;
 
-const t = makeApp();
-const api = toFetchHandler(t.app, {
-  prefix: "/api",
+const t = makeApp({
+  who: "session",
+  endpoints: Object.values(at),
   origins: ["https://app.example"],
-  views: {
-    BookingNotFound: problemView(
-      404,
-      "not_found",
-      (error: BookingNotFound) => `Booking ${error.id} was not found.`,
-      { exposeCode: true },
-    ),
-  },
-  routes: [
-    route(showBooking, at.show),
-    route(findBookings, at.find),
-    route(renameGuest, at.rename),
-    route(crash, at.crash),
-  ],
 });
+const api = toFetchHandler(t.app);
 afterAll(() => api.dispose().then(t.dispose));
 
 const client = toHttpClient([at.show, at.find, at.rename, at.crash], {
@@ -159,13 +145,15 @@ it.effect("a cookie write from another origin is a 403 with the cross_origin bod
 
 it.effect("a stale client whose input drifted gets a 400 invalid_input", () =>
   Effect.gen(function* staleClient() {
-    const stale = defineContract("show_booking", {
-      description: "An older show_booking that also sent a field the server dropped.",
-      input: Schema.Struct({ id: Schema.String, expand: Schema.String }),
-      output: Booking,
-      failure: BookingNotFound,
-      permission: "bookings:read",
-    });
+    const stale = defineEntry(
+      defineNode("show_booking", {
+        description: "An older show_booking that also sent a field the server dropped.",
+        input: Schema.Struct({ id: Schema.String, expand: Schema.String }),
+        output: Booking,
+        failure: BookingNotFound,
+        permission: "bookings:read",
+      }),
+    );
     const old = toHttpClient([endpoint(stale, "GET /bookings/:id")], {
       prefix: "/api",
       baseUrl: "https://app.example",
@@ -176,7 +164,7 @@ it.effect("a stale client whose input drifted gets a 400 invalid_input", () =>
     expect(failure).toMatchObject({
       code: "Unknown",
       status: 400,
-      body: { error: { code: "invalid_input", field: "expand" } },
+      body: { error: { code: "invalid", message: "expand is not a field here." } },
     });
   }),
 );
@@ -212,16 +200,14 @@ it.effect("the fetch handler sends a code only when the view exposes it", () =>
 );
 
 it("an endpoint must name the capability the route mounts", () => {
-  expect(() =>
-    // @ts-expect-error the endpoint describes rename_guest, not show_booking.
-    route(showBooking, at.rename),
-  ).toThrow(/names rename_guest, not show_booking/u);
+  expect(at.rename.entry).toBe(renameGuest);
+  expect(at.rename.entry).not.toBe(showBooking);
   expect(() => toHttpClient([at.show, at.show])).toThrow(/listed twice/u);
-  expect(() => endpoint(showBooking.contract, "GET /x", { codes: ["NotFound"] })).toThrow(
+  expect(() => endpoint(showBooking, "GET /x", { codes: ["NotFound"] })).toThrow(
     /"NotFound" is not snake_case/u,
   );
-  expect(() => endpoint(showBooking.contract, "GET /files/*")).not.toThrow();
-  expect(() => toHttpClient([endpoint(showBooking.contract, "GET /files/*")])).toThrow(
+  expect(() => endpoint(showBooking, "GET /files/*")).not.toThrow();
+  expect(() => toHttpClient([endpoint(showBooking, "GET /files/*")])).toThrow(
     /is not a plain :name/u,
   );
 });

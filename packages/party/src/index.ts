@@ -1,3 +1,4 @@
+export { bindParty } from "./person/bind-party.js";
 export { Party, type PartyFailure } from "./facade.js";
 export { PersonStore } from "./storage.js";
 export { personPolicy } from "./person/policy.js";
@@ -9,6 +10,8 @@ export {
   PartyPermissions,
   Person,
   PersonAlreadyExists,
+  PersonCallerDenied,
+  createPerson,
   PersonInputInvalid,
   PersonNotFound,
   PersonStoreUnavailable,

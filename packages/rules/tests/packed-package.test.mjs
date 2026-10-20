@@ -141,13 +141,14 @@ assert.match(layoutBin.stdout, /layout: no package or subject-folder cycles/);
 assert.deepEqual(houseRules.configs.testing[0].rules, {
   "house-rules/testing-exports-only-in-tests": "error",
 });
-assert.equal(houseRules.configs.capability[0].rules["house-rules/no-hand-rolled-surface"], "error");
+assert.equal(houseRules.configs.nodes[0].rules["house-rules/no-hand-rolled-surface"], "error");
 assert.equal(
-  houseRules.configs.capability[0].rules["house-rules/testing-exports-only-in-tests"],
+  houseRules.configs.nodes[0].rules["house-rules/testing-exports-only-in-tests"],
   "error",
 );
-assert.equal(houseRules.configs.capability[1].rules["house-rules/use-case-is-capability"], "error");
-assert.equal(houseRules.configs.capability[2].rules["house-rules/no-hand-run-effect"], "error");
+assert.equal(houseRules.configs.nodes[1].rules["house-rules/node-file"][0], "error");
+assert.equal(houseRules.configs.nodes[1].rules["house-rules/entry-from-app-node"][0], "error");
+assert.equal(houseRules.configs.nodes[2].rules["house-rules/no-hand-run-effect"], "error");
 
 const presetUrl = new URL(import.meta.resolve("@house-rules/rules/dependency-cruiser"));
 for (const sibling of ["layout-option-parsers.cjs", "layout-patterns.cjs", "hosts.cjs"]) {
@@ -155,7 +156,8 @@ for (const sibling of ["layout-option-parsers.cjs", "layout-patterns.cjs", "host
 }
 const dependencyCruiserConfig = createRequire(import.meta.url)("./.dependency-cruiser.cjs");
 assert.deepEqual(dependencyCruiserConfig, layout({ scope: "@acme/" }));
-assert.equal(dependencyCruiserConfig.forbidden.length, 24);
+assert.equal(dependencyCruiserConfig.forbidden.length, 33);
+assert.ok(dependencyCruiserConfig.forbidden.some(({ name, severity }) => name === "ways-in-import-contracts-only" && severity === "error"));
 assert.equal(dependencyCruiserConfig.options.parser, "swc");
 
 const eslint = new ESLint({ cwd: process.cwd(), overrideConfigFile: "eslint.config.mjs" });

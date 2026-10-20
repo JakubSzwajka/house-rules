@@ -1,8 +1,10 @@
 import { Effect, type FileSystem, type Path, Schema } from "effect";
 import { type MigrationModule, MigrationFailed } from "../migration/migration.ts";
+import { insideFolder, ownedMigrations } from "./folder-location.ts";
 
 const ModuleEntry = Schema.Struct({
   workspace: Schema.optionalKey(Schema.String),
+  folder: Schema.optionalKey(Schema.Unknown),
   package: Schema.optionalKey(Schema.String),
   name: Schema.optionalKey(Schema.String),
   table: Schema.optionalKey(Schema.String),
@@ -139,14 +141,6 @@ const findInstalledPackage = Effect.fnUntraced(function* findInstalledPackage(
   }
 });
 
-const insideFolder = (path: Path.Path, root: string, folder: string) => {
-  const target = path.resolve(root, folder);
-  const inside = path.relative(root, target);
-  return inside.length > 0 && !inside.startsWith("..") && !path.isAbsolute(inside)
-    ? target
-    : undefined;
-};
-
 export const readModuleList = Effect.fnUntraced(function* readModuleList(
   fs: FileSystem.FileSystem,
   path: Path.Path,
@@ -164,11 +158,27 @@ export const readModuleList = Effect.fnUntraced(function* readModuleList(
     ),
   );
   const modules: Array<MigrationModule> = [];
+  const locations = new Set<string>();
+  const remember = Effect.fnUntraced(function* remember(directory: string, label: string) {
+    const real = yield* fs
+      .realPath(directory)
+      .pipe(Effect.mapError(failed(`Cannot resolve ${directory}.`)));
+    if (locations.has(real))
+      return yield* new MigrationFailed({
+        message: `${label}: module folder is listed twice under different locations or identities.`,
+      });
+    locations.add(real);
+  });
   for (const [index, entry] of list.modules.entries()) {
     const label = `Module list entry ${index + 1}`;
-    if ((entry.workspace === undefined) === (entry.package === undefined)) {
+    if (Object.hasOwn(entry, "folder"))
       return yield* new MigrationFailed({
-        message: `${label} must name exactly one of "workspace" or "package".`,
+        message: `${label}: "folder" locations are not supported; domain modules are packages.`,
+      });
+    const locations = [entry.workspace, entry.package].filter((value) => value !== undefined);
+    if (locations.length !== 1 || locations[0]?.trim() === "") {
+      return yield* new MigrationFailed({
+        message: `${label} must name exactly one non-empty "workspace" or "package".`,
       });
     }
     let packageDirectory: string;
@@ -209,6 +219,8 @@ export const readModuleList = Effect.fnUntraced(function* readModuleList(
         message: `${label}: the migrations folder ${declared} is not a folder inside its package.`,
       });
     }
+    yield* ownedMigrations(fs, path, packageDirectory, directory, label);
+    yield* remember(packageDirectory, label);
     const name = entry.name ?? slug(fallbackName);
     const table = entry.table ?? `${name}_migrations`;
     const problem = identityProblem({ name, table }, modules);

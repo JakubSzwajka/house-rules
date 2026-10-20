@@ -1,0 +1,41 @@
+[
+  {
+    "label": "breakpoint drop after unterminated select",
+    "sql": "create table bill(id text);\n--> statement-breakpoint\nselect 1\n--> statement-breakpoint\ndrop view orders_read;",
+    "chunks": ["create table bill(id text);", "select 1", "drop view orders_read;"],
+    "accepts": false,
+    "reason": "ALTER/DROP touches \"orders_read\"",
+    "verify": "select to_regclass('orders_read') is null as ok"
+  },
+  {
+    "label": "quoted semicolons and comments do not split chunks",
+    "sql": "create table bill(note text);\n--> statement-breakpoint\ninsert into bill values ('semi;colon'), ($tag$dollar;quote$tag$);\n--> statement-breakpoint\n/* outer ; /* inner ; */ */\nselect 1 -- ;\n--> statement-breakpoint \t\ncreate view bill_read as select note from bill;",
+    "chunks": ["create table bill(note text);", "insert into bill values ('semi;colon'), ($tag$dollar;quote$tag$);", "/* outer ; /* inner ; */ */\nselect 1 -- ;", "create view bill_read as select note from bill;"],
+    "accepts": true,
+    "verify": "select count(*) = 2 as ok from bill_read"
+  },
+  {
+    "label": "legacy table ownership crosses breakpoint",
+    "sql": "create table bill(id text);\n--> statement-breakpoint\nselect 1\n--> statement-breakpoint\ndrop table orders cascade;",
+    "chunks": ["create table bill(id text);", "select 1", "drop table orders cascade;"],
+    "accepts": false,
+    "reason": "touches \"orders\"", 
+    "verify": "select to_regclass('orders') is null as ok"
+  },
+  {
+    "label": "view relation ownership crosses breakpoint",
+    "sql": "create table bill(id text);\n--> statement-breakpoint\nselect 1\n--> statement-breakpoint\ncreate view bill_read as select id from orders;",
+    "chunks": ["create table bill(id text);", "select 1", "create view bill_read as select id from orders;"],
+    "accepts": false,
+    "reason": "orders",
+    "verify": "select count(*) = 1 as ok from bill_read"
+  },
+  {
+    "label": "legacy dollar apostrophe INSERT crosses breakpoint",
+    "sql": "create table bill(id text);\n--> statement-breakpoint\nselect $q$'$q$;\n--> statement-breakpoint\ninsert into orders(id) select $q$'$q$;",
+    "chunks": ["create table bill(id text);", "select $q$'$q$;", "insert into orders(id) select $q$'$q$;"],
+    "accepts": false,
+    "reason": "touches \"orders\"",
+    "verify": "select count(*) = 2 as ok from orders"
+  }
+]

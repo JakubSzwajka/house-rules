@@ -1,4 +1,5 @@
-// Reads table names out of SQL text, and SQL text out of TypeScript source, without a parser.
+// Legacy table/source ownership scan; read models and views use the token grammar.
+import { sqlTokens, tokenName, tokenWord } from "./sql-tokens.mjs";
 const IDENTIFIER = String.raw`(?:"(?:[^"]|"")+"|\x60(?:[^\x60]|\x60\x60)+\x60|[A-Za-z_][\w$]*)`;
 const IDENTIFIER_PART = new RegExp(IDENTIFIER, "gu");
 const NAME = String.raw`(${IDENTIFIER}(?:\s*\.\s*${IDENTIFIER})*)`;
@@ -6,7 +7,31 @@ export const CREATE_TABLE = new RegExp(
   String.raw`\bcreate\s+(?:(?:temporary|temp|unlogged)\s+)?table\s+(?:if\s+not\s+exists\s+)?${NAME}`,
   "giu",
 );
-export const REFERENCES = new RegExp(String.raw`\breferences\s+${NAME}`, "giu");
+export const foreignKeyReferences = (sql) => {
+  const tokens = sqlTokens(sql);
+  return tokens.flatMap((token, index) => {
+    if (!tokenWord(token, "references") || !tokenName(tokens[index + 1])) return [];
+    const target = tokens[index + 1];
+    let end = index + 2;
+    while (
+      tokens[end]?.kind === "symbol" &&
+      tokens[end]?.value === "." &&
+      tokenName(tokens[end + 1])
+    )
+      end += 2;
+    return [
+      {
+        name: tokens
+          .slice(index + 1, end)
+          .map((part) =>
+            part.kind === "identifier" ? `"${part.value.replaceAll('"', '""')}"` : part.value,
+          )
+          .join(""),
+        index: target.index,
+      },
+    ];
+  });
+};
 const TOUCHES = new RegExp(
   String.raw`\b(?:from|join|into|update|using|(?:alter|drop)\s+table(?:\s+if\s+exists)?|truncate(?:\s+table)?)\s+(?:only\s+)?${NAME}`,
   "giu",
@@ -26,7 +51,7 @@ export const tableName = (raw) => {
   const quote = last[0];
   const bare =
     quote === '"' || quote === "\x60" ? last.slice(1, -1).replaceAll(quote + quote, quote) : last;
-  return bare.toLowerCase();
+  return quote === '"' ? bare : bare.toLowerCase();
 };
 
 // Every table a SQL text names after from, join, into, update, using, or alter, drop and truncate table, comma-listed tables included.

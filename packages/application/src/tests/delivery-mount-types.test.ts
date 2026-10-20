@@ -1,123 +1,99 @@
-import { afterAll, expect, it } from "@effect/vitest";
+import { afterAll, expect, expectTypeOf, it } from "@effect/vitest";
+import { Actor, ActorId } from "@house-rules/domain";
 import { Context, Effect, Layer } from "effect";
 import {
   type Admitted,
   call,
   composition,
+  defineWay,
+  endpoint,
   type Forbidden,
-  route,
+  May,
+  Mean,
   toFetchHandler,
-  toMcpHandler,
-  tool,
-  type View,
+  type WordingOverrides,
 } from "../index.ts";
-import {
-  type BookingNotFound,
-  Bookings,
-  bearerCallerFor,
-  findBookings,
-  showBooking,
-  type Requester,
-  views,
-} from "./delivery-fixtures.ts";
-
-const work = { calls: 0, callers: 0 };
-const layer = Bookings.fromRecords([], work);
-const bare = composition({ layer, caller: bearerCallerFor(work) });
-const viewed = composition({ layer, caller: bearerCallerFor(work), views });
-const incoming = { headers: new Headers(), url: "/" };
-const handlers: Array<{ dispose: () => Promise<void> }> = [];
-afterAll(() =>
-  Promise.all(handlers.map((handler) => handler.dispose())).then(() =>
-    Promise.all([bare.dispose(), viewed.dispose()]),
-  ),
-);
-
-it("a mount with a view for every failure tag compiles", () => {
-  handlers.push(toFetchHandler(viewed, { routes: [route(showBooking), route(findBookings)] }));
-  handlers.push(
-    toFetchHandler(bare, {
-      routes: [route(showBooking)],
-      views: { BookingNotFound: views.BookingNotFound },
-    }),
-  );
-  expect(handlers).toHaveLength(2);
+import { Bookings, type BookingNotFound, findBookings, showBooking } from "./delivery-fixtures.ts";
+import { fixtureLayer } from "./entry-fixtures.ts";
+const entries = [showBooking, findBookings] as const;
+const actor = Actor.make({ id: ActorId.make("ada") });
+const modules = Bookings.fromRecords([], { calls: 0, callers: 0 });
+const layer = fixtureLayer(entries).pipe(Layer.provideMerge(modules));
+const way = defineWay({
+  name: "web",
+  path: "/",
+  protocol: "http",
+  entries,
+  endpoints: [endpoint(showBooking), endpoint(findBookings)],
+  who: { resolve: () => Effect.succeed(actor) },
+  may: May.fixed(entries, ["bookings:read"]),
+  mean: Mean.no,
 });
-
-it("a missing view is a type error on every adapter", () => {
-  handlers.push(
-    // @ts-expect-error BookingNotFound has no view.
-    toFetchHandler(bare, { routes: [route(showBooking)] }),
-  );
-  handlers.push(
-    // @ts-expect-error BookingNotFound has no view.
-    toMcpHandler(bare, {
-      path: "/mcp",
-      name: "test",
-      version: "0",
-      tools: [tool(showBooking, { title: "Show", idempotent: true, openWorld: false })],
-    }),
-  );
-  const missing = () =>
-    // @ts-expect-error BookingNotFound has no view.
-    call(bare, showBooking, { id: "b-1" }, incoming);
-  expect(typeof missing).toBe("function");
+const app = composition({ layer, entries, ways: [way], system: [] });
+const handlers = [toFetchHandler(app)];
+afterAll(() => Promise.all(handlers.map((handler) => handler.dispose())).then(app.dispose));
+it("kinded failures need no view table on the composition or router", () => {
+  expect(typeof handlers[0]).toBe("function");
+  expect("views" in app).toBe(false);
 });
-
-it("a capability without failures needs no app view", () => {
-  handlers.push(toFetchHandler(bare, { routes: [route(findBookings)] }));
-  expect(handlers.length).toBeGreaterThan(0);
+it("a way rejects a wording function taking the wrong error", () => {
+  expectTypeOf<(error: Forbidden) => string>().not.toExtend<
+    NonNullable<WordingOverrides<BookingNotFound>["BookingNotFound"]>
+  >();
 });
-
-it("a view whose error type does not match its tag is a type error", () => {
-  const wrong = composition({
-    layer,
-    caller: bearerCallerFor(work),
-    views: {
-      BookingNotFound: (error: Forbidden): View => ({ status: 404, body: error.permission }),
-    },
+class WhoPort extends Context.Service<WhoPort, Actor>()("test/WhoPort") {}
+const dependent = defineWay({ ...way, who: { resolve: () => WhoPort } });
+it("composition retains unmet Who requirements rather than erasing R", () => {
+  const invalid = () => {
+    // @ts-expect-error The layer supplies runtime and stores, but not WhoPort.
+    return composition({ layer, entries, ways: [dependent], system: [] });
+  };
+  const provided = composition({
+    layer: Layer.merge(layer, Layer.succeed(WhoPort, actor)),
+    entries,
+    ways: [dependent],
+    system: [],
   });
-  handlers.push(
-    // @ts-expect-error The BookingNotFound view takes a Forbidden.
-    toFetchHandler(wrong, { routes: [route(showBooking)] }),
-  );
-  handlers.push(wrong);
-  expect(wrong._tag).toBe("Composition");
+  expect(typeof invalid).toBe("function");
+  expect(provided._tag).toBe("Composition");
+  return provided.dispose();
 });
-
-it("a service that neither the app, the caller nor the adapter provides is a type error", () => {
-  const noBookings = composition({
-    layer: Layer.empty,
-    caller: () => Effect.succeed(Context.empty() as Context.Context<Requester>),
-    views,
-  });
-  handlers.push(
-    // @ts-expect-error Bookings and Grant are missing.
-    toFetchHandler(noBookings, { routes: [route(showBooking)] }),
-  );
-  handlers.push(noBookings);
-  expect(noBookings._tag).toBe("Composition");
+it("composition requires the runtime and trace supplied at the root", () => {
+  const invalid = () => {
+    // @ts-expect-error No NodeRuntime or StepTrace was supplied.
+    return composition({ layer: Layer.empty, entries, ways: [way], system: [] });
+  };
+  expect(typeof invalid).toBe("function");
 });
-
-it("call() cannot take caller and admitted together", () => {
-  const together = (admitted: Admitted) =>
-    call(viewed, showBooking, { id: "b-1" }, incoming, {
-      admitted,
-      // @ts-expect-error A resolved caller and a caller cannot both be supplied.
-      caller: bearerCallerFor(work),
-    });
-  expect(typeof together).toBe("function");
+it("call has a named way and accepts no caller override", () => {
+  const invalid = (admitted: Admitted) =>
+    call(
+      app,
+      showBooking,
+      { id: "b-1" },
+      { headers: new Headers(), url: "/" },
+      {
+        way: "web",
+        admitted,
+        // @ts-expect-error Who is owned by the selected way.
+        caller: () => Effect.succeed(actor),
+      },
+    );
+  expect(typeof invalid).toBe("function");
 });
-
-it("Admitted cannot be constructed by app code", () => {
-  // @ts-expect-error The private brand cannot be supplied by consumers.
+it("an Admitted value cannot be constructed by consumers", () => {
+  // @ts-expect-error The private admission brand cannot be supplied.
   const forged: Admitted = {};
   expect(forged).toEqual({});
 });
-
-it("views see the error and the caller with their own types", () => {
-  const forbidden: (error: Forbidden, caller: Context.Context<Requester> | undefined) => View =
-    views.Forbidden;
-  const notFound: (error: BookingNotFound) => View = views.BookingNotFound;
-  expect([typeof forbidden, typeof notFound]).toEqual(["function", "function"]);
+it("a wording override gets only its correctly typed error, not caller context", () => {
+  const overrides: WordingOverrides<BookingNotFound> = {
+    BookingNotFound: (error) => `No ${error.id}.`,
+  };
+  const invalid: WordingOverrides<BookingNotFound> = {
+    // @ts-expect-error A second required caller argument is not part of the override API.
+    BookingNotFound: (_error: BookingNotFound, _caller: Actor) => "No.",
+  };
+  expect(typeof overrides.BookingNotFound).toBe("function");
+  expect(typeof invalid.BookingNotFound).toBe("function");
 });

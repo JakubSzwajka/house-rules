@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cruise } from "dependency-cruiser";
 import { ESLint } from "eslint";
+import { nodesConfig } from "@house-rules/rules";
 
 const PLUGIN = "@house-rules/rules";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -15,8 +16,8 @@ const readJson = (path) => JSON.parse(read(path));
 const require = createRequire(import.meta.url);
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const ROOTS = {
-  appsDir: ["apps", "examples/*/apps"],
-  packagesDir: ["packages", "examples/*/packages"],
+  appsDir: ["apps", "examples/booking/apps"],
+  packagesDir: ["packages", "examples/booking/packages"],
 };
 
 describe("thin configs over the house plugin", () => {
@@ -66,13 +67,36 @@ describe("thin configs over the house plugin", () => {
   });
 
   it(".dependency-cruiser.cjs names @house-rules/migrations as an adapter package, and only it", () => {
+    const { layout } = require(`${PLUGIN}/dependency-cruiser`);
     const config = require("../.dependency-cruiser.cjs");
     const rule = config.forbidden.find(({ name }) => name === "adapter-imports-only-in-adapters");
     assert.equal(rule.severity, "error");
     assert.deepEqual(rule.from.pathNot, [
-      "^(?:packages|examples/[^/]+/packages)/[^/]+/src/adapters(?:/|$)",
-      "^(?:packages|examples/[^/]+/packages)/(?:migrations)/",
+      "^(?:packages|examples/booking/packages)/[^/]+/src/adapters(?:/|$)",
+      "^(?:packages|examples/booking/packages)/(?:migrations)/",
     ]);
+    const folderRules = config.forbidden.filter(
+      ({ name, from }) => name === rule.name && from.path.includes("read-models"),
+    );
+    const expectedFolderRules = layout({
+      scope: "@example/",
+      ...ROOTS,
+      adapterPackages: ["migrations"],
+    }).forbidden.filter(
+      ({ name, from }) => name === rule.name && from.path.includes("read-models"),
+    );
+    assert.deepEqual(folderRules, expectedFolderRules);
+    assert.equal(folderRules.length, 1);
+    const appsPattern =
+      ROOTS.appsDir.length === 1 ? ROOTS.appsDir[0] : `(?:${ROOTS.appsDir.join("|")})`;
+    for (const folderRule of folderRules) {
+      assert.equal(folderRule.severity, "error");
+      assert.equal(
+        folderRule.from.pathNot,
+        `^${appsPattern}/[^/]+/src/read-models/[^/]+/adapters/`,
+      );
+      assert.deepEqual(folderRule.to, rule.to);
+    }
   });
 
   it(".dependency-cruiser.cjs excludes only the in-repo plugin on top of the preset's excludes", () => {
@@ -167,28 +191,61 @@ describe("thin configs over the house plugin", () => {
     assert.match(scripts.check, /pnpm run deps && pnpm run layout$/);
   });
 
-  it("eslint.config.mjs turns on the capability rules for use-cases, delivery, server, and tests", async () => {
+  it("eslint.config.mjs derives the nodes preset and guards both configured apps and tests", async () => {
     const eslint = new ESLint({ cwd: repositoryRoot });
     const rulesFor = async (code, filePath) => {
       const [result] = await eslint.lintText(code, { filePath });
       return result.messages.map(({ ruleId }) => ruleId);
     };
 
-    assert.deepEqual(
-      await rulesFor(
-        "export const x = 1;\n",
-        "examples/booking-platform/apps/api/src/use-cases/wiring-probe.ts",
-      ),
-      ["house-rules/use-case-is-capability", "house-rules/use-case-is-capability"],
-    );
-    assert.deepEqual(
-      await rulesFor("export const x = 1;\n", "apps/web/src/use-cases/wiring-probe.ts"),
-      ["house-rules/use-case-is-capability", "house-rules/use-case-is-capability"],
-    );
+    const preset = nodesConfig(ROOTS);
+    for (const app of ["apps/api", "apps/web", "examples/booking/apps/api"]) {
+      const file = `${app}/src/features/wiring-probe/node.ts`;
+      const config = await eslint.calculateConfigForFile(file);
+      for (const block of preset) {
+        for (const name of ["node-file", "entry-from-app-node", "esm-only-effect"]) {
+          const id = `house-rules/${name}`;
+          if (block.rules?.[id] !== undefined) {
+            const [severity, options] = block.rules[id];
+            assert.equal(severity, "error");
+            assert.deepEqual(config.rules[id], [2, options]);
+          }
+        }
+      }
+      for (const part of ["node", "handler"]) {
+        assert.deepEqual(
+          await rulesFor("export const x = 1;\n", `${app}/src/features/wiring-probe/${part}.ts`),
+          ["house-rules/node-file"],
+        );
+      }
+      assert.deepEqual(
+        await rulesFor(
+          'import { defineEntry } from "@house-rules/application/contract";\nimport { addComment } from "@house-rules/comments/contract";\nexport const entry = defineEntry(addComment);\n',
+          `${app}/src/ways-in/web/endpoints.ts`,
+        ),
+        ["house-rules/entry-from-app-node"],
+      );
+      for (const part of [
+        "features/wiring-probe/node.ts",
+        "ways-in/web/endpoints.ts",
+        "read-models/probe/contract.ts",
+      ]) {
+        assert.deepEqual(
+          await rulesFor(
+            "export const load = (name: string) => import(name);\n",
+            `${app}/src/${part}`,
+          ),
+          [
+            ...(part.endsWith("node.ts") ? ["house-rules/node-file"] : []),
+            "house-rules/no-computed-import",
+          ],
+        );
+      }
+    }
     assert.deepEqual(
       await rulesFor(
         "export const load = (name: string) => import(name);\n",
-        "examples/booking-platform/packages/bookings/src/booking/wiring-probe.ts",
+        "packages/bookings/src/booking/wiring-probe.ts",
       ),
       ["house-rules/no-computed-import"],
     );
@@ -196,7 +253,7 @@ describe("thin configs over the house plugin", () => {
       assert.deepEqual(
         await rulesFor(
           `import { Tool } from "${source}";\nexport const T = Tool.make("probe");\n`,
-          "examples/booking-platform/apps/api/src/delivery/mcp/wiring-probe.ts",
+          "apps/api/src/ways-in/mcp/wiring-probe.ts",
         ),
         ["house-rules/no-hand-rolled-surface"],
       );
@@ -204,14 +261,14 @@ describe("thin configs over the house plugin", () => {
     assert.deepEqual(
       await rulesFor(
         'import { Effect } from "effect";\nexport const run = () => Effect.runPromise(Effect.void);\n',
-        "examples/booking-platform/apps/api/src/use-cases/tests/wiring-probe.test.ts",
+        "apps/api/src/features/wiring-probe/tests/wiring-probe.test.ts",
       ),
       ["house-rules/no-hand-run-effect"],
     );
     assert.deepEqual(
       await rulesFor(
         'import { MigrationsTesting } from "@house-rules/migrations";\nexport const db = MigrationsTesting;\n',
-        "examples/booking-platform/apps/api/src/server/wiring-probe.ts",
+        "apps/api/src/composition/wiring-probe.ts",
       ),
       ["house-rules/testing-exports-only-in-tests"],
     );

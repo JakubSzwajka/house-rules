@@ -45,11 +45,11 @@ describe("@house-rules/rules bins load nothing by a computed path", () => {
       await cp(join(repositoryRoot, BIN), join(workspace, BIN), { recursive: true });
       await writeFile(
         join(workspace, BIN, "review-computed.mjs"),
-        'const target = "../../../examples/booking-platform/apps/api/src/main.ts";\nexport const leak = () => import(target);\n',
+        'const target = "../../../apps/api/src/main.ts";\nexport const leak = () => import(target);\n',
       );
       await writeFile(
         join(workspace, BIN, "review-required.cjs"),
-        'const name = "@example/bookings";\nmodule.exports = require(name);\n',
+        'const name = "@house-rules/domain";\nmodule.exports = require(name);\n',
       );
       const { reports } = await computedImports(workspace);
       assert.deepEqual(reports.toSorted(), [

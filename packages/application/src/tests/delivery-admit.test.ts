@@ -1,70 +1,76 @@
 import { afterAll, expect, it } from "@effect/vitest";
-import { Context, Effect, Layer, Schema } from "effect";
+import { defineNode, NoInput } from "@house-rules/domain";
+import { Effect, Logger, References, Schema } from "effect";
 import {
-  Approval,
-  ApprovalDenied,
   admit,
   call,
   CallChannel,
   CallRequestId,
-  composition,
-  defineContract,
-  implement,
-  NoInput,
-  problemView,
+  defineEntry,
+  endpoint,
   Refused,
 } from "../index.ts";
-import {
-  Bookings,
-  makeApp,
-  sessionCallerFor,
-  showBooking,
-  Requester,
-} from "./delivery-fixtures.ts";
+import { bindFixture, testActor } from "./entry-fixtures.ts";
+import { httpFixture } from "./router-fixtures.ts";
 
-const t = makeApp();
-const disposers: Array<() => Promise<void>> = [t.dispose];
+const disposers: Array<() => Promise<void>> = [];
 afterAll(() => Promise.all(disposers.map((dispose) => dispose())));
-
-const incoming = {
-  headers: new Headers({ cookie: "session=s-ada", "x-request-id": "admit-1" }),
-  url: "/bookings",
-};
-
-const trace = implement(
-  defineContract("trace_admitted", {
-    description: "Read the resolved caller and request trace.",
-    input: NoInput,
-    output: Schema.Struct({
-      userId: Schema.String,
-      requestId: Schema.NullOr(Schema.String),
-      channel: Schema.String,
+const incoming = { headers: new Headers({ "x-request-id": "admit-1" }), url: "/" };
+const trace = bindFixture(
+  defineEntry(
+    defineNode("trace_admitted", {
+      description: "Read the caller and request trace.",
+      input: NoInput,
+      output: Schema.Struct({
+        userId: Schema.String,
+        requestId: Schema.NullOr(Schema.String),
+        channel: Schema.String,
+      }),
+      failure: Schema.Never,
+      permission: null,
     }),
-    failure: Schema.Never,
-    permission: "public",
-  }),
-  () =>
-    Effect.gen(function* traceAdmitted() {
+  ),
+  (_input, scope) =>
+    Effect.gen(function* () {
       return {
-        userId: (yield* Requester).userId,
+        userId: scope.caller.kind === "person" ? scope.caller.actor.id : "system",
         requestId: yield* CallRequestId,
         channel: yield* CallChannel,
       };
     }),
 );
-
-const approved = implement(
-  defineContract("approved_admitted", {
-    description: "Check approval after caller resolution.",
-    input: NoInput,
-    output: Schema.Boolean,
-    failure: Schema.Never,
-    permission: "public",
-    needsApproval: true,
-  }),
+const approved = bindFixture(
+  defineEntry(
+    defineNode("approved_admitted", {
+      description: "Ask once for approval.",
+      input: NoInput,
+      output: Schema.Boolean,
+      failure: Schema.Never,
+      permission: null,
+      needsApproval: true,
+    }),
+  ),
   () => Effect.succeed(true),
 );
-
+let callers = 0;
+const logs: Array<{ message: unknown; annotations: Readonly<Record<string, unknown>> }> = [];
+const fixture = httpFixture([trace, approved], {
+  endpoints: [endpoint(trace), endpoint(approved)],
+  who: {
+    resolve: () =>
+      Effect.gen(function* () {
+        callers += 1;
+        yield* Effect.logInfo("Admitted caller trace");
+        return testActor;
+      }),
+  },
+  extra: Logger.layer([
+    Logger.make(({ message, fiber }) => {
+      logs.push({ message, annotations: fiber.getRef(References.CurrentLogAnnotations) });
+    }),
+  ]),
+});
+disposers.push(fixture.dispose);
 const internal = {
   ok: false,
   error: undefined,
@@ -74,223 +80,167 @@ const internal = {
   },
 };
 
-it.effect(
-  "admit() refuses before delivery input parsing with the Refused status, code and message",
-  () =>
-    Effect.gen(function* refusesBeforeParsing() {
-      let parsed = false;
-      const refusal = new Refused({
-        status: 403,
-        code: "scope_too_wide",
-        message: "A read token cannot change anything.",
-        challenge: "Bearer",
-      });
-      const auth = yield* Effect.promise(() =>
-        admit(t.app, incoming, { caller: () => Effect.fail(refusal) }),
-      );
-      const result = auth.ok
-        ? yield* Effect.promise(() => {
-            parsed = true;
-            return call(t.app, showBooking, { id: "b-1" }, incoming, { admitted: auth.value });
-          })
-        : auth;
-      expect(parsed).toBe(false);
-      expect(result).toEqual({
-        ok: false,
-        error: refusal,
-        view: {
-          status: 403,
-          body: { error: { code: refusal.code, message: refusal.message } },
-          headers: { "www-authenticate": "Bearer" },
-        },
-      });
-    }),
-);
-
-it.effect("admit() uses the composition's Refused view over the default", () =>
-  Effect.gen(function* appRefusalView() {
-    const app = composition({
-      layer: Layer.empty,
-      caller: () => Effect.fail(new Refused({ status: 401, code: "missing", message: "Sign in." })),
-      views: { Refused: problemView(403, "hidden", (_error: Refused) => "Not allowed.") },
-    });
-    disposers.push(app.dispose);
-    const auth = yield* Effect.promise(() => admit(app, incoming));
-    expect(auth.ok).toBe(false);
-    if (auth.ok) return expect.unreachable();
-    expect(auth.view).toEqual({
+it.effect("admit refuses before input parsing with the protocol status, code and challenge", () =>
+  Effect.gen(function* () {
+    let parsed = false;
+    const refusal = new Refused({
       status: 403,
-      body: { error: { code: "hidden", message: "Not allowed." } },
+      code: "scope_too_wide",
+      message: "A read token cannot change anything.",
+      challenge: "Bearer",
+    });
+    const denied = httpFixture([trace], {
+      endpoints: [endpoint(trace)],
+      who: { resolve: () => Effect.fail(refusal) },
+    });
+    disposers.push(denied.dispose);
+    const auth = yield* Effect.promise(() => admit(denied.app, incoming, { way: "web" }));
+    if (auth.ok) {
+      parsed = true;
+      yield* Effect.promise(() =>
+        call(denied.app, trace, {}, incoming, { way: "web", admitted: auth.value }),
+      );
+    }
+    expect(parsed).toBe(false);
+    expect(auth).toEqual({
+      ok: false,
+      error: refusal,
+      view: {
+        status: 403,
+        body: { error: { code: refusal.code, message: refusal.message } },
+        headers: { "www-authenticate": "Bearer" },
+      },
     });
   }),
 );
 
-it.effect(
-  "admit() then two call()s run the caller once and keep its request id and log annotation",
-  () =>
-    Effect.gen(function* reuseCaller() {
-      const before = t.work.callers;
-      const auth = yield* Effect.promise(() =>
-        admit(t.app, incoming, {
-          caller: (request) =>
-            Effect.gen(function* callerWithTrace() {
-              yield* Bookings;
-              expect(yield* CallRequestId).toBe("admit-1");
-              expect(yield* CallChannel).toBe("api");
-              yield* Effect.logInfo("Admitted caller trace");
-              return yield* sessionCallerFor(t.work)(request);
-            }),
-          channel: "api",
-        }),
-      );
-      if (!auth.ok) return expect.unreachable();
-      const first = yield* Effect.promise(() =>
-        call(t.app, showBooking, { id: "b-1" }, incoming, { admitted: auth.value }),
-      );
-      const second = yield* Effect.promise(() =>
-        call(t.app, trace, {}, incoming, { admitted: auth.value, channel: "api" }),
-      );
-      expect(first).toMatchObject({ ok: true, value: { id: "b-1" } });
-      expect(second).toEqual({
-        ok: true,
-        value: { userId: "ada", requestId: "admit-1", channel: "api" },
-      });
-      expect(t.work.callers - before).toBe(1);
-      expect(
-        t.logs.find((line) => JSON.stringify(line.message).includes("Admitted caller trace")),
-      ).toMatchObject({
-        annotations: { requestId: "admit-1" },
-      });
-    }),
+it.effect("admission protocol errors cannot be replaced by node wording overrides", () =>
+  Effect.gen(function* () {
+    const denied = httpFixture([trace], {
+      endpoints: [endpoint(trace)],
+      who: {
+        resolve: () =>
+          Effect.fail(new Refused({ status: 401, code: "missing", message: "Sign in." })),
+      },
+      // @ts-expect-error Refused is a protocol error, not a node wording tag.
+      overrides: { Refused: () => "Hidden" },
+    });
+    disposers.push(denied.dispose);
+    const result = yield* Effect.promise(() => admit(denied.app, incoming, { way: "web" }));
+    expect(result).toMatchObject({
+      ok: false,
+      view: { status: 401, body: { error: { code: "missing", message: "Sign in." } } },
+    });
+  }),
 );
 
-it.effect("call() keeps the admitted channel unless its own channel overrides it", () =>
-  Effect.gen(function* admittedChannel() {
-    const auth = yield* Effect.promise(() => admit(t.app, incoming, { channel: "api" }));
+it.effect("admit then two calls run Who once and keep request id, actor and channel", () =>
+  Effect.gen(function* () {
+    const before = callers;
+    const auth = yield* Effect.promise(() =>
+      admit(fixture.app, incoming, { way: "web", channel: "api" }),
+    );
     if (!auth.ok) return expect.unreachable();
-    const kept = yield* Effect.promise(() =>
-      call(t.app, trace, {}, incoming, { admitted: auth.value }),
+    const first = yield* Effect.promise(() =>
+      call(fixture.app, trace, {}, incoming, { way: "web", admitted: auth.value }),
     );
-    const overridden = yield* Effect.promise(() =>
-      call(t.app, trace, {}, incoming, { admitted: auth.value, channel: "web" }),
+    const second = yield* Effect.promise(() =>
+      call(fixture.app, trace, {}, incoming, { way: "web", admitted: auth.value }),
     );
-    expect(kept).toEqual({
+    expect(first).toEqual({
       ok: true,
       value: { userId: "ada", requestId: "admit-1", channel: "api" },
     });
-    expect(overridden).toEqual({
-      ok: true,
-      value: { userId: "ada", requestId: "admit-1", channel: "web" },
-    });
+    expect(second).toEqual(first);
+    expect(callers - before).toBe(1);
+    expect(logs).toContainEqual(
+      expect.objectContaining({ annotations: expect.objectContaining({ requestId: "admit-1" }) }),
+    );
   }),
 );
 
-it.effect("admit() defaults to app.caller and keeps a generated request id across calls", () =>
-  Effect.gen(function* generatedTrace() {
-    const request = { headers: new Headers({ cookie: "session=s-ada" }), url: "/" };
-    const before = t.work.callers;
-    const auth = yield* Effect.promise(() => admit(t.app, request));
+it("call has no per-call channel override beside its admitted request", () => {
+  const invalid = () =>
+    call(fixture.app, trace, {}, incoming, {
+      way: "web",
+      // @ts-expect-error Channel belongs to admission, not a second call override.
+      channel: "other",
+    });
+  expect(typeof invalid).toBe("function");
+});
+
+it.effect("admission generates one id and keeps it across calls", () =>
+  Effect.gen(function* () {
+    const request = { headers: new Headers(), url: "/" };
+    const before = callers;
+    const auth = yield* Effect.promise(() => admit(fixture.app, request, { way: "web" }));
     if (!auth.ok) return expect.unreachable();
     const first = yield* Effect.promise(() =>
-      call(t.app, trace, {}, request, { admitted: auth.value }),
+      call(fixture.app, trace, {}, request, { way: "web", admitted: auth.value }),
     );
     const second = yield* Effect.promise(() =>
-      call(t.app, trace, {}, request, { admitted: auth.value }),
+      call(fixture.app, trace, {}, request, { way: "web", admitted: auth.value }),
     );
     expect(first).toEqual(second);
     if (!first.ok) return expect.unreachable();
     expect(first.value.requestId).toMatch(/^[a-f0-9]{32}$/u);
     expect(first.value.channel).toBe("web");
-    expect(t.work.callers - before).toBe(1);
+    expect(callers - before).toBe(1);
   }),
 );
 
-it.effect("admitted calls keep approval precedence and fromCaller reads the resolved context", () =>
-  Effect.gen(function* resolvedApproval() {
-    const auth = yield* Effect.promise(() =>
-      admit(t.app, incoming, {
-        caller: (request) =>
-          sessionCallerFor(t.work)(request).pipe(
-            Effect.map((context) =>
-              Context.add(context, Approval, {
-                approve: (capabilityName) =>
-                  Effect.fail(
-                    new ApprovalDenied({ capabilityName, reason: "Caller requires approval" }),
-                  ),
-              }),
-            ),
-          ),
-      }),
-    );
+it.effect("in-process admitted calls approve without allowing caller or approval overrides", () =>
+  Effect.gen(function* () {
+    const auth = yield* Effect.promise(() => admit(fixture.app, incoming, { way: "web" }));
     if (!auth.ok) return expect.unreachable();
-    const defaults = yield* Effect.promise(() =>
-      call(t.app, approved, {}, incoming, { admitted: auth.value }),
-    );
-    const fromCaller = yield* Effect.promise(() =>
-      call(t.app, approved, {}, incoming, { admitted: auth.value, approval: "fromCaller" }),
-    );
-    const explicit = yield* Effect.promise(() =>
-      call(t.app, approved, {}, incoming, {
-        admitted: auth.value,
-        approval: Approval.allowAll,
-      }),
-    );
-    const denied = yield* Effect.promise(() =>
-      call(t.app, approved, {}, incoming, { admitted: auth.value, approval: Approval.denyAll }),
-    );
-    expect([defaults.ok, fromCaller.ok, explicit.ok, denied.ok]).toEqual([
-      true,
-      false,
-      true,
-      false,
-    ]);
-    expect(fromCaller).toMatchObject({ error: { _tag: "ApprovalDenied" } });
-    const noApproval = yield* Effect.promise(() => admit(t.app, incoming));
-    if (!noApproval.ok) return expect.unreachable();
     expect(
       yield* Effect.promise(() =>
-        call(t.app, approved, {}, incoming, {
-          admitted: noApproval.value,
-          approval: "fromCaller",
-        }),
+        call(fixture.app, approved, {}, incoming, { way: "web", admitted: auth.value }),
       ),
     ).toEqual({ ok: true, value: true });
+    const invalid = () =>
+      call(fixture.app, approved, {}, incoming, {
+        way: "web",
+        admitted: auth.value,
+        // @ts-expect-error The in-process runner owns approval.
+        approval: "fromCaller",
+      });
+    expect(typeof invalid).toBe("function");
   }),
 );
 
-it.effect("admit() logs a caller defect with the request id and returns internal_error", () =>
-  Effect.gen(function* dyingCaller() {
-    const start = t.logs.length;
-    const auth = yield* Effect.promise(() =>
-      admit(t.app, incoming, { caller: () => Effect.die("caller bug") }),
-    );
-    expect(auth).toEqual(internal);
-    expect(t.logs.slice(start)).toContainEqual(
-      expect.objectContaining({ annotations: { requestId: "admit-1" } }),
-    );
-  }),
-);
-
-it.effect(
-  "call() rejects Admitted from another composition without running its caller or capability",
-  () =>
-    Effect.gen(function* wrongComposition() {
-      const other = makeApp();
-      disposers.push(other.dispose);
-      const auth = yield* Effect.promise(() => admit(other.app, incoming));
-      if (!auth.ok) return expect.unreachable();
-      const before = { ...t.work };
-      const start = t.logs.length;
-      expect(
-        yield* Effect.promise(() =>
-          call(t.app, showBooking, { id: "b-1" }, incoming, { admitted: auth.value }),
-        ),
-      ).toEqual(internal);
-      expect(t.work).toEqual(before);
-      expect(t.logs.slice(start)).toContainEqual(
-        expect.objectContaining({
-          annotations: expect.objectContaining({ requestId: "admit-1" }),
+it.effect("a dying Who answers internal_error with the request id in its log", () =>
+  Effect.gen(function* () {
+    const dying = httpFixture([trace], {
+      endpoints: [endpoint(trace)],
+      who: { resolve: () => Effect.die("caller bug") },
+      extra: Logger.layer([
+        Logger.make(({ message, fiber }) => {
+          logs.push({ message, annotations: fiber.getRef(References.CurrentLogAnnotations) });
         }),
-      );
-    }),
+      ]),
+    });
+    disposers.push(dying.dispose);
+    const result = yield* Effect.promise(() => admit(dying.app, incoming, { way: "web" }));
+    expect(result).toEqual(internal);
+    expect(logs).toContainEqual(
+      expect.objectContaining({ annotations: expect.objectContaining({ requestId: "admit-1" }) }),
+    );
+  }),
+);
+
+it.effect("an admitted value from another composition never runs Who or a node", () =>
+  Effect.gen(function* () {
+    const other = httpFixture([trace], { endpoints: [endpoint(trace)] });
+    disposers.push(other.dispose);
+    const auth = yield* Effect.promise(() => admit(other.app, incoming, { way: "web" }));
+    if (!auth.ok) return expect.unreachable();
+    const before = callers;
+    expect(
+      yield* Effect.promise(() =>
+        call(fixture.app, trace, {}, incoming, { way: "web", admitted: auth.value }),
+      ),
+    ).toEqual(internal);
+    expect(callers).toBe(before);
+  }),
 );

@@ -40,9 +40,27 @@ export const refusalFor = (row: RuleRow, rules: Rules = plugin.rules): string =>
   throw new Error(`${RULES_README} lists ESLint rule ${row.id}, but the plugin has no such rule.`);
 };
 
+const retiredV1Rules = [
+  "delivery-does-not-import-server",
+  "server-does-not-import-delivery",
+  "use-cases-do-not-import-outer-layers",
+  "composition-imports-packages-only",
+  "use-cases-do-not-import-composition",
+  "app-code-in-layers",
+  "use-cases-do-not-import-use-cases",
+  "nodes-do-not-import-outer-folders",
+  "no-app-node-cycles",
+  "modules-import-modules-and-packages-only",
+  "modules-import-other-modules-through-index",
+  "no-folder-module-cycles",
+  "ways-in-do-not-import-module-values",
+  "folder-modules-public-entry-only",
+] as const;
+
 const ruleCell = (row: RuleRow): string => {
   const anchor = ruleAnchor(row.id);
-  return `<span id="${anchor}"></span>[\`${row.id}\`](#${anchor})`;
+  const legacy = row.id === "node-file" ? '<span id="use-case-is-capability"></span>' : "";
+  return `${legacy}<span id="${anchor}"></span>[\`${row.id}\`](#${anchor})`;
 };
 
 const sourceCell = (row: RuleRow): string => `[docs](${githubUrl(row.docPath)}${row.docHash})`;
@@ -72,6 +90,9 @@ export const rulesPage = (): GeneratedPage => {
     body: [
       `These are the checks the house plugin adds to \`pnpm check\`. The pre-commit hook runs \`pnpm check\` before each commit. The list comes from the rules table in [\`${RULES_README}\`](${githubUrl(RULES_README)}#rules-and-checks). The docs link in each row opens that rule's docs on GitHub.`,
       rulesTable(rows),
+      "## Retired v1 rules",
+      retiredV1Rules.map((id) => `<span id="${id}"></span>`).join(""),
+      `These v1 rule names no longer apply: ${retiredV1Rules.map((id) => `\`${id}\``).join(", ")}. See the [current rules](#${anchors[0]}).`,
     ].join("\n\n"),
   });
 };

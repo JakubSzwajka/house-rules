@@ -23,8 +23,6 @@ async function runLayoutFixture(fixture, config) {
   });
 }
 
-// The package checks: mechanism names (part of no-ownerless-files), package-root-files,
-// domain-does-not-import-adapters, subjects-do-not-import-package-root and both cycle checks.
 test("the package layout rules build their patterns from the options", () => {
   const byName = Object.fromEntries(
     layout({
@@ -65,9 +63,14 @@ test("the package layout rules build their patterns from the options", () => {
     ],
   });
   assert.deepEqual(adapterRules[1].to, { path: "^$1/src/adapters/tests(?:/|$)" });
-  assert.deepEqual(byName["subjects-do-not-import-package-root"].to, {
-    path: "^$1/(?:src/main[.]ts|src/facade[.]ts|src/contract[.]ts)$",
-  });
+  assert.deepEqual(
+    layout({ scope: "@my.org/", packagesDir: "libs", publicEntry: "src/main.ts" }).forbidden.find(
+      (rule) => rule.name === "subjects-do-not-import-package-root",
+    ).to,
+    {
+      path: "^$1/(?:src/main[.]ts|src/facade[.]ts|src/contract[.]ts)$",
+    },
+  );
   assert.equal(byName["no-subject-folder-cycles"], undefined);
 
   const custom = Object.fromEntries(
@@ -87,7 +90,9 @@ test("the package layout rules build their patterns from the options", () => {
     "^packages/[^/]+/src/(?:index[.]ts|service[.]ts)$",
   );
   assert.equal(
-    custom["domain-does-not-import-adapters"].from.pathNot[2],
+    layout({ scope: "@acme/", facadeFile: "src/service.ts" }).forbidden.find(
+      (rule) => rule.name === "domain-does-not-import-adapters",
+    ).from.pathNot[2],
     "^packages/[^/]+/src/service[.]ts$",
   );
   assert.deepEqual(
@@ -109,12 +114,11 @@ test("the package layout rules build their patterns from the options", () => {
     /facadeFile must be a non-empty relative path/,
   );
 });
-
 test("mechanismNames replaces the package-only names, and [] turns them off", async () => {
   const fixture = "violations/no-ownerless-files";
   const ownerless = [
-    "no-ownerless-files: apps/web/src/delivery/helpers/format.ts",
-    "no-ownerless-files: apps/web/src/delivery/misc.tsx",
+    "no-ownerless-files: apps/web/src/ways-in/helpers/format.ts",
+    "no-ownerless-files: apps/web/src/ways-in/misc.tsx",
     "no-ownerless-files: packages/a/src/text/utils.ts",
   ];
   assert.deepEqual(
@@ -128,7 +132,6 @@ test("mechanismNames replaces the package-only names, and [] turns them off", as
     [...ownerless, "no-ownerless-files: packages/a/src/booking/item-errors.ts"].sort(),
   );
 });
-
 test("mechanism names match in any letter case, and internal is one by default", async () => {
   const violations = await violatedRules(
     "violations/no-ownerless-files",
@@ -157,7 +160,6 @@ test("mechanism names match in any letter case, and internal is one by default",
     ).includes("no-ownerless-files: packages/a/src/internal/watch.ts"),
   );
 });
-
 test("package-root-files reports a loose file in a package's src/, not the entry files, folders or tests", async () => {
   const violations = await violatedRules(
     "violations/package-root-files",
