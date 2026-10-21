@@ -27,9 +27,9 @@ apps/                        your apps
 examples/booking/            private reference app and its domain packages
 packages/
   domain/                    descriptors, callers, graphs, modules and units
-  application/               bindings, entries, execution, ways and clients
+  application/               features, bindings, execution, ways and clients
   auth-jwt/                  token verification plug
-  call-audit/                entry audit plug
+  call-audit/                feature audit plug
   comments/                  comments module
   identity/                  login bindings and Who plug
   migrations/                module migration runner
@@ -45,7 +45,7 @@ App source has these areas:
 
 ```text
 src/
-  features/<name>/           node.ts, handler.ts, optional entry.ts, tests/
+  features/<name>/           index.ts with one feature and handler, tests/
   read-models/<name>/        screen query over published views
   ways-in/<name>/            HTTP or MCP way and client endpoints
   composition/              mount, link, plug, open ways, schedule
@@ -57,18 +57,20 @@ Domain modules are packages, including app-owned ones such as `examples/booking/
 ## How a call runs
 
 ```text
-request -> way (Who, May, Mean) -> app entry
-  record -> entry identity -> person/system closures -> approval -> one unit
-    node -> declared edges -> module nodes
+request -> way (Who, May, Mean) -> app feature
+  record -> feature identity -> person/system closures -> approval -> one unit
+    handler -> declared edges -> module or read-model operations
                |
             step trace
 ```
 
-Domain's `defineNode` describes a step. Application's `bindNode` supplies its handler. Only an app feature can become an entry through `defineEntry`. Reusable module nodes are edges of that feature.
+Application's `defineFeature` puts one app action and its handler in `features/<name>/index.ts`. A feature is its own entry. Its handler only calls declared edges, so the file stays browser-safe. `features/index.ts` exports Features and the permission lists.
 
-A plain edge keeps the caller. `asSystem(target, reason)` switches that branch to the system and never back. An entry derives its permission closures and flags from the graph. Approval runs once. Only the entry runtime opens a production unit; handlers and modules join it. A failed write rolls back the graph's stored changes, not external provider effects.
+Domain's `defineOperation` describes module or read-model work. Modules export `<Module>Operations` from `./contract`. Application's `bindOperation` captures their services in composition. Only features can be exposed through ways, May lists, hooks or schedules.
 
-The default gate policy, `entry-and-recheck`, also checks each inner node's own permission. `entry-only` skips that recheck. Both stay while P2 is open.
+A plain edge keeps the caller. `asSystem(target, reason)` switches that branch to the system and never back. A feature derives its permission closures and flags from the graph. Approval runs once. Only the feature runtime opens a production unit; handlers and modules join it. A failed write rolls back the graph's stored changes, not external provider effects.
+
+The default gate policy, `feature-and-recheck`, also checks each inner operation's own permission. `feature-only` skips that recheck. Both stay while P2 is open.
 
 Ways import values from kits, `effect`, package contract doors, features, composition and their own folder. Other package main entries allow types only. Build concrete plugs in composition and pass them into ways. The root receives ways from `main.ts`; it never imports them.
 
@@ -123,11 +125,11 @@ Lefthook runs check then test before every commit. Pi's interceptor and `scripts
 
 Checks do not replace review. Review module boundaries, explicit Actor arguments, object policy, fixed public error messages and SQL ownership inside procedural bodies. A plug must pass the pull-out test: removing it and its `Layer.provide` line leaves the rest building and passing. Test each exposed agent tool for A/B access under fake actors. MCP stays read-only unless the owner approves writes.
 
-The reference [booking app](examples/booking/README.md) shows booking and payment writes in one entry, a system refund edge, shared Party/Identity nodes and a private read model. [TESTS.md](examples/booking/TESTS.md) names its proof and remaining gaps. Its registry is generated; the freshness test never writes it.
+The reference [booking app](examples/booking/README.md) shows booking and payment writes in one feature, a system refund edge, shared Party/Identity operations and a private read model. [TESTS.md](examples/booking/TESTS.md) names its proof and remaining gaps. Its registry is generated; the freshness test never writes it.
 
 ## Change the template
 
-Keep thin configs, CI, hooks, environment checks and wiring tests when you adapt the stack. Match roots in `pnpm-workspace.yaml`, `layout()` and `nodesConfig()`. A Next app uses `host: "next"` and the Next preset; it already has a Host.
+Keep thin configs, CI, hooks, environment checks and wiring tests when you adapt the stack. Match roots in `pnpm-workspace.yaml`, `layout()` and `featuresConfig()`. A Next app uses `host: "next"` and the Next preset; it already has a Host.
 
 For a browser client, export endpoint descriptors from `ways-in/<name>/endpoints.ts`. Both the router and client read those descriptors. Bindings and storage never enter a contract dependency tree. See [clients and endpoints](packages/application/README.md#shared-endpoints-and-clients).
 

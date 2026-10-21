@@ -1,13 +1,13 @@
 import { expect, expectTypeOf, layer } from "@effect/vitest";
 import {
-  type AnyEntry,
+  type AnyFeature,
   Approval,
-  bindNode,
+  bindOperation,
   CallWatch,
-  defineEntry,
+  defineFeature,
   May,
-  NodeRuntime,
-  runEntry,
+  Runtime,
+  runFeature,
   StepTrace,
   type RecordSocket,
 } from "@house-rules/application";
@@ -27,33 +27,31 @@ const shape = {
 } as const;
 const child = {
   ...shape,
+  kind: "operation",
   name: "inner_read",
   permission: "audit:read",
   needsApproval: true,
   edges: [],
 } as const;
-const root = {
+const entry = defineFeature("outer_read", {
   ...shape,
-  name: "outer_read",
   permission: null,
-  needsApproval: false,
+  flags: { readOnly: true },
   edges: [child],
-} as const;
-const entry = defineEntry(root, {
   start: { kind: "system", reason: "audit test", startedBy: "test" },
+  handler: (input, { call }) => call(child, input),
 });
 let ran = 0;
-const runtime = NodeRuntime.layer({
-  entries: [entry],
+const runtime = Runtime.layer({
+  features: [entry],
   ways: [],
   bindings: [
-    bindNode(child, () =>
+    bindOperation(child, () =>
       Effect.sync(() => {
         ran++;
         return "ok";
       }),
     ),
-    bindNode(root, (input, scope) => scope.call(child, input)),
   ],
 });
 const execution = Layer.merge(runtime, StepTrace.layer());
@@ -62,10 +60,10 @@ const permissions = (allow: boolean) =>
     May.context(May.system([entry]), { system: allow ? ["audit:read"] : [], via: "test" }),
   );
 const options = { who: Effect.succeed("before"), policy: CallAudit.presets.strict };
-expectTypeOf<typeof AuditReadFailed>().toExtend<AnyEntry["node"]["failure"]>();
-expectTypeOf<typeof AuditStoreUnavailable>().toExtend<AnyEntry["node"]["failure"]>();
-expectTypeOf<AuditReadFailed>().toExtend<AnyEntry["node"]["failure"]["Type"]>();
-expectTypeOf<AuditStoreUnavailable>().toExtend<AnyEntry["node"]["failure"]["Type"]>();
+expectTypeOf<typeof AuditReadFailed>().toExtend<AnyFeature["failure"]>();
+expectTypeOf<typeof AuditStoreUnavailable>().toExtend<AnyFeature["failure"]>();
+expectTypeOf<AuditReadFailed>().toExtend<AnyFeature["failure"]["Type"]>();
+expectTypeOf<AuditStoreUnavailable>().toExtend<AnyFeature["failure"]["Type"]>();
 expectTypeOf<AuditReadFailed["kind"]>().toEqualTypeOf<"unavailable">();
 expectTypeOf<AuditStoreUnavailable["kind"]>().toEqualTypeOf<"unavailable">();
 const postgres = CallAudit.record.postgres(options);
@@ -82,10 +80,10 @@ layer(migratedDatabase("record_socket"), { excludeTestServices: true, timeout: "
     it.effect("audit failures supply unavailable kind and keep their existing fields", () =>
       Effect.sync(() => {
         // @ts-expect-error A failure schema cannot decode a plain string.
-        expectTypeOf<typeof Schema.String>().toExtend<AnyEntry["node"]["failure"]>();
+        expectTypeOf<typeof Schema.String>().toExtend<AnyFeature["failure"]>();
         const unkinded = Schema.TaggedStruct("Diagnostic", { message: Schema.String });
         // @ts-expect-error A tagged diagnostic still needs a kind.
-        expectTypeOf<typeof unkinded>().toExtend<AnyEntry["node"]["failure"]>();
+        expectTypeOf<typeof unkinded>().toExtend<AnyFeature["failure"]>();
         const read = new AuditReadFailed({ message: "read failed", cause: "read cause" });
         const write = new AuditStoreUnavailable({ message: "write failed", cause: "write cause" });
         expect(read).toMatchObject({
@@ -106,7 +104,7 @@ layer(migratedDatabase("record_socket"), { excludeTestServices: true, timeout: "
         Effect.gen(function* () {
           ran = 0;
           const invoke = (allow: boolean, approved: boolean) =>
-            runEntry(entry, {}).pipe(
+            runFeature(entry, {}).pipe(
               Effect.provide(
                 Layer.mergeAll(
                   execution,

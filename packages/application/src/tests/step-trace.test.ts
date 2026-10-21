@@ -1,7 +1,7 @@
 import { expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { StepTrace } from "../index.ts";
-const step = { entry: "web", target: "read", caller: "person", reason: null } as const;
+const step = { feature: "web", target: "read", caller: "person", reason: null } as const;
 
 it.effect("evicts oldest-created buckets, not least-recently-read", () =>
   Effect.gen(function* () {
@@ -28,17 +28,17 @@ it.effect("unknown reads and evicted finishes never allocate or evict", () =>
     expect((yield* trace.read("b")).steps).toHaveLength(1);
   }),
 );
-it.effect("copies snapshots, keeps entry names, unique orders and the null fallback", () =>
+it.effect("copies snapshots, keeps feature names, unique orders and the null fallback", () =>
   Effect.gen(function* () {
     const trace = StepTrace.make();
-    const first = yield* trace.begin(null, { ...step, entry: "hook" });
+    const first = yield* trace.begin(null, { ...step, feature: "hook" });
     const second = yield* trace.begin(null, step);
     yield* trace.finish(null, first, "success");
     yield* trace.finish(null, second, "failure");
     const snapshot = yield* trace.read(null);
     expect(snapshot.steps).toMatchObject([
-      { order: 1, entry: "hook", outcome: "success" },
-      { order: 2, entry: "web", outcome: "failure" },
+      { order: 1, feature: "hook", outcome: "success" },
+      { order: 2, feature: "web", outcome: "failure" },
     ]);
     (snapshot.steps as unknown[]).length = 0;
     expect((yield* trace.read(null)).steps).toHaveLength(2);
@@ -48,7 +48,11 @@ it.effect("bounds refusal-only requests and defaults to 1000 buckets", () =>
   Effect.gen(function* () {
     const trace = StepTrace.make();
     for (let i = 0; i <= 1000; i += 1)
-      yield* trace.refuse(String(i), { entry: "read", permission: "items:read", caller: "person" });
+      yield* trace.refuse(String(i), {
+        feature: "read",
+        permission: "items:read",
+        caller: "person",
+      });
     expect((yield* trace.read("0")).refusals).toEqual([]);
     expect((yield* trace.read("1")).refusals).toHaveLength(1);
   }),

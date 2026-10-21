@@ -87,7 +87,7 @@ export const withCors = (cors: Cors, request: Request, response: Response): Resp
     headers.set("access-control-allow-origin", origin);
     headers.set("access-control-expose-headers", corsExposedHeaders.join(", "));
   }
-  // This workspace loads two @types/node versions, so tsc sees the Response constructor and the Response type differ.
+  // This workspace loads two @types/callable versions, so tsc sees the Response constructor and the Response type differ.
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

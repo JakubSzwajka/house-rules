@@ -5,7 +5,7 @@ export class NoOpenUnit extends Schema.TaggedError<NoOpenUnit>()("NoOpenUnit", {
   kind: errorKind("unavailable"),
 }) {
   override get message(): string {
-    return "This write must run inside an open unit of work. Open one with UnitOfWork.atomic or a transactional entry.";
+    return "This write must run inside an open unit of work. Open one with UnitOfWork.atomic or a transactional feature.";
   }
 }
 

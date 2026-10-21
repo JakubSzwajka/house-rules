@@ -1,14 +1,14 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 import {
-  Entries,
+  Features,
   memberPermissions,
   partnerPermissions,
   agentPermissions,
   systemPermissions,
-} from "../entries.ts";
+} from "../../features/index.ts";
 
-it.effect("seven app entries retain exact closures, starts, edges and lifted flags", () =>
+it.effect("seven app features retain exact closures, starts, edges and lifted flags", () =>
   Effect.sync(() => {
     assert.deepStrictEqual(memberPermissions, [
       "bookings:read",
@@ -70,24 +70,24 @@ it.effect("seven app entries retain exact closures, starts, edges and lifted fla
       ],
     ];
     assert.deepStrictEqual<readonly unknown[]>(
-      Object.values(Entries).map((e) => [
-        e.node.name,
+      Object.values(Features).map((e) => [
+        e.name,
         e.closures.person,
         e.closures.system,
         e.readOnly,
         e.transactional,
         e.destructive,
         e.needsApproval,
-        e.node.edges.map((edge) => ("target" in edge ? edge.target.name : edge.name)),
+        e.edges.map((edge) => ("target" in edge ? edge.target.name : edge.name)),
       ]),
       expected,
     );
-    assert.deepStrictEqual(Entries.firstSignIn.start, {
+    assert.deepStrictEqual(Features.firstSignIn.start, {
       kind: "system",
       reason: "new login",
       startedBy: "hook:new-login",
     });
-    assert.deepStrictEqual(Entries.nightlyCleanup.start, {
+    assert.deepStrictEqual(Features.nightlyCleanup.start, {
       kind: "system",
       reason: "nightly cleanup",
       startedBy: "schedule:nightly_cleanup",

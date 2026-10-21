@@ -1,5 +1,6 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
-import { defineNode, NoInput } from "@house-rules/domain";
+import { defineOperation, NoInput } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import {
   type Around,
@@ -7,12 +8,11 @@ import {
   type CallFacts,
   CallRequestId,
   CallWatch,
-  defineEntry,
   isMcpChannel,
   mcpChannel,
   unknownCallFacts,
 } from "../index.ts";
-import { bindFixture, runFixture } from "./entry-fixtures.ts";
+import { bindFixture, runFixture } from "./execution-fixtures.ts";
 import { mcpFixture } from "./router-fixtures.ts";
 import { callMcpTool, openMcpSession } from "./delivery-mcp-client.ts";
 const TripInput = Schema.Struct({
@@ -21,8 +21,8 @@ const TripInput = Schema.Struct({
   note: Schema.optional(Schema.String),
 });
 const readTrip = bindFixture(
-  defineEntry(
-    defineNode("read_trip", {
+  featureFixture(
+    defineOperation("read_trip", {
       description: "Read a trip.",
       input: TripInput,
       output: Schema.String,
@@ -34,8 +34,8 @@ const readTrip = bindFixture(
   ({ tripId }) => Effect.succeed(tripId),
 );
 const renameTrip = bindFixture(
-  defineEntry(
-    defineNode("rename_trip", {
+  featureFixture(
+    defineOperation("rename_trip", {
       description: "Rename a trip.",
       input: TripInput,
       output: Schema.String,
@@ -46,8 +46,8 @@ const renameTrip = bindFixture(
   ({ tripId }) => Effect.succeed(tripId),
 );
 const ping = bindFixture(
-  defineEntry(
-    defineNode("ping", {
+  featureFixture(
+    defineOperation("ping", {
       description: "Answer pong.",
       input: NoInput,
       output: Schema.String,
@@ -59,12 +59,12 @@ const ping = bindFixture(
 );
 const recordingWatch = (seen: CallFacts[]) =>
   Layer.succeed(CallWatch, {
-    around: ((_entry, _input, run, facts) =>
+    around: ((_feature, _input, run, facts) =>
       Effect.sync(() => {
         if (facts !== undefined) seen.push(facts);
       }).pipe(Effect.andThen(run))) satisfies Around,
   });
-it.effect("a read-only entry is a read and any other entry is a write", () =>
+it.effect("a read-only feature is a read and any other feature is a write", () =>
   Effect.gen(function* () {
     const seen: CallFacts[] = [];
     yield* runFixture(readTrip, { tripId: "t-1", nights: 2 }).pipe(
@@ -76,7 +76,7 @@ it.effect("a read-only entry is a read and any other entry is a write", () =>
     expect(seen.map((facts) => facts.kind)).toEqual(["read", "write"]);
   }),
 );
-it.effect("the target is always the entry name, never an input value", () =>
+it.effect("the target is always the feature name, never an input value", () =>
   Effect.gen(function* () {
     const seen: CallFacts[] = [];
     const watch = recordingWatch(seen);
@@ -95,7 +95,7 @@ it.effect("the target is always the entry name, never an input value", () =>
     expect(seen.map((facts) => facts.targetId)).toEqual([null, null, null, null]);
   }),
 );
-it.effect("a long input id is never copied into entry facts", () =>
+it.effect("a long input id is never copied into feature facts", () =>
   Effect.gen(function* () {
     const seen: CallFacts[] = [];
     yield* runFixture(readTrip, { tripId: "x".repeat(1000), nights: 1 }).pipe(
@@ -126,15 +126,15 @@ it.effect("the edge can set its channel and request id", () =>
     expect(seen[0]).toMatchObject({ channel: "web", requestId: "req-42" });
   }),
 );
-it("nodes have no free-text or input-field audit declaration", () => {
+it("callables have no free-text or input-field audit declaration", () => {
   const invalid = () =>
-    defineNode("bad_audit", {
-      ...ping.node,
-      // @ts-expect-error Entry facts do not read an input field.
+    defineOperation("bad_audit", {
+      ...ping,
+      // @ts-expect-error Feature facts do not read an input field.
       audit: { target: "note" },
     });
   expect(typeof invalid).toBe("function");
-  expect("audit" in readTrip.node).toBe(false);
+  expect("audit" in readTrip).toBe(false);
 });
 it("mcpChannel keeps a short plain client name", () => {
   expect(mcpChannel(undefined)).toBe("mcp");
@@ -148,7 +148,7 @@ it("mcpChannel keeps a short plain client name", () => {
 });
 const seenMcp: CallFacts[] = [];
 const fixture = mcpFixture([readTrip], {
-  tools: [{ entry: readTrip, title: "Read trip", idempotent: true, openWorld: false }],
+  tools: [{ feature: readTrip, title: "Read trip", idempotent: true, openWorld: false }],
   extra: Layer.merge(recordingWatch(seenMcp), Layer.succeed(CallChannel, "web")),
 });
 afterAll(fixture.dispose);
@@ -178,7 +178,7 @@ it.effect("three-argument Around functions remain valid lower slots", () =>
   Effect.gen(function* () {
     const watch = yield* CallWatch;
     expect(yield* watch.around(ping, {}, Effect.succeed("ok"))).toBe("ok");
-    const simple: Around = (_entry, _input, run) => run;
+    const simple: Around = (_feature, _input, run) => run;
     expect(yield* simple(ping, {}, Effect.succeed("still"))).toBe("still");
     expect(unknownCallFacts(readTrip)).toEqual({
       kind: "read",

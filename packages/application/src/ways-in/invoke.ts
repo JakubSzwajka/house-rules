@@ -4,8 +4,8 @@ import { Cause, type Context, Effect, Exit, type Layer, Option, Schema } from "e
 import { CurrentActor } from "../actor/current-actor.ts";
 import { CallChannel } from "../call/call-facts.ts";
 import { newRequestId, requestIdOf, withRequestId } from "../call/request-id.ts";
-import type { AnyEntry } from "../entry/entry.ts";
-import { runEntry } from "../execution/run-entry.ts";
+import type { AnyFeature } from "../feature/feature.ts";
+import { runFeature } from "../execution/run-feature.ts";
 import type { Approval } from "../gates/approval.ts";
 import { May } from "../socket/may.ts";
 import type { Incoming, Refused } from "./caller.ts";
@@ -67,7 +67,7 @@ export const closedFailure = (
 export const invoke = <A>(
   app: Pick<Composition<A, unknown>, "system" | "gatePolicy">,
   context: Context.Context<A>,
-  entry: AnyEntry,
+  feature: AnyFeature,
   options: Readonly<{
     way: AnyWay<A>;
     incoming: Incoming;
@@ -81,27 +81,27 @@ export const invoke = <A>(
   }>,
 ): Effect.Effect<Outcome<unknown, unknown>> =>
   Effect.gen(function* () {
-    // composition checks the entry requirements and Who inputs before storing these erased entries.
-    const execute = runEntry as unknown as (
-      entry: AnyEntry,
+    // composition checks the feature requirements and Who inputs before storing these erased features.
+    const execute = runFeature as unknown as (
+      feature: AnyFeature,
       input: unknown,
     ) => Effect.Effect<unknown, KindedError, A | CurrentActor | CallPermissions | Approval>;
-    let invokingEntry = false;
+    let invokingFeature = false;
     const program = Effect.gen(function* () {
       const actor = options.resolved ?? (yield* options.way.who.resolve(options.incoming));
       const raw = yield* options.input.pipe(
         Effect.mapError((error) =>
-          error._tag === "InputFault" ? invalidFor(entry.node.name)(error) : error,
+          error._tag === "InputFault" ? invalidFor(feature.name)(error) : error,
         ),
       );
       const input =
         options.decoded === true
           ? raw.value
           : options.typed === true
-            ? yield* decodeValue(entry, raw.value)
-            : yield* decodeInput(entry, raw.value, raw.source);
-      invokingEntry = true;
-      return yield* execute(entry, input).pipe(
+            ? yield* decodeValue(feature, raw.value)
+            : yield* decodeInput(feature, raw.value, raw.source);
+      invokingFeature = true;
+      return yield* execute(feature, input).pipe(
         Effect.provideService(CurrentActor, actor),
         Effect.provideContext(
           May.context(options.way.may, {
@@ -123,27 +123,27 @@ export const invoke = <A>(
     if (Exit.isSuccess(exit)) {
       if (options.encodeOutput !== true) return { ok: true as const, value: exit.value };
       const encoded = yield* Effect.exit(
-        Schema.encodeUnknownEffect(Schema.toCodecJson(entry.node.output))(exit.value),
+        Schema.encodeUnknownEffect(Schema.toCodecJson(feature.output))(exit.value),
       );
       if (Exit.isSuccess(encoded)) return { ok: true as const, value: encoded.value };
-      yield* Effect.logError("Entry output did not encode", encoded.cause);
+      yield* Effect.logError("Feature output did not encode", encoded.cause);
       return internalError;
     }
     const failure = Cause.findErrorOption(exit.cause);
     if (Option.isNone(failure)) {
-      yield* Effect.logError("Entry died", exit.cause);
+      yield* Effect.logError("Feature died", exit.cause);
       return internalError;
     }
     return {
       ok: false as const,
       error: failure.value,
-      view: yield* safeViewOf(options.way.overrides, failure.value, !invokingEntry),
+      view: yield* safeViewOf(options.way.overrides, failure.value, !invokingFeature),
     };
   }).pipe(
     Effect.catchCause((cause) =>
       Effect.logError("Way invocation failed", cause).pipe(Effect.as(internalError)),
     ),
-    Effect.annotateLogs("entry", entry.node.name),
+    Effect.annotateLogs("feature", feature.name),
   );
 
 export const requestIdFor = (incoming: string | null): Effect.Effect<string> => {

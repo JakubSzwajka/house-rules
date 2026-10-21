@@ -56,8 +56,13 @@ const barrelTree = {
   [`${root}features/a/handler.ts`]: "import {pb} from '../index.ts'; export const h = pb;",
   [`${root}features/b/handler.ts`]: "import {pa} from '../index.ts'; export const h = pa;",
 };
-it("detects the exact node-folder cycle through features/index without a file cycle", async () => {
-  assert.deepEqual(await violatedRules(barrelTree, config), []);
+const unsafeBarrelEdges = ["a", "b"].map((name) => ({
+  rule: "contract-entry-is-browser-safe",
+  from: `${root}features/index.ts`,
+  to: `${root}features/${name}/policy.ts`,
+}));
+it("detects the exact feature-folder cycle through an unsafe multi-file registry", async () => {
+  assert.deepEqual(await violatedRules(barrelTree, config), unsafeBarrelEdges);
   await cruiseFixture(barrelTree, config, ({ modules, workspace }) => {
     assert.deepEqual(findAppFolderCycles(modules, config, workspace), [
       {
@@ -67,9 +72,9 @@ it("detects the exact node-folder cycle through features/index without a file cy
     ]);
   });
 });
-it("keeps one-way node calls through a barrel valid", async () => {
+it("keeps one-way feature-folder calls acyclic while rejecting unsafe registry paths", async () => {
   const tree = { ...barrelTree, [`${root}features/b/handler.ts`]: "export const h = 2;" };
-  assert.deepEqual(await violatedRules(tree, config), []);
+  assert.deepEqual(await violatedRules(tree, config), unsafeBarrelEdges);
   await cruiseFixture(tree, config, ({ modules, workspace }) =>
     assert.deepEqual(findAppFolderCycles(modules, config, workspace), []),
   );

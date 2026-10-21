@@ -6,7 +6,7 @@ import plugin from "../src/index.mjs";
 const WAY = "apps/api/src/ways-in/mcp/tools.ts";
 
 function lint(code, filename = WAY, options) {
-  const config = plugin.configs.nodes.map((entry) => ({
+  const config = plugin.configs.features.map((entry) => ({
     ...entry,
     rules: entry.rules["house-rules/no-hand-rolled-surface"]
       ? { "house-rules/no-hand-rolled-surface": options ? ["error", options] : "error" }
@@ -126,7 +126,7 @@ test("the message points at the router", () => {
 test("the nodes preset runs it on JavaScript files too", () => {
   const code = 'import { Tool } from "effect/unstable/ai";\nTool.make("ping", {});';
   for (const extension of ["js", "jsx", "mjs", "cjs", "ts", "mts", "cts", "tsx"]) {
-    const messages = new Linter().verify(code, plugin.configs.nodes, {
+    const messages = new Linter().verify(code, plugin.configs.features, {
       filename: `apps/api/src/ways-in/mcp/tools.${extension}`,
     });
     assert.deepEqual(
@@ -137,10 +137,10 @@ test("the nodes preset runs it on JavaScript files too", () => {
   }
 });
 
-test("the nodes preset checks TypeScript node files", () => {
+test("the features preset checks TypeScript feature files", () => {
   const code = "export const x = 1;";
   const ruleIds = (filename) =>
-    new Linter().verify(code, plugin.configs.nodes, { filename }).map(({ ruleId }) => ruleId);
-  assert.deepEqual(ruleIds("apps/api/src/features/bad/node.mjs"), []);
-  assert.deepEqual(ruleIds("apps/api/src/features/bad/node.ts"), ["house-rules/node-file"]);
+    new Linter().verify(code, plugin.configs.features, { filename }).map(({ ruleId }) => ruleId);
+  assert.deepEqual(ruleIds("apps/api/src/features/bad/node.mjs"), ["house-rules/feature-file"]);
+  assert.deepEqual(ruleIds("apps/api/src/features/bad/index.ts"), ["house-rules/feature-file"]);
 });

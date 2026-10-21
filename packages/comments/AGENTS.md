@@ -2,20 +2,20 @@
 
 ## What it does
 
-Comments owns flat, plain-text comments on the app's targets. `Comments` captures its storage and the required `CommentTargets` host port. User methods take an explicit Actor and return Effects with no requirements. Version 0.2.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published entries load built `dist/`; this workspace loads source.
+Comments owns flat, plain-text comments on the app's targets. `Comments` captures its storage and the required `CommentTargets` host port. User methods take an explicit Actor and return Effects with no requirements. Version 0.2.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published packages load built `dist/`; this workspace loads source.
 
 ## Mount and bind
 
 1. [ ] Fill `CommentTargets` in composition with a layer that calls the host module's relation method. Map host failures to `CommentTargetsUnavailable`. There is no default host port.
 2. [ ] Mount `Comments.layerPostgres({ ...Comments.presets.default, targets: ["your-kind"] })` with that layer and the shared SQL client. Tests use `layerMemory(options)`; raw `layer(options)` also needs `CommentStore`.
 3. [ ] Register `{ "package": "@house-rules/comments" }` in `migrations.json`, or `{ "workspace": "packages/comments" }` in this repo.
-4. [ ] Acquire `Comments` once, call `bindComments(service)` and add its bindings to the app's `NodeRuntime`. App nodes declare edges to the shipped descriptors; only app nodes become entries.
+4. [ ] Acquire `Comments` once, call `bindComments(service)` and add its bindings to the app's `Runtime`. App features declare edges to `CommentsOperations`. Only features are exposed.
 5. [ ] Share the app's unit adapter. Call `comments.removeTarget(ref)` in the target-deletion unit and `comments.erase(authorId)` in the account-deletion unit.
 6. [ ] Test allowed and denied actors. Do not expose a write or destructive MCP tool without the owner's approval.
 
-The browser-safe `/contract` door exports schemas, errors, permissions and these nodes, never bindings or application values. Main adds the service, binder, host port, storage and policy.
+The browser-safe `./contract` door exports schemas, errors, permissions and `CommentsOperations`, never bindings or application values. `defineOperation` declares each operation; `bindComments` uses `bindOperation`. Main adds the service, binder, host port, storage and policy.
 
-| Node identifier / name | Permission | Flags |
+| CommentsOperations member / name | Permission | Flags |
 | --- | --- | --- |
 | `listComments` / `list_comments` | `comments:read` | readOnly |
 | `addComment` / `add_comment` | `comments:write` | transactional |

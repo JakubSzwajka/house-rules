@@ -25,9 +25,10 @@ const startHeadings = [
 ].map((match) => (match[1] ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-"));
 
 describe("Caddy redirects", () => {
-  it("keeps the retired and current node rule paths at the canonical row", () => {
-    assert.equal(redirects.get("/rules/eslint/use-case-is-capability/"), "/rules/#node-file");
-    assert.equal(redirects.get("/rules/eslint/node-file/"), "/rules/#node-file");
+  it("keeps retired feature rule paths at the retirement notice", () => {
+    assert.equal(redirects.get("/rules/eslint/use-case-is-capability/"), "/rules/#retired-rules");
+    assert.equal(redirects.get("/rules/eslint/node-file/"), "/rules/#retired-rules");
+    assert.equal(redirects.get("/rules/eslint/entry-from-app-node/"), "/rules/#retired-rules");
   });
 
   it("keeps the seven retired v1 paths at the retirement notice", () => {
@@ -48,7 +49,7 @@ describe("Caddy redirects", () => {
     }
     assert.match(
       readFileSync(join(contentRoot, "rules", "index.md"), "utf8"),
-      /^## Retired v1 rules$/m,
+      /^## Retired rules$/m,
     );
   });
 
@@ -117,6 +118,7 @@ describe("Caddy redirects", () => {
     const anchors = new Set([
       ...readRuleRows().map((row) => ruleAnchor(row.id)),
       "retired-v1-rules",
+      "retired-rules",
     ]);
     for (const [from, to] of redirects) {
       const [path, hash] = to.split("#");

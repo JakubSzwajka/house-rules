@@ -81,7 +81,7 @@ export const issueSession = (
       yield* Effect.logError("Session output has no cookie-safe token and numeric expiresAt");
       return undefined;
     }
-    const body = Schema.toCodecJson(bodySchemaOf(route.entry, "issue"));
+    const body = Schema.toCodecJson(bodySchemaOf(route.feature, "issue"));
     const encoded = yield* Effect.exit(Schema.encodeUnknownEffect(body)(value));
     if (Exit.isFailure(encoded)) {
       // No cause: a schema issue prints the input, and the input holds the token.

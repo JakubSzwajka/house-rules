@@ -1,12 +1,12 @@
 import { expect, layer } from "@effect/vitest";
 import {
   composition,
-  defineEntry,
+  defineFeature,
   defineWay,
   endpoint,
   May,
   Mean,
-  NodeRuntime,
+  Runtime,
   StepTrace,
   toFetchHandler,
 } from "@house-rules/application";
@@ -14,7 +14,9 @@ import { Actor, ActorId } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
 import { SqlError } from "effect/sql/SqlError";
-import { bindParty, Party, PersonStoreUnavailable, showMe } from "../../index.js";
+import { bindParty, Party, PartyOperations, PersonStoreUnavailable } from "../../index.js";
+
+const { showMe } = PartyOperations;
 import { stores } from "./stores.js";
 
 layer(stores[0].layer, { timeout: "30 seconds" })("Party unavailable disclosure", (it) => {
@@ -33,24 +35,30 @@ layer(stores[0].layer, { timeout: "30 seconds" })("Party unavailable disclosure"
     Effect.gen(function* () {
       const sql = yield* SqlClient;
       const party = yield* Party.pipe(Effect.provide(Party.layer));
-      const entry = defineEntry(showMe);
-      const entries = [entry] as const;
+      const entry = defineFeature("test_show_me", {
+        ...showMe,
+        permission: null,
+        flags: { readOnly: true },
+        edges: [showMe],
+        handler: (input, { call }) => call(showMe, input),
+      });
+      const features = [entry] as const;
       const way = defineWay({
         name: "web",
         path: "/",
         protocol: "http",
-        entries,
-        endpoints: [endpoint(entry)],
+        features,
+        endpoints: [endpoint(entry, "POST /show_me")],
         who: { resolve: () => Effect.succeed(Actor.make({ id: ActorId.make("viewer") })) },
-        may: May.fixed(entries, ["party:read"]),
+        may: May.fixed(features, ["party:read"]),
         mean: Mean.no,
       });
       const app = composition({
         layer: Layer.merge(
-          NodeRuntime.layer({ bindings: bindParty(party), entries, ways: [way] }),
+          Runtime.layer({ bindings: bindParty(party), features, ways: [way] }),
           StepTrace.layer(),
         ),
-        entries,
+        features,
         ways: [way],
         system: [],
       });

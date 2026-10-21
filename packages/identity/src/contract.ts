@@ -6,4 +6,4 @@ export {
   IdentityCallerDenied,
   IdentityStoreUnavailable,
 } from "./binding/binding.js";
-export { bindLogin } from "./binding/nodes.js";
+export { IdentityOperations } from "./binding/operations.js";

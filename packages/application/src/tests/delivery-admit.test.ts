@@ -1,24 +1,17 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
-import { defineNode, NoInput } from "@house-rules/domain";
+import { defineOperation, NoInput } from "@house-rules/domain";
 import { Effect, Logger, References, Schema } from "effect";
-import {
-  admit,
-  call,
-  CallChannel,
-  CallRequestId,
-  defineEntry,
-  endpoint,
-  Refused,
-} from "../index.ts";
-import { bindFixture, testActor } from "./entry-fixtures.ts";
+import { admit, call, CallChannel, CallRequestId, endpoint, Refused } from "../index.ts";
+import { bindFixture, testActor } from "./execution-fixtures.ts";
 import { httpFixture } from "./router-fixtures.ts";
 
 const disposers: Array<() => Promise<void>> = [];
 afterAll(() => Promise.all(disposers.map((dispose) => dispose())));
 const incoming = { headers: new Headers({ "x-request-id": "admit-1" }), url: "/" };
 const trace = bindFixture(
-  defineEntry(
-    defineNode("trace_admitted", {
+  featureFixture(
+    defineOperation("trace_admitted", {
       description: "Read the caller and request trace.",
       input: NoInput,
       output: Schema.Struct({
@@ -40,8 +33,8 @@ const trace = bindFixture(
     }),
 );
 const approved = bindFixture(
-  defineEntry(
-    defineNode("approved_admitted", {
+  featureFixture(
+    defineOperation("approved_admitted", {
       description: "Ask once for approval.",
       input: NoInput,
       output: Schema.Boolean,
@@ -114,7 +107,7 @@ it.effect("admit refuses before input parsing with the protocol status, code and
   }),
 );
 
-it.effect("admission protocol errors cannot be replaced by node wording overrides", () =>
+it.effect("admission protocol errors cannot be replaced by callable wording overrides", () =>
   Effect.gen(function* () {
     const denied = httpFixture([trace], {
       endpoints: [endpoint(trace)],
@@ -122,7 +115,7 @@ it.effect("admission protocol errors cannot be replaced by node wording override
         resolve: () =>
           Effect.fail(new Refused({ status: 401, code: "missing", message: "Sign in." })),
       },
-      // @ts-expect-error Refused is a protocol error, not a node wording tag.
+      // @ts-expect-error Refused is a protocol error, not a callable wording tag.
       overrides: { Refused: () => "Hidden" },
     });
     disposers.push(denied.dispose);
@@ -229,7 +222,7 @@ it.effect("a dying Who answers internal_error with the request id in its log", (
   }),
 );
 
-it.effect("an admitted value from another composition never runs Who or a node", () =>
+it.effect("an admitted value from another composition never runs Who or a callable", () =>
   Effect.gen(function* () {
     const other = httpFixture([trace], { endpoints: [endpoint(trace)] });
     disposers.push(other.dispose);

@@ -1,14 +1,14 @@
 import { Cause, Clock, Effect, Exit, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 import type { Api, ApiEndpoints } from "../contract/api.ts";
-import type { AnyEntry } from "../entry/entry.ts";
+import type { AnyFeature } from "../feature/feature.ts";
 import type { Endpoint, Method } from "../contract/endpoint.ts";
 import type { BodyOf, SessionRole } from "../contract/session.ts";
 import { requestIdHeader, requestIdOf } from "../call/request-id-header.ts";
 import { onBaseOrigin, type RequestBase, requestBaseOf } from "./base-origin.ts";
 import { callOf, type ClientFailureCode, HttpFailure, type HttpFailureOf } from "./http-client.ts";
 
-export type CallEntry = Readonly<{
+export type CallReport = Readonly<{
   name: string;
   method: Method;
   path: string;
@@ -21,17 +21,17 @@ export type CallEntry = Readonly<{
 export type PromiseClientOptions = Readonly<{
   baseUrl?: string;
   token?: () => string | undefined | Promise<string | undefined>;
-  onCall?: (entry: CallEntry) => void;
+  onCall?: (feature: CallReport) => void;
   fetch?: typeof globalThis.fetch;
 }>;
 
-export type PromiseCall<E extends AnyEntry, Session extends SessionRole = "none"> = (
-  input: E["node"]["input"]["Type"],
+export type PromiseCall<E extends AnyFeature, Session extends SessionRole = "none"> = (
+  input: E["input"]["Type"],
 ) => Promise<BodyOf<E, Session>>;
 
 export type PromiseClientOf<Endpoints extends ApiEndpoints> = {
   readonly [Key in keyof Endpoints]: PromiseCall<
-    Endpoints[Key]["entry"],
+    Endpoints[Key]["feature"],
     Endpoints[Key]["session"]
   >;
 };
@@ -51,7 +51,7 @@ const promiseCallOf = (
   const run = callOf(shape, { ...(prefix === "" ? {} : { prefix }), base });
   const { method } = shape;
   const sameOrigin = (url: string | URL): URL | undefined => onBaseOrigin(String(url), base());
-  const name = shape.entry.node.name;
+  const name = shape.feature.name;
   return (input: unknown): Promise<unknown> => {
     const seen: { path: string; status: number; requestId?: string } = {
       path: `${prefix}${shape.path}`,

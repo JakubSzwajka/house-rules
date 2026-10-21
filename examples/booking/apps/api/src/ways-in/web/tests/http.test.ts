@@ -12,7 +12,7 @@ import { Identity } from "@house-rules/identity";
 import { Party } from "@house-rules/party";
 import { memoryAuditLog } from "@house-rules/call-audit";
 import { Context, Effect } from "effect";
-import { createApp, DemoIssuers, modulesLayer, Entries } from "../../../composition/index.ts";
+import { createApp, DemoIssuers, modulesLayer, Features } from "../../../composition/index.ts";
 import { makeFakePaymentProvider } from "@example/billing";
 import { Bookings, BookingNotFound } from "@example/bookings";
 import { webWay } from "../way.ts";
@@ -21,7 +21,7 @@ import { partnerWay } from "../../partner/way.ts";
 import { mcpWay } from "../../mcp/way.ts";
 
 it.live(
-  "shared entries, one authenticated hook, HTTP closure refusal, approval and independent partner issuer",
+  "shared features, one authenticated hook, HTTP closure refusal, approval and independent partner issuer",
   () =>
     Effect.gen(function* () {
       const provider = makeFakePaymentProvider();
@@ -44,7 +44,7 @@ it.live(
               );
           }),
       };
-      const limited = { ...webWay, who, may: May.fixed(webWay.entries, ["bookings:write"]) };
+      const limited = { ...webWay, who, may: May.fixed(webWay.features, ["bookings:write"]) };
       const app = yield* Effect.acquireRelease(
         Effect.sync(() =>
           createApp([limited, partnerWay, mcpWay], {
@@ -88,7 +88,7 @@ it.live(
       assert.deepStrictEqual(yield* provider.calls, []);
       const trace = yield* Context.get(ctx, StepTrace).read("hook-web");
       assert.deepStrictEqual(
-        trace.steps.map((s) => [s.entry, s.target, s.caller, s.reason]),
+        trace.steps.map((s) => [s.feature, s.target, s.caller, s.reason]),
         [
           ["first_sign_in", "Party.createPerson", "system", "new login"],
           ["first_sign_in", "Identity.bindLogin", "system", "new login"],
@@ -102,7 +102,7 @@ it.live(
         ],
       );
       const refused = yield* Effect.promise(() =>
-        call(app, Entries.makeBooking, input, incoming, { way: "web" }),
+        call(app, Features.makeBooking, input, incoming, { way: "web" }),
       );
       assert.isFalse(refused.ok);
       if (!refused.ok) assert.strictEqual(refused.error?._tag, "Forbidden");
@@ -123,27 +123,27 @@ it.live(
       const unexposed = yield* Effect.promise(() =>
         call(
           app,
-          Entries.showBooking,
+          Features.showBooking,
           { id: "partner" },
           { headers: new Headers({ authorization: `Bearer ${partnerToken}` }), url: incoming.url },
           { way: "partner" },
         ),
       );
       assert.isFalse(unexposed.ok);
-      if (!unexposed.ok) assert.strictEqual(unexposed.error?._tag, "NodeCallInvalid");
-      assert.strictEqual(api.endpoints.makeBooking.entry, Entries.makeBooking);
-      assert.strictEqual(api.endpoints.showBooking.entry, Entries.showBooking);
-      assert.strictEqual(api.endpoints.myBookings.entry, Entries.myBookings);
-      assert.strictEqual(api.endpoints.cancelBooking.entry, Entries.cancelBooking);
-      assert.strictEqual(mcpWay.entries[0], Entries.showBooking);
-      assert.strictEqual(mcpWay.entries[1], Entries.myBookings);
-      assert.deepStrictEqual(webWay.entries, [
-        Entries.makeBooking,
-        Entries.showBooking,
-        Entries.myBookings,
-        Entries.cancelBooking,
+      if (!unexposed.ok) assert.strictEqual(unexposed.error?._tag, "CallInvalid");
+      assert.strictEqual(api.endpoints.makeBooking.feature, Features.makeBooking);
+      assert.strictEqual(api.endpoints.showBooking.feature, Features.showBooking);
+      assert.strictEqual(api.endpoints.myBookings.feature, Features.myBookings);
+      assert.strictEqual(api.endpoints.cancelBooking.feature, Features.cancelBooking);
+      assert.strictEqual(mcpWay.features[0], Features.showBooking);
+      assert.strictEqual(mcpWay.features[1], Features.myBookings);
+      assert.deepStrictEqual(webWay.features, [
+        Features.makeBooking,
+        Features.showBooking,
+        Features.myBookings,
+        Features.cancelBooking,
       ]);
-      assert.deepStrictEqual(partnerWay.entries, [Entries.partnerBooking]);
+      assert.deepStrictEqual(partnerWay.features, [Features.partnerBooking]);
       const openapi = toOpenApi(Object.values(api.endpoints), { title: "Booking", version: "1" });
       assert.include(JSON.stringify(openapi), '"x-house-rules-destructive":true');
     }).pipe(Effect.scoped),
@@ -174,14 +174,14 @@ it.live("web denies cancel, in-process allows it, and missing database reads are
         ),
       );
     for (const [entry, input] of [
-      [Entries.partnerBooking, { id: "unexposed", guestName: "No" }],
-      [{ ...Entries.showBooking }, { id: "one" }],
+      [Features.partnerBooking, { id: "unexposed", guestName: "No" }],
+      [{ ...Features.showBooking }, { id: "one" }],
     ] as const) {
       const refused = yield* Effect.promise(() =>
         call(app, entry, input, incoming, { way: "web" }),
       );
       assert.isFalse(refused.ok);
-      if (!refused.ok) assert.strictEqual(refused.error?._tag, "NodeCallInvalid");
+      if (!refused.ok) assert.strictEqual(refused.error?._tag, "CallInvalid");
     }
     assert.strictEqual(
       (yield* post("make_booking", { id: "one", guestName: "Alice", paymentId: "pay", amount: 10 }))
@@ -192,7 +192,7 @@ it.live("web denies cancel, in-process allows it, and missing database reads are
     assert.strictEqual((yield* post("my_bookings", {})).status, 503);
     assert.isTrue(
       (yield* Effect.promise(() =>
-        call(app, Entries.cancelBooking, { id: "one" }, incoming, { way: "web" }),
+        call(app, Features.cancelBooking, { id: "one" }, incoming, { way: "web" }),
       )).ok,
     );
   }).pipe(Effect.scoped),

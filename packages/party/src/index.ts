@@ -11,12 +11,9 @@ export {
   Person,
   PersonAlreadyExists,
   PersonCallerDenied,
-  createPerson,
+  PartyOperations,
   PersonInputInvalid,
   PersonNotFound,
   PersonStoreUnavailable,
   PersonUpdateRefused,
-  renamePerson,
-  showMe,
-  showPerson,
 } from "./contract.js";

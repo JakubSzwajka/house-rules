@@ -1,15 +1,15 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { afterAll, expect, expectTypeOf, it } from "@effect/vitest";
-import { defineNode, errorKind, NoInput } from "@house-rules/domain";
+import { defineOperation, errorKind, NoInput } from "@house-rules/domain";
 import { Effect, Schema } from "effect";
 import {
   ApprovalDenied,
-  defineEntry,
   defineWay,
-  type EntryFailure,
+  type FeatureFailure,
   Forbidden,
   type InnerFailure,
 } from "../index.ts";
-import { bindFixture } from "./entry-fixtures.ts";
+import { bindFixture } from "./execution-fixtures.ts";
 import { mcpFixture } from "./router-fixtures.ts";
 import { callMcpTool, mcpPost, openMcpSession } from "./delivery-mcp-client.ts";
 class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {
@@ -17,8 +17,8 @@ class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {
 }) {}
 const GreetInput = Schema.Struct({ name: Schema.String });
 const greet = bindFixture(
-  defineEntry(
-    defineNode("greet", {
+  featureFixture(
+    defineOperation("greet", {
       description: "Greet someone by name.",
       input: GreetInput,
       output: Schema.String,
@@ -30,8 +30,8 @@ const greet = bindFixture(
   ({ name }) => (name === "" ? Effect.fail(new NameIsEmpty()) : Effect.succeed(`Hello, ${name}`)),
 );
 const forget = bindFixture(
-  defineEntry(
-    defineNode("forget", {
+  featureFixture(
+    defineOperation("forget", {
       description: "Forget someone.",
       input: GreetInput,
       output: Schema.Void,
@@ -43,8 +43,8 @@ const forget = bindFixture(
   () => Effect.void,
 );
 const ping = bindFixture(
-  defineEntry(
-    defineNode("ping", {
+  featureFixture(
+    defineOperation("ping", {
       description: "Answer pong.",
       input: NoInput,
       output: Schema.String,
@@ -55,12 +55,12 @@ const ping = bindFixture(
   ),
   () => Effect.succeed("pong"),
 );
-const entries = [greet, forget, ping] as const;
-const fixture = mcpFixture(entries, {
+const features = [greet, forget, ping] as const;
+const fixture = mcpFixture(features, {
   tools: [
-    { entry: greet, title: "Greet", idempotent: true, openWorld: false },
-    { entry: forget, title: "Forget", idempotent: false, openWorld: true },
-    { entry: ping, title: "Ping", idempotent: true, openWorld: false },
+    { feature: greet, title: "Greet", idempotent: true, openWorld: false },
+    { feature: forget, title: "Forget", idempotent: false, openWorld: true },
+    { feature: ping, title: "Ping", idempotent: true, openWorld: false },
   ],
 });
 afterAll(fixture.dispose);
@@ -79,27 +79,29 @@ const listing = Effect.gen(function* () {
     annotations: Record<string, unknown>;
   }>;
 });
-it.effect("the router takes the tool name, description and parameters from the entry node", () =>
-  Effect.gen(function* () {
-    const tool = (yield* listing).find((tool) => tool.name === "greet");
-    expect(tool).toMatchObject({
-      name: "greet",
-      description: "Greet someone by name.",
-      inputSchema: {
-        ...Schema.toJsonSchemaDocument(GreetInput).schema,
-        additionalProperties: false,
-      },
-    });
-  }),
+it.effect(
+  "the router takes the tool name, description and parameters from the feature callable",
+  () =>
+    Effect.gen(function* () {
+      const tool = (yield* listing).find((tool) => tool.name === "greet");
+      expect(tool).toMatchObject({
+        name: "greet",
+        description: "Greet someone by name.",
+        inputSchema: {
+          ...Schema.toJsonSchemaDocument(GreetInput).schema,
+          additionalProperties: false,
+        },
+      });
+    }),
 );
-it("the entry keeps the precise descriptor schemas and literal flags", () => {
-  expectTypeOf(greet.node.name).toEqualTypeOf<"greet">();
-  expectTypeOf(greet.node.input).toEqualTypeOf<typeof GreetInput>();
-  expectTypeOf(greet.node.output).toEqualTypeOf<typeof Schema.String>();
-  expectTypeOf(greet.node.failure).toEqualTypeOf<typeof NameIsEmpty>();
+it("the feature keeps the precise descriptor schemas and literal flags", () => {
+  expectTypeOf(greet.name).toEqualTypeOf<"greet">();
+  expectTypeOf(greet.input).toEqualTypeOf<typeof GreetInput>();
+  expectTypeOf(greet.output).toEqualTypeOf<typeof Schema.String>();
+  expectTypeOf(greet.failure).toEqualTypeOf<typeof NameIsEmpty>();
   expectTypeOf(greet.readOnly).toEqualTypeOf<true>();
 });
-it.effect("readOnly and destructive hints come from lifted entry flags", () =>
+it.effect("readOnly and destructive hints come from lifted feature flags", () =>
   Effect.gen(function* () {
     const tools = yield* listing;
     expect(tools.find((tool) => tool.name === "greet")?.annotations).toMatchObject({
@@ -121,71 +123,73 @@ it.effect("title, idempotent and openWorld hints come from the way tool data", (
     });
   }),
 );
-it("a tool has no success-schema override beside the entry", () => {
+it("a tool has no success-schema override beside the feature", () => {
   const invalid = () =>
     defineWay({
       ...fixture.way,
       tools: [
         {
-          entry: greet,
+          feature: greet,
           title: "Greet",
           idempotent: true,
           openWorld: false,
-          // @ts-expect-error Output has one owner, the node descriptor.
+          // @ts-expect-error Output has one owner, the callable descriptor.
           success: Schema.Finite,
         },
       ],
     });
   expect(typeof invalid).toBe("function");
 });
-it("a tool has no failure-schema override beside the entry", () => {
+it("a tool has no failure-schema override beside the feature", () => {
   const invalid = () =>
     defineWay({
       ...fixture.way,
       tools: [
         {
-          entry: greet,
+          feature: greet,
           title: "Greet",
           idempotent: true,
           openWorld: false,
-          // @ts-expect-error Failure has one owner, the node descriptor.
+          // @ts-expect-error Failure has one owner, the callable descriptor.
           failure: Schema.Unknown,
         },
       ],
     });
   expect(typeof invalid).toBe("function");
 });
-it.effect("optional extra configuration cannot replace the node's success schema", () =>
+it.effect("optional extra configuration cannot replace the callable's success schema", () =>
   Effect.gen(function* () {
     const maybe: { success?: typeof Schema.Finite } = {};
     expect(maybe.success).toBeUndefined();
     const result = yield* callMcpTool(fixture.handler, yield* session(), "greet", { name: "Ada" });
     expect(result.result?.["isError"]).toBe(false);
     expect(JSON.stringify(result.result)).toContain("Hello, Ada");
-    expect(greet.node.output).toBe(Schema.String);
+    expect(greet.output).toBe(Schema.String);
   }),
 );
 it("a union of way configuration choices keeps one success owner", () => {
-  const project = (mode: "first" | "second") => ({ mode, entry: greet });
-  expect(project("first").entry.node.output).toBe(project("second").entry.node.output);
-  expectTypeOf(project("first").entry.node.output).toEqualTypeOf<typeof Schema.String>();
+  const project = (mode: "first" | "second") => ({ mode, feature: greet });
+  expect(project("first").feature.output).toBe(project("second").feature.output);
+  expectTypeOf(project("first").feature.output).toEqualTypeOf<typeof Schema.String>();
 });
 it("a union of way configuration choices keeps one failure owner", () => {
-  const project = (mode: "first" | "second") => ({ mode, entry: greet });
-  expect(project("first").entry.node.failure).toBe(NameIsEmpty);
-  expectTypeOf(project("second").entry.node.failure).toEqualTypeOf<typeof NameIsEmpty>();
+  const project = (mode: "first" | "second") => ({ mode, feature: greet });
+  expect(project("first").feature.failure).toBe(NameIsEmpty);
+  expectTypeOf(project("second").feature.failure).toEqualTypeOf<typeof NameIsEmpty>();
 });
 it("undefined has no second output schema to select", () => {
-  expect(greet.node.output).toBe(Schema.String);
+  expect(greet.output).toBe(Schema.String);
   if (fixture.way.protocol === "mcp") expect("success" in (fixture.way.tools[0] ?? {})).toBe(false);
 });
-it("entry failures retain real gate failures without a contract wrapper", () => {
-  expectTypeOf<EntryFailure<typeof greet>>().toEqualTypeOf<NameIsEmpty | InnerFailure>();
-  const ask = defineEntry(defineNode("ask", { ...greet.node, needsApproval: true }));
-  expectTypeOf<Extract<EntryFailure<typeof ask>, ApprovalDenied>>().toEqualTypeOf<ApprovalDenied>();
-  expectTypeOf<Extract<EntryFailure<typeof ask>, Forbidden>>().toEqualTypeOf<Forbidden>();
+it("feature failures retain real gate failures without a contract wrapper", () => {
+  expectTypeOf<FeatureFailure<typeof greet>>().toEqualTypeOf<NameIsEmpty | InnerFailure>();
+  const ask = featureFixture(defineOperation("ask", { ...greet, needsApproval: true }));
+  expectTypeOf<
+    Extract<FeatureFailure<typeof ask>, ApprovalDenied>
+  >().toEqualTypeOf<ApprovalDenied>();
+  expectTypeOf<Extract<FeatureFailure<typeof ask>, Forbidden>>().toEqualTypeOf<Forbidden>();
 });
-it.effect("an MCP node failure is kind-mapped and never leaks its tag", () =>
+it.effect("an MCP callable failure is kind-mapped and never leaks its tag", () =>
   Effect.gen(function* () {
     const result = yield* callMcpTool(fixture.handler, yield* session(), "greet", { name: "" });
     expect(result.result?.["isError"]).toBe(true);
@@ -201,7 +205,7 @@ it.effect("NoInput is listed as an empty closed object", () =>
     });
   }),
 );
-it.effect("the MCP router lists the projected entry with all its annotations", () =>
+it.effect("the MCP router lists the projected feature with all its annotations", () =>
   Effect.gen(function* () {
     expect((yield* listing).find((tool) => tool.name === "ping")).toMatchObject({
       name: "ping",

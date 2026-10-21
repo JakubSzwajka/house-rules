@@ -6,11 +6,11 @@ import { it } from "node:test";
 import { Linter } from "eslint";
 import plugin from "../src/index.mjs";
 
-for (const name of ["defineNode", "defineEntry", "defineWay", "endpoint"]) {
+for (const name of ["defineOperation", "bindOperation", "defineFeature", "defineWay", "endpoint"]) {
   const door =
-    name === "defineNode"
+    name === "defineOperation"
       ? "@house-rules/domain/contract"
-      : name === "defineWay"
+      : ["defineWay", "bindOperation"].includes(name)
         ? "@house-rules/application"
         : "@house-rules/application/contract";
   const variants = {
@@ -45,10 +45,10 @@ for (const name of ["defineNode", "defineEntry", "defineWay", "endpoint"]) {
           `export {${name} as forward} from "${door}";`,
         );
         writeFileSync(path.join(directory, "star.ts"), `export * from "${door}";`);
-        const result = new Linter({ cwd: root }).verify(code, plugin.configs.nodes, {
+        const result = new Linter({ cwd: root }).verify(code, plugin.configs.features, {
           filename: path.join(directory, "hook.ts"),
         });
-        const reports = result.filter(({ ruleId }) => ruleId === "house-rules/entry-from-app-node");
+        const reports = result.filter(({ ruleId }) => ruleId === "house-rules/feature-builders");
         assert.deepEqual(
           reports.map(({ messageId }) => messageId),
           label === "namespace alias" ? ["named", "named"] : ["named"],
@@ -56,7 +56,7 @@ for (const name of ["defineNode", "defineEntry", "defineWay", "endpoint"]) {
         );
         assert.match(
           reports[0].message,
-          /^Import (defineNode|defineEntry|defineWay|endpoint) by name from @house-rules\//u,
+          /^Import (defineOperation|bindOperation|defineFeature|defineWay|endpoint) by name from @house-rules\//u,
         );
         assert.equal(result.filter(({ fatal }) => fatal).length, 0);
       } finally {

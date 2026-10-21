@@ -1,9 +1,9 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
-import { defineNode } from "@house-rules/domain";
+import { defineOperation } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import {
   composition,
-  defineEntry,
   defineWay,
   endpoint,
   May,
@@ -21,11 +21,11 @@ import {
   webRequest,
   type Work,
 } from "./delivery-fixtures.ts";
-import { bindFixture, fixtureLayer, testActor } from "./entry-fixtures.ts";
+import { bindFixture, fixtureLayer, testActor } from "./execution-fixtures.ts";
 import { mcpFixture } from "./router-fixtures.ts";
 import { callMcpTool, mcpInitialize, mcpPost, openMcpSession } from "./delivery-mcp-client.ts";
 const work: Work = { calls: 0, callers: 0 };
-const entries = [showBooking, findBookings] as const;
+const features = [showBooking, findBookings] as const;
 const modules = Bookings.fromRecords(
   [
     { id: "b-1", owner: "ada", guestName: "Ada", nights: 3 },
@@ -38,17 +38,17 @@ const http = defineWay({
   name: "web",
   path: "/api",
   protocol: "http",
-  entries,
+  features,
   endpoints: [endpoint(showBooking, "GET /bookings/:id"), endpoint(findBookings, "GET /bookings")],
   who,
-  may: May.fixed(entries, ["bookings:read"]),
+  may: May.fixed(features, ["bookings:read"]),
   mean: Mean.no,
 });
 const mcp = defineWay({
   name: "mcp",
   path: "/api/mcp",
   protocol: "mcp",
-  entries: [showBooking],
+  features: [showBooking],
   who,
   may: May.fixed([showBooking], ["bookings:read"]),
   mean: Mean.elicitation,
@@ -57,11 +57,11 @@ const mcp = defineWay({
     resource: "https://app.example/mcp",
     authorizationServers: ["https://issuer.example"],
   }),
-  tools: [{ entry: showBooking, title: "Show a booking", idempotent: true, openWorld: false }],
+  tools: [{ feature: showBooking, title: "Show a booking", idempotent: true, openWorld: false }],
 });
 const app = composition({
-  layer: fixtureLayer(entries).pipe(Layer.provideMerge(modules)),
-  entries,
+  layer: fixtureLayer(features).pipe(Layer.provideMerge(modules)),
+  features: features,
   ways: [http, mcp],
   system: [],
 });
@@ -175,8 +175,8 @@ it.effect("MCP GET and DELETE without a token get the same resource challenge", 
 it.effect("an McpServer rejection returns the fixed 500 with its request id", () =>
   Effect.gen(function* () {
     const bare = bindFixture(
-      defineEntry(
-        defineNode("bare", {
+      featureFixture(
+        defineOperation("bare", {
           description: "An input the server cannot advertise.",
           input: Schema.Struct({}),
           output: Schema.Struct({}),
@@ -188,7 +188,7 @@ it.effect("an McpServer rejection returns the fixed 500 with its request id", ()
       () => Effect.succeed({}),
     );
     const fixture = mcpFixture([bare], {
-      tools: [{ entry: bare, title: "Bare", idempotent: true, openWorld: false }],
+      tools: [{ feature: bare, title: "Bare", idempotent: true, openWorld: false }],
     });
     disposers.push(fixture.dispose);
     const response = yield* Effect.promise(() =>
@@ -218,8 +218,8 @@ it.effect("an unconfigured MCP way and all metadata paths fail closed without Wh
   Effect.gen(function* () {
     let callers = 0;
     const read = bindFixture(
-      defineEntry(
-        defineNode("read", {
+      featureFixture(
+        defineOperation("read", {
           description: "Read.",
           input: Schema.Struct({ id: Schema.String }),
           output: Schema.String,
@@ -232,7 +232,7 @@ it.effect("an unconfigured MCP way and all metadata paths fail closed without Wh
     );
     const fixture = mcpFixture([read], {
       resource: protectedResource(undefined, "/mcp"),
-      tools: [{ entry: read, title: "Read", idempotent: true, openWorld: false }],
+      tools: [{ feature: read, title: "Read", idempotent: true, openWorld: false }],
       who: {
         resolve: () =>
           Effect.sync(() => {

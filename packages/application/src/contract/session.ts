@@ -1,18 +1,18 @@
 import { Schema } from "effect";
 import type { PlainSchema } from "@house-rules/domain/contract";
-import type { AnyEntry } from "../entry/entry.ts";
+import type { AnyFeature } from "../feature/feature.ts";
 
 export type SessionRole = "none" | "issue" | "clear";
 
 export type SessionGrant = Readonly<{ token: string; expiresAt: number }>;
 
-export type SessionOption<E extends AnyEntry> = E["node"]["output"]["Type"] extends SessionGrant
+export type SessionOption<E extends AnyFeature> = E["output"]["Type"] extends SessionGrant
   ? "issue" | "clear"
   : "clear";
 
-export type BodyOf<E extends AnyEntry, S extends SessionRole> = [S] extends ["issue"]
-  ? Omit<E["node"]["output"]["Type"], "token">
-  : E["node"]["output"]["Type"];
+export type BodyOf<E extends AnyFeature, S extends SessionRole> = [S] extends ["issue"]
+  ? Omit<E["output"]["Type"], "token">
+  : E["output"]["Type"];
 
 const grantFields = ["token", "expiresAt"] as const;
 
@@ -43,13 +43,13 @@ export const checkSessionPlace = (
 
 const bodies = new WeakMap<PlainSchema, PlainSchema>();
 
-export const bodySchemaOf = (entry: AnyEntry, session: SessionRole): PlainSchema => {
-  if (session !== "issue") return entry.node.output;
-  const known = bodies.get(entry.node.output);
+export const bodySchemaOf = (feature: AnyFeature, session: SessionRole): PlainSchema => {
+  if (session !== "issue") return feature.output;
+  const known = bodies.get(feature.output);
   if (known !== undefined) return known;
   // The token goes into the cookie only; the body keeps every other field.
-  const kept = Object.entries(fieldsOf(entry.node.output) ?? {}).filter(([key]) => key !== "token");
+  const kept = Object.entries(fieldsOf(feature.output) ?? {}).filter(([key]) => key !== "token");
   const body = Schema.Struct(Object.fromEntries(kept)) as unknown as PlainSchema;
-  bodies.set(entry.node.output, body);
+  bodies.set(feature.output, body);
   return body;
 };

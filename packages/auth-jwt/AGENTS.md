@@ -45,7 +45,7 @@ No `migrations.json` line.
 
 - No token passes without a matching signature, issuer, non-empty string subject and unexpired time. A token with no `exp` is refused. There is no option to skip a check.
 - The audience is checked only when one is set. An MCP route sets it to its resource URL, so a token for another resource is refused.
-- `scope` (space-separated) wins over `scp` (an array or a string). Missing both gives no scopes. Scopes only narrow access; the way's May permission list decides entry access.
+- `scope` (space-separated) wins over `scp` (an array or a string). Missing both gives no scopes. Scopes only narrow access; the way's May permission list decides feature access. `defineWay({ features })` and May lists expose features, never module operations.
 - `verify` reads the time from Effect's `Clock`, so `TestClock` drives expiry in tests.
 - No email, no user lookup and no session issuing here.
 - Module user-facing errors keep their messages; unavailable and plumbing errors use fixed public text, with diagnostic details kept in separate fields or causes.

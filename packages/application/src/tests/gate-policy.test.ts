@@ -1,9 +1,10 @@
+import { featureFixture, RuntimeFixture } from "./feature-fixtures.ts";
 import { expect, it } from "@effect/vitest";
 import {
   Actor,
   ActorId,
   asSystem,
-  defineNode,
+  defineOperation,
   memoryUnitOfWork,
   NoInput,
   UnitOfWork,
@@ -11,16 +12,15 @@ import {
 import { Effect, Layer, Schema } from "effect";
 import {
   Approval,
-  bindNode,
+  bindOperation,
   CallWatch,
   CurrentActor,
-  defineEntry,
-  entryAndRecheck,
-  entryOnly,
+  featureAndRecheck,
+  featureOnly,
   Forbidden,
   May,
-  NodeRuntime,
-  runEntry,
+  Runtime,
+  runFeature,
   StepTrace,
   withRequestId,
 } from "../index.ts";
@@ -33,26 +33,26 @@ const options = {
   permission: null,
 } as const;
 const actor = Actor.make({ id: ActorId.make("ada") });
-const child = defineNode("child", {
+const child = defineOperation("child", {
   ...options,
   permission: "items:write",
   transactional: true,
   needsApproval: true,
 });
-const root = defineNode("root", { ...options, edges: [child] });
-const entry = defineEntry(root);
+const root = defineOperation("root", { ...options, edges: [child] });
+const feature = featureFixture(root);
 
 it.effect("opens one watch, one approval and one unit around the graph, in order", () =>
   Effect.gen(function* () {
     const calls: string[] = [];
     const unit = yield* Effect.service(UnitOfWork).pipe(Effect.provide(memoryUnitOfWork));
     const bindings = [
-      bindNode(root, (_input, scope) =>
+      bindOperation(root, (_input, scope) =>
         Effect.sync(() => {
           calls.push("root");
         }).pipe(Effect.andThen(scope.call(child, {}))),
       ),
-      bindNode(child, () =>
+      bindOperation(child, () =>
         UnitOfWork.required.pipe(
           Effect.tap(() =>
             Effect.sync(() => {
@@ -62,10 +62,10 @@ it.effect("opens one watch, one approval and one unit around the graph, in order
         ),
       ),
     ];
-    yield* runEntry(entry, {}).pipe(
-      Effect.provide(NodeRuntime.layer({ bindings, entries: [entry], ways: [] })),
+    yield* runFeature(feature, {}).pipe(
+      Effect.provide(RuntimeFixture.layer({ bindings, features: [feature], ways: [] })),
       Effect.provideContext(
-        May.context(May.fixed([entry], ["items:write"]), { system: [], via: "web" }),
+        May.context(May.fixed([feature], ["items:write"]), { system: [], via: "web" }),
       ),
       Effect.provideService(CurrentActor, actor),
       Effect.provide(StepTrace.layer()),
@@ -82,7 +82,7 @@ it.effect("opens one watch, one approval and one unit around the graph, in order
           }).pipe(Effect.andThen(unit.atomic(work))),
       }),
       Effect.provideService(CallWatch, {
-        around: (_entry, _input, work) =>
+        around: (_feature, _input, work) =>
           Effect.sync(() => {
             calls.push("watch");
           }).pipe(Effect.andThen(work)),
@@ -94,19 +94,22 @@ it.effect("opens one watch, one approval and one unit around the graph, in order
 
 it.effect("names the real missing permission and caller in either closure", () =>
   Effect.gen(function* () {
-    const systemRoot = defineNode("system_root", {
+    const systemRoot = defineOperation("system_root", {
       ...options,
       edges: [asSystem(child, "background")],
     });
-    for (const node of [root, systemRoot]) {
-      const current = defineEntry(node);
+    for (const callable of [root, systemRoot]) {
+      const current = featureFixture(callable);
       const trace = StepTrace.make();
       const error = yield* Effect.flip(
-        runEntry(current, {}).pipe(
+        runFeature(current, {}).pipe(
           Effect.provide(
-            NodeRuntime.layer({
-              bindings: [bindNode(node, () => Effect.void), bindNode(child, () => Effect.void)],
-              entries: [current],
+            RuntimeFixture.layer({
+              bindings: [
+                bindOperation(callable, () => Effect.void),
+                bindOperation(child, () => Effect.void),
+              ],
+              features: [current],
               ways: [],
             }),
           ),
@@ -121,83 +124,92 @@ it.effect("names the real missing permission and caller in either closure", () =
         steps: [],
         refusals: [
           {
-            entry: node.name,
+            feature: callable.name,
             permission: "items:write",
-            caller: node === root ? "person" : "system",
+            caller: callable === root ? "person" : "system",
           },
         ],
       });
       expect(error).toEqual(
         new Forbidden({
-          entry: node.name,
+          feature: callable.name,
           permission: "items:write",
-          caller: node === root ? "person" : "system",
+          caller: callable === root ? "person" : "system",
         }),
       );
     }
   }),
 );
 
-for (const gatePolicy of [entryAndRecheck, entryOnly] as const) {
-  it.effect(`${gatePolicy}: keeps the forged closure backstop policy explicit`, () =>
-    Effect.gen(function* () {
-      const systemRoot = defineNode("system_recheck", {
-        ...options,
-        edges: [asSystem(child, "background")],
-      });
-      for (const node of [root, systemRoot]) {
-        const forged = { ...defineEntry(node), closures: { person: [], system: [] } };
-        let ran = false;
-        const bindings = [
-          bindNode(node, (_input, scope) => scope.call(child, {})),
-          bindNode(child, () =>
-            Effect.sync(() => {
-              ran = true;
-            }),
-          ),
-        ];
-        const outcome = yield* Effect.result(
-          runEntry(forged, {}).pipe(
-            Effect.provide(NodeRuntime.layer({ bindings, entries: [forged], ways: [] })),
-            Effect.provideContext(
-              May.context(May.fixed([forged], []), { system: [], via: "test", gatePolicy }),
+for (const gatePolicy of [featureAndRecheck, featureOnly] as const) {
+  it.effect(
+    `${gatePolicy}: keeps inner rechecks explicit when permissions change after the closure gate`,
+    () =>
+      Effect.gen(function* () {
+        const systemRoot = defineOperation("system_recheck", {
+          ...options,
+          edges: [asSystem(child, "background")],
+        });
+        for (const callable of [root, systemRoot]) {
+          const current = featureFixture(callable);
+          const held: Array<"items:write"> = ["items:write"];
+          let ran = false;
+          const bindings = [
+            bindOperation(callable, (_input, scope) =>
+              Effect.sync(() => {
+                held.length = 0;
+              }).pipe(Effect.andThen(scope.call(child, {}))),
             ),
-            Effect.provideService(CurrentActor, actor),
-            Effect.provide(Layer.mergeAll(StepTrace.layer(), Approval.allowAll, memoryUnitOfWork)),
-          ),
-        );
-        expect(ran).toBe(gatePolicy === entryOnly);
-        expect(outcome._tag).toBe(gatePolicy === entryOnly ? "Success" : "Failure");
-        if (outcome._tag === "Failure")
-          expect(outcome.failure).toEqual(
-            new Forbidden({
-              entry: node.name,
-              permission: "items:write",
-              caller: node === root ? "person" : "system",
-            }),
+            bindOperation(child, () =>
+              Effect.sync(() => {
+                ran = true;
+              }),
+            ),
+          ];
+          const outcome = yield* Effect.result(
+            runFeature(current, {}).pipe(
+              Effect.provide(RuntimeFixture.layer({ bindings, features: [current], ways: [] })),
+              Effect.provideContext(
+                May.context(May.fixed([current], held), { system: held, via: "test", gatePolicy }),
+              ),
+              Effect.provideService(CurrentActor, actor),
+              Effect.provide(
+                Layer.mergeAll(StepTrace.layer(), Approval.allowAll, memoryUnitOfWork),
+              ),
+            ),
           );
-      }
-    }),
+          expect(ran).toBe(gatePolicy === featureOnly);
+          expect(outcome._tag).toBe(gatePolicy === featureOnly ? "Success" : "Failure");
+          if (outcome._tag === "Failure")
+            expect(outcome.failure).toEqual(
+              new Forbidden({
+                feature: callable.name,
+                permission: "items:write",
+                caller: callable === root ? "person" : "system",
+              }),
+            );
+        }
+      }),
   );
 }
 
-it.effect("refuses an entry exposed by another way before approval, unit or nodes", () =>
+it.effect("refuses an feature exposed by another way before approval, unit or callables", () =>
   Effect.gen(function* () {
-    const other = defineEntry(root);
+    const other = featureFixture({ ...root, name: "other" });
     const calls: string[] = [];
     const error = yield* Effect.flip(
-      runEntry(entry, {}).pipe(
+      runFeature(feature, {}).pipe(
         Effect.provide(
-          NodeRuntime.layer({
+          RuntimeFixture.layer({
             bindings: [
-              bindNode(root, () =>
+              bindOperation(root, () =>
                 Effect.sync(() => {
-                  calls.push("node");
+                  calls.push("callable");
                 }),
               ),
-              bindNode(child, () => Effect.void),
+              bindOperation(child, () => Effect.void),
             ],
-            entries: [entry, other],
+            features: [feature, other],
             ways: [],
           }),
         ),
@@ -218,7 +230,7 @@ it.effect("refuses an entry exposed by another way before approval, unit or node
         Effect.provide(memoryUnitOfWork),
       ),
     );
-    expect(error._tag).toBe("NodeCallInvalid");
+    expect(error._tag).toBe("CallInvalid");
     expect(calls).toEqual([]);
   }),
 );

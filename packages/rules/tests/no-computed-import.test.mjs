@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Linter } from "eslint";
-import plugin, { nodesConfig } from "../src/index.mjs";
+import plugin, { featuresConfig } from "../src/index.mjs";
 
 function lint(
   code,
   filename = "packages/bookings/src/booking/loader.ts",
-  config = plugin.configs.nodes,
+  config = plugin.configs.features,
 ) {
   const messages = new Linter().verify(code, config, { filename });
   assert.equal(
@@ -44,13 +44,13 @@ test("covers package and app descriptor trees, but not tests", () => {
   assert.deepEqual(lint(code, "packages/bookings/src/booking/tests/booking.test.ts"), []);
 });
 
-test("nodesConfig roots match layout roots", () => {
+test("featuresConfig roots match layout roots", () => {
   const code = "const at = './x.ts';\nawait import(at);";
-  const libs = nodesConfig({ packagesDir: "libs" });
+  const libs = featuresConfig({ packagesDir: "libs" });
   assert.deepEqual(lint(code, "libs/a/src/contract.ts", libs), [2]);
   assert.deepEqual(lint(code, "libs/a/src/tests/a.test.ts", libs), []);
   assert.deepEqual(lint(code, "packages/a/src/contract.ts", libs), []);
   assert.deepEqual(lint(code, "libs/a/src/contract.ts"), []);
-  assert.throws(() => nodesConfig({ packagesDir: "/libs" }), /packagesDir/u);
-  assert.throws(() => nodesConfig({ packagesDir: "libs/*" }), /packagesDir/u);
+  assert.throws(() => featuresConfig({ packagesDir: "/libs" }), /packagesDir/u);
+  assert.throws(() => featuresConfig({ packagesDir: "libs/*" }), /packagesDir/u);
 });

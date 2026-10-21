@@ -45,8 +45,8 @@ export const commentsConsumerFiles = {
   },
   "comments.mjs": `import assert from "node:assert/strict";
 import path from "node:path";
-import { Actor, ActorId, defineModule, defineNode, memoryUnitOfWork } from "@house-rules/domain";
-import { CurrentActor, bindNode, defineEntry, May, NodeRuntime, runEntry, StepTrace } from "@house-rules/application";
+import { Actor, ActorId, defineModule, memoryUnitOfWork } from "@house-rules/domain";
+import { CurrentActor, defineFeature, May, Runtime, runFeature, StepTrace } from "@house-rules/application";
 import { Comments, bindComments, CommentTargets, CommentTargetNotFound } from "@house-rules/comments";
 import * as contract from "@house-rules/comments/contract";
 import { Migrations } from "@house-rules/migrations";
@@ -57,29 +57,25 @@ const outsider = Actor.make({ id: ActorId.make("outsider") });
 class Probe extends defineModule()("cold_probe", { make: Effect.succeed({ echo: (actor) => Effect.succeed(actor.id) }) }) {}
 const targets = Layer.succeed(CommentTargets, CommentTargets.of({ relation: (viewer) => Effect.succeed(viewer.id === actor.id ? "owner" : "none") }));
 const comments = Comments.layerMemory({ ...Comments.presets.default, targets: ["item"] }).pipe(Layer.provide(targets));
-const addNode = defineNode("packed_add", { description: "Add a comment.", input: contract.addComment.input, output: contract.addComment.output, failure: contract.addComment.failure, permission: null, edges: [contract.addComment] });
-const listNode = defineNode("packed_list", { description: "List comments.", input: contract.listComments.input, output: contract.listComments.output, failure: contract.listComments.failure, permission: null, readOnly: true, edges: [contract.listComments] });
-const add = defineEntry(addNode);
-const list = defineEntry(listNode);
-const entries = [add, list];
+const add = defineFeature("packed_add", { description: "Add a comment.", input: contract.CommentsOperations.addComment.input, output: contract.CommentsOperations.addComment.output, failure: contract.CommentsOperations.addComment.failure, permission: null, edges: [contract.CommentsOperations.addComment], handler: (input, { call }) => call(contract.CommentsOperations.addComment, input) });
+const list = defineFeature("packed_list", { description: "List comments.", input: contract.CommentsOperations.listComments.input, output: contract.CommentsOperations.listComments.output, failure: contract.CommentsOperations.listComments.failure, permission: null, flags: { readOnly: true }, edges: [contract.CommentsOperations.listComments], handler: (input, { call }) => call(contract.CommentsOperations.listComments, input) });
+const features = [add, list];
 const runtime = Layer.unwrap(Effect.gen(function* () {
-  return NodeRuntime.layer({ entries, ways: [], bindings: [
+  return Runtime.layer({ features, ways: [], bindings: [
     ...bindComments(yield* Comments),
-    bindNode(addNode, (input, scope) => scope.call(contract.addComment, input)),
-    bindNode(listNode, (input, scope) => scope.call(contract.listComments, input)),
   ] });
 })).pipe(Layer.provide(comments));
 const world = Layer.mergeAll(runtime, Probe.layer, memoryUnitOfWork, StepTrace.layer(), NodeServices.layer);
-const as = (viewer) => Layer.merge(Layer.succeed(CurrentActor, viewer), Layer.succeedContext(May.context(May.fixed(entries, Object.values(contract.CommentPermissions)), { system: [], via: "packed" })));
+const as = (viewer) => Layer.merge(Layer.succeed(CurrentActor, viewer), Layer.succeedContext(May.context(May.fixed(features, Object.values(contract.CommentPermissions)), { system: [], via: "packed" })));
 NodePlatform.runMain(Effect.gen(function* () {
   assert.equal(yield* (yield* Probe).echo(actor), actor.id);
   const target = { kind: "item", id: "packed" };
-  const added = yield* runEntry(add, { target, body: "Packed comment" }).pipe(Effect.provide(as(actor)));
+  const added = yield* runFeature(add, { target, body: "Packed comment" }).pipe(Effect.provide(as(actor)));
   assert.equal(added.authorId, actor.id);
-  const page = yield* runEntry(list, { target, page: { size: 10 } }).pipe(Effect.provide(as(actor)));
+  const page = yield* runFeature(list, { target, page: { size: 10 } }).pipe(Effect.provide(as(actor)));
   assert.deepEqual(page.items, [added]);
   assert.equal(page.next, undefined);
-  const denied = yield* Effect.flip(runEntry(list, { target, page: { size: 10 } }).pipe(Effect.provide(as(outsider))));
+  const denied = yield* Effect.flip(runFeature(list, { target, page: { size: 10 } }).pipe(Effect.provide(as(outsider))));
   assert.ok(denied instanceof CommentTargetNotFound);
   const modules = yield* Migrations.readModuleList("migrations.json");
   assert.deepEqual(modules.map(({ name, table }) => ({ name, table })), [{ name: "call_audit", table: "call_audit_migrations" }, { name: "comments", table: "comments_migrations" }, { name: "identity", table: "identity_migrations" }, { name: "party", table: "party_migrations" }]);
@@ -89,13 +85,13 @@ NodePlatform.runMain(Effect.gen(function* () {
     const files = yield* fs.readDirectory(module.directory);
     assert.ok(files.some((file) => file.endsWith(".sql")));
   }
-  yield* Effect.log("cold install: bound comment nodes through app entries, memory, A/B privacy and installed migrations pass");
+  yield* Effect.log("cold install: bound comment operations through app features, memory, A/B privacy and installed migrations pass");
 }).pipe(Effect.provide(world)));
 `,
   "comments.ts": `import { Actor, ActorId, defineModule } from "@house-rules/domain";
 import { CurrentActor } from "@house-rules/application";
 import { Comments, bindComments, type CommentFailure, CommentTargets, type CommentRelation, CommentsOptions } from "@house-rules/comments";
-import { addComment, listComments, type Comment, type CommentTarget, type CommentPage, type CommentCursor, type CommentList, type CommentPermission, CommentPermissions } from "@house-rules/comments/contract";
+import { CommentsOperations, type Comment, type CommentTarget, type CommentPage, type CommentCursor, type CommentList, type CommentPermission, CommentPermissions } from "@house-rules/comments/contract";
 import { Effect } from "effect";
 export class Probe extends defineModule<Probe, { echo: (actor: Actor) => Effect.Effect<ActorId> }>()("cold_probe", { make: Effect.succeed({ echo: (actor: Actor) => Effect.succeed(actor.id) }) }) {}
 export const actor: Actor = Actor.make({ id: ActorId.make("owner") });
@@ -109,7 +105,7 @@ export const failureTag = (failure: CommentFailure): string => failure._tag;
 export const body = (comment: Comment): string => comment.body;
 export const items = (list: CommentList): ReadonlyArray<Comment> => list.items;
 export const bindings = (service: Comments["Service"]) => bindComments(service);
-export const nodes = [addComment, listComments];
+export const operations = Object.values(CommentsOperations);
 export const captures = () => defineModule<Probe, { echo: (actor: Actor) => Effect.Effect<ActorId> }>()("cold_captures", {
   // @ts-expect-error defineModule refuses a make that requires CurrentActor
   make: Effect.map(CurrentActor, (current) => ({ echo: (_actor: Actor) => Effect.succeed(current.id) })),
@@ -150,7 +146,7 @@ const CONTRACT_ENTRIES = ["comments", "party", "application", "domain", "identit
   (name) => `node_modules/@house-rules/${name}/dist/contract.js`,
 );
 const APP_ENTRIES = [
-  "apps/web/src/features/show-owner/node.ts",
+  "apps/web/src/features/show-owner/index.ts",
   "apps/web/src/ways-in/web/endpoints.ts",
 ];
 
@@ -232,14 +228,14 @@ function assertBrowserGraph(app, { run, write, failure }) {
     write(app, { [transitive]: original });
   }
   console.log(
-    `cold install: browser graph traverses ${graph.modules.length} packed modules from five contract doors, node.ts and endpoints.ts; direct and transitive poisons fail`,
+    `cold install: browser graph traverses ${graph.modules.length} packed modules from five contract doors, feature indexes and endpoints.ts; direct and transitive poisons fail`,
   );
 }
 
 export function assertContractRuleIsLive(app, { write, failure }) {
   write(app, {
     "packages/catalogue/src/contract.ts":
-      'export { showItem } from "./item/show-item.ts";\nexport { addComment } from "@house-rules/comments";\nexport { bindNode } from "@house-rules/application";\n',
+      'export { showItem } from "./item/show-item.ts";\nexport { addComment } from "@house-rules/comments";\nexport { bindOperation } from "@house-rules/application";\n',
   });
   for (const name of ["application", "comments"]) {
     assert.match(

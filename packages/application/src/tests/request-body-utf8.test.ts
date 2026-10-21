@@ -1,14 +1,15 @@
-import { defineNode } from "@house-rules/domain";
-import { bindFixture } from "./entry-fixtures.ts";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation } from "@house-rules/domain";
+import { bindFixture } from "./execution-fixtures.ts";
 import { httpFixture } from "./router-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import { defineEntry, endpoint } from "../index.ts";
+import { endpoint } from "../index.ts";
 import { answer, webRequest } from "./delivery-fixtures.ts";
 
 const nameThing = bindFixture(
-  defineEntry(
-    defineNode("name_thing", {
+  featureFixture(
+    defineOperation("name_thing", {
       description: "Name a thing.",
       input: Schema.Struct({ name: Schema.String }),
       output: Schema.Struct({ name: Schema.String }),

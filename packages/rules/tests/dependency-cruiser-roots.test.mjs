@@ -6,7 +6,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { Linter } from "eslint";
 import { layout } from "../src/dependency-cruiser.cjs";
-import { nodesConfig } from "../src/index.mjs";
+import { featuresConfig } from "../src/index.mjs";
 import { cruiseFixture, fromPaths, violatedRules } from "./dependency-cruiser-helpers.mjs";
 
 const layoutBin = fileURLToPath(new URL("../bin/layout.mjs", import.meta.url));
@@ -67,7 +67,7 @@ test("several roots become one alternation in every pattern that names them", ()
       .map(({ from }) => from.path),
     [
       `^${packages}/[^/]+/src/contract[.]ts$`,
-      `(?:^${apps}/[^/]+/src/read-models/[^/]+/contract[.]ts$|^${apps}/[^/]+/src/features/[^/]+/(?:node|entry)[.]ts$|^${apps}/[^/]+/src/ways-in/[^/]+/endpoints[.]ts$)`,
+      `(?:^${apps}/[^/]+/src/read-models/[^/]+/contract[.]ts$|^${apps}/[^/]+/src/features/(?:[^/]+/|)index[.]ts$|^${apps}/[^/]+/src/ways-in/[^/]+/endpoints[.]ts$)`,
     ],
   );
   const declarations = byName(
@@ -199,8 +199,8 @@ test("house-rules-layout finds package and subject-folder cycles and manifests i
   );
 });
 
-test("nodesConfig() takes the same root lists as layout()", () => {
-  const config = nodesConfig(ROOTS);
+test("featuresConfig() takes the same root lists as layout()", () => {
+  const config = featuresConfig(ROOTS);
   const rulesAt = (code, filename) =>
     new Linter()
       .verify(code, config, { filename })
@@ -218,22 +218,22 @@ test("nodesConfig() takes the same root lists as layout()", () => {
   ]);
   const loose = "export const helper = 1;";
   assert.deepEqual(rulesAt(loose, "examples/shop/apps/api/src/features/show-order/node.ts"), [
-    "house-rules/node-file",
+    "house-rules/feature-file",
   ]);
   assert.deepEqual(rulesAt(loose, "apps/web/src/features/show-order/node.ts"), [
-    "house-rules/node-file",
+    "house-rules/feature-file",
   ]);
   assert.deepEqual(
     rulesAt(loose, "examples/shop/apps/api/src/features/show/tests/show.test.ts"),
     [],
   );
-  assert.throws(() => nodesConfig({ packagesDir: [] }), /nodesConfig\(\): packagesDir/u);
+  assert.throws(() => featuresConfig({ packagesDir: [] }), /featuresConfig\(\): packagesDir/u);
   assert.throws(
-    () => nodesConfig({ appsDir: "examples/**/apps" }),
-    /nodesConfig\(\): appsDir entry/u,
+    () => featuresConfig({ appsDir: "examples/**/apps" }),
+    /featuresConfig\(\): appsDir entry/u,
   );
   assert.throws(
-    () => nodesConfig({ appsDir: "src", packagesDir: "src" }),
-    /nodesConfig\(\): appsDir "src" and packagesDir "src" overlap/u,
+    () => featuresConfig({ appsDir: "src", packagesDir: "src" }),
+    /featuresConfig\(\): appsDir "src" and packagesDir "src" overlap/u,
   );
 });

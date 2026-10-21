@@ -1,9 +1,10 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
-import { defineNode, errorKind, NoInput } from "@house-rules/domain";
+import { defineOperation, errorKind, NoInput } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
-import { call, defineEntry, endpoint, toFetchHandler } from "../index.ts";
+import { call, endpoint, toFetchHandler } from "../index.ts";
 import { answer, webRequest } from "./delivery-fixtures.ts";
-import { bindFixture } from "./entry-fixtures.ts";
+import { bindFixture } from "./execution-fixtures.ts";
 import { bothFixture } from "./router-fixtures.ts";
 import { mcpInitialize, mcpPost } from "./delivery-mcp-client.ts";
 class DbUnavailable extends Schema.TaggedError<DbUnavailable>()("DbUnavailable", {
@@ -14,8 +15,8 @@ class DbUnavailable extends Schema.TaggedError<DbUnavailable>()("DbUnavailable",
   }
 }
 const ping = bindFixture(
-  defineEntry(
-    defineNode("ping", {
+  featureFixture(
+    defineOperation("ping", {
       description: "Answer pong.",
       input: NoInput,
       output: Schema.Struct({ pong: Schema.Boolean }),

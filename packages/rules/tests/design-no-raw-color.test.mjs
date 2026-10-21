@@ -51,7 +51,17 @@ test("design-no-raw-color", () => {
       },
       {
         code: "a { color: #fff; }",
-        options: [{ ...tokens, allowIn: ["tests/fixtures/*/apps/**/component.{css,scss}"] }],
+        options: [
+          {
+            ...tokens,
+            allowIn: [
+              path.relative(
+                process.cwd(),
+                path.join(import.meta.dirname, "fixtures/*/apps/**/component.{css,scss}"),
+              ),
+            ],
+          },
+        ],
         filename: component,
       },
       {

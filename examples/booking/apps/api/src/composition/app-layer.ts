@@ -1,11 +1,4 @@
-import { makeBookingBinding } from "../features/make-booking/handler.ts";
-import { partnerBookingBinding } from "../features/book-for-partner/handler.ts";
-import { cancelBookingBinding } from "../features/cancel-booking/handler.ts";
-import { showBookingBinding } from "../features/show-booking/handler.ts";
-import { myBookingsBinding } from "../features/my-bookings/handler.ts";
-import { firstSignInNodeBinding } from "../features/first-sign-in/handler.ts";
-import { nightlyCleanupNodeBinding } from "../features/nightly-cleanup/handler.ts";
-import { NodeRuntime, CurrentActor, type NodeRuntimeOptions } from "@house-rules/application";
+import { Runtime, CurrentActor, type RuntimeOptions } from "@house-rules/application";
 import { Bookings, bindBookings } from "@example/bookings";
 import { Billing, bindBilling } from "@example/billing";
 import { MyStuff, bindMyStuff } from "../read-models/my-bookings/index.ts";
@@ -18,7 +11,7 @@ import { AuditStorage } from "./audit-storage.ts";
 import { DemoIssuers } from "./demo-issuers.ts";
 import { McpAuthenticator } from "./mcp-authenticator.ts";
 import { newLoginHook } from "./first-sign-in.ts";
-import { Entries } from "./entries.ts";
+import { Features } from "../features/index.ts";
 import { modulesLayer } from "./modules.ts";
 export const auditOptions = {
   who: Effect.serviceOption(CurrentActor).pipe(
@@ -26,7 +19,7 @@ export const auditOptions = {
   ),
   policy: CallAudit.presets.strict,
 };
-export const linkModules = (ways: NodeRuntimeOptions["ways"]) =>
+export const linkModules = (ways: RuntimeOptions["ways"]) =>
   Layer.unwrap(
     Effect.gen(function* () {
       const bookings = yield* Bookings;
@@ -34,29 +27,22 @@ export const linkModules = (ways: NodeRuntimeOptions["ways"]) =>
       const read = yield* MyStuff;
       const party = yield* Party;
       const identity = yield* Identity;
-      return NodeRuntime.layer({
+      return Runtime.layer({
         bindings: [
           ...bindBookings(bookings),
           ...bindBilling(billing),
           ...bindMyStuff(read),
           ...bindParty(party),
           ...bindIdentity(identity),
-          makeBookingBinding,
-          partnerBookingBinding,
-          cancelBookingBinding,
-          showBookingBinding,
-          myBookingsBinding,
-          firstSignInNodeBinding,
-          nightlyCleanupNodeBinding,
         ],
-        entries: Object.values(Entries),
+        features: Object.values(Features),
         ways,
       });
     }),
   );
 export const plugSockets = <E>(
   modules: Layer.Layer<Layer.Success<ReturnType<typeof modulesLayer>>, E>,
-  ways: NodeRuntimeOptions["ways"] = [],
+  ways: RuntimeOptions["ways"] = [],
   nodeEnv = "development",
   mcpIssuer = "",
 ) => {

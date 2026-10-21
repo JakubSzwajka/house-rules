@@ -1,9 +1,10 @@
-import { defineNode, errorKind } from "@house-rules/domain";
-import { bindFixture } from "./entry-fixtures.ts";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation, errorKind } from "@house-rules/domain";
+import { bindFixture } from "./execution-fixtures.ts";
 import { httpFixture } from "./router-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect, Schema, Logger, References } from "effect";
-import { defaultMaxBodyBytes, defineEntry, once, endpoint } from "../index.ts";
+import { defaultMaxBodyBytes, once, endpoint } from "../index.ts";
 import { answer, findBookings, makeApp, webRequest } from "./delivery-fixtures.ts";
 
 const t = makeApp();
@@ -11,8 +12,8 @@ const smallApp = makeApp({ path: "/", maxBodyBytes: 64, endpoints: [endpoint(fin
 const small = smallApp.router;
 
 const badOutput = bindFixture(
-  defineEntry(
-    defineNode("bad_output", {
+  featureFixture(
+    defineOperation("bad_output", {
       description: "Returns a value its output schema cannot encode.",
       input: Schema.Struct({}),
       output: Schema.Struct({ n: Schema.Int }),
@@ -29,8 +30,8 @@ class Broken extends Schema.TaggedError<Broken>()("Broken", {
 }) {}
 
 const brokenView = bindFixture(
-  defineEntry(
-    defineNode("broken_view", {
+  featureFixture(
+    defineOperation("broken_view", {
       description: "Fails with an error whose view throws.",
       input: Schema.Struct({}),
       output: Schema.Struct({}),
@@ -240,8 +241,8 @@ it.effect("a defect is a 500 internal_error, logged with the request id", () =>
     });
     expect(JSON.stringify(r.body)).not.toMatch(/a bug in the handler/u);
     expect(t.logs).toContainEqual({
-      message: expect.arrayContaining(["Entry died"]),
-      annotations: { entry: "crash", requestId: "req-crash" },
+      message: expect.arrayContaining(["Feature died"]),
+      annotations: { feature: "crash", requestId: "req-crash" },
     });
   }),
 );

@@ -1,7 +1,8 @@
-import { defineNode, errorKind } from "@house-rules/domain";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation, errorKind } from "@house-rules/domain";
 import { expect, it } from "@effect/vitest";
 import { Schema } from "effect";
-import { defineEntry, endpoint, failureCodeHeader, toOpenApi } from "../index.ts";
+import { endpoint, failureCodeHeader, toOpenApi } from "../index.ts";
 import {
   BookingNotFound,
   cancelBooking,
@@ -16,8 +17,8 @@ class Overbooked extends Schema.TaggedError<Overbooked>()("Overbooked", {
   nights: Schema.Int,
 }) {}
 
-const reserve = defineEntry(
-  defineNode("reserve", {
+const reserve = featureFixture(
+  defineOperation("reserve", {
     description: "Reserve nights.",
     input: Schema.Struct({ nights: Schema.Int, note: Schema.optionalKey(Schema.String) }),
     output: Schema.Struct({ id: Schema.String }).annotate({ identifier: "Reservation" }),
@@ -70,7 +71,7 @@ it("names the version, the info and the mounted paths with the prefix", () => {
   expect(JSON.parse(JSON.stringify(document))).toEqual(document);
 });
 
-it("a GET takes path and query parameters from the entry node's input", () => {
+it("a GET takes path and query parameters from the feature callable's input", () => {
   const show = operation("/api/bookings/{id}", "get");
   expect(show.operationId).toBe("show_booking");
   expect(show.parameters).toEqual([
@@ -155,14 +156,14 @@ it("keeps Who security for every endpoint, including a null-permission root", ()
 });
 
 it("inherits security for a null-permission root with a permissioned closure", () => {
-  const root = defineEntry(
-    defineNode("show_reservation", {
+  const root = featureFixture(
+    defineOperation("show_reservation", {
       description: "Show a reservation through its child.",
-      input: reserve.node.input,
-      output: reserve.node.output,
+      input: reserve.input,
+      output: reserve.output,
       failure: Schema.Never,
       permission: null,
-      edges: [reserve.node],
+      edges: [reserve],
     }),
   );
   const doc = toOpenApi([endpoint(root)], {

@@ -1,6 +1,6 @@
 import { Effect, Schema, SchemaAST, type SchemaIssue } from "effect";
 import { errorKind, type InputSchema, type StructInput } from "@house-rules/domain/contract";
-import type { AnyEntry } from "../entry/entry.ts";
+import type { AnyFeature } from "../feature/feature.ts";
 
 export const inputIssues = ["unexpected", "missing", "invalid", "repeated"] as const;
 
@@ -8,7 +8,7 @@ export type InputIssue = (typeof inputIssues)[number];
 
 export class InputInvalid extends Schema.TaggedError<InputInvalid>()("InputInvalid", {
   kind: errorKind("invalid"),
-  entry: Schema.String,
+  feature: Schema.String,
   field: Schema.String,
   issue: Schema.Literals(inputIssues),
   message: Schema.String,
@@ -21,10 +21,10 @@ export class InputFault extends Schema.TaggedError<InputFault>()("InputFault", {
 }) {}
 
 export const invalidFor =
-  (entry: string) =>
+  (feature: string) =>
   (fault: InputFault): InputInvalid =>
     new InputInvalid({
-      entry,
+      feature,
       field: fault.field,
       issue: fault.issue,
       message: fault.message,
@@ -77,25 +77,25 @@ const codecOf = (schema: Schema.Top, source: InputSource) =>
     ? Schema.toCodecStringTree(schema)
     : Schema.toCodecJson(schema)) as unknown as Schema.Codec<unknown, unknown>;
 
-export const decodeInput = <E extends AnyEntry>(
-  entry: E,
+export const decodeInput = <E extends AnyFeature>(
+  feature: E,
   raw: unknown,
   source: InputSource,
-): Effect.Effect<E["node"]["input"]["Type"], InputInvalid> =>
-  Schema.decodeUnknownEffect(codecOf(entry.node.input, source))(raw, {
+): Effect.Effect<E["input"]["Type"], InputInvalid> =>
+  Schema.decodeUnknownEffect(codecOf(feature.input, source))(raw, {
     onExcessProperty: "error",
   }).pipe(
-    Effect.mapError((error) => invalidFor(entry.node.name)(faultFrom(error.issue))),
-    Effect.map((value) => value as E["node"]["input"]["Type"]),
+    Effect.mapError((error) => invalidFor(feature.name)(faultFrom(error.issue))),
+    Effect.map((value) => value as E["input"]["Type"]),
   );
 
-export const decodeValue = <E extends AnyEntry>(
-  entry: E,
+export const decodeValue = <E extends AnyFeature>(
+  feature: E,
   raw: unknown,
-): Effect.Effect<E["node"]["input"]["Type"], InputInvalid> =>
-  Schema.decodeUnknownEffect(Schema.toType(entry.node.input))(raw, {
+): Effect.Effect<E["input"]["Type"], InputInvalid> =>
+  Schema.decodeUnknownEffect(Schema.toType(feature.input))(raw, {
     onExcessProperty: "error",
-  }).pipe(Effect.mapError((error) => invalidFor(entry.node.name)(faultFrom(error.issue))));
+  }).pipe(Effect.mapError((error) => invalidFor(feature.name)(faultFrom(error.issue))));
 
 const membersOf = (input: InputSchema): ReadonlyArray<StructInput> =>
   "members" in input ? input.members : "fields" in input ? [input as StructInput] : [];

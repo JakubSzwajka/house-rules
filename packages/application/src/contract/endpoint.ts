@@ -1,4 +1,4 @@
-import type { AnyEntry } from "../entry/entry.ts";
+import type { AnyFeature } from "../feature/feature.ts";
 
 export type CsrfOptOut = Readonly<{ skip: true; reason: string }>;
 import { checkSessionPlace, type SessionOption, type SessionRole } from "./session.ts";
@@ -16,12 +16,12 @@ export type EndpointOptions<
 }>;
 
 export type Endpoint<
-  E extends AnyEntry = AnyEntry,
+  E extends AnyFeature = AnyFeature,
   Code extends string = string,
   Session extends SessionRole = SessionRole,
 > = Readonly<{
   _tag: "Endpoint";
-  entry: E;
+  feature: E;
   method: Method;
   path: `/${string}`;
   status: number;
@@ -66,26 +66,26 @@ export const parseAt = (
 };
 
 export const endpoint = <
-  E extends AnyEntry,
+  E extends AnyFeature,
   const Code extends string = never,
   const Session extends SessionOption<E> = never,
 >(
-  entry: E,
+  feature: E,
   at?: `${Method} /${string}`,
   options: EndpointOptions<Code, Session> = {},
 ): Endpoint<E, NoInfer<Code>, SessionOf<Session>> => {
-  const place = parseAt(entry.node.name, at);
+  const place = parseAt(feature.name, at);
   const session = (options.session ?? "none") as SessionOf<Session>;
-  checkSessionPlace(entry.node.name, place.method, session, entry.node.output);
+  checkSessionPlace(feature.name, place.method, session, feature.output);
   if (options.csrf !== undefined && (options.csrf.reason.trim() === "" || session !== "none")) {
-    throw new TypeError(`${entry.node.name}: CSRF opt-out needs a reason and cannot set a session`);
+    throw new TypeError(`${feature.name}: CSRF opt-out needs a reason and cannot set a session`);
   }
   return {
     _tag: "Endpoint",
-    entry,
+    feature,
     ...place,
     status: options.status ?? 200,
-    codes: checkedCodes(entry.node.name, options.codes ?? []),
+    codes: checkedCodes(feature.name, options.codes ?? []),
     session,
     csrf: options.csrf ?? "check",
   };
@@ -102,7 +102,7 @@ export const pathParamNames = (shape: Endpoint): ReadonlyArray<string> =>
       if (param !== undefined) return [param];
       if (/[:*?]/u.test(segment)) {
         throw new TypeError(
-          `${shape.entry.node.name}: path segment ${JSON.stringify(segment)} is not a plain :name`,
+          `${shape.feature.name}: path segment ${JSON.stringify(segment)} is not a plain :name`,
         );
       }
       return [];

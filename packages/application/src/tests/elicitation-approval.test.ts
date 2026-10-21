@@ -1,4 +1,4 @@
-import { bindFixture, runFixture } from "./entry-fixtures.ts";
+import { bindFixture, runFixture } from "./execution-fixtures.ts";
 import { expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { McpSchema } from "effect/ai";
@@ -61,7 +61,7 @@ it.effect("a declined form fails with ApprovalDenied", () =>
     );
 
     expect(error).toEqual(
-      new ApprovalDenied({ entry: "share_trip", reason: "Approval was declined" }),
+      new ApprovalDenied({ feature: "share_trip", reason: "Approval was declined" }),
     );
     expect(ran).toEqual([]);
   }),
@@ -75,7 +75,7 @@ it.effect("a cancelled form fails with ApprovalDenied", () =>
     );
 
     expect(error).toEqual(
-      new ApprovalDenied({ entry: "share_trip", reason: "Approval was cancelled" }),
+      new ApprovalDenied({ feature: "share_trip", reason: "Approval was cancelled" }),
     );
     expect(ran).toEqual([]);
   }),
@@ -161,7 +161,7 @@ it.effect("logs one info line for an approval, with the client and no input", ()
     expect(lines[0]).toMatchObject({
       level: "Info",
       annotations: {
-        entry: "share_trip",
+        feature: "share_trip",
         outcome: "approved",
         clientName: "test-client",
         clientVersion: "1.0.0",
@@ -185,7 +185,7 @@ it.effect("logs one warning line for a denial, with the reason and no input", ()
     expect(lines[0]).toMatchObject({
       level: "Warn",
       annotations: {
-        entry: "share_trip",
+        feature: "share_trip",
         outcome: "denied",
         reason: "Approval was cancelled",
         clientName: "test-client",

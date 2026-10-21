@@ -1,5 +1,6 @@
-import { bindFixture, fixtureLayer, testActor } from "./entry-fixtures.ts";
-import { defineNode } from "@house-rules/domain";
+import { featureFixture } from "./feature-fixtures.ts";
+import { bindFixture, fixtureLayer, testActor } from "./execution-fixtures.ts";
+import { defineOperation } from "@house-rules/domain";
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
@@ -8,7 +9,6 @@ import {
   defineWay,
   May,
   Mean,
-  defineEntry,
   endpoint,
   toFetchHandler,
   toHttpClient,
@@ -19,8 +19,8 @@ import { answer, webRequest } from "./delivery-fixtures.ts";
 const Status = Schema.Literals(["todo", "doing", "done"]);
 
 const listTasks = bindFixture(
-  defineEntry(
-    defineNode("list_tasks", {
+  featureFixture(
+    defineOperation("list_tasks", {
       description: "List tasks by status and tag.",
       input: Schema.Struct({
         status: Schema.optionalKey(Schema.Array(Status)),
@@ -45,8 +45,8 @@ const listTasks = bindFixture(
 );
 
 const searchTasks = bindFixture(
-  defineEntry(
-    defineNode("search_tasks", {
+  featureFixture(
+    defineOperation("search_tasks", {
       description: "Search by text or by owner, both with a status list.",
       input: Schema.Union([
         Schema.Struct({
@@ -74,18 +74,23 @@ const at = {
   search: endpoint(searchTasks, "GET /tasks/search"),
 } as const;
 
-const entries = [listTasks, searchTasks] as const;
+const features = [listTasks, searchTasks] as const;
 const way = defineWay({
   name: "web",
   path: "/",
   protocol: "http",
-  entries,
+  features,
   endpoints: [at.list, at.search],
   who: { resolve: () => Effect.succeed(testActor) },
-  may: May.fixed(entries, []),
+  may: May.fixed(features, []),
   mean: Mean.no,
 });
-const app = composition({ layer: fixtureLayer(entries), entries, ways: [way], system: [] });
+const app = composition({
+  layer: fixtureLayer(features),
+  features: features,
+  ways: [way],
+  system: [],
+});
 const http = toFetchHandler(app);
 afterAll(() => http.dispose().then(() => app.dispose()));
 

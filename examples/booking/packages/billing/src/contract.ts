@@ -1,4 +1,4 @@
-export { BillingNodes } from "./payment/nodes.ts";
+export { BillingOperations } from "./payment/operations.ts";
 export {
   Payment,
   PaymentStatus,

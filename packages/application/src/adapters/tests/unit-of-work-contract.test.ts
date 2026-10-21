@@ -1,8 +1,9 @@
+import { featureFixture } from "../../tests/feature-fixtures.ts";
 import { expect } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
-import { defineNode, NoOpenUnit } from "@house-rules/domain";
-import { Approval, CallWatch, defineEntry, May } from "../../index.ts";
-import { bindFixture, runFixture } from "../../tests/entry-fixtures.ts";
+import { defineOperation, NoOpenUnit } from "@house-rules/domain";
+import { Approval, CallWatch, May } from "../../index.ts";
+import { bindFixture, runFixture } from "../../tests/execution-fixtures.ts";
 import {
   Opens,
   reset,
@@ -13,8 +14,8 @@ import {
   WorkFailed,
 } from "./unit-of-work-fixtures.ts";
 import { onBothAdapters } from "./unit-of-work-suite.ts";
-onBothAdapters("UnitOfWork with entries", (it) => {
-  it.effect("a transactional entry runs all nodes inside one unit", () =>
+onBothAdapters("UnitOfWork with features", (it) => {
+  it.effect("a transactional feature runs all callables inside one unit", () =>
     Effect.gen(function* () {
       yield* reset;
       yield* runFixture(writeBothEntry, { fail: false });
@@ -49,7 +50,7 @@ onBothAdapters("UnitOfWork with entries", (it) => {
       expect(yield* contents).toEqual({ alpha: [], beta: [] });
     }),
   );
-  it.effect("a nontransactional entry has no open unit", () =>
+  it.effect("a nontransactional feature has no open unit", () =>
     Effect.gen(function* () {
       yield* reset;
       const plain = bindFixture(writeEntry(false), () => writeBoth);
@@ -61,8 +62,8 @@ onBothAdapters("UnitOfWork with entries", (it) => {
     Effect.gen(function* () {
       yield* reset;
       const approved = bindFixture(
-        defineEntry(
-          defineNode("approved_write", { ...writeEntry(true).node, needsApproval: true }),
+        featureFixture(
+          defineOperation("approved_write", { ...writeEntry(true), needsApproval: true }),
         ),
         () => writeBoth,
       );
@@ -74,7 +75,7 @@ onBothAdapters("UnitOfWork with entries", (it) => {
       expect(yield* contents).toEqual({ alpha: [], beta: [] });
     }),
   );
-  it.effect("CallWatch encloses the entry gates and its unit", () =>
+  it.effect("CallWatch encloses the feature gates and its unit", () =>
     Effect.gen(function* () {
       yield* reset;
       const { calls } = yield* Opens;
@@ -83,13 +84,15 @@ onBothAdapters("UnitOfWork with entries", (it) => {
           calls.push(step);
         });
       const watched = bindFixture(
-        defineEntry(defineNode("watched_write", { ...writeEntry(true).node, needsApproval: true })),
+        featureFixture(
+          defineOperation("watched_write", { ...writeEntry(true), needsApproval: true }),
+        ),
         () => record("handler").pipe(Effect.andThen(writeBoth)),
       );
       yield* runFixture(watched, { fail: false }).pipe(
         Effect.provideService(Approval, { approve: () => record("approval") }),
         Effect.provideService(CallWatch, {
-          around: (_entry, _input, run) =>
+          around: (_feature, _input, run) =>
             record("watch-before").pipe(
               Effect.andThen(run),
               Effect.ensuring(record("watch-after")),

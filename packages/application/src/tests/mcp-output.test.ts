@@ -1,17 +1,18 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
-import { defineNode, NoInput } from "@house-rules/domain";
+import { defineOperation, NoInput } from "@house-rules/domain";
 import { DateTime, Effect, Schema } from "effect";
-import { defineEntry, endpoint } from "../index.ts";
+import { endpoint } from "../index.ts";
 import { answer, webRequest } from "./delivery-fixtures.ts";
 import { callMcpTool, mcpInitialize, mcpPost, openMcpSession } from "./delivery-mcp-client.ts";
-import { bindFixture } from "./entry-fixtures.ts";
+import { bindFixture } from "./execution-fixtures.ts";
 import { bothFixture, mcpFixture } from "./router-fixtures.ts";
 
 const disposers: Array<() => Promise<void>> = [];
 afterAll(() => Promise.all(disposers.map((dispose) => dispose())));
 const when = bindFixture(
-  defineEntry(
-    defineNode("when_is_it", {
+  featureFixture(
+    defineOperation("when_is_it", {
       description: "Read a count and an instant.",
       input: NoInput,
       output: Schema.Struct({ count: Schema.FiniteFromString, at: Schema.Date }),
@@ -51,7 +52,7 @@ it.effect(
     Effect.gen(function* () {
       const fixture = mcpFixture([when], {
         allowedOrigins: ["https://client.example"],
-        tools: [{ entry: when, title: "When", idempotent: true, openWorld: false }],
+        tools: [{ feature: when, title: "When", idempotent: true, openWorld: false }],
       });
       disposers.push(fixture.dispose);
       for (const origin of [undefined, "https://client.example", "https://evil.example", "null"]) {
@@ -68,7 +69,7 @@ it.effect(
         );
       }
       const defaultFixture = mcpFixture([when], {
-        tools: [{ entry: when, title: "When", idempotent: true, openWorld: false }],
+        tools: [{ feature: when, title: "When", idempotent: true, openWorld: false }],
       });
       disposers.push(defaultFixture.dispose);
       expect(

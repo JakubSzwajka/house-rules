@@ -1,17 +1,10 @@
-import { defineNode, errorKind } from "@house-rules/domain";
-import { bindFixture, runFixture } from "./entry-fixtures.ts";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation, errorKind } from "@house-rules/domain";
+import { bindFixture, runFixture } from "./execution-fixtures.ts";
 import { expect, it } from "@effect/vitest";
 import { Clock, Effect, Exit, Fiber, Layer, Schema } from "effect";
 import { TestClock } from "effect/testing";
-import {
-  Approval,
-  ApprovalDenied,
-  type Around,
-  CallWatch,
-  defineEntry,
-  Forbidden,
-  May,
-} from "../index.ts";
+import { Approval, ApprovalDenied, type Around, CallWatch, Forbidden, May } from "../index.ts";
 
 class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {
   kind: errorKind("invalid"),
@@ -28,20 +21,22 @@ const greetHandler = ({ name }: { readonly name: string }) =>
   name === "" ? Effect.fail(new NameIsEmpty()) : Effect.succeed(`Hello, ${name}`);
 
 const publicGreeting = bindFixture(
-  defineEntry(defineNode("public_greeting", { ...base, permission: null })),
+  featureFixture(defineOperation("public_greeting", { ...base, permission: null })),
   greetHandler,
 );
 const readGreeting = bindFixture(
-  defineEntry(defineNode("read_greeting", { ...base, permission: "greetings:read" })),
+  featureFixture(defineOperation("read_greeting", { ...base, permission: "greetings:read" })),
   greetHandler,
 );
 const approvedGreeting = bindFixture(
-  defineEntry(defineNode("approved_greeting", { ...base, permission: null, needsApproval: true })),
+  featureFixture(
+    defineOperation("approved_greeting", { ...base, permission: null, needsApproval: true }),
+  ),
   greetHandler,
 );
 
 type Seen = {
-  readonly entryName: string;
+  readonly featureName: string;
   readonly input: unknown;
   readonly exit: Exit.Exit<unknown, unknown>;
 };
@@ -51,7 +46,7 @@ const recordingWatch = (seen: Array<Seen>) =>
     around: ((contract, input, run) =>
       Effect.onExit(run, (exit) =>
         Effect.sync(() => {
-          seen.push({ entryName: contract.node.name, input, exit });
+          seen.push({ featureName: contract.name, input, exit });
         }),
       )) satisfies Around,
   });
@@ -72,7 +67,7 @@ it.effect("a watch sees the contract and the input of a success", () =>
 
     expect(result).toBe("Hello, Ada");
     expect(seen).toHaveLength(1);
-    expect(seen[0]?.entryName).toBe("public_greeting");
+    expect(seen[0]?.featureName).toBe("public_greeting");
     expect(seen[0]?.input).toEqual({ name: "Ada" });
     expect(seen[0]?.exit).toEqual(Exit.succeed("Hello, Ada"));
   }),
@@ -102,11 +97,11 @@ it.effect("a watch sees Forbidden", () =>
 
     expect(error).toBeInstanceOf(Forbidden);
     expect(seen).toHaveLength(1);
-    expect(seen[0]?.entryName).toBe("read_greeting");
+    expect(seen[0]?.featureName).toBe("read_greeting");
     expect(seen[0]?.input).toEqual({ name: "Ada" });
     expect(seen[0]?.exit).toEqual(
       Exit.fail(
-        new Forbidden({ entry: "read_greeting", permission: "greetings:read", caller: "person" }),
+        new Forbidden({ feature: "read_greeting", permission: "greetings:read", caller: "person" }),
       ),
     );
   }),
@@ -123,10 +118,12 @@ it.effect("a watch sees ApprovalDenied", () =>
 
     expect(error).toBeInstanceOf(ApprovalDenied);
     expect(seen).toHaveLength(1);
-    expect(seen[0]?.entryName).toBe("approved_greeting");
+    expect(seen[0]?.featureName).toBe("approved_greeting");
     expect(seen[0]?.input).toEqual({ name: "Ada" });
     expect(seen[0]?.exit).toEqual(
-      Exit.fail(new ApprovalDenied({ entry: "approved_greeting", reason: "Approval is required" })),
+      Exit.fail(
+        new ApprovalDenied({ feature: "approved_greeting", reason: "Approval is required" }),
+      ),
     );
   }),
 );
@@ -135,7 +132,7 @@ it.effect("a watch runs around the call, so it can measure it", () =>
   Effect.gen(function* watchMeasures() {
     const durations: Array<number> = [];
     const timed = bindFixture(
-      defineEntry(defineNode("slow_greeting", { ...base, permission: null })),
+      featureFixture(defineOperation("slow_greeting", { ...base, permission: null })),
       (input) => Effect.sleep("50 millis").pipe(Effect.andThen(greetHandler(input))),
     );
     const timingWatch = Layer.succeed(CallWatch, {

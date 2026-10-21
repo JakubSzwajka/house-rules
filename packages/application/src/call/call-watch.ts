@@ -1,9 +1,9 @@
 import { Context, type Effect } from "effect";
 import type { CallFacts } from "./call-facts.ts";
-import type { AnyEntry } from "../entry/entry.ts";
+import type { AnyFeature } from "../feature/feature.ts";
 
 export type Around = <A, E, R>(
-  entry: AnyEntry,
+  feature: AnyFeature,
   input: unknown,
   run: Effect.Effect<A, E, R>,
   facts?: CallFacts,
@@ -11,7 +11,7 @@ export type Around = <A, E, R>(
 
 export type CallWatchService = Readonly<{ around: Around }>;
 
-const passThrough: Around = (_entry, _input, run) => run;
+const passThrough: Around = (_feature, _input, run) => run;
 
 export type CallWatch = Context.Service.Identifier<typeof CallWatch>;
 

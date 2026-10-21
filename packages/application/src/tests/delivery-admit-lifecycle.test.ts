@@ -1,8 +1,9 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
-import { defineNode, errorKind, NoInput } from "@house-rules/domain";
+import { defineOperation, errorKind, NoInput } from "@house-rules/domain";
 import { Deferred, Effect, Layer, Schema } from "effect";
-import { admit, CompositionClosed, defineEntry, endpoint } from "../index.ts";
-import { bindFixture, testActor } from "./entry-fixtures.ts";
+import { admit, CompositionClosed, endpoint } from "../index.ts";
+import { bindFixture, testActor } from "./execution-fixtures.ts";
 import { httpFixture } from "./router-fixtures.ts";
 const incoming = { headers: new Headers({ "x-request-id": "admit-lifecycle" }), url: "/" };
 const disposers: Array<() => Promise<void>> = [];
@@ -16,8 +17,8 @@ const internal = {
   },
 };
 const ping = bindFixture(
-  defineEntry(
-    defineNode("ping", {
+  featureFixture(
+    defineOperation("ping", {
       description: "Read.",
       input: NoInput,
       output: Schema.Void,

@@ -1,25 +1,21 @@
 import { expect, layer } from "@effect/vitest";
-import { CallWatch, defineEntry } from "@house-rules/application";
+import { CallWatch, defineFeature } from "@house-rules/application";
 import { DateTime, Effect, Layer, Schema } from "effect";
-import { type AuditEntry, type AuditRow, AuditStore, CallAudit } from "../../index.ts";
+import { type AuditRecord, type AuditRow, AuditStore, CallAudit } from "../../index.ts";
 import { who } from "../../tests/audit-fixtures.ts";
 import { memoryStore, postgresStore, type StoreUnderTest } from "./stores.ts";
 
-const ping = defineEntry({
-  name: "ping",
+const ping = defineFeature("ping", {
   description: "Answer pong.",
   input: Schema.Struct({}),
   output: Schema.String,
   failure: Schema.Never,
   permission: null,
   edges: [],
-  readOnly: false,
-  destructive: false,
-  transactional: false,
-  needsApproval: false,
+  handler: () => Effect.succeed("pong"),
 });
 
-const entryWithoutFacts: AuditEntry = {
+const entryWithoutFacts: AuditRecord = {
   capability: "old",
   target: "old",
   permission: "public",

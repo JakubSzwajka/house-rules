@@ -1,0 +1,33 @@
+import { IdentityOperations } from "@house-rules/identity/contract";
+import { PartyOperations } from "@house-rules/party/contract";
+import { Schema } from "effect";
+import { Effect } from "effect";
+import { defineFeature } from "@house-rules/application/contract";
+export const firstSignIn = defineFeature("first_sign_in", {
+  description: "Create a person and bind a verified login atomically.",
+  title: "Create a person and bind a verified login atomically",
+  permission: null,
+  input: Schema.Struct({
+    issuer: IdentityOperations.bindLogin.input.fields.issuer,
+    subject: IdentityOperations.bindLogin.input.fields.subject,
+    displayName: PartyOperations.createPerson.input.fields.displayName,
+  }),
+  output: IdentityOperations.bindLogin.output,
+  failure: Schema.Union([
+    PartyOperations.createPerson.failure,
+    IdentityOperations.bindLogin.failure,
+  ]),
+  edges: [PartyOperations.createPerson, IdentityOperations.bindLogin],
+  start: { kind: "system", reason: "new login", startedBy: "hook:new-login" },
+  handler: (input, { call: callNode }) =>
+    Effect.gen(function* () {
+      const person = yield* callNode(PartyOperations.createPerson, {
+        displayName: input.displayName,
+      });
+      return yield* callNode(IdentityOperations.bindLogin, {
+        issuer: input.issuer,
+        subject: input.subject,
+        personId: person.id,
+      });
+    }),
+});

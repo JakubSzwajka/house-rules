@@ -183,12 +183,12 @@ function patterns(options) {
     publicEntry: `${publicEntry}$`,
     publicEntries: `(?:${publicEntry}|${CONTRACT_ENTRY})$`,
     contractEntry: `^${packages}/[^/]+/${CONTRACT_ENTRY}$`,
-    appDescriptorEntry: `(?:^${apps}/[^/]+/src/${layers.readModels}/[^/]+/contract[.]ts$|^${apps}/[^/]+/src/${layers.features}/[^/]+/(?:node|entry)[.]ts$|^${apps}/[^/]+/src/${layers.waysIn}/[^/]+/endpoints[.]ts$)`,
+    appDescriptorEntry: `(?:^${apps}/[^/]+/src/${layers.readModels}/[^/]+/contract[.]ts$|^${apps}/[^/]+/src/${layers.features}/(?:[^/]+/|)index[.]ts$|^${apps}/[^/]+/src/${layers.waysIn}/[^/]+/endpoints[.]ts$)`,
     // Safe-regex counts `?` on a group as nesting, so optional groups are written `(?:x|)`.
     // The browser-safe set: workspace domain files and contract entries, which the rule follows, the
     // allowlisted effect modules, and the trusted installed contract entries. Anything else is refused.
     browserSafe: [
-      `^${apps}/[^/]+/src/${layers.features}/[^/]+/(?:node|entry)[.]ts$`,
+      `^${apps}/[^/]+/src/${layers.features}/(?:[^/]+/|)index[.]ts$`,
       `^${apps}/[^/]+/src/${layers.waysIn}/[^/]+/endpoints[.]ts$`,
       `^${apps}/[^/]+/src/${layers.readModels}/[^/]+/(?!adapters/|(?:index|facade|storage)[.]ts$|(?:.*/|)(?:${testDirs})/|.*${testFile}).+`,
       `^${packages}/[^/]+/(?!${adapters}(?:/|$)|(?:${publicEntry}|${facadeFile}|src/storage[.]ts)$|src/(?:.*/|)(?:${testDirs})/|.*${testFile})src/`,

@@ -6,7 +6,7 @@ import plugin from "../src/index.mjs";
 const TEST_FILE = "apps/api/src/features/show-booking/tests/show-booking.test.ts";
 
 function lint(code, filename = TEST_FILE) {
-  const messages = new Linter().verify(code, plugin.configs.nodes, { filename });
+  const messages = new Linter().verify(code, plugin.configs.features, { filename });
   assert.equal(
     messages.some((message) => message.fatal),
     false,

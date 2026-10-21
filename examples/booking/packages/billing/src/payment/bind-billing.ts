@@ -1,4 +1,4 @@
-import { bindNode, type Binding } from "@house-rules/application";
+import { bindOperation, type Binding } from "@house-rules/application";
 import type { Actor, Caller, NoOpenUnit } from "@house-rules/domain";
 import { Effect } from "effect";
 import { PaymentProvider } from "./payment-provider.ts";
@@ -20,7 +20,7 @@ import {
   BillingPermissions,
   pendingLifetimeMillis,
 } from "./payment-policy.ts";
-import { initPaymentNode, refundNode, expirePendingNode } from "./nodes.ts";
+import { initPaymentNode, refundNode, expirePendingNode } from "./operations.ts";
 
 type Service = {
   readonly initPayment: (
@@ -52,11 +52,11 @@ type Service = {
 };
 
 export const bindBilling = (billing: Service): readonly Binding[] => [
-  bindNode(initPaymentNode, (input, { caller }) =>
+  bindOperation(initPaymentNode, (input, { caller }) =>
     caller.kind === "person"
       ? billing.initPayment(caller.actor, input)
       : Effect.fail(new PaymentCallerDenied()),
   ),
-  bindNode(refundNode, ({ bookingId }, { caller }) => billing.refund(caller, bookingId)),
-  bindNode(expirePendingNode, (_input, { caller }) => billing.expirePending(caller)),
+  bindOperation(refundNode, ({ bookingId }, { caller }) => billing.refund(caller, bookingId)),
+  bindOperation(expirePendingNode, (_input, { caller }) => billing.expirePending(caller)),
 ];

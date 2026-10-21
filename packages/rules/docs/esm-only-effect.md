@@ -1,6 +1,6 @@
 # esm-only-effect
 
-Production app src and Effect workspace-package src use ESM imports. This includes the domain and application kits. Enable the rule through configs.nodes or nodesConfig with the same appsDir/packagesDir roots as layout.
+Production app src and Effect workspace-package src use ESM imports. This includes the domain and application kits. Enable the rule through configs.features or featuresConfig with the same appsDir/packagesDir roots as layout.
 
 ## Scope
 
@@ -10,6 +10,6 @@ The rule rejects references to free require, module.require and createRequire im
 
 ## Builder checks and limits
 
-entry-from-app-node remains separate. It checks builder identity in plain non-Effect workspace packages, including kit named/star re-exports through relative and workspace doors. Installed non-workspace npm re-export contents are not inspected. The three older probe misses remain two singular test/ convention exemptions and one installed npm re-export, not supported builder APIs.
+feature-builders remains separate. It checks builder identity in plain non-Effect workspace packages, including kit named/star re-exports through relative and workspace doors. Installed non-workspace npm re-export contents are not inspected. The three older probe misses remain two singular test/ convention exemptions and one installed npm re-export, not supported builder APIs.
 
 This is a static import/reference check, not a JavaScript evaluator. Reflective access to builtins, runtime code generation and computed property names are not proven safe. They remain forbidden CommonJS loading under the law even when this rule cannot identify their origin. ESM imports of legacy .cjs files are not classified as CommonJS loader calls. Use direct ESM imports.

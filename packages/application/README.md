@@ -1,33 +1,27 @@
 # @house-rules/application
 
-Application runs graphs described by [the domain kit](../domain/README.md). Bind a node to its handler, choose an app node as an entry, then expose that entry through a named way. The same entry serves HTTP, MCP and in-process calls.
+Application runs features and their declared edges. A feature can be exposed directly. Ways, hooks and schedules start features, never module operations. [Domain](../domain/README.md) owns operation descriptors, callers, kinds and pure graph checks.
 
 ```text
 HTTP / MCP / call
   way: Who + May + Mean
-    entry: watch -> closures -> approval -> one unit
-      root node -> declared edges -> module nodes
-                       |
-                    step trace
+    feature: watch -> closures -> approval -> one unit
+      handler -> declared edges -> bound operations or other features
+                         |
+                      step trace
 ```
 
-Domain owns descriptors, caller data, kinds and pure graph checks. This kit owns bindings, execution, entries, sockets, ways, the router, clients, trace and registry. It depends on domain, never the other way.
+## Define a feature
 
-## Bind once, execute through entries
+A feature lives in `features/<name>/index.ts`. Import `defineFeature` from the browser-safe contract door. Its handler receives decoded input and `{ call, caller }`. It calls only declared edges, not module services.
 
-A binding gets decoded input and `{ caller, call }`. It can call only declared edges. Capture module services once when building bindings. `bindNode` allows only `CallerContext` as an ambient per-request requirement.
-
-This small example has a reusable read node and an app entry node:
+The module declares its operation and exports `ItemsOperations` through `@example/items/contract`:
 
 ```ts
-import { Actor, ActorId, defineNode } from "@house-rules/domain";
-import { Effect, Layer, Schema } from "effect";
-import {
-  bindNode, composition, defineApi, defineEntry, defineWay, endpoint,
-  May, Mean, NodeRuntime, StepTrace, toFetchHandler,
-} from "@house-rules/application";
+import { defineOperation } from "@house-rules/domain/contract";
+import { Schema } from "effect";
 
-const readTitle = defineNode("Items.readTitle", {
+const readTitle = defineOperation("Items.readTitle", {
   description: "Read an item's title.",
   input: Schema.Struct({ id: Schema.String }),
   output: Schema.String,
@@ -35,149 +29,97 @@ const readTitle = defineNode("Items.readTitle", {
   permission: "items:read",
   readOnly: true,
 });
-const showTitle = defineNode("show_title", {
+export const ItemsOperations = { readTitle } as const;
+```
+
+`features/show-title/index.ts` contains exactly one builder call and one value export:
+
+```ts
+import { ItemsOperations } from "@example/items/contract";
+import { defineFeature } from "@house-rules/application/contract";
+
+const readTitle = ItemsOperations.readTitle;
+export const showTitle = defineFeature("show_title", {
   description: "Show one item's title.",
   input: readTitle.input,
   output: readTitle.output,
   failure: readTitle.failure,
   permission: null,
-  readOnly: true,
   edges: [readTitle],
+  flags: { readOnly: true },
+  handler: (input, { call }) => call(readTitle, input),
 });
-const entry = defineEntry(showTitle);
-const entries = [entry] as const;
-const bindings = [
-  bindNode(readTitle, ({ id }) => Effect.succeed(`Title of ${id}`)),
-  bindNode(showTitle, (input, scope) => scope.call(readTitle, input)),
-];
-const api = defineApi({ prefix: "/api" }, {
-  show: endpoint(entry, "GET /titles/:id"),
-});
-const way = defineWay({
-  name: "web", path: "/api", protocol: "http", entries,
-  endpoints: Object.values(api.endpoints),
-  who: { resolve: () => Effect.succeed(Actor.make({ id: ActorId.make("demo") })) },
-  may: May.fixed(entries, ["items:read"]),
-  mean: Mean.no,
-});
+```
+
+Keep the endpoint in `ways-in/web/endpoints.ts`:
+
+```ts
+import { endpoint } from "@house-rules/application/contract";
+import { showTitle } from "../../features/show-title/index.ts";
+
+export const showEndpoint = endpoint(showTitle, "GET /titles/:id");
+```
+
+The options are `description`, optional `title`, `permission`, `input`, `output`, `failure`, optional `edges`, `flags`, `start` and `handler`. Permission is a `resource:action` string or explicit `null`. Omitted flags are literal false. `start` defaults to `"person"`. Use `systemStart("hook:first-sign-in")` for a system start. Its optional second argument sets `startedBy`; otherwise the reason supplies both fields.
+
+Export the app's features as one `Features` object in `features/index.ts`. Keep permission lists there too. Module packages export operation descriptors from their contract doors, often as `<Module>Operations`. Read models also publish operations.
+
+## Bind operations and build the runtime
+
+`bindOperation(operation, handler)` makes a `Binding`. Capture module services during layer acquisition. A bound handler may require only `CallerContext`. Its `CallScope<C>` contains a caller and `ScopedCall<C>` restricted to declared targets. Features already contain their handler and need no binding.
+
+```ts
+const bindings = [bindOperation(readTitle, ({ id }) => Effect.succeed(`Title of ${id}`))];
+const features = [showTitle] as const;
 const layer = Layer.mergeAll(
-  NodeRuntime.layer({ bindings, entries, ways: [way] }),
+  Runtime.layer({ bindings, features, ways: [way] }),
   StepTrace.layer(),
 );
-const app = composition({ layer, entries, ways: [way], system: [] });
-const handler = toFetchHandler(app);
+const app = composition({ layer, features, ways: [way], system: [] });
 ```
 
-Split this sketch into the app's checked folders:
+The wiring sketch uses names from the main application door and `Layer` from Effect. Acquire modules, storage, unit, trace and record first. Capture module services and bind operations next. Acquire `Runtime`, then hooks that capture it. The root accepts ways from `main.ts`; it never imports the ways folder.
 
-- Put app descriptors in `features/<name>/node.ts` and bindings in `handler.ts`.
-- Put reusable module descriptors in package contract doors. Export binders that capture the module service.
-- Put ways in `ways-in/<name>/` and wiring in `composition/`.
+`Runtime.make/layer` returns typed `GraphInvalid` on cycles, duplicate names or bindings, missing operation bindings, invalid system reasons and duplicate or unregistered exposures. Only `defineFeature` creates a branded feature. Runtime refuses structural forgeries, including spread copies, and recomputes permission closures and lifted flags from the declared graph at acquisition. Feature starts and closure lists are immutable. Composition repeats validation for its actual features and ways against the acquired bindings. Dispatch uses descriptor identity, not name equality.
 
-Only app nodes become entries. Their source location proves ownership; descriptors have no place marker. Domain modules are packages, never app folders. Ways may import package contract values, but only types from other package main entries. Build concrete plugs in composition and pass them to ways.
+## Run a feature
 
-`NodeRuntime.make/layer` fails with typed `GraphInvalid` during acquisition for invalid graphs, missing reachable bindings, duplicate bindings or duplicate exposures. Composition validates its actual entries and ways against that binding set again. Descriptor identity is the dispatch identity, so a different object with the same name is not a substitute.
+`runFeature(feature, input)` returns an Effect with `FeatureFailure<F>` and `FeatureRequirements<F>`. A feature keeps its schemas, edges and identity. `Feature<C, Start>` retains literal lifted flags; `AnyFeature` erases them to booleans for lists.
 
-## Entry gates and caller modes
+The `flags` object retains the feature's own literal flags. Its top-level booleans lift across the graph. `readOnly` uses AND; `transactional`, `destructive` and `needsApproval` use OR. A literal nontransactional feature needs no unit service. A system start needs no `CurrentActor`. Widened flags conservatively require transaction and approval services.
 
-`defineEntry(node)` starts as a person. An optional `features/<name>/entry.ts` imports it by name from `@house-rules/application/contract`. That file imports only its own node.ts and the application contract door, including type imports. It exports one direct const Entry. Ways, endpoints, hooks, schedules and composition share that value. Its closures come from the graph. The person closure stops at system edges; the system closure includes every permission below them. `defineEntry(node, { start: systemCaller })` puts the whole graph in the system closure.
+Execution opens `CallWatch` once, checks exposed feature identity, checks person then system closures, asks approval once and opens one unit if transactional. Inner calls add trace steps and repeat none of those gates. `featureAndRecheck`, the default policy, also checks each called target's own permission. `featureOnly` skips that recheck. Both keep closure checks.
 
-Flags lift from every reachable node. `readOnly` is true only if all nodes read only; `destructive`, `transactional` and `needsApproval` are true if any node has that flag. `Entry<N, Start>` retains those literal types. Read-only entries need no unit slot; a system start needs no `CurrentActor`. For a genuinely widened node, types conservatively require transaction and approval. `AnyEntry` is an erased boolean-flag container for lists, not proof of concrete flags.
+A plain edge preserves the caller. Domain's `asSystem(target, reason)` switches downward to a system caller. Later system edges preserve the first reason and `startedBy`. Person execution supplies `CurrentActor` from the same Actor. System execution removes ambient person authority. Modules take explicit Actor arguments for object access.
 
-`runEntry(entry, decodedInput)` returns an Effect with `EntryFailure<E>` and `EntryRequirements<E>`. The watch opens first, even for a gate refusal. Entry identity is checked before either closure. Person permissions are checked before system permissions, then approval runs once, then one unit opens if needed. Nodes run inside that work. Inner calls repeat none of those entry steps.
+Only this runtime opens a production unit. Writes join it through domain's `UnitOfWork.required`. Memory adapters register undo before mutation. Use domain's `memoryUnitOfWork` or application’s `sqlUnitOfWork`. Unexpected `NoOpenUnit` is a defect inside transactional features and a typed unavailable failure otherwise.
 
-The default `entryAndRecheck`, `"entry-and-recheck"`, also checks each called node's own permission. `entryOnly`, `"entry-only"`, skips that recheck. Keep the choice explicit until P2 is settled. Both policies still require the entry closures. A missing permission produces `Forbidden({ entry, permission, caller })` with the real permission, never an invented entry permission.
+## Open ways and plug sockets
 
-`CallerContext` holds domain's `PersonCaller | SystemCaller`. A person binding sees the same Actor through `scope.caller.actor` and `CurrentActor`. On the first `asSystem` edge, the runtime sets `startedBy` to `<entry> · <actor.id>`. All descendants retain that system caller and reason, even across later system edges. System bindings cannot inherit an ambient person's `CurrentActor`.
+`defineWay({ name, path, features, who, may, mean, ...protocol })` accepts only features in `features`. `May.fixed(features, permissions)` and `May.system(features)` hold explicit feature identities. May's set must match the way's set. Holding permissions never exposes another way's feature.
 
-Modules keep explicit Actor arguments and object policies. Only the entry runtime opens a production unit. Modules, feature handlers, read models and composition never call `UnitOfWork.atomic`. Module writes join the open unit through domain's `UnitOfWork.required`; memory adapters register undo through `onRollback` before mutation. Application supplies `sqlUnitOfWork` for Postgres. Domain supplies `memoryUnitOfWork`. Atomic entries treat unexpected `NoOpenUnit` as a defect; plain entries keep it as a typed unavailable error.
+`WhoSocket<R>` resolves an Actor from `Incoming`. Composition supplies its requirements. `Mean.no`, `Mean.elicitation` and `Mean.allow` supply lower Approval layers. Elicitation asks a human and fails closed on decline, cancel, malformed replies or missing support. `RecordSocket` supplies lower `CallWatch`; concrete audit storage belongs to call-audit. Authenticator, Approval and CallWatch remain separate slots. There is no export named Record.
 
-## Sockets and ways
+HTTP ways hold endpoint descriptors. MCP ways hold tools shaped as `{ feature, title, idempotent, openWorld }`, a server and a protected resource. The router builds MCP tools from feature schemas and lifted flags. MCP verifies bearer admission on every request, including existing sessions. Who must verify signature, issuer, expiry and resource audience. Missing tokens get the metadata challenge. Unset auth returns 503 without a challenge; metadata keeps GET/HEAD/405 behavior. Browser Origins require an exact allowlist.
 
-| Socket | Plug |
-| --- | --- |
-| `WhoSocket<R>` | `{ resolve: incoming => Effect<Actor, Refused, R> }`; concrete auth and identity packages own verification and actor lookup |
-| `MaySocket` | `May.fixed(entries, personPermissions)` or `May.system(entries)` |
-| `MeanSocket` | `Mean.no`, `Mean.elicitation`, `Mean.allow`, each with an Approval layer |
-| `RecordSocket<E, R>` | `{ layer }` over lower `CallWatch`; concrete `CallAudit.record.memory/postgres` lives in call-audit |
+`toFetchHandler(app)` owns dispatch and metadata routes. Dispose the router before the composition. Builds are lazy, shared after success and retried after failure. Final disposal interrupts inflight work before releasing resources. Closed responses retain request ids and `cache-control: no-store`.
 
-There is no export named `Record`. Lower `Authenticator`, `Approval` and `CallWatch` remain separate slots. `CallWatch` defaults to pass-through and adds no required service. Its `around(entry, input, work, facts?)` must return the work's exit unchanged. Recording must not turn a failed write into a success or replace its failure.
+## Endpoints, clients and failures
 
-A way has `name`, `path`, `entries`, `who`, `may`, `mean` and optional message overrides. HTTP adds `protocol: "http"`, endpoint descriptors and transport options. MCP adds `protocol: "mcp"`, server name/version, tool hints, a `ProtectedResource` and optional `allowedOrigins`. That list admits exact browser Origins; without it, requests with an Origin are refused. Requests without Origin remain allowed after bearer admission. A tool entry is `{ entry, title, idempotent, openWorld }`; its description and lifted read/destructive hints come from the entry node.
+`endpoint(feature, at?, options?)` defaults to `POST /<feature.name>` and status 200. `defineApi` keeps keyed endpoints for clients. `toHttpClient`, `toPromiseClient` and `toOpenApi` share those descriptors. Clients keep codecs, exact origin guards, manual redirects and request-id reporting. Unknown or undeclared failure headers stay `Unknown`.
 
-May's entry set must equal the way's exposed set by identity. HTTP endpoints and MCP tools must refer to those entries. A way cannot invoke another way's entry merely by holding its permissions. Names, paths, route addresses and exposure duplicates are checked during acquisition.
+Cookie writes require CSRF checks, even before a session cookie exists. Session issue requires token/expiresAt output and never exposes the token in bodies, client types or OpenAPI. Session endpoints forbid GET and CSRF opt-out. Session clear runs on every answer. CORS uses exact origins and never sends Allow-Credentials; it is not access control.
 
-`composition({ layer, entries, ways, system, gatePolicy? })` takes one system permission list and the complete root layer. It checks unmet entry and Who services at compile time. The root should read in this order:
+Every expected failure has a domain kind. Statuses are fixed: not_found 404, conflict 409, forbidden 403, unavailable 503, invalid 400. `WordingOverrides` changes messages only. Keep tags, causes, permission details and driver text internal. Plumbing failures use fixed public text; defects get generic 500. Only opted-in 4xx kind codes reach the failure-code header. HTTP and MCP encode outputs once.
 
-```text
-modules / storage / unit / trace / record
-  -> capture module services and build bindings
-  -> NodeRuntime.layer
-  -> acquire hooks that capture the runtime
-  -> final lower auth slots
-  -> composition
-```
+`call(app, feature, input, incoming, { way, admitted? })` returns a Promise `Outcome` and supplies Mean.allow. `admit` resolves Who before custom input parsing. Its opaque value belongs to one request, composition and way. Never cache it beyond that request. Hooks use Effect-returning `runFeature` with captured runtime services, `May.context(May.system(features), { system, via })` and approval. They never authenticate again or build another runtime.
 
-Pass way values or a way factory into the root from `main.ts`; the root never imports the app's ways folder. A hook must not force construction of a second runtime or make module acquisition depend on per-request identity.
+## Trace, registry and doors
 
-## HTTP and MCP behavior
+`StepTrace.make/layer({ maxRequests? })` defaults to 1000 request buckets. Bounds must be positive safe integers. Eviction is oldest-created first; reads do not allocate or refresh buckets, and finishes do not revive them. Steps retain feature name, target, caller, reason, order and outcome. `CallWatch` writes once per feature start, refusals included. Inner calls never add audit rows.
 
-`toFetchHandler(app)` builds one router for all ways and each MCP resource's metadata paths. The app writes no path-dispatch chain. The callable also has `dispose()`. Dispose that router before `app.dispose()`, then close the Host. A composition builds lazily, shares a successful build, retries a failed build and interrupts inflight requests before releasing its layer. Disposal is final; later calls get `CompositionClosed`. Post-dispose router responses keep the request id and `cache-control: no-store`.
+`renderRegistry({ operations, features, ways })` is pure Markdown rendering. It lists operations, features, reverse callers, system reasons, closures and exposures. Freshness tests compare without writing.
 
-HTTP way options are `origins`, `cors`, `session` and `maxBodyBytes`. Body limit defaults to 1 MiB. Input validation rejects unknown/repeated keys, malformed JSON, invalid UTF-8 and duplicate path/query/body keys without quoting the input value. GET arrays use repeated keys; commas remain data. Union inputs retain their member codecs and required fields. Admission happens before parsing input.
+The contract door exports browser-safe feature builders and types, endpoint/API definitions, clients, session types and schema-only errors. Main adds runtime, bindings, sockets, ways, composition, trace, registry and lower slots. Neither kit owns tables or needs a migration registration. [AGENTS.md](AGENTS.md) lists the mounting rules.
 
-`cors: { origins, maxAge? }` is an exact http(s) origin list, with a 600-second preflight default. Listed origins get Allow-Origin and exposed request-id/failure-code headers. No Allow-Credentials is sent. Unlisted ordinary requests still run without CORS headers; CORS is not access control. CSRF separately guards every cookie write. An opaque origin never passes. With no configured origins, the request URL's origin is used.
-
-MCP authenticates every request, including requests in an existing session. The kit requires a bearer header; the Who plug must verify signature, issuer, expiry and this resource's audience before returning an Actor. Invalid/missing tokens get protocol 401 with `WWW-Authenticate` naming `resource_metadata`. Unconfigured auth gets 503 `not_configured` without a challenge. Metadata supports GET and HEAD, and rejects other methods with 405. Sessions remain in process memory, so use one replica or sticky routing. They hold no user authority; Who runs again for each request. Effect exposes no session expiry, so sessions remain until process exit.
-
-MCP parameters are validated by the router's strict toolkit before the binding runs. Decoded inputs go straight to the entry: re-encoding would lose values for omit-default codecs. The toolkit alone encodes the decoded output with its JSON codec, once, just as HTTP encodes its response once. The transport may default omitted arguments to `{}`; explicit null, primitives, arrays and missing required node fields stay refused. Elicitation asks a human with a field-less form. Decline, cancel, malformed replies, missing support and failed requests all fail closed. Decision logs contain no input.
-
-## Shared endpoints and clients
-
-`endpoint(entry, at?, options?)` returns a browser-safe `Endpoint` with `.entry`. The default address is `POST /<entry.node.name>`, status 200, no failure codes and no session. Options are `status`, `codes`, `session` and `csrf`. `defineApi({ prefix? }, endpointsByKey)` keeps the keyed list for a Promise client. A way uses the same prefix; it never concatenates two prefix owners. OpenAPI can derive that prefix or verify the same explicit one.
-
-A CSRF opt-out is `{ skip: true, reason }`, with a nonblank reason. Session endpoints cannot opt out or use GET. `session: "issue"` requires a Struct output containing `token` and `expiresAt` in epoch milliseconds. The token goes only into an HttpOnly, SameSite=Lax cookie; the body, client type and OpenAPI omit it. Secure is set for HTTPS, a trusted HTTPS Origin behind a proxy, or a `__Host-`/`__Secure-` name. `session: "clear"` clears the cookie even on failure. The way needs `session: { cookie }`. Session writes need CSRF protection even before a cookie exists.
-
-- `toHttpClient(endpointArray, { prefix?, baseUrl? })` returns name-keyed Effect calls requiring `HttpClient`.
-- `toPromiseClient(api, { baseUrl?, token?, onCall?, fetch? })` returns keyed Promise calls and reports method, path, status, duration, code and safe response request id.
-- `toOpenApi(endpoints, { title, version, prefix?, security? })` derives kind responses. Configured security applies to every endpoint, even a permission-null root, because every way runs Who. Wording belongs to ways, not OpenAPI. Lifted flags add `x-house-rules-read-only` and `x-house-rules-destructive` only when true.
-
-Clients encode typed inputs and decode outputs. Base URLs must be absolute http(s) URLs without credentials, query, fragment, controls or backslashes. With no base, they use the page's http(s) origin; with neither they send nothing. Paths and parameter values cannot escape that origin. Redirects are manual, preserving other fetch options. The Promise client does not propagate tracing headers. Explicit downstream URL rewrites or `HttpClient.followRedirects` opt out of these protections.
-
-## Kinds, wording and admission
-
-Declare error kinds at their domain definitions with `kind: errorKind(...)`. The status and public code come only from the kind:
-
-| Kind | Status |
-| --- | --- |
-| `not_found` | 404 |
-| `conflict` | 409 |
-| `forbidden` | 403 |
-| `unavailable` | 503 |
-| `invalid` | 400 |
-
-`WordingOverrides<Failure>` accepts known error tags mapped to `(error) => string`. It changes only the message, with no caller context. Status, code, body and headers cannot be replaced. Responses contain only kind code and message, not tags or arbitrary error fields. User-facing app/module errors keep their default message. Unavailable errors use fixed public text; causes and driver details stay internal. Kit errors use fixed public wording: Forbidden says `You may not use <entry>.`; ApprovalDenied says `This action was not approved.`; unit, SQL, graph, node-call and closed-composition failures say `Try again shortly.` The error values keep their details for internal use. Message overrides run on top of these defaults. A defect or failed override gets the fixed generic 500. Auth and framing failures keep their protocol responses. A node that fails with `Refused` still gets the kind's status and code, not a custom transport view.
-
-Only a kind code in an endpoint's `codes` list can appear in `x-failure-code`, and only on 4xx. A 5xx never discloses it. Clients treat undeclared, foreign and legacy headers as `HttpFailure` code `Unknown`. Input failures still carry `entry`, `field`, `issue`, `message` and kind internally for typed wording.
-
-`call(app, entry, decodedInput, incoming, { way, admitted? })` returns a Promise `Outcome` without encoding its output. It validates the decoded input type, avoiding a lossy encode/decode round trip. The in-process action supplies Mean.allow. There is no caller or approval override.
-
-`admit(app, incoming, { way, channel? })` runs Who before custom input parsing. Its opaque `Admitted` can be reused for several entries in the same request on the same composition and way. It keeps Actor, channel and request id and never authenticates again. Do not cache it: it has no expiry and would outlive token revocation. Cross-composition or cross-way reuse is refused. Entry exposure and closure gates still run on every call.
-
-## Hooks, trace and registry
-
-Hooks and schedules use `defineEntry(node, { start: systemCaller })` and Effect-returning `runEntry`. Capture runtime, trace, unit and watch once, then supply `May.context(May.system([entry]), { system, via })` and approval. Do not call Promise-returning `call` or authenticate again inside a hook.
-
-`CallFacts` includes read/write kind, entry-name `target`, optional object `targetId` (null by default), channel and request id. Node input text is never copied into the audit target. `CallChannel` and `CallRequestId` are defaulted references. MCP takes its channel from the client name, capped at 40 plain characters. `withRequestId` sets the reference and log annotation. `requestIdOf` accepts only 1..128 plain id characters; otherwise the edge generates 32 lowercase hex characters and echoes them.
-
-`StepTrace.make/layer({ maxRequests? })` defaults to 1000 request buckets. Bounds must be positive safe integers; both constructors throw `RangeError` synchronously at wiring time otherwise. Valid layers allocate their state lazily per build. A new bucket evicts the oldest-created bucket, not the least-read one. Unknown reads allocate nothing; unknown finishes revive nothing. Steps have entry, target, caller, system reason, order and outcome. Refusals record the real missing permission. Snapshots are copies; null is one shared fallback bucket for runners that supplied no id.
-
-`renderRegistry({ nodes, entries, ways })` returns deterministic Markdown with reverse callers, system reasons, entry modes/closures and exposures. It runs no app services. A registry script writes the result; a freshness test only compares it.
-
-## Doors and verification
-
-Install exact application 0.2.0, domain 0.1.0 and Effect 4.0.3. The published packages load built `dist/` files. This workspace reads source. No migration entry is needed for either kit.
-
-Browser code imports `@house-rules/application/contract`: defineEntry, Entry/Endpoint/Api definitions, session/body types, clients and schema-only kit errors. It imports node descriptors and kinds from `@house-rules/domain/contract`. Bindings, runtime, sockets, ways and composition stay behind the main door. [AGENTS.md](AGENTS.md) records the final API and fixed rules.
-
-Run `pnpm --filter @house-rules/application typecheck` and `pnpm --filter @house-rules/application test`. Tests use public kit doors and `@effect/vitest`; codec/property cases run against the actual MCP router, and unit suites run on memory and real Postgres.
+Run package-local `pnpm exec tsc --project tsconfig.json --noEmit` and `pnpm exec varlock run --path ../../ -- vitest run`. Tests use `@effect/vitest`. Unit suites cover memory and real Postgres.

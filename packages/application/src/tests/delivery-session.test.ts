@@ -6,24 +6,24 @@ import { endpoint, admit, toFetchHandler, toOpenApi, toPromiseClient } from "../
 import { answer, makeApp, renameGuest, webRequest } from "./delivery-fixtures.ts";
 
 const t = makeApp();
-const entries = [signIn, signOut, leaky] as const;
+const features = [signIn, signOut, leaky] as const;
 const routes = [
   ...Object.values(api.endpoints),
   endpoint(leaky, "POST /leaky", { session: "issue" }),
   endpoint(signIn, "POST /token"),
 ];
-const plainApp = httpFixture(entries, {
+const plainApp = httpFixture(features, {
   path: "/auth",
   session: { cookie: "sid" },
   endpoints: routes,
 });
-const proxiedApp = httpFixture(entries, {
+const proxiedApp = httpFixture(features, {
   path: "/auth",
   session: { cookie: "sid" },
   origins: ["https://app.example"],
   endpoints: routes,
 });
-const prefixedApp = httpFixture(entries, {
+const prefixedApp = httpFixture(features, {
   path: "/auth",
   session: { cookie: "__Host-sid" },
   endpoints: routes,
@@ -184,7 +184,7 @@ describe("session cookie issue, clear and CSRF", () => {
 describe("mount-time checks", () => {
   it.effect("a session endpoint needs the way's session option at acquisition", () =>
     Effect.gen(function* () {
-      const invalid = httpFixture(entries, { path: "/auth", endpoints: routes });
+      const invalid = httpFixture(features, { path: "/auth", endpoints: routes });
       const result = yield* Effect.promise(() =>
         admit(invalid.app, { headers: new Headers(), url: "/" }, { way: "web" }),
       );
@@ -199,7 +199,7 @@ describe("mount-time checks", () => {
   it.effect("refuses a cookie name a browser would not accept", () =>
     Effect.gen(function* () {
       for (const cookie of ["", "s id", "sid;", "a=b"]) {
-        const invalid = httpFixture(entries, {
+        const invalid = httpFixture(features, {
           path: "/auth",
           endpoints: routes,
           session: { cookie },

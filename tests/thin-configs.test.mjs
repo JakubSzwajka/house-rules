@@ -8,7 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cruise } from "dependency-cruiser";
 import { ESLint } from "eslint";
-import { nodesConfig } from "@house-rules/rules";
+import { featuresConfig } from "@house-rules/rules";
 
 const PLUGIN = "@house-rules/rules";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -191,19 +191,19 @@ describe("thin configs over the house plugin", () => {
     assert.match(scripts.check, /pnpm run deps && pnpm run layout$/);
   });
 
-  it("eslint.config.mjs derives the nodes preset and guards both configured apps and tests", async () => {
+  it("eslint.config.mjs derives the features preset and guards both configured apps and tests", async () => {
     const eslint = new ESLint({ cwd: repositoryRoot });
     const rulesFor = async (code, filePath) => {
       const [result] = await eslint.lintText(code, { filePath });
       return result.messages.map(({ ruleId }) => ruleId);
     };
 
-    const preset = nodesConfig(ROOTS);
+    const preset = featuresConfig(ROOTS);
     for (const app of ["apps/api", "apps/web", "examples/booking/apps/api"]) {
-      const file = `${app}/src/features/wiring-probe/node.ts`;
+      const file = `${app}/src/features/wiring-probe/index.ts`;
       const config = await eslint.calculateConfigForFile(file);
       for (const block of preset) {
-        for (const name of ["node-file", "entry-from-app-node", "esm-only-effect"]) {
+        for (const name of ["feature-file", "feature-builders", "esm-only-effect"]) {
           const id = `house-rules/${name}`;
           if (block.rules?.[id] !== undefined) {
             const [severity, options] = block.rules[id];
@@ -212,21 +212,21 @@ describe("thin configs over the house plugin", () => {
           }
         }
       }
-      for (const part of ["node", "handler"]) {
+      for (const part of ["index", "extra"]) {
         assert.deepEqual(
           await rulesFor("export const x = 1;\n", `${app}/src/features/wiring-probe/${part}.ts`),
-          ["house-rules/node-file"],
+          ["house-rules/feature-file"],
         );
       }
       assert.deepEqual(
         await rulesFor(
-          'import { defineEntry } from "@house-rules/application/contract";\nimport { addComment } from "@house-rules/comments/contract";\nexport const entry = defineEntry(addComment);\n',
+          'import { defineFeature } from "@house-rules/application/contract";\nexport const feature = defineFeature("misplaced", {});\n',
           `${app}/src/ways-in/web/endpoints.ts`,
         ),
-        ["house-rules/entry-from-app-node"],
+        ["house-rules/feature-builders"],
       );
       for (const part of [
-        "features/wiring-probe/node.ts",
+        "features/wiring-probe/index.ts",
         "ways-in/web/endpoints.ts",
         "read-models/probe/contract.ts",
       ]) {
@@ -236,7 +236,9 @@ describe("thin configs over the house plugin", () => {
             `${app}/src/${part}`,
           ),
           [
-            ...(part.endsWith("node.ts") ? ["house-rules/node-file"] : []),
+            ...(part === "features/wiring-probe/index.ts"
+              ? ["house-rules/feature-file", "house-rules/feature-file"]
+              : []),
             "house-rules/no-computed-import",
           ],
         );

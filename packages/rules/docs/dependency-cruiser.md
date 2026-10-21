@@ -6,7 +6,8 @@
 
 ```text
 src/
-  features/<name>/node.ts + handler.ts + optional entry.ts
+  features/<name>/index.ts + tests/
+  features/index.ts
   read-models/<name>/
   ways-in/<name>/
   composition/
@@ -16,7 +17,7 @@ src/
 
 Area keys are features, readModels, waysIn and composition. Defaults are the names above. Old layer keys fail as unknown options; there are no aliases. Roots are exact nonempty relative paths or lists of them, with optional whole-star path segments. Apps/packages roots must be disjoint.
 
-Features may import other features without cycles, packages/kits and read-model doors. They cannot reach ways or composition. Domain modules are packages; no app modules area exists. Read models import packages/kits only. Ways import values from kits, effect, package contracts, features, composition and their own way folder, and types through package/read-model doors. Ways never import each other. Composition never reaches ways. main joins the root and ways.
+Features may import other feature indexes without cycles, kit/package contracts and read-model contracts. They cannot reach ways or composition. Domain modules are packages; no app modules area exists. Read models import packages/kits only. Ways import values from kits, effect, package contracts, features, composition and their own way folder, and types through package/read-model doors. Ways never import each other. Composition never reaches ways. main joins the root and ways.
 
 Rules that ban reaching a folder follow re-export bridges. Ways cannot use root entries or files outside src as bridges. Read models reject every import into their app outside their own folder, including bridges beside src. Imports must respect package and read-model doors. Type-only imports still respect those doors and domain's no-house-rules fence. No package imports an app, and no app imports another app. Other packages are imported by declared name and public door only.
 
@@ -28,13 +29,13 @@ Workspace doors and installed source/dist doors follow the same rule, including 
 
 ## Composition
 
-The root owns composition({layer,entries,ways,system,gatePolicy?}). It mounts modules, links ports, plugs sockets, opens ways and schedules entries. main supplies way values or a factory; the root never imports ways to obtain them. Nodes never reach composition. Tests may use root wiring.
+The root owns composition({layer,entries,ways,system,gatePolicy?}). It mounts modules, links ports, plugs sockets, opens ways and schedules entries. main supplies way values or a factory; the root never imports ways to obtain them. Features never reach composition. Tests may use root wiring.
 
 A Node Host calls serve in main.ts and disposes the fetch router before the root. Host code belongs in @house-rules/node-host, never node:http in Effect app code.
 
 ## Contract entry
 
-The browser check starts at package src/contract.ts, read-model contract.ts, every features/*/node.ts, optional features/*/entry.ts and ways-in/*/endpoints.ts. Each entry.ts is a root even when no way exposes it, including its type-only paths. It holds one own-node Entry; ways and composition import that same finished value. It follows transitive dependencies and refuses handlers, adapters, storage, facades, main package entries, Node builtins and untrusted installed code.
+The browser check starts at package src/contract.ts, read-model contract.ts, every features/*/index.ts, features/index.ts and ways-in/*/endpoints.ts. Feature indexes are roots even when no way exposes them, including type-only paths. It follows transitive dependencies and refuses adapters, storage, facades, main package entries, Node builtins and untrusted installed code. A feature includes its handler; it stays browser-safe by calling declared edges rather than importing services.
 
 Safe descriptor trees contain schemas, errors, permissions and edges only. Package manifests export only . and optional ./contract, pointing to src/index.ts and src/contract.ts or their built dist mirrors. No other key, pattern or target is valid. The layout bin checks manifests too.
 
@@ -60,6 +61,6 @@ Use tsconfig/web.json for browser libs and bundler resolution. Effect/web code e
 
 Other options retain their contracts: publicEntry, internalDir, adaptersDir, facadeFile, testsDir, appEntryFiles, ownerlessNames, mechanismNames, packageRootFiles, adapterPackages, adapterImports, generatedDeclarationFiles and trustedContractPackages. An empty appEntryFiles list removes generic entries. Empty mechanismNames removes that configurable mechanism list, not the ownerless list. Existing defaults stay unless explicitly changed here.
 
-Custom layers.features names affect Dependency Cruiser patterns only. The ESLint node-file and entry-from-app-node rules use literal features/; the former has no coverage in a renamed node area and the latter rejects its entry origins. No custom-node ESLint option exists.
+Custom layers.features names affect Dependency Cruiser patterns only. The ESLint feature-file and feature-builders rules use literal features/; feature-file has no coverage in a renamed feature area and feature-builders rejects defineFeature there. No custom-feature ESLint option exists.
 
 Snapshot files pin the generated config. Behavioral fixtures prove the restrictions; snapshots alone are not browser or privacy proof. Run package tests and house-rules-layout, then consumer check/test/packed-consumer at the integration gate.

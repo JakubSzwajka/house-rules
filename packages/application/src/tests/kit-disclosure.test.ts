@@ -1,20 +1,20 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
-import { defineNode, NoInput, NoOpenUnit, UnitOfWorkFailed } from "@house-rules/domain";
+import { defineOperation, NoInput, NoOpenUnit, UnitOfWorkFailed } from "@house-rules/domain";
 import { Effect, Schema } from "effect";
 import {
   ApprovalDenied,
   call,
   CompositionClosed,
-  defineEntry,
   endpoint,
   Forbidden,
   GraphInvalid,
-  NodeCallInvalid,
+  CallInvalid,
   type WordingOverrides,
 } from "../index.ts";
 import { answer, webRequest } from "./delivery-fixtures.ts";
 import { callMcpTool, openMcpSession } from "./delivery-mcp-client.ts";
-import { bindFixture } from "./entry-fixtures.ts";
+import { bindFixture } from "./execution-fixtures.ts";
 import { bothFixture } from "./router-fixtures.ts";
 
 const failures = Schema.Union([
@@ -23,16 +23,16 @@ const failures = Schema.Union([
   NoOpenUnit,
   UnitOfWorkFailed,
   GraphInvalid,
-  NodeCallInvalid,
+  CallInvalid,
   CompositionClosed,
 ]);
 const errors = [
-  new Forbidden({ entry: "probe", permission: "items:private", caller: "system" }),
-  new ApprovalDenied({ entry: "probe", reason: "binding adapter-private refused" }),
+  new Forbidden({ feature: "probe", permission: "items:private", caller: "system" }),
+  new ApprovalDenied({ feature: "probe", reason: "binding adapter-private refused" }),
   new NoOpenUnit(),
   new UnitOfWorkFailed({ reason: "binding adapter-private commit failed" }),
   new GraphInvalid({ reason: "binding adapter-private missing" }),
-  new NodeCallInvalid({ node: "adapter-private", reason: "binding missing" }),
+  new CallInvalid({ callable: "adapter-private", reason: "binding missing" }),
   new CompositionClosed(),
 ] as const;
 const disposers: Array<() => Promise<void>> = [];
@@ -43,9 +43,9 @@ for (const error of errors) {
     `${error._tag} keeps internal details but sends only a fixed HTTP and MCP message`,
     () =>
       Effect.gen(function* () {
-        const entry = bindFixture(
-          defineEntry(
-            defineNode("probe", {
+        const feature = bindFixture(
+          featureFixture(
+            defineOperation("probe", {
               description: "Fail with a kit diagnostic.",
               input: NoInput,
               output: Schema.Void,
@@ -56,13 +56,13 @@ for (const error of errors) {
           ),
           () => Effect.fail(error),
         );
-        const fixture = bothFixture([entry], { endpoints: [endpoint(entry)] });
+        const fixture = bothFixture([feature], { endpoints: [endpoint(feature)] });
         disposers.push(fixture.dispose);
         const internalMessage = error.message;
         const outcome = yield* Effect.promise(() =>
           call(
             fixture.app,
-            entry,
+            feature,
             {},
             {
               headers: new Headers(),
@@ -119,13 +119,13 @@ it.effect(
         NoOpenUnit: wording,
         UnitOfWorkFailed: wording,
         GraphInvalid: wording,
-        NodeCallInvalid: wording,
+        CallInvalid: wording,
         CompositionClosed: wording,
       };
       for (const error of errors) {
-        const entry = bindFixture(
-          defineEntry(
-            defineNode("override_probe", {
+        const feature = bindFixture(
+          featureFixture(
+            defineOperation("override_probe", {
               description: "Override a kit message.",
               input: NoInput,
               output: Schema.Void,
@@ -136,7 +136,7 @@ it.effect(
           ),
           () => Effect.fail(error),
         );
-        const fixture = bothFixture([entry], { endpoints: [endpoint(entry)], overrides });
+        const fixture = bothFixture([feature], { endpoints: [endpoint(feature)], overrides });
         disposers.push(fixture.dispose);
         const http = yield* answer(
           fixture.handler,

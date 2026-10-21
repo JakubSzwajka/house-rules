@@ -2,7 +2,7 @@
 
 A Host listens on a socket and passes Web Requests to a fetch handler. `serve` is the Node Host for House Rules. It uses Node's built-in HTTP server with no runtime dependencies.
 
-Install `@house-rules/node-host` at exact version `0.2.0`, on Node 24.21.0 or later. Call it in the app's `src/main.ts`, an `appEntryFiles` entry, where main joins the ways and composition. Scheduled work starts through system entries, not a separate server area:
+Install `@house-rules/node-host` at exact version `0.2.0`, on Node 24.21.0 or later. Call it in the app's `src/main.ts`, where main joins the ways and composition. Scheduled work starts through system-start features, not a separate server area:
 
 ```ts
 import { toFetchHandler } from "@house-rules/application";
@@ -26,12 +26,12 @@ The Host itself needs no Effect runtime. An app that also installs `@effect/plat
 The handler takes a `Request` and returns a `Promise<Response>`. `toFetchHandler(app)` takes only the composition and returns that handler. Configure `origins`, `cors`, `session` and `maxBodyBytes` on the HTTP way, not on the Host or `toFetchHandler`:
 
 ```ts
-// In ways-in/web/way.ts, using the app's entries, endpoints and sockets:
+// In ways-in/web/way.ts, using the app's features, endpoints and sockets:
 const webWay = defineWay({
   name: "web",
   path: "/api",
   protocol: "http",
-  entries,
+  features,
   endpoints,
   who,
   may,
@@ -44,7 +44,7 @@ const app = createApp([webWay]);
 const api = toFetchHandler(app);
 ```
 
-Import `defineWay` and `toFetchHandler` from `@house-rules/application`. `createApp` is app-owned, as in the booking example. That example's web way leaves these HTTP options unset; its main passes the ways to `createApp` and calls `toFetchHandler(app)`. A Next app already has a Host, so it does not need this package. The reference API reads `PORT` through Effect Config, with a default of 3000.
+Import `defineWay` and `toFetchHandler` from `@house-rules/application`. Build client endpoints with `endpoint(feature)`; module operations cannot be exposed. `createApp` is app-owned, as in the booking example. That example's web way leaves these HTTP options unset; its main passes the ways to `createApp` and calls `toFetchHandler(app)`. A Next app already has a Host, so it does not need this package. The reference API reads `PORT` through Effect Config, with a default of 3000.
 
 ## Socket behaviour
 

@@ -4,18 +4,18 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { it } from "node:test";
 import { Linter } from "eslint";
-import plugin, { nodesConfig } from "../src/index.mjs";
+import plugin, { featuresConfig } from "../src/index.mjs";
 import { readModelSqlProblems } from "../src/read-model-sql.mjs";
 import { run } from "./migrations-helpers.mjs";
 
 const repo = path.resolve(import.meta.dirname, "../../..");
-const full = [...plugin.configs.recommended, ...nodesConfig()];
+const full = [...plugin.configs.recommended, ...featuresConfig()];
 const lint = (cwd, code, file) =>
   new Linter({ cwd })
     .verify(code, full, { filename: path.join(cwd, file) })
     .filter(
       (m) =>
-        m.ruleId === "house-rules/entry-from-app-node" ||
+        m.ruleId === "house-rules/feature-builders" ||
         m.ruleId === "house-rules/esm-only-effect" ||
         m.fatal,
     );
@@ -58,7 +58,7 @@ for (const area of ["packages/comments/src", "apps/demo/src/composition"])
           ),
         ));
 
-for (const name of ["defineEntry", "defineWay", "endpoint"])
+for (const name of ["defineFeature", "defineWay", "endpoint"])
   for (const usage of [`export type T = typeof ${name};`, `${name}(x);`])
     it(`reports forbidden runtime package import ${name}: ${usage}`, () => {
       const messages = lint(
@@ -73,12 +73,12 @@ for (const modifier of ["type ", "inline"])
   it(`allows genuine ${modifier} builder imports`, () => {
     const code =
       modifier === "inline"
-        ? 'import { type defineEntry, type defineWay, type endpoint } from "@house-rules/application";'
-        : 'import type { defineEntry, defineWay, endpoint } from "@house-rules/application";';
+        ? 'import { type defineFeature, type defineWay, type endpoint } from "@house-rules/application";'
+        : 'import type { defineFeature, defineWay, endpoint } from "@house-rules/application";';
     assert.deepEqual(
       lint(
         repo,
-        `${code} export type T = [typeof defineEntry, typeof defineWay, typeof endpoint];`,
+        `${code} export type T = [typeof defineFeature, typeof defineWay, typeof endpoint];`,
         "packages/comments/src/types.ts",
       ),
       [],
@@ -119,11 +119,11 @@ for (const [file, content] of Object.entries({
   "scripts/loader.mjs": 'export { createRequire as loader } from "node:module";',
   "scripts/star.mjs": 'export * from "@house-rules/application";',
   "apps/api/src/features/book/node.ts":
-    'import { defineNode } from "@house-rules/domain/contract"; export const book = defineNode("book", {});',
+    'import { defineOperation } from "@house-rules/domain/contract"; export const book = defineOperation("book", {});',
   "packages/plain/src/subject/finished.ts":
-    'import { defineNode } from "@house-rules/domain/contract"; import { bindNode } from "@house-rules/application"; const privateBuilder = (n: string) => defineNode(n, {}); export const book = defineNode("book", {}); export const bindBook = (service: unknown) => bindNode(book, service);',
+    'import { defineOperation } from "@house-rules/domain/contract"; import { bindOperation } from "@house-rules/application"; const privateBuilder = (n: string) => defineOperation(n, {}); export const book = defineOperation("book", {}); export const bindBook = (service: unknown) => bindOperation(book, service);',
   "packages/plain/src/subject/builders.ts":
-    'export { defineNode } from "@house-rules/domain/contract"; export const finished = 1;',
+    'export { defineOperation } from "@house-rules/domain/contract"; export const finished = 1;',
   "packages/plain/src/subject/selected.ts": 'export { finished } from "./builders.ts";',
 })) {
   mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
@@ -158,8 +158,8 @@ for (const name of ["peer", "preset", "fake"])
     ));
 for (const code of [
   'export * from "../../../../scripts/star.mjs";',
-  'export { bindNode as bind } from "@house-rules/application";',
-  'import { defineEntry } from "@house-rules/application";',
+  'export { bindOperation as bind } from "@house-rules/application";',
+  'import { defineFeature } from "@house-rules/application";',
   'import { defineWay as way } from "@house-rules/application";',
   'import { endpoint } from "@house-rules/application/contract";',
 ])

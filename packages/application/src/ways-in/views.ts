@@ -33,14 +33,14 @@ export const tagOf = (error: unknown): string | undefined =>
 const publicMessage = (error: KindedError): string => {
   switch (error._tag) {
     case "Forbidden":
-      return `You may not use ${"entry" in error ? error.entry : "this entry"}.`;
+      return `You may not use ${"feature" in error ? error.feature : "this feature"}.`;
     case "ApprovalDenied":
       return "This action was not approved.";
     case "NoOpenUnit":
     case "UnitOfWorkFailed":
     case "SqlError":
     case "GraphInvalid":
-    case "NodeCallInvalid":
+    case "CallInvalid":
     case "CompositionClosed":
       return "Try again shortly.";
     default:

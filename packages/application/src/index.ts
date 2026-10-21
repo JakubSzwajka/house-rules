@@ -2,24 +2,34 @@ export { CurrentActor } from "./actor/current-actor.ts";
 export { CallerContext } from "./caller/caller-context.ts";
 export {
   type Binding,
-  type NodeScope,
+  type CallScope,
   type ScopedCall,
   type InnerFailure,
-  bindNode,
-} from "./node/binding.ts";
-export { NodeRuntime, type NodeRuntimeOptions } from "./node/node-runtime.ts";
-export { NodeCallInvalid } from "./node/node-call-invalid.ts";
-export { GraphInvalid } from "./node/graph-invalid.ts";
-export { type Entry, type AnyEntry, type EntryFlags, defineEntry } from "./entry/entry.ts";
-export { runEntry, type EntryFailure, type EntryRequirements } from "./execution/run-entry.ts";
+  bindOperation,
+} from "./runtime/binding.ts";
+export { Runtime, type RuntimeOptions } from "./runtime/runtime.ts";
+export { CallInvalid } from "./runtime/call-invalid.ts";
+export { GraphInvalid } from "./runtime/graph-invalid.ts";
+export {
+  type Feature,
+  type AnyFeature,
+  type FeatureFlags,
+  defineFeature,
+  systemStart,
+} from "./feature/feature.ts";
+export {
+  runFeature,
+  type FeatureFailure,
+  type FeatureRequirements,
+} from "./execution/run-feature.ts";
 export { type WhoSocket } from "./socket/who.ts";
 export { type MaySocket, May } from "./socket/may.ts";
 export { type MeanSocket, Mean } from "./socket/mean.ts";
 export { type RecordSocket } from "./socket/record.ts";
 export {
   CallPermissions,
-  entryAndRecheck,
-  entryOnly,
+  featureAndRecheck,
+  featureOnly,
   type GatePolicy,
   type PermissionLists,
 } from "./socket/permission-lists.ts";
@@ -71,7 +81,7 @@ export {
   toHttpClient,
 } from "./client/http-client.ts";
 export {
-  type CallEntry,
+  type CallReport,
   type PromiseCall,
   type PromiseClientOf,
   type PromiseClientOptions,

@@ -1,6 +1,6 @@
 import { type CallKind, isMcpChannel } from "@house-rules/application";
 import { Duration } from "effect";
-import type { AuditClass, AuditEntry, AuditPolicy } from "../audit/audit.ts";
+import type { AuditClass, AuditRecord, AuditPolicy } from "../audit/audit.ts";
 
 export const classOf = (
   entry: Readonly<{ outcome: string; kind?: CallKind | null | undefined }>,

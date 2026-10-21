@@ -1,9 +1,9 @@
-import { defineNode } from "@house-rules/domain";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation } from "@house-rules/domain";
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import { FetchHttpClient, type HttpClientError } from "effect/http";
 import {
-  defineEntry,
   endpoint,
   failureCodeHeader,
   HttpFailure,
@@ -145,8 +145,8 @@ it.effect("a cookie write from another origin is a 403 with the cross_origin bod
 
 it.effect("a stale client whose input drifted gets a 400 invalid_input", () =>
   Effect.gen(function* staleClient() {
-    const stale = defineEntry(
-      defineNode("show_booking", {
+    const stale = featureFixture(
+      defineOperation("show_booking", {
         description: "An older show_booking that also sent a field the server dropped.",
         input: Schema.Struct({ id: Schema.String, expand: Schema.String }),
         output: Booking,
@@ -200,8 +200,8 @@ it.effect("the fetch handler sends a code only when the view exposes it", () =>
 );
 
 it("an endpoint must name the capability the route mounts", () => {
-  expect(at.rename.entry).toBe(renameGuest);
-  expect(at.rename.entry).not.toBe(showBooking);
+  expect(at.rename.feature).toBe(renameGuest);
+  expect(at.rename.feature).not.toBe(showBooking);
   expect(() => toHttpClient([at.show, at.show])).toThrow(/listed twice/u);
   expect(() => endpoint(showBooking, "GET /x", { codes: ["NotFound"] })).toThrow(
     /"NotFound" is not snake_case/u,

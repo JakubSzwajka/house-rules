@@ -1,7 +1,7 @@
 import { JsonSchema, Schema, SchemaAST, SchemaRepresentation } from "effect";
 import { prefixOf } from "../contract/api.ts";
 import { prefixMismatch } from "./api-prefix.ts";
-import type { AnyEntry } from "../entry/entry.ts";
+import type { AnyFeature } from "../feature/feature.ts";
 import { type Endpoint, failureCodeHeader } from "../contract/endpoint.ts";
 import { bodySchemaOf } from "../contract/session.ts";
 import { requestIdHeader } from "../call/request-id.ts";
@@ -45,7 +45,7 @@ export type OpenApiDocument = Readonly<{
   security?: ReadonlyArray<Json>;
 }>;
 
-const kindsOf = (entry: AnyEntry): readonly ErrorKind[] => {
+const kindsOf = (feature: AnyFeature): readonly ErrorKind[] => {
   const walk = (ast: SchemaAST.AST): ErrorKind[] => {
     if (ast._tag === "Union") return ast.types.flatMap(walk);
     if (ast._tag !== "Objects") return [];
@@ -58,7 +58,7 @@ const kindsOf = (entry: AnyEntry): readonly ErrorKind[] => {
   };
   return [
     ...new Set<ErrorKind>([
-      ...walk(SchemaAST.toEncoded(entry.node.failure.ast)),
+      ...walk(SchemaAST.toEncoded(feature.failure.ast)),
       "invalid",
       "forbidden",
       "unavailable",
@@ -71,7 +71,7 @@ const isClientError = (key: string): boolean =>
 
 const failureResponses = (shape: Endpoint): Record<string, Json> => {
   const codesAt = new Map<string, Set<string>>([["default", new Set()]]);
-  for (const kind of kindsOf(shape.entry)) {
+  for (const kind of kindsOf(shape.feature)) {
     const key = String(kindStatuses[kind]);
     const codes = codesAt.get(key) ?? new Set<string>();
     if (shape.codes.includes(kind) && isClientError(key)) codes.add(kind);
@@ -113,9 +113,9 @@ const operationOf = ({ shape, operationId, input, output, definitions }: Operati
   const { parameters, body } = inputParts(shape, input, definitions);
   return {
     operationId,
-    description: shape.entry.node.description,
-    ...(shape.entry.readOnly ? { "x-house-rules-read-only": true } : {}),
-    ...(shape.entry.destructive ? { "x-house-rules-destructive": true } : {}),
+    description: shape.feature.description,
+    ...(shape.feature.readOnly ? { "x-house-rules-read-only": true } : {}),
+    ...(shape.feature.destructive ? { "x-house-rules-destructive": true } : {}),
     parameters,
     ...(body === undefined
       ? {}
@@ -133,12 +133,11 @@ const operationOf = ({ shape, operationId, input, output, definitions }: Operati
 
 const operationIds = (endpoints: ReadonlyArray<Endpoint>): ReadonlyArray<string> => {
   const count = new Map<string, number>();
-  for (const { entry } of endpoints)
-    count.set(entry.node.name, (count.get(entry.node.name) ?? 0) + 1);
-  const ids = endpoints.map(({ entry, method, path }) =>
-    count.get(entry.node.name) === 1
-      ? entry.node.name
-      : `${entry.node.name}_${method.toLowerCase()}${path.replace(/[^A-Za-z0-9]+/gu, "_")}`.replace(
+  for (const { feature } of endpoints) count.set(feature.name, (count.get(feature.name) ?? 0) + 1);
+  const ids = endpoints.map(({ feature, method, path }) =>
+    count.get(feature.name) === 1
+      ? feature.name
+      : `${feature.name}_${method.toLowerCase()}${path.replace(/[^A-Za-z0-9]+/gu, "_")}`.replace(
           /_+$/u,
           "",
         ),
@@ -170,10 +169,7 @@ export const toOpenApi = <const Endpoints extends readonly Endpoint[]>(
   const mismatch = prefixMismatch(endpoints, prefix);
   if (mismatch !== undefined) throw new TypeError(`toOpenApi: ${mismatch}`);
   const converted = jsonSchemas(
-    endpoints.flatMap((shape) => [
-      shape.entry.node.input,
-      bodySchemaOf(shape.entry, shape.session),
-    ]),
+    endpoints.flatMap((shape) => [shape.feature.input, bodySchemaOf(shape.feature, shape.session)]),
   );
   const ids = operationIds(endpoints);
   const used = new Set<string>();
@@ -186,7 +182,7 @@ export const toOpenApi = <const Endpoints extends readonly Endpoint[]>(
       // Build time, not a request: the router would answer only one of the two.
       throw new TypeError(`toOpenApi: ${shape.method} ${at} is listed twice`);
     }
-    const operationId = ids[index] ?? shape.entry.node.name;
+    const operationId = ids[index] ?? shape.feature.name;
     if (used.has(operationId)) {
       // Build time, not a request: OpenAPI needs every operationId to be unique.
       throw new TypeError(`toOpenApi: operationId ${operationId} is used twice; rename a contract`);

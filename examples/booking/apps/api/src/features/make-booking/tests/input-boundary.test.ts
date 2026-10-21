@@ -3,12 +3,12 @@ import { call, toFetchHandler, StepTrace } from "@house-rules/application";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { CallAudit, memoryAuditLog } from "@house-rules/call-audit";
 import { Context, Effect, Layer, Schema } from "effect";
-import { createApp, Entries, modulesLayer } from "../../../composition/index.ts";
+import { createApp, Features, modulesLayer } from "../../../composition/index.ts";
 import { databaseTesting } from "../../../composition/tests/database.ts";
 import { makeFakePaymentProvider, NewPayment } from "@example/billing";
 import { Bookings, BookingNotFound, NewBooking } from "@example/bookings";
 import { webWay } from "../../../ways-in/web/way.ts";
-import { makeBooking } from "../node.ts";
+import { makeBooking } from "../index.ts";
 
 const alice = Actor.make({ id: ActorId.make("alice") });
 const valid = { id: "booking", guestName: "Alice", paymentId: "payment", amount: 100 };
@@ -80,7 +80,7 @@ for (const backend of ["memory", "postgres"] as const)
           const result = yield* Effect.promise(() =>
             call(
               app,
-              Entries.makeBooking,
+              Features.makeBooking,
               input,
               { headers: new Headers({ "x-request-id": id }), url: "https://booking.example/api" },
               { way: "web" },
@@ -112,7 +112,7 @@ for (const backend of ["memory", "postgres"] as const)
         const result = yield* Effect.promise(() =>
           call(
             app,
-            Entries.makeBooking,
+            Features.makeBooking,
             second,
             { headers: new Headers(), url: "https://booking.example/api" },
             { way: "web" },

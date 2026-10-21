@@ -141,14 +141,14 @@ assert.match(layoutBin.stdout, /layout: no package or subject-folder cycles/);
 assert.deepEqual(houseRules.configs.testing[0].rules, {
   "house-rules/testing-exports-only-in-tests": "error",
 });
-assert.equal(houseRules.configs.nodes[0].rules["house-rules/no-hand-rolled-surface"], "error");
+assert.equal(houseRules.configs.features[0].rules["house-rules/no-hand-rolled-surface"], "error");
 assert.equal(
-  houseRules.configs.nodes[0].rules["house-rules/testing-exports-only-in-tests"],
+  houseRules.configs.features[0].rules["house-rules/testing-exports-only-in-tests"],
   "error",
 );
-assert.equal(houseRules.configs.nodes[1].rules["house-rules/node-file"][0], "error");
-assert.equal(houseRules.configs.nodes[1].rules["house-rules/entry-from-app-node"][0], "error");
-assert.equal(houseRules.configs.nodes[2].rules["house-rules/no-hand-run-effect"], "error");
+assert.equal(houseRules.configs.features[1].rules["house-rules/feature-file"][0], "error");
+assert.equal(houseRules.configs.features[1].rules["house-rules/feature-builders"][0], "error");
+assert.equal(houseRules.configs.features[2].rules["house-rules/no-hand-run-effect"], "error");
 
 const presetUrl = new URL(import.meta.resolve("@house-rules/rules/dependency-cruiser"));
 for (const sibling of ["layout-option-parsers.cjs", "layout-patterns.cjs", "hosts.cjs"]) {

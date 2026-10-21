@@ -1,7 +1,7 @@
 import type { CallKind } from "@house-rules/application";
 import { type Duration, type Effect, Schema } from "effect";
 
-export type AuditEntry = Readonly<{
+export type AuditRecord = Readonly<{
   capability: string;
   target: string;
   permission: string;
@@ -52,7 +52,7 @@ export class AuditStoreUnavailable extends Schema.TaggedError<AuditStoreUnavaila
 export type AuditClass = "read" | "write" | "failure";
 
 export type AuditPolicy = Readonly<{
-  keep: (entry: AuditEntry) => boolean;
+  keep: (entry: AuditRecord) => boolean;
   retention: Readonly<Record<AuditClass, Duration.Input>>;
   onWriteFailure: "ignore" | "log";
   erasure: "delete";

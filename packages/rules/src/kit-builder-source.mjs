@@ -3,7 +3,9 @@ import path from "node:path";
 
 export const kitBuilderOrigin = (found) =>
   /^@house-rules\/(?:domain|application)(?:\/contract)?$/u.test(found?.source) &&
-  ["defineNode", "bindNode", "defineEntry", "defineWay", "endpoint"].includes(found?.imported);
+  ["defineOperation", "bindOperation", "defineFeature", "defineWay", "endpoint"].includes(
+    found?.imported,
+  );
 
 export const builderFromExport = (found, origin) =>
   found?.node ? origin(found.file, found.node) : kitBuilderOrigin(found) ? found : undefined;
@@ -11,7 +13,7 @@ export const builderFromExport = (found, origin) =>
 export const kitBuilderExports = (node) => {
   if (!/^@house-rules\/(?:domain|application)(?:\/contract)?$/u.test(node.source?.value)) return [];
   return node.type === "ExportAllDeclaration"
-    ? [node.source.value.startsWith("@house-rules/domain") ? "defineNode" : "defineEntry"]
+    ? [node.source.value.startsWith("@house-rules/domain") ? "defineOperation" : "defineFeature"]
     : node.specifiers.map((spec) => spec.local.name ?? spec.local.value);
 };
 
@@ -52,7 +54,7 @@ export const forbiddenBuilderImports = (context, graph, filename, node, report) 
     if (used) continue;
     const origin = graph.resolve(filename, spec.local);
     if (
-      ["defineEntry", "defineWay", "endpoint"].includes(origin?.imported) &&
+      ["defineFeature", "defineWay", "endpoint"].includes(origin?.imported) &&
       /^@house-rules\/application(?:\/contract)?$/u.test(origin.source)
     )
       report(spec, origin.imported);

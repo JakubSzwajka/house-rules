@@ -1,47 +1,102 @@
 import { expect, expectTypeOf, it } from "@effect/vitest";
 import {
   CurrentActor,
-  defineEntry,
+  defineFeature,
   Forbidden,
   May,
-  NodeRuntime,
-  runEntry,
+  Runtime,
+  runFeature,
   StepTrace,
 } from "@house-rules/application";
 import { Actor, ActorId, memoryUnitOfWork, UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer } from "effect";
 import {
   bindParty,
-  createPerson,
+  PartyOperations,
   Party,
   PartyPermissions,
   PersonCallerDenied,
   PersonNotFound,
   PersonUpdateRefused,
-  renamePerson,
-  showMe,
-  showPerson,
 } from "../index.js";
 import * as contract from "../contract.js";
+
+const { createPerson, showPerson, showMe, renamePerson } = PartyOperations;
 
 expectTypeOf<Parameters<typeof bindParty>[0]>().toExtend<Party["Service"]>();
 expectTypeOf<Party["Service"]>().toExtend<Parameters<typeof bindParty>[0]>();
 
 const ada = Actor.make({ id: ActorId.make("ada") });
 const grace = Actor.make({ id: ActorId.make("grace") });
-const show = defineEntry(showPerson);
-const mine = defineEntry(showMe);
-const rename = defineEntry(renamePerson);
-const create = defineEntry(createPerson);
+const show = defineFeature("test_show", {
+  ...showPerson,
+  permission: null,
+  flags: { readOnly: showPerson.readOnly },
+  edges: [showPerson],
+
+  handler: (input, { call }) => call(showPerson, input),
+});
+const mine = defineFeature("test_mine", {
+  ...showMe,
+  permission: null,
+  flags: { readOnly: showMe.readOnly },
+  edges: [showMe],
+
+  handler: (input, { call }) => call(showMe, input),
+});
+const rename = defineFeature("test_rename", {
+  ...renamePerson,
+  permission: null,
+  flags: { readOnly: renamePerson.readOnly },
+  edges: [renamePerson],
+
+  handler: (input, { call }) => call(renamePerson, input),
+});
+const create = defineFeature("test_create", {
+  ...createPerson,
+  permission: null,
+  flags: { readOnly: createPerson.readOnly },
+  edges: [createPerson],
+
+  handler: (input, { call }) => call(createPerson, input),
+});
 const system = { kind: "system", reason: "test setup", startedBy: "hook:test" } as const;
-const systemCreate = defineEntry(createPerson, { start: system });
-const systemShow = defineEntry(showPerson, { start: system });
-const systemMe = defineEntry(showMe, { start: system });
-const systemRename = defineEntry(renamePerson, { start: system });
-const entries = [show, mine, rename, create, systemCreate, systemShow, systemMe, systemRename];
+const systemCreate = defineFeature("test_systemCreate", {
+  ...createPerson,
+  permission: null,
+  flags: { readOnly: createPerson.readOnly },
+  edges: [createPerson],
+  start: system,
+  handler: (input, { call }) => call(createPerson, input),
+});
+const systemShow = defineFeature("test_systemShow", {
+  ...showPerson,
+  permission: null,
+  flags: { readOnly: showPerson.readOnly },
+  edges: [showPerson],
+  start: system,
+  handler: (input, { call }) => call(showPerson, input),
+});
+const systemMe = defineFeature("test_systemMe", {
+  ...showMe,
+  permission: null,
+  flags: { readOnly: showMe.readOnly },
+  edges: [showMe],
+  start: system,
+  handler: (input, { call }) => call(showMe, input),
+});
+const systemRename = defineFeature("test_systemRename", {
+  ...renamePerson,
+  permission: null,
+  flags: { readOnly: renamePerson.readOnly },
+  edges: [renamePerson],
+  start: system,
+  handler: (input, { call }) => call(renamePerson, input),
+});
+const features = [show, mine, rename, create, systemCreate, systemShow, systemMe, systemRename];
 const runtime = Layer.unwrap(
   Effect.gen(function* () {
-    return NodeRuntime.layer({ bindings: bindParty(yield* Party), entries, ways: [] });
+    return Runtime.layer({ bindings: bindParty(yield* Party), features, ways: [] });
   }),
 );
 const world = runtime.pipe(
@@ -58,7 +113,7 @@ const as = (
   Layer.merge(
     Layer.succeed(CurrentActor, actor),
     Layer.succeedContext(
-      May.context(May.fixed(entries, permissions), {
+      May.context(May.fixed(features, permissions), {
         system: ["party:create", "party:read", "party:update"],
         via: "test",
       }),
@@ -89,11 +144,11 @@ it.layer(world)("Party nodes", (test) => {
   test.effect("both fail with Forbidden under empty permissions, before the module runs", () =>
     Effect.gen(function* () {
       expect(
-        yield* Effect.flip(runEntry(show, { id: ada.id }).pipe(Effect.provide(as(ada, [])))),
+        yield* Effect.flip(runFeature(show, { id: ada.id }).pipe(Effect.provide(as(ada, [])))),
       ).toBeInstanceOf(Forbidden);
       expect(
         yield* Effect.flip(
-          runEntry(rename, { id: ada.id, displayName: "X" }).pipe(Effect.provide(as(ada, []))),
+          runFeature(rename, { id: ada.id, displayName: "X" }).pipe(Effect.provide(as(ada, []))),
         ),
       ).toBeInstanceOf(Forbidden);
     }),
@@ -103,16 +158,16 @@ it.layer(world)("Party nodes", (test) => {
       const party = yield* Party;
       const lin = Actor.make({ id: ActorId.make("lin") });
       yield* UnitOfWork.atomic(party.createPerson({ id: lin.id, displayName: "Lin" }));
-      expect(yield* runEntry(mine, {}).pipe(Effect.provide(as(lin)))).toMatchObject({
+      expect(yield* runFeature(mine, {}).pipe(Effect.provide(as(lin)))).toMatchObject({
         id: lin.id,
         displayName: "Lin",
       });
       const stranger = Actor.make({ id: ActorId.make("stranger") });
       expect(
-        yield* Effect.flip(runEntry(mine, {}).pipe(Effect.provide(as(stranger)))),
+        yield* Effect.flip(runFeature(mine, {}).pipe(Effect.provide(as(stranger)))),
       ).toBeInstanceOf(PersonNotFound);
       expect(
-        yield* Effect.flip(runEntry(mine, {}).pipe(Effect.provide(as(lin, [])))),
+        yield* Effect.flip(runFeature(mine, {}).pipe(Effect.provide(as(lin, [])))),
       ).toBeInstanceOf(Forbidden);
     }),
   );
@@ -121,16 +176,16 @@ it.layer(world)("Party nodes", (test) => {
       const party = yield* Party;
       yield* UnitOfWork.atomic(party.createPerson({ id: ada.id, displayName: "Ada" }));
       expect(
-        (yield* runEntry(show, { id: ada.id }).pipe(Effect.provide(as(grace)))).displayName,
+        (yield* runFeature(show, { id: ada.id }).pipe(Effect.provide(as(grace)))).displayName,
       ).toBe("Ada");
       expect(
-        (yield* runEntry(rename, { id: ada.id, displayName: "Ada L" }).pipe(
+        (yield* runFeature(rename, { id: ada.id, displayName: "Ada L" }).pipe(
           Effect.provide(as(ada)),
         )).displayName,
       ).toBe("Ada L");
       expect(
         yield* Effect.flip(
-          runEntry(rename, { id: ada.id, displayName: "Hijack" }).pipe(Effect.provide(as(grace))),
+          runFeature(rename, { id: ada.id, displayName: "Hijack" }).pipe(Effect.provide(as(grace))),
         ),
       ).toBeInstanceOf(PersonUpdateRefused);
     }),
@@ -139,22 +194,24 @@ it.layer(world)("Party nodes", (test) => {
     Effect.gen(function* () {
       expect(
         yield* Effect.flip(
-          runEntry(create, { displayName: "No" }).pipe(Effect.provide(as(ada, ["party:create"]))),
+          runFeature(create, { displayName: "No" }).pipe(Effect.provide(as(ada, ["party:create"]))),
         ),
       ).toBeInstanceOf(PersonCallerDenied);
-      const created = yield* runEntry(systemCreate, { displayName: "System created" }).pipe(
+      const created = yield* runFeature(systemCreate, { displayName: "System created" }).pipe(
         Effect.provide(as(ada)),
       );
       expect(created.displayName).toBe("System created");
       expect(
-        yield* Effect.flip(runEntry(systemShow, { id: created.id }).pipe(Effect.provide(as(ada)))),
+        yield* Effect.flip(
+          runFeature(systemShow, { id: created.id }).pipe(Effect.provide(as(ada))),
+        ),
       ).toBeInstanceOf(PersonNotFound);
       expect(
-        yield* Effect.flip(runEntry(systemMe, {}).pipe(Effect.provide(as(ada)))),
+        yield* Effect.flip(runFeature(systemMe, {}).pipe(Effect.provide(as(ada)))),
       ).toBeInstanceOf(PersonNotFound);
       expect(
         yield* Effect.flip(
-          runEntry(systemRename, { id: created.id, displayName: "No" }).pipe(
+          runFeature(systemRename, { id: created.id, displayName: "No" }).pipe(
             Effect.provide(as(ada)),
           ),
         ),

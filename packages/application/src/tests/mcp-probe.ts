@@ -1,8 +1,8 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { afterAll } from "@effect/vitest";
-import { defineNode, errorKind, type InputSchema } from "@house-rules/domain";
+import { defineOperation, errorKind, type InputSchema } from "@house-rules/domain";
 import { Effect, Schema } from "effect";
-import { defineEntry } from "../index.ts";
-import { bindFixture } from "./entry-fixtures.ts";
+import { bindFixture } from "./execution-fixtures.ts";
 import { callMcpTool, mcpPost, openMcpSession } from "./delivery-mcp-client.ts";
 import { mcpFixture } from "./router-fixtures.ts";
 
@@ -19,9 +19,9 @@ export const wireValue = (value: unknown): unknown => {
 
 export const mcpProbe = <I extends InputSchema>(name: string, input: I) => {
   const calls: I["Type"][] = [];
-  const entry = bindFixture(
-    defineEntry(
-      defineNode(name, {
+  const feature = bindFixture(
+    featureFixture(
+      defineOperation(name, {
         description: "Probe one input through the real MCP router.",
         input,
         output: Schema.String,
@@ -36,8 +36,8 @@ export const mcpProbe = <I extends InputSchema>(name: string, input: I) => {
         return "ok";
       }),
   );
-  const fixture = mcpFixture([entry], {
-    tools: [{ entry, title: "Probe", idempotent: true, openWorld: false }],
+  const fixture = mcpFixture([feature], {
+    tools: [{ feature, title: "Probe", idempotent: true, openWorld: false }],
   });
   disposers.push(fixture.dispose);
   let session: Record<string, string> | undefined;
@@ -76,5 +76,5 @@ export const mcpProbe = <I extends InputSchema>(name: string, input: I) => {
       }
       return calls[0] as I["Type"];
     });
-  return { entry, input, calls, schema, decode, fixture };
+  return { feature, input, calls, schema, decode, fixture };
 };

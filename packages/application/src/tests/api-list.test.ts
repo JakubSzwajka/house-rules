@@ -1,8 +1,9 @@
-import { defineNode } from "@house-rules/domain";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation } from "@house-rules/domain";
 import { answer, webRequest } from "./delivery-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import { defineApi, endpoint, admit, toFetchHandler, defineEntry, toOpenApi } from "../index.ts";
+import { defineApi, endpoint, admit, toFetchHandler, toOpenApi } from "../index.ts";
 import { cancelBooking, crash, findBookings, makeApp, showBooking } from "./delivery-fixtures.ts";
 
 const api = defineApi(
@@ -17,7 +18,7 @@ const api = defineApi(
 const t = makeApp();
 afterAll(t.dispose);
 
-it("an endpoint with no address defaults to POST and its entry name", () => {
+it("an endpoint with no address defaults to POST and its feature name", () => {
   const plain = endpoint(crash);
   expect(api.endpoints.crash).toMatchObject({ method: "POST", path: "/crash", status: 200 });
   expect({ method: plain.method, path: plain.path }).toEqual({ method: "POST", path: "/crash" });
@@ -36,7 +37,7 @@ it("an API list is frozen and keeps its prefix apart from each path", () => {
   expect(defineApi({}, {}).prefix).toBe("");
 });
 
-it("an API list refuses two entries on one address or one contract", () => {
+it("an API list refuses two features on one address or one contract", () => {
   expect(() =>
     defineApi(
       {},
@@ -54,7 +55,7 @@ it("an API list refuses two entries on one address or one contract", () => {
         two: endpoint(showBooking, "GET /show/:id"),
       },
     ),
-  ).toThrow(/two and one both name the entry show_booking/u);
+  ).toThrow(/two and one both name the feature show_booking/u);
   expect(() =>
     defineApi(
       {},
@@ -159,13 +160,13 @@ it.effect("a way supplies the API prefix once and serves shared endpoint status 
       ),
     );
     expect(doubled.status).toBe(404);
-    expect(api.endpoints.showBooking.entry).toBe(showBooking);
+    expect(api.endpoints.showBooking.feature).toBe(showBooking);
     yield* Effect.promise(fixture.dispose);
   }),
 );
-it("a router takes no second entry-to-capability mapping", () => {
+it("a router takes no second feature-to-capability mapping", () => {
   const invalid = () => {
-    // @ts-expect-error Entries are already bound in NodeRuntime; there is no route map.
+    // @ts-expect-error Features are already bound in Runtime; there is no route map.
     return toFetchHandler(t.app, { routes: { showBooking, findBookings } });
   };
   expect(typeof invalid).toBe("function");
@@ -196,21 +197,21 @@ it("OpenAPI derives a shared API prefix or accepts the same explicit prefix, nev
   );
   expect(() => toOpenApi(endpoints, { ...options, prefix: "/other" })).toThrow(/API prefix/u);
 });
-const stricterShowBooking = defineEntry(
-  defineNode("show_booking", {
+const stricterShowBooking = featureFixture(
+  defineOperation("show_booking", {
     description: "Show a booking for a stated reason.",
     input: Schema.Struct({ id: Schema.String, reason: Schema.String }),
-    output: showBooking.node.output,
-    failure: showBooking.node.failure,
+    output: showBooking.output,
+    failure: showBooking.failure,
     permission: "bookings:read",
     readOnly: true,
   }),
 );
 it.effect(
-  "an endpoint with an identically named but different entry is not exposed by identity",
+  "an endpoint with an identically named but different feature is not exposed by identity",
   () =>
     Effect.gen(function* () {
-      expect(stricterShowBooking.node.name).toBe(showBooking.node.name);
+      expect(stricterShowBooking.name).toBe(showBooking.name);
       const invalid = makeApp({ endpoints: [endpoint(stricterShowBooking, "GET /bookings/:id")] });
       const result = yield* Effect.promise(() =>
         admit(invalid.app, { headers: new Headers(), url: "/" }, { way: "api" }),

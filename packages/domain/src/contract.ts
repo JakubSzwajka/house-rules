@@ -4,11 +4,12 @@ export { NoOpenUnit, UnitOfWorkFailed } from "./unit-of-work/unit-of-work.ts";
 export type { Caller, PersonCaller, SystemCaller } from "./caller/caller.ts";
 export { type ErrorKind, type KindedError, errorKind } from "./error/error-kind.ts";
 export {
-  type AnyNode,
+  type AnyCallable,
   type Edge,
   type InputSchema,
-  type Node,
-  type NodeFailureSchema,
+  type Callable,
+  type Operation,
+  type CallableFailureSchema,
   NoInput,
   type PlainSchema,
   type StructInput,
@@ -17,13 +18,13 @@ export {
   type Targets,
   type UnionInput,
   asSystem,
-  defineNode,
+  defineOperation,
   targetOf,
-} from "./node/node.ts";
+} from "./operation/operation.ts";
 export {
   type Closures,
   type Graph,
   type GraphResult,
   buildGraph,
   permissionClosures,
-} from "./node/graph.ts";
+} from "./operation/graph.ts";

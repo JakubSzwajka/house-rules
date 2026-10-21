@@ -1,20 +1,20 @@
 import { Cause, Context, Effect, Exit, Fiber, Layer, ManagedRuntime } from "effect";
 import type { Permission } from "@house-rules/domain";
-import type { AnyEntry } from "../entry/entry.ts";
-import type { EntryRequirements } from "../execution/run-entry.ts";
+import type { AnyFeature } from "../feature/feature.ts";
+import type { FeatureRequirements } from "../execution/run-feature.ts";
 import type { CurrentActor } from "../actor/current-actor.ts";
 import type { CallPermissions } from "../socket/permission-lists.ts";
 import type { Approval } from "../gates/approval.ts";
-import { NodeRuntime, validateExposures } from "../node/node-runtime.ts";
-import { GraphInvalid } from "../node/graph-invalid.ts";
-import { entryAndRecheck, type GatePolicy } from "../socket/permission-lists.ts";
+import { Runtime, validateExposures } from "../runtime/runtime.ts";
+import { GraphInvalid } from "../runtime/graph-invalid.ts";
+import { featureAndRecheck, type GatePolicy } from "../socket/permission-lists.ts";
 import type { ServicesCheck } from "./mount-check.ts";
 import { validateWays, type AnyWay } from "./way-validation.ts";
 
 export type Composition<A, E = never> = Readonly<{
   _tag: "Composition";
   runtime: ManagedRuntime.ManagedRuntime<A, E>;
-  entries: readonly AnyEntry[];
+  features: readonly AnyFeature[];
   ways: readonly AnyWay<A>[];
   system: readonly Permission[];
   gatePolicy: GatePolicy;
@@ -38,19 +38,19 @@ export const composition = <
   A,
   E,
   R,
-  const Entries extends readonly AnyEntry[],
+  const Features extends readonly AnyFeature[],
   const Ways extends readonly AnyWay<R>[],
 >(
   options: Readonly<{
     layer: Layer.Layer<A, E>;
-    entries: Entries;
+    features: Features;
     ways: Ways;
     system: readonly Permission[];
     gatePolicy?: GatePolicy;
   }> &
     ServicesCheck<
-      | NodeRuntime
-      | Exclude<EntryRequirements<Entries[number]>, CurrentActor | CallPermissions | Approval>
+      | Runtime
+      | Exclude<FeatureRequirements<Features[number]>, CurrentActor | CallPermissions | Approval>
       | Effect.Services<ReturnType<Ways[number]["who"]["resolve"]>>,
       A
     >,
@@ -66,10 +66,10 @@ export const composition = <
     const layer = options.layer.pipe(
       Layer.tap((context) =>
         Effect.gen(function* () {
-          const runtime = Context.get(context as Context.Context<NodeRuntime>, NodeRuntime);
+          const runtime = Context.get(context as Context.Context<Runtime>, Runtime);
           const invalid =
-            validateWays(options.entries, options.ways) ??
-            validateExposures(runtime, options.entries, options.ways);
+            validateWays(options.features, options.ways) ??
+            validateExposures(runtime, options.features, options.ways);
           if (invalid !== undefined) return yield* new GraphInvalid({ reason: invalid });
         }),
       ),
@@ -111,10 +111,10 @@ export const composition = <
     get runtime() {
       return runtime();
     },
-    entries: options.entries,
+    features: options.features,
     ways: options.ways as unknown as readonly AnyWay<A>[],
     system: options.system,
-    gatePolicy: options.gatePolicy ?? entryAndRecheck,
+    gatePolicy: options.gatePolicy ?? featureAndRecheck,
     dispose,
   };
   lifecycles.set(app, {

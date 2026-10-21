@@ -1,6 +1,7 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { expect, expectTypeOf, it } from "@effect/vitest";
 import {
-  defineNode,
+  defineOperation,
   errorKind,
   memoryUnitOfWork,
   NoOpenUnit,
@@ -8,8 +9,8 @@ import {
   UnitOfWorkFailed,
 } from "@house-rules/domain";
 import { Cause, Effect, Exit, Schema } from "effect";
-import { defineEntry, type EntryFailure, type EntryRequirements } from "../index.ts";
-import { bindFixture, runFixture } from "./entry-fixtures.ts";
+import { type FeatureFailure, type FeatureRequirements } from "../index.ts";
+import { bindFixture, runFixture } from "./execution-fixtures.ts";
 class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {
   kind: errorKind("invalid"),
 }) {}
@@ -22,20 +23,20 @@ const base = {
 } as const;
 const greet = ({ name }: { readonly name: string }) =>
   name === "" ? Effect.fail(new NameIsEmpty()) : Effect.succeed(`Hello, ${name}`);
-const plain = bindFixture(defineEntry(defineNode("plain", base)), greet);
+const plain = bindFixture(featureFixture(defineOperation("plain", base)), greet);
 const atomic = bindFixture(
-  defineEntry(defineNode("atomic", { ...base, transactional: true })),
+  featureFixture(defineOperation("atomic", { ...base, transactional: true })),
   greet,
 );
 const write = ({ name }: { readonly name: string }) =>
   UnitOfWork.required.pipe(Effect.andThen(greet({ name })));
 const atomicWrite = bindFixture(
-  defineEntry(defineNode("atomic_write", { ...base, transactional: true })),
+  featureFixture(defineOperation("atomic_write", { ...base, transactional: true })),
   write,
 );
 const redundant = bindFixture(
-  defineEntry(
-    defineNode("redundant", {
+  featureFixture(
+    defineOperation("redundant", {
       ...base,
       failure: Schema.Union([NameIsEmpty, NoOpenUnit]),
       transactional: true,
@@ -44,30 +45,34 @@ const redundant = bindFixture(
   write,
 );
 const plainWrite = bindFixture(
-  defineEntry(
-    defineNode("plain_write", { ...base, failure: Schema.Union([NameIsEmpty, NoOpenUnit]) }),
+  featureFixture(
+    defineOperation("plain_write", { ...base, failure: Schema.Union([NameIsEmpty, NoOpenUnit]) }),
   ),
   write,
 );
 it("transactional defaults to false with no unit slot or unit-open failure", () => {
   expect(plain.transactional).toBe(false);
   expectTypeOf(plain.transactional).toEqualTypeOf<false>();
-  expectTypeOf<Extract<EntryRequirements<typeof plain>, UnitOfWork>>().toEqualTypeOf<never>();
-  expectTypeOf<Extract<EntryFailure<typeof plain>, UnitOfWorkFailed>>().toEqualTypeOf<never>();
+  expectTypeOf<Extract<FeatureRequirements<typeof plain>, UnitOfWork>>().toEqualTypeOf<never>();
+  expectTypeOf<Extract<FeatureFailure<typeof plain>, UnitOfWorkFailed>>().toEqualTypeOf<never>();
 });
-it("transactional entry failures exclude NoOpenUnit even when its node declared it", () => {
-  expectTypeOf<Extract<EntryFailure<typeof atomicWrite>, NoOpenUnit>>().toEqualTypeOf<never>();
-  expectTypeOf<Extract<EntryFailure<typeof redundant>, NoOpenUnit>>().toEqualTypeOf<never>();
-  expectTypeOf<Extract<EntryFailure<typeof plainWrite>, NoOpenUnit>>().toEqualTypeOf<NoOpenUnit>();
+it("transactional feature failures exclude NoOpenUnit even when its callable declared it", () => {
+  expectTypeOf<Extract<FeatureFailure<typeof atomicWrite>, NoOpenUnit>>().toEqualTypeOf<never>();
+  expectTypeOf<Extract<FeatureFailure<typeof redundant>, NoOpenUnit>>().toEqualTypeOf<never>();
+  expectTypeOf<
+    Extract<FeatureFailure<typeof plainWrite>, NoOpenUnit>
+  >().toEqualTypeOf<NoOpenUnit>();
 });
 it("a true transaction flag adds UnitOfWork and its kinded failure", () => {
   expect(atomic.transactional).toBe(true);
-  expectTypeOf<Extract<EntryRequirements<typeof atomic>, UnitOfWork>>().toEqualTypeOf<UnitOfWork>();
   expectTypeOf<
-    Extract<EntryFailure<typeof atomic>, UnitOfWorkFailed>
+    Extract<FeatureRequirements<typeof atomic>, UnitOfWork>
+  >().toEqualTypeOf<UnitOfWork>();
+  expectTypeOf<
+    Extract<FeatureFailure<typeof atomic>, UnitOfWorkFailed>
   >().toEqualTypeOf<UnitOfWorkFailed>();
 });
-it.effect("a transactional write joins its entry unit", () =>
+it.effect("a transactional write joins its feature unit", () =>
   Effect.gen(function* () {
     expect(
       yield* runFixture(atomicWrite, { name: "Ada" }).pipe(Effect.provide(memoryUnitOfWork)),
@@ -78,10 +83,10 @@ it.effect("a transactional write joins its entry unit", () =>
     expect((yield* Effect.flip(runFixture(plainWrite, { name: "Ada" })))._tag).toBe("NoOpenUnit");
   }),
 );
-it.effect("unexpected NoOpenUnit inside an atomic entry is a defect", () =>
+it.effect("unexpected NoOpenUnit inside an atomic feature is a defect", () =>
   Effect.gen(function* () {
     const broken = bindFixture(
-      defineEntry(defineNode("broken_unit", { ...base, transactional: true })),
+      featureFixture(defineOperation("broken_unit", { ...base, transactional: true })),
       () => Effect.fail(new NoOpenUnit()),
     );
     const exit = yield* Effect.exit(

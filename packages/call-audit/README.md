@@ -2,20 +2,20 @@
 
 Version 0.7.0 peers on exact `effect` 4.0.3 and `@house-rules/application` 0.2.0, which replaces the retired capability package. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
 
-An audit trail for every entry call. It plugs into the `CallWatch` hook of `@house-rules/application`, so it sees HTTP, MCP and hook entries, `Forbidden` and `ApprovalDenied` included. Inner nodes do not add rows. An `AuditPolicy` decides which calls it keeps and how long their rows live. `AGENTS.md` in this package is the short mounting guide.
+An audit trail for every feature call. It plugs into the `CallWatch` hook of `@house-rules/application`, so it sees HTTP, MCP and hook features, `Forbidden` and `ApprovalDenied` included. Inner operation and feature calls do not add rows. An `AuditPolicy` decides which calls it keeps and how long their rows live. `AGENTS.md` in this package is the short mounting guide.
 
-An entry holds these fields and nothing else:
+An `AuditRecord` holds these fields and nothing else. Columns, migrations and stored text values stay unchanged.
 
 | Field | Meaning |
 | --- | --- |
-| `capability` | the entry node name, kept for schema continuity |
-| `target` | the entry node name, required |
-| `permission` | the root node permission, or the empty string for null |
+| `capability` | the feature name, kept for schema continuity |
+| `target` | the feature name, required |
+| `permission` | the feature permission, or the empty string for null |
 | `viewerId` | the caller id from `who`, or `null` |
 | `outcome` | `success`, the typed failure `_tag` (`failure` when it has none), `defect`, or `interrupted` |
 | `ms` | the duration of the whole call |
-| `kind` | `read` when the lifted entry is `readOnly`, else `write` |
-| `targetId` | optional object id from explicit call facts, `null` by default; never selected from node input |
+| `kind` | `read` when the lifted feature is `readOnly`, else `write` |
+| `targetId` | optional object id from explicit call facts, `null` by default; never selected from operation input |
 | `channel` | `mcp` or `mcp:<client>` for MCP calls, else the app's `CallChannel`, `unknown` by default |
 | `requestId` | the app's `CallRequestId`, set by `withRequestId` from `@house-rules/application`, or `null` |
 
@@ -58,7 +58,7 @@ An `AuditPolicy` has four fields:
 
 | Field | Meaning |
 | --- | --- |
-| `keep(entry)` | `true` keeps the call. A `keep` that throws keeps it. |
+| `keep(record)` | `true` keeps the call. A `keep` that throws keeps it. |
 | `retention` | `{ read, write, failure }`, each a `Duration.Input`. `"Infinity"` never deletes that class. |
 | `onWriteFailure` | `"ignore"`, or `"log"`: a warning with the capability and the error tag, never the message |
 | `erasure` | `"delete"` |
@@ -96,10 +96,10 @@ import { CallAudit, memoryAuditLog } from "@house-rules/call-audit";
 // capability call {"capability":"read_trip","target":"read_trip","permission":"trips:read","viewerId":"user_ana","outcome":"success","ms":3,"kind":"read","targetId":null,"channel":"web","requestId":null}
 const production = CallAudit.layerLog({ who });
 
-// Tests: the same entries, in memory.
+// Tests: the same records, in memory.
 const log = memoryAuditLog();
 const test = CallAudit.layerMemory(log, { who });
-log.entries(); // ReadonlyArray<AuditEntry>
+log.entries(); // ReadonlyArray<AuditRecord>
 log.clear();
 ```
 
@@ -118,9 +118,9 @@ const production = CallAudit.layerTable({ who, log: true }).pipe(Layer.provide(d
 | --- | --- |
 | `id` | an identity, for ordering |
 | `recorded_at` | when the call ended, from the app's `Clock` |
-| `capability`, `permission`, `viewer_id`, `outcome`, `ms` | the first five entry fields |
+| `capability`, `permission`, `viewer_id`, `outcome`, `ms` | the first five record fields |
 | `kind`, `target_id`, `channel`, `request_id` | the call facts, added by `0002`, `null` on older rows |
-| `target` | required entry name, added by `0003` and backfilled from capability |
+| `target` | required feature name, added by `0003` and backfilled from capability |
 
 The write is synchronous: it runs after the call, in the same `Effect.onExit` as the log line. `log: true` also writes the log line, so the table adds to the log instead of replacing it. Without it, only the row is written.
 
@@ -163,7 +163,7 @@ const who = Effect.serviceOption(CurrentActor).pipe(
 );
 ```
 
-`Effect.serviceOption` keeps `who` free of requirements, and a call with no actor logs `null`. `who` runs once, before the handler, in the context of the call, so the entry names the caller who entered the entry even if the handler swaps `CurrentActor` later. The column keeps its old name, `viewerId`.
+`Effect.serviceOption` keeps `who` free of requirements, and a call with no actor logs `null`. `who` runs once, before the handler, in the context of the call, so the record names the caller who started the feature even if the handler swaps `CurrentActor` later. The column keeps its old name, `viewerId`.
 
 ## A broken log cannot break a call
 

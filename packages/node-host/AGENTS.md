@@ -15,7 +15,7 @@ const webWay = defineWay({
   name: "web",
   path: "/api",
   protocol: "http",
-  entries,
+  features,
   endpoints,
   who,
   may,
@@ -27,7 +27,7 @@ const app = createApp([webWay]);
 const api = toFetchHandler(app);
 ```
 
-`defineWay` and `toFetchHandler` come from `@house-rules/application`; entries, endpoints, sockets and `createApp` are app-owned wiring. `toFetchHandler` takes only the app. HTTP `origins`, `cors`, `session` and `maxBodyBytes` belong to `defineWay({ protocol: "http", ... })`. The booking example's web way currently leaves those options unset.
+`defineWay` and `toFetchHandler` come from `@house-rules/application`; features, endpoints, sockets and `createApp` are app-owned wiring. Build endpoints with `endpoint(feature)`. Ways expose features, never module operations. `toFetchHandler` takes only the app. HTTP `origins`, `cors`, `session` and `maxBodyBytes` belong to `defineWay({ protocol: "http", ... })`. The booking example's web way currently leaves those options unset.
 
 Set explicit HTTP-way `origins` for local and internal apps too, and restrict Host at their proxy or listener to guard against DNS rebinding. See the [application kit's session and CSRF options](../application/README.md#shared-endpoints-and-clients).
 

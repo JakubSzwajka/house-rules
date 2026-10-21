@@ -9,4 +9,4 @@ export {
   PersonUpdateRefused,
 } from "./person/person.js";
 export { type PartyPermission, PartyPermissions } from "./person/permissions.js";
-export { createPerson, showPerson, showMe, renamePerson } from "./person/nodes.js";
+export { PartyOperations } from "./person/operations.js";

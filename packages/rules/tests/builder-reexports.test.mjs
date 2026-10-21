@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { it } from "node:test";
 import { Linter } from "eslint";
-import { nodesConfig } from "../src/index.mjs";
+import { featuresConfig } from "../src/index.mjs";
 
 const root = mkdtempSync(path.join(tmpdir(), "builder-reexports-"));
 for (const [file, text] of Object.entries({
@@ -12,13 +12,13 @@ for (const [file, text] of Object.entries({
   "packages/tests/package.json": '{"name":"@acme/tests"}',
   "packages/application/package.json": '{"name":"@acme/not-the-kit"}',
   "packages/named/package.json": '{"name":"@acme/named","exports":{".":"./src/index.ts"}}',
-  "packages/named/src/index.ts": 'export { defineEntry as mk } from "@house-rules/application";',
+  "packages/named/src/index.ts": 'export { defineFeature as mk } from "@house-rules/application";',
   "packages/star/package.json": '{"name":"@acme/star","exports":{".":"./src/index.ts"}}',
   "packages/star/src/index.ts": 'export * from "@house-rules/application";',
   "packages/mixed/package.json": '{"name":"@acme/mixed","exports":{".":"./src/index.ts"}}',
   "packages/mixed/src/index.ts":
-    'export { defineEntry } from "@house-rules/application"; export { endpoint } from "@acme/otel";',
-  "scripts/named.mjs": 'export { defineEntry as mk } from "@house-rules/application";',
+    'export { defineFeature } from "@house-rules/application"; export { endpoint } from "@acme/otel";',
+  "scripts/named.mjs": 'export { defineFeature as mk } from "@house-rules/application";',
   "scripts/star.mjs": 'export * from "@house-rules/application";',
 })) {
   mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
@@ -26,8 +26,8 @@ for (const [file, text] of Object.entries({
 }
 const lint = (code, file) =>
   new Linter({ cwd: root })
-    .verify(code, nodesConfig(), { filename: path.join(root, file) })
-    .filter((m) => m.ruleId === "house-rules/entry-from-app-node" || m.fatal)
+    .verify(code, featuresConfig(), { filename: path.join(root, file) })
+    .filter((m) => m.ruleId === "house-rules/feature-builders" || m.fatal)
     .map((m) => m.messageId ?? m.message);
 for (const source of [
   "@acme/named",
@@ -51,7 +51,7 @@ for (const file of [
   "packages/application/src/main.ts",
 ])
   it(`never exempts production by workspace basename or mismatched kit name: ${file}`, () => {
-    assert.deepEqual(lint('export { defineEntry } from "@house-rules/application";', file), [
+    assert.deepEqual(lint('export { defineFeature } from "@house-rules/application";', file), [
       "named",
     ]);
   });

@@ -62,7 +62,7 @@ export const noHandRolledSurfaceRule = {
     },
     messages: {
       handRolled:
-        "{{call}} builds a surface by hand. Describe a node with defineNode, expose its app entry through defineWay, and let the router build the surface.",
+        "{{call}} builds a surface by hand. Describe a feature with defineFeature, expose it through defineWay, and let the router build the surface.",
     },
     schema: [
       {

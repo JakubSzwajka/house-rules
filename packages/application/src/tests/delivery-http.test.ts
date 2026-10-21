@@ -103,7 +103,7 @@ it.effect("a read credential cannot enter the mutable way", () =>
   }),
 );
 
-it.effect("a node's not_found kind is a 404 with the way's message", () =>
+it.effect("a callable's not_found kind is a 404 with the way's message", () =>
   Effect.gen(function* notFound() {
     const r = yield* http("GET", "/api/bookings/b-3", "tok-ada");
     expect(r.status).toBe(404);

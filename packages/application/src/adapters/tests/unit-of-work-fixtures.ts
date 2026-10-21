@@ -1,16 +1,17 @@
+import { featureFixture } from "../../tests/feature-fixtures.ts";
 import { PgClient } from "@effect/sql-pg";
 import { MigrationsTesting } from "@house-rules/migrations";
 import { Cause, Context, Deferred, Effect, Exit, Fiber, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
 import {
-  defineNode,
+  defineOperation,
   errorKind,
   memoryUnitOfWork,
   NoOpenUnit,
   UnitOfWork,
 } from "@house-rules/domain";
-import { defineEntry, sqlUnitOfWork } from "../../index.ts";
-import { bindFixture } from "../../tests/entry-fixtures.ts";
+import { sqlUnitOfWork } from "../../index.ts";
+import { bindFixture } from "../../tests/execution-fixtures.ts";
 
 class StoreUnavailable extends Schema.TaggedError<StoreUnavailable>()("StoreUnavailable", {
   kind: errorKind("unavailable"),
@@ -134,8 +135,8 @@ export const contents = Effect.gen(function* contents() {
 });
 
 export const writeEntry = <const Transactional extends boolean>(transactional: Transactional) =>
-  defineEntry(
-    defineNode("write_both", {
+  featureFixture(
+    defineOperation("write_both", {
       description: "Write one row in each module.",
       input: Schema.Struct({ fail: Schema.Boolean }),
       output: Schema.Void,

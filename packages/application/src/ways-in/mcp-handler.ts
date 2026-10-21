@@ -34,7 +34,7 @@ export const makeMcpHandler = <A, E>(
   app: Composition<A, E>,
   way: Extract<AnyWay<A>, { protocol: "mcp" }>,
 ): FetchHandler => {
-  const tools = way.tools.map((tool) => makeTool(tool.entry, tool));
+  const tools = way.tools.map((tool) => makeTool(tool.feature, tool));
   type DynamicTool = Tool.Tool<
     string,
     {
@@ -46,8 +46,8 @@ export const makeMcpHandler = <A, E>(
   >;
   const kit = Toolkit.make(...(tools as unknown as [DynamicTool]));
   const handlers = Object.fromEntries(
-    way.tools.map(({ entry }) => [
-      entry.node.name,
+    way.tools.map(({ feature }) => [
+      feature.name,
       (params: unknown) =>
         Effect.gen(function* () {
           const scope = yield* Effect.serviceOption(CallerScope);
@@ -56,7 +56,7 @@ export const makeMcpHandler = <A, E>(
           const { requestId, actor, incoming } = scope.value;
           const outcome = yield* serveIn<A, Outcome<unknown, unknown>>(app, {
             ready: (context) =>
-              invoke(app, context, entry, {
+              invoke(app, context, feature, {
                 way,
                 incoming,
                 resolved: actor,

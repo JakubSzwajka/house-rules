@@ -3,14 +3,14 @@ import { Context, Effect, Layer } from "effect";
 
 export type Step = Readonly<{
   order: number;
-  entry: string;
+  feature: string;
   target: string;
   caller: "person" | "system";
   reason: string | null;
   outcome: "running" | "success" | "failure";
 }>;
 export type ClosureRefusal = Readonly<{
-  entry: string;
+  feature: string;
   permission: Permission;
   caller: "person" | "system";
 }>;

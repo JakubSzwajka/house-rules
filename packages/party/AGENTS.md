@@ -2,19 +2,19 @@
 
 ## What it does
 
-Party owns the people an app knows. A `Person` is `{ id, displayName, createdAt }`; its id is the `ActorId`. It holds no email, issuer, subject, organisation or identity binding. Version 0.1.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published entries load built `dist/`; this workspace loads source.
+Party owns the people an app knows. A `Person` is `{ id, displayName, createdAt }`; its id is the `ActorId`. It holds no email, issuer, subject, organisation or identity binding. Version 0.1.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published packages load built `dist/`; this workspace loads source.
 
 ## Mount and bind
 
 1. [ ] Mount `Party.layerPostgres.pipe(Layer.provide(database))`, or `Party.layerMemory` in tests. Raw `Party.layer` needs `PersonStore`. Both storage adapters are public.
 2. [ ] Register `{ "package": "@house-rules/party" }` in `migrations.json`, or `{ "workspace": "packages/party" }` in this repo.
-3. [ ] Share the app's SQL client and unit adapter with other modules. Acquire `Party` once and pass it to `bindParty(service)`. Add those bindings to the app's `NodeRuntime`.
-4. [ ] App nodes declare edges to the shipped descriptors. Only app nodes become entries. First sign-in uses a system edge to `createPerson`, then binds the returned id through identity in the same entry unit.
-5. [ ] Call `party.erase(id)` in the account-deletion unit. This hook is trusted service code, not an exposed node.
+3. [ ] Share the app's SQL client and unit adapter with other modules. Acquire `Party` once and pass it to `bindParty(service)`. Add those bindings to the app's `Runtime`.
+4. [ ] App features declare edges to `PartyOperations`. Only features are exposed. First sign-in calls `PartyOperations.createPerson` through a system edge, then binds the returned id through identity in the same feature unit.
+5. [ ] Call `party.erase(id)` in the account-deletion unit. This hook is trusted service code, not an operation.
 
-`@house-rules/party/contract` exports browser-safe schemas, errors, permissions and these nodes. Main exports them beside `Party` and `bindParty`, storage and policy. The contract door never loads bindings or application values.
+`@house-rules/party/contract` exports browser-safe schemas, errors, permissions and `PartyOperations`. `defineOperation` declares each operation. `bindParty` uses `bindOperation` and captures the service. Main adds `Party`, storage and policy. The contract door never loads bindings or application values.
 
-| Node identifier / name | Permission | Caller | Flags |
+| PartyOperations member / name | Permission | Caller | Flags |
 | --- | --- | --- | --- |
 | `createPerson` / `Party.createPerson` | `party:create` | system only | transactional |
 | `showPerson` / `show_person` | `party:read` | person | readOnly |

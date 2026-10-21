@@ -7,7 +7,7 @@ import {
 } from "@house-rules/application";
 import { type ActorResolver, type FirstSignIn } from "@house-rules/identity";
 import { Config, type Layer } from "effect";
-import { Entries, systemPermissions } from "./entries.ts";
+import { Features, systemPermissions } from "../features/index.ts";
 import { plugSockets } from "./app-layer.ts";
 import { modulesLayer } from "./modules.ts";
 import type { DemoIssuers } from "./demo-issuers.ts";
@@ -47,7 +47,7 @@ export const createApp = <E = never>(
   );
   return composition({
     layer,
-    entries: Object.values(Entries),
+    features: Object.values(Features),
     ways,
     system: systemPermissions,
     ...(options.gatePolicy === undefined ? {} : { gatePolicy: options.gatePolicy }),
@@ -63,5 +63,5 @@ export { modulesLayer, readUnavailablePort } from "./modules.ts";
 export { plugSockets } from "./app-layer.ts";
 export { DemoIssuers, DemoForbidden } from "./demo-issuers.ts";
 export { McpAuthenticator } from "./mcp-authenticator.ts";
-export { Entries, memberPermissions, systemPermissions } from "./entries.ts";
-export { scheduleEntries } from "./schedule.ts";
+export { Features, memberPermissions, systemPermissions } from "../features/index.ts";
+export { scheduleFeatures } from "./schedule.ts";

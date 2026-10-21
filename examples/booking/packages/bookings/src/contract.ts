@@ -1,4 +1,4 @@
-export { BookingsNodes } from "./booking/nodes.ts";
+export { BookingsOperations } from "./booking/operations.ts";
 export {
   Booking,
   BookingStatus,

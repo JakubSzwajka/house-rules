@@ -7,7 +7,7 @@ const RULE = "house-rules/testing-exports-only-in-tests";
 const PRODUCTION_FILE = "apps/web/src/composition/event-dispatcher.ts";
 
 function lint(code, filename = PRODUCTION_FILE) {
-  const messages = new Linter().verify(code, plugin.configs.nodes, { filename });
+  const messages = new Linter().verify(code, plugin.configs.features, { filename });
   assert.equal(
     messages.some((message) => message.fatal),
     false,
@@ -258,7 +258,7 @@ export { DbTesting } from "./db.ts";
 export { DbTesting as TestDbTesting } from "./db.ts";
 export { Db as DbTesting2, Db as live2 } from "./db.ts";`;
   const messages = new Linter()
-    .verify(code, plugin.configs.nodes, { filename: "packages/db/src/index.ts" })
+    .verify(code, plugin.configs.features, { filename: "packages/db/src/index.ts" })
     .filter(({ ruleId }) => ruleId === RULE)
     .map(({ messageId, message, line }) => [messageId, message.split(".")[0], line]);
   assert.deepEqual(messages, [
@@ -381,7 +381,7 @@ test("the testing preset holds the rule, and the nodes preset includes it", () =
   assert.deepEqual(plugin.configs.testing[0].files, ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]);
   assert.equal(plugin.configs.testing[0].plugins["house-rules"], plugin);
   assert.deepEqual(plugin.configs.testing[0].rules, { [RULE]: "error" });
-  assert.equal(plugin.configs.nodes[0].rules[RULE], "error");
+  assert.equal(plugin.configs.features[0].rules[RULE], "error");
   assert.equal(
     plugin.configs.recommended.some((entry) => RULE in (entry.rules ?? {})),
     false,

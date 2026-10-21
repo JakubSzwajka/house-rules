@@ -1,6 +1,6 @@
 export { Bookings } from "./facade.ts";
 export { bindBookings } from "./booking/bind-bookings.ts";
-export { BookingsNodes } from "./booking/nodes.ts";
+export { BookingsOperations } from "./booking/operations.ts";
 export {
   Booking,
   BookingStatus,

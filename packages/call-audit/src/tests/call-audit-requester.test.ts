@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { CallWatch, defineEntry } from "@house-rules/application";
+import { CallWatch, defineFeature } from "@house-rules/application";
 import { Cause, Effect, Exit, Layer, Result } from "effect";
 import { CallAudit, memoryAuditLog } from "../index.ts";
 import {
@@ -59,7 +59,11 @@ it.effect("a who that dies leaves a typed failure the same failure", () =>
 it.effect("records the caller who entered, even when the handler swaps the Requester", () =>
   Effect.gen(function* entryCaller() {
     const log = memoryAuditLog();
-    const entry = defineEntry({ ...base, name: "swapping_greeting", permission: null });
+    const entry = defineFeature("swapping_greeting", {
+      ...base,
+      permission: null,
+      handler: () => Effect.succeed("original"),
+    });
     const result = yield* Effect.scoped(
       CallWatch.use((watch) =>
         watch.around(

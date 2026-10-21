@@ -1,16 +1,15 @@
+import { Features, partnerPermissions } from "../../features/index.ts";
 import { localWho } from "../../composition/callers.ts";
 import { defineWay, May, Mean } from "@house-rules/application";
-import { partnerPermissions } from "../../composition/entries.ts";
-import { partnerBookingEntry } from "../../features/book-for-partner/entry.ts";
 import { endpoints } from "./endpoints.ts";
-const entries = [partnerBookingEntry] as const;
+const features = [Features.partnerBooking] as const;
 export const partnerWay = defineWay({
   name: "partner",
   path: "/partner",
   protocol: "http",
-  entries,
+  features,
   endpoints,
   who: localWho("partner"),
-  may: May.fixed(entries, partnerPermissions),
+  may: May.fixed(features, partnerPermissions),
   mean: Mean.no,
 });

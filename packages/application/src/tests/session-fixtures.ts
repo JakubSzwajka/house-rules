@@ -1,15 +1,16 @@
-import { defineNode } from "@house-rules/domain";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation } from "@house-rules/domain";
 import { Clock, Effect, Schema } from "effect";
-import { defineApi, defineEntry, endpoint } from "../index.ts";
-import { bindFixture } from "./entry-fixtures.ts";
+import { defineApi, endpoint } from "../index.ts";
+import { bindFixture } from "./execution-fixtures.ts";
 const SignedIn = Schema.Struct({
   token: Schema.String,
   expiresAt: Schema.Int,
   name: Schema.String,
 });
 export const signIn = bindFixture(
-  defineEntry(
-    defineNode("sign_in", {
+  featureFixture(
+    defineOperation("sign_in", {
       description: "Sign in and get a token.",
       input: Schema.Struct({ name: Schema.String }),
       output: SignedIn,
@@ -23,8 +24,8 @@ export const signIn = bindFixture(
     ),
 );
 export const signOut = bindFixture(
-  defineEntry(
-    defineNode("sign_out", {
+  featureFixture(
+    defineOperation("sign_out", {
       description: "Sign out.",
       input: Schema.Struct({}),
       output: Schema.Struct({}),
@@ -35,8 +36,8 @@ export const signOut = bindFixture(
   () => Effect.succeed({}),
 );
 export const leaky = bindFixture(
-  defineEntry(
-    defineNode("leaky_sign_in", {
+  featureFixture(
+    defineOperation("leaky_sign_in", {
       description: "A sign-in whose token is not cookie-safe.",
       input: Schema.Struct({}),
       output: SignedIn,

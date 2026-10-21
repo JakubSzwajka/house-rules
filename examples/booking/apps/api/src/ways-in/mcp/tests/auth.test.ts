@@ -4,7 +4,7 @@ import { AuthJwt, AuthJwtTesting } from "@house-rules/auth-jwt";
 import { Actor, ActorId } from "@house-rules/domain";
 import { Identity } from "@house-rules/identity";
 import { Effect, Layer } from "effect";
-import { createApp, Entries, modulesLayer, resourceOf } from "../../../composition/index.ts";
+import { createApp, Features, modulesLayer, resourceOf } from "../../../composition/index.ts";
 import { databaseTesting } from "../../../composition/tests/database.ts";
 import { webWay } from "../../web/way.ts";
 import { mcpWay } from "../way.ts";
@@ -158,7 +158,7 @@ it.live(
       const booked = yield* Effect.promise(() =>
         call(
           app,
-          Entries.makeBooking,
+          Features.makeBooking,
           { id: "a", guestName: "Alice", paymentId: "pa", amount: 100 },
           { headers: new Headers(), url: "https://booking.example/api" },
           { way: "web" },

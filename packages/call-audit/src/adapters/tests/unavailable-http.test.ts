@@ -1,13 +1,13 @@
 import { expect, layer } from "@effect/vitest";
 import {
-  bindNode,
+  bindOperation,
   composition,
-  defineEntry,
+  defineFeature,
   defineWay,
   endpoint,
   May,
   Mean,
-  NodeRuntime,
+  Runtime,
   StepTrace,
   toFetchHandler,
 } from "@house-rules/application";
@@ -23,6 +23,7 @@ import {
 import { migratedDatabase } from "./stores.ts";
 
 const node = {
+  kind: "operation",
   name: "audit_failure",
   description: "Exercise the audit adapter's node failures.",
   input: Schema.Struct({ read: Schema.Boolean }),
@@ -35,8 +36,13 @@ const node = {
   needsApproval: false,
   edges: [],
 } as const;
-const entry = defineEntry(node);
-const entries = [entry] as const;
+const entry = defineFeature("test_audit_failure", {
+  ...node,
+  flags: { readOnly: true },
+  edges: [node],
+  handler: (input, { call }) => call(node, input),
+});
+const features = [entry] as const;
 const actor = { id: Schema.NonEmptyString.pipe(Schema.brand("ActorId")).make("viewer") };
 
 layer(migratedDatabase("audit_http"), { timeout: "30 seconds" })(
@@ -51,11 +57,11 @@ layer(migratedDatabase("audit_http"), { timeout: "30 seconds" })(
           const runtime = Layer.unwrap(
             Effect.gen(function* () {
               const store = yield* AuditStore;
-              return NodeRuntime.layer({
-                entries,
-                ways: [{ name: "web", entries }],
+              return Runtime.layer({
+                features,
+                ways: [{ name: "web", features }],
                 bindings: [
-                  bindNode(node, ({ read }) => {
+                  bindOperation(node, ({ read }) => {
                     const work: Effect.Effect<unknown, AuditReadFailed | AuditStoreUnavailable> =
                       read ? store.read({}) : store.erase("viewer");
                     return work.pipe(
@@ -73,15 +79,15 @@ layer(migratedDatabase("audit_http"), { timeout: "30 seconds" })(
             name: "web",
             path: "/",
             protocol: "http",
-            entries,
-            endpoints: [endpoint(entry)],
+            features,
+            endpoints: [endpoint(entry, "POST /audit_failure")],
             who: { resolve: () => Effect.succeed(actor) },
-            may: May.fixed(entries, []),
+            may: May.fixed(features, []),
             mean: Mean.no,
           });
           const app = composition({
             layer: Layer.merge(runtime, StepTrace.layer()),
-            entries,
+            features,
             ways: [way],
             system: [],
           });

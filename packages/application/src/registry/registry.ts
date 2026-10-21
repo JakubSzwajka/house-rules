@@ -1,53 +1,59 @@
-import { type AnyNode, buildGraph, targetOf } from "@house-rules/domain/contract";
-import type { AnyEntry } from "../entry/entry.ts";
+import { type AnyCallable, buildGraph, targetOf } from "@house-rules/domain/contract";
+import { type AnyFeature, isFeature } from "../feature/feature.ts";
+
+const calls = (callable: AnyCallable): string[] =>
+  callable.edges.map((edge) =>
+    "target" in edge
+      ? `- Calls: ⚙ ${edge.target.name} (system: ${edge.reason})`
+      : `- Calls: ${edge.name} (person, inherited system stays system)`,
+  );
 
 export const renderRegistry = (
   data: Readonly<{
-    nodes: readonly AnyNode[];
-    entries: readonly AnyEntry[];
-    ways: readonly Readonly<{ name: string; path: string; entries: readonly AnyEntry[] }>[];
+    operations: readonly AnyCallable[];
+    features: readonly AnyFeature[];
+    ways: readonly Readonly<{ name: string; path: string; features: readonly AnyFeature[] }>[];
   }>,
 ): string => {
-  const result = buildGraph(data.nodes);
-  const nodes = result._tag === "Valid" ? result.graph.nodes : data.nodes;
+  const roots = [...data.operations, ...data.features];
+  const result = buildGraph(roots);
+  const callables = result._tag === "Valid" ? result.graph.callables : roots;
   const lines = [
     "# Registry",
     "",
     ...(result._tag === "Invalid" ? [`Invalid graph: ${result.reason}`, ""] : []),
-    "## Nodes",
+    "## Operations",
     "",
   ];
-  for (const node of [...nodes].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
-    const callers = nodes
-      .filter((candidate) => candidate.edges.some((edge) => targetOf(edge) === node))
+  for (const callable of callables
+    .filter((each) => !isFeature(each))
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    const callers = callables
+      .filter((candidate) => candidate.edges.some((edge) => targetOf(edge) === callable))
       .map((caller) => caller.name)
       .sort();
     lines.push(
-      `### ${node.name}`,
+      `### ${callable.name}`,
       "",
-      `- Permission: ${node.permission ?? "none"}`,
+      `- Permission: ${callable.permission ?? "none"}`,
       `- Called by: ${callers.join(", ") || "none"}`,
     );
-    for (const edge of node.edges)
-      lines.push(
-        "target" in edge
-          ? `- Calls: ⚙ ${edge.target.name} (system: ${edge.reason})`
-          : `- Calls: ${edge.name} (person, inherited system stays system)`,
-      );
+    lines.push(...calls(callable));
     lines.push("");
   }
-  lines.push("## Entries", "");
-  for (const entry of data.entries) {
+  lines.push("## Features", "");
+  for (const feature of data.features) {
     const ways = data.ways
-      .filter((way) => way.entries.includes(entry))
+      .filter((way) => way.features.includes(feature))
       .map((way) => `${way.name} (${way.path})`);
     lines.push(
-      `### ${entry.node.name}`,
+      `### ${feature.name}`,
       "",
-      `- Starts as: ${entry.start === "person" ? "person" : `system: ${entry.start.reason}; ${entry.start.startedBy}`}`,
-      `- Person closure: ${entry.closures.person.join(", ") || "none"}`,
-      `- System closure: ${entry.closures.system.join(", ") || "none"}`,
+      `- Starts as: ${feature.start === "person" ? "person" : `system: ${feature.start.reason}; ${feature.start.startedBy}`}`,
+      `- Person closure: ${feature.closures.person.join(", ") || "none"}`,
+      `- System closure: ${feature.closures.system.join(", ") || "none"}`,
       `- Exposed by: ${ways.join(", ") || "in-process only"}`,
+      ...calls(feature),
       "",
     );
   }

@@ -1,7 +1,7 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import {
-  type CallEntry,
+  type CallReport,
   defineApi,
   endpoint,
   HttpFailure,
@@ -47,11 +47,11 @@ const failureOf = <A>(call: () => Promise<A>) =>
 
 it.effect("onCall carries the answer's request id, on success and on failure", () =>
   Effect.gen(function* requestIds() {
-    const entries: Array<CallEntry> = [];
+    const features: Array<CallReport> = [];
     // The handler keeps a safe incoming id, so the answer echoes the one this fetch sends.
     const taggedWith = (id: string) =>
       clientWith({
-        onCall: (entry) => entries.push(entry),
+        onCall: (feature) => features.push(feature),
         fetch: (url, init) => {
           const headers = new Headers(init?.headers);
           headers.set("x-request-id", id);
@@ -61,10 +61,10 @@ it.effect("onCall carries the answer's request id, on success and on failure", (
     yield* Effect.promise(() => taggedWith("req-ok.1").findBookings({ by: "guest", guest: "A" }));
     yield* failureOf(() => taggedWith("req-missing.2").showBooking({ id: "missing" }));
     const unsafe = clientWith({
-      onCall: (entry) => entries.push(entry),
+      onCall: (feature) => features.push(feature),
       fetch: () =>
         Promise.resolve(
-          // Two @types/node versions load here, so tsc sees two Response types.
+          // Two @types/callable versions load here, so tsc sees two Response types.
           Response.json(
             {},
             {
@@ -75,7 +75,7 @@ it.effect("onCall carries the answer's request id, on success and on failure", (
         ),
     });
     yield* failureOf(() => unsafe.showBooking({ id: "b-1" }));
-    expect(entries.map((entry) => [entry.status, entry.requestId])).toEqual([
+    expect(features.map((feature) => [feature.status, feature.requestId])).toEqual([
       [200, "req-ok.1"],
       [404, "req-missing.2"],
       [404, undefined],

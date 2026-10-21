@@ -16,7 +16,21 @@ const skipped = new Set([
   ".turbo",
   ".git",
 ]);
+const retiredApiNames = [
+  "defineNode",
+  "bindNode",
+  "defineEntry",
+  "runEntry",
+  "NodeRuntime",
+  "NodeCallInvalid",
+  "nodesConfig",
+  "configs.nodes",
+  "node-file",
+  "entry-from-app-node",
+];
 const retired = [
+  ...retiredApiNames.map((name) => new RegExp(`\\b${name.replaceAll(".", "\\.")}\\b`, "u")),
+  /\bfeatures\/(?:[^\s/]+\/)*(?:node|entry|handler)\.ts\b/u,
   /\bdefineContract\b/u,
   /\bimplement\s*\(/u,
   /\btoTool\b/u,
@@ -35,7 +49,7 @@ const allowlist = [
   },
   {
     path: "scripts/packed-consumer.mjs",
-    line: 'for (const name of ["defineContract", "toTool", "NoInput", "defineNode", "errorKind"])',
+    line: 'for (const name of ["defineContract", "toTool", "NoInput", "defineOperation", "errorKind"])',
     reason: "Cold-consumer fixture asserts that these contract exports are absent.",
   },
   {
@@ -44,9 +58,64 @@ const allowlist = [
     reason: "Cold-consumer fixture asserts that the retired rule is absent.",
   },
   {
+    path: "scripts/packed-consumer.mjs",
+    line: 'import { NodeRuntime as NodePlatform, NodeServices } from "@effect/platform-node";',
+    reason: "Third-party Effect platform runtime, not the retired house-rules API.",
+  },
+  {
+    path: "scripts/packed-comments.mjs",
+    line: 'import { NodeRuntime as NodePlatform, NodeServices } from "@effect/platform-node";',
+    reason: "Third-party Effect platform runtime, not the retired house-rules API.",
+  },
+  {
+    path: "scripts/packed-auth.mjs",
+    line: 'import { NodeRuntime as NodePlatform } from "@effect/platform-node";',
+    reason: "Third-party Effect platform runtime, not the retired house-rules API.",
+  },
+  {
+    path: "examples/booking/apps/api/src/main.ts",
+    line: "}).pipe(NodePlatform.NodeRuntime.runMain);",
+    reason: "Third-party Effect platform runtime, not the retired house-rules API.",
+  },
+  {
+    path: "packages/migrations/README.md",
+    line: 'import { NodeRuntime, NodeServices } from "@effect/platform-node";',
+    reason: "Third-party Effect platform runtime, not the retired house-rules API.",
+  },
+  {
+    path: "packages/migrations/README.md",
+    line: "  NodeRuntime.runMain,",
+    reason: "Third-party Effect platform runtime, not the retired house-rules API.",
+  },
+  {
     path: "site/src/content/docs/rules/index.md",
-    line: '| <span id="use-case-is-capability"></span><span id="node-file"></span>[`node-file`](#node-file) | ESLint | Require one direct `node.ts` descriptor, own-node `handler.ts` binding and optional own-node `entry.ts` Entry; allow type exports. | [docs](https://github.com/JakubSzwajka/house-rules/blob/main/packages/rules/docs/node-file.md) |',
-    reason: "Generated alias preserves the published rule anchor.",
+    line: '<span id="retired-v1-rules"></span><span id="use-case-is-capability"></span><span id="node-file"></span><span id="entry-from-app-node"></span><span id="delivery-does-not-import-server"></span><span id="server-does-not-import-delivery"></span><span id="use-cases-do-not-import-outer-layers"></span><span id="composition-imports-packages-only"></span><span id="use-cases-do-not-import-composition"></span><span id="app-code-in-layers"></span><span id="use-cases-do-not-import-use-cases"></span><span id="nodes-do-not-import-outer-folders"></span><span id="no-app-node-cycles"></span><span id="modules-import-modules-and-packages-only"></span><span id="modules-import-other-modules-through-index"></span><span id="no-folder-module-cycles"></span><span id="ways-in-do-not-import-module-values"></span><span id="folder-modules-public-entry-only"></span>',
+    reason: "Generated retirement notice preserves published anchors and names.",
+  },
+  {
+    path: "site/src/content/docs/rules/index.md",
+    line: "These rule names no longer apply: `use-case-is-capability`, `node-file`, `entry-from-app-node`, `delivery-does-not-import-server`, `server-does-not-import-delivery`, `use-cases-do-not-import-outer-layers`, `composition-imports-packages-only`, `use-cases-do-not-import-composition`, `app-code-in-layers`, `use-cases-do-not-import-use-cases`, `nodes-do-not-import-outer-folders`, `no-app-node-cycles`, `modules-import-modules-and-packages-only`, `modules-import-other-modules-through-index`, `no-folder-module-cycles`, `ways-in-do-not-import-module-values`, `folder-modules-public-entry-only`. See the [current rules](#comment-discipline).",
+    reason: "Generated retirement notice preserves published anchors and names.",
+  },
+  {
+    path: "packages/rules/README.md",
+    line: "Retired node-file and entry-from-app-node links remain on the site retirement notice.",
+    reason: "Retirement notice points to preserved published links.",
+  },
+  {
+    path: "packages/rules/tests/feature-file.test.mjs",
+    line: "  assert.equal(plugin.configs.nodes, undefined);",
+    reason: "Absence assertion for the retired preset.",
+  },
+  {
+    path: "packages/rules/tests/feature-file.test.mjs",
+    line: '  assert.equal(plugin.rules["node-file"], undefined);',
+    reason: "Absence assertion for the retired rule.",
+  },
+  {
+    path: "packages/rules/tests/feature-file.test.mjs",
+    line: '  assert.equal(plugin.rules["entry-from-app-node"], undefined);',
+    reason: "Absence assertion for the retired rule.",
   },
 ];
 
@@ -138,15 +207,17 @@ test("matcher rejects retired code but allows ordinary prose", () => {
     "booking-platform",
     "booking-v2",
     "rejected-shapes",
+    ...retiredApiNames,
+    "src/features/book/node.ts",
+    "src/features/book/entry.ts",
+    "src/features/book/handler.ts",
   ])
     assert.equal(matches("migrations.json", line), true, line);
   for (const line of [
     "We implement delivery for each node and module.",
-    "defineNode",
-    "bindNode",
-    "nodesConfig",
-    "configs.nodes",
-    "src/features/book/node.ts",
+    "Each feature has a handler and is its own entry.",
+    "A node in a graph is ordinary prose.",
+    "src/features/book/index.ts",
     "src/read-models/books/index.ts",
     '{ "workspace": "packages/books" }',
     '{ "package": "@house-rules/comments" }',
@@ -166,7 +237,13 @@ test("allowlist is exact, not a whole-file exemption", () => {
 });
 
 test("no public package index exports a retired API name", () => {
-  const names = new Set(["defineContract", "implement", "toTool", "capabilityConfig"]);
+  const names = new Set([
+    "defineContract",
+    "implement",
+    "toTool",
+    "capabilityConfig",
+    ...retiredApiNames,
+  ]);
   const hits = [];
   for (const entry of readdirSync(resolve(root, "packages"), { withFileTypes: true })) {
     const manifestPath = `packages/${entry.name}/package.json`;

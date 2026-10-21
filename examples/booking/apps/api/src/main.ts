@@ -1,5 +1,5 @@
 import { mcpWho } from "./composition/callers.ts";
-import { NodeRuntime } from "@effect/platform-node";
+import * as NodePlatform from "@effect/platform-node";
 import { serve } from "@house-rules/node-host";
 import { toFetchHandler } from "@house-rules/application";
 import { Effect } from "effect";
@@ -24,4 +24,4 @@ Effect.gen(function* () {
       onClose: () => api.dispose().then(() => app.dispose()),
     }),
   );
-}).pipe(NodeRuntime.runMain);
+}).pipe(NodePlatform.NodeRuntime.runMain);

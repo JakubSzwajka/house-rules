@@ -1,6 +1,6 @@
 # Registry
 
-## Nodes
+## Operations
 
 ### Billing.expirePending
 
@@ -47,52 +47,7 @@
 - Permission: party:create
 - Called by: first_sign_in
 
-### book_for_partner
-
-- Permission: none
-- Called by: none
-- Calls: Bookings.book (person, inherited system stays system)
-
-### cancel_booking
-
-- Permission: none
-- Called by: none
-- Calls: Bookings.cancel (person, inherited system stays system)
-- Calls: ⚙ Billing.refund (system: refund after cancel)
-
-### first_sign_in
-
-- Permission: none
-- Called by: none
-- Calls: Party.createPerson (person, inherited system stays system)
-- Calls: Identity.bindLogin (person, inherited system stays system)
-
-### make_booking
-
-- Permission: none
-- Called by: none
-- Calls: Bookings.book (person, inherited system stays system)
-- Calls: Billing.initPayment (person, inherited system stays system)
-
-### my_bookings
-
-- Permission: none
-- Called by: none
-- Calls: MyStuff.myBookings (person, inherited system stays system)
-
-### nightly_cleanup
-
-- Permission: none
-- Called by: none
-- Calls: Billing.expirePending (person, inherited system stays system)
-
-### show_booking
-
-- Permission: none
-- Called by: none
-- Calls: Bookings.get (person, inherited system stays system)
-
-## Entries
+## Features
 
 ### make_booking
 
@@ -100,6 +55,8 @@
 - Person closure: bookings:write, billing:charge
 - System closure: none
 - Exposed by: web (/api)
+- Calls: Bookings.book (person, inherited system stays system)
+- Calls: Billing.initPayment (person, inherited system stays system)
 
 ### book_for_partner
 
@@ -107,6 +64,7 @@
 - Person closure: bookings:write
 - System closure: none
 - Exposed by: partner (/partner)
+- Calls: Bookings.book (person, inherited system stays system)
 
 ### cancel_booking
 
@@ -114,6 +72,8 @@
 - Person closure: bookings:cancel
 - System closure: billing:refund
 - Exposed by: web (/api)
+- Calls: Bookings.cancel (person, inherited system stays system)
+- Calls: ⚙ Billing.refund (system: refund after cancel)
 
 ### show_booking
 
@@ -121,6 +81,7 @@
 - Person closure: bookings:read
 - System closure: none
 - Exposed by: web (/api), mcp (/mcp)
+- Calls: Bookings.get (person, inherited system stays system)
 
 ### my_bookings
 
@@ -128,6 +89,7 @@
 - Person closure: bookings:read
 - System closure: none
 - Exposed by: web (/api), mcp (/mcp)
+- Calls: MyStuff.myBookings (person, inherited system stays system)
 
 ### first_sign_in
 
@@ -135,6 +97,8 @@
 - Person closure: none
 - System closure: party:create, identity:bind
 - Exposed by: in-process only
+- Calls: Party.createPerson (person, inherited system stays system)
+- Calls: Identity.bindLogin (person, inherited system stays system)
 
 ### nightly_cleanup
 
@@ -142,3 +106,4 @@
 - Person closure: none
 - System closure: billing:expire
 - Exposed by: in-process only
+- Calls: Billing.expirePending (person, inherited system stays system)

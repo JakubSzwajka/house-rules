@@ -1,8 +1,8 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { expect, expectTypeOf, it } from "@effect/vitest";
-import { defineNode, errorKind } from "@house-rules/domain";
+import { defineOperation, errorKind } from "@house-rules/domain";
 import { Effect, Schema } from "effect";
-import { defineEntry } from "../index.ts";
-import { bindFixture, runFixture } from "./entry-fixtures.ts";
+import { bindFixture, runFixture } from "./execution-fixtures.ts";
 import { mcpProbe, ProbeRejected } from "./mcp-probe.ts";
 class BookingNotFound extends Schema.TaggedError<BookingNotFound>()("BookingNotFound", {
   kind: errorKind("not_found"),
@@ -16,8 +16,8 @@ const ByGuest = Schema.Struct({
 const FindInput = Schema.Union([ById, ByGuest]);
 type Find = typeof FindInput.Type;
 const find = bindFixture(
-  defineEntry(
-    defineNode("find_booking", {
+  featureFixture(
+    defineOperation("find_booking", {
       description: "Find a booking by id or guest.",
       input: FindInput,
       output: Schema.String,
@@ -42,8 +42,8 @@ const properties = {
 };
 it.effect("a Union descriptor gives its binding one decoded member", () =>
   Effect.gen(function* () {
-    expectTypeOf<typeof find.node.input>().toEqualTypeOf<typeof FindInput>();
-    expectTypeOf<typeof find.node.input.Type>().toEqualTypeOf<Find>();
+    expectTypeOf<typeof find.input>().toEqualTypeOf<typeof FindInput>();
+    expectTypeOf<typeof find.input.Type>().toEqualTypeOf<Find>();
     expect(yield* runFixture(find, { by: "id", bookingId: "b-1" })).toBe("id b-1");
     expect(yield* runFixture(find, { by: "guest", guest: "Ada", nights: 2 })).toBe("guest Ada 2");
   }),
@@ -56,7 +56,7 @@ it.effect("MCP lists one closed object with shared required keys and an enum tag
       required: ["by"],
       additionalProperties: false,
     });
-    expectTypeOf<typeof probe.entry.node.input.Type>().toEqualTypeOf<Find>();
+    expectTypeOf<typeof probe.feature.input.Type>().toEqualTypeOf<Find>();
   }),
 );
 it.effect("served parameters decode to the member the input fits", () =>
@@ -77,7 +77,7 @@ it.effect("served parameters decode to the member the input fits", () =>
 );
 it.effect("a Struct descriptor keeps its input and the router refuses excess fields", () =>
   Effect.gen(function* () {
-    expect(greet.entry.node.input).toBe(GreetInput);
+    expect(greet.feature.input).toBe(GreetInput);
     expect((yield* greet.schema).inputSchema).toEqual({
       ...Schema.toJsonSchemaDocument(GreetInput).schema,
       additionalProperties: false,

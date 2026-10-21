@@ -56,9 +56,11 @@
 	redir /rules/eslint/design-css-layers/ /rules/#design-css-layers 301
 	redir /rules/eslint/design-no-raw-element/ /rules/#design-no-raw-element 301
 	redir /rules/eslint/shadcn/ /rules/#shadcn 301
-	redir /rules/eslint/use-case-is-capability/ /rules/#node-file 301
-	redir /rules/eslint/node-file/ /rules/#node-file 301
-	redir /rules/eslint/entry-from-app-node/ /rules/#entry-from-app-node 301
+	redir /rules/eslint/use-case-is-capability/ /rules/#retired-rules 301
+	redir /rules/eslint/node-file/ /rules/#retired-rules 301
+	redir /rules/eslint/entry-from-app-node/ /rules/#retired-rules 301
+	redir /rules/eslint/feature-file/ /rules/#feature-file 301
+	redir /rules/eslint/feature-builders/ /rules/#feature-builders 301
 	redir /rules/eslint/esm-only-effect/ /rules/#esm-only-effect 301
 	redir /rules/eslint/no-hand-rolled-surface/ /rules/#no-hand-rolled-surface 301
 	redir /rules/eslint/no-hand-run-effect/ /rules/#no-hand-run-effect 301

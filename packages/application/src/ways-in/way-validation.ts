@@ -1,7 +1,7 @@
 import { isPlainPath, isPlainPrefix } from "../contract/api.ts";
 import { pathParamNames } from "../contract/endpoint.ts";
 import { checkSessionPlace } from "../contract/session.ts";
-import type { AnyEntry } from "../entry/entry.ts";
+import type { AnyFeature } from "../feature/feature.ts";
 import type { WayOptions } from "./way.ts";
 import { prefixMismatch } from "./api-prefix.ts";
 import { checkCors } from "./cors.ts";
@@ -14,7 +14,7 @@ type ErasedWay<W> = W extends unknown
 export type AnyWay<R = never> = ErasedWay<WayOptions<R>>;
 
 export const validateWays = <R>(
-  entries: readonly AnyEntry[],
+  features: readonly AnyFeature[],
   ways: readonly AnyWay<R>[],
 ): string | undefined => {
   const names = new Set<string>();
@@ -29,26 +29,27 @@ export const validateWays = <R>(
     names.add(way.name);
     paths.add(way.path.toLowerCase());
     if (
-      new Set(way.entries).size !== way.entries.length ||
-      new Set(way.entries.map((entry) => entry.node)).size !== way.entries.length
+      new Set(way.features).size !== way.features.length ||
+      new Set(way.features.map((feature) => feature)).size !== way.features.length
     )
-      return `${way.name} exposes an entry twice`;
-    for (const entry of way.entries)
-      if (!entries.includes(entry)) return `${way.name} exposes an unregistered entry`;
+      return `${way.name} exposes an feature twice`;
+    for (const feature of way.features)
+      if (!features.includes(feature)) return `${way.name} exposes an unregistered feature`;
     if (
-      new Set(way.may.entries).size !== way.may.entries.length ||
-      way.may.entries.length !== way.entries.length ||
-      way.entries.some((entry) => !way.may.entries.includes(entry))
+      new Set(way.may.features).size !== way.may.features.length ||
+      way.may.features.length !== way.features.length ||
+      way.features.some((feature) => !way.may.features.includes(feature))
     )
-      return `${way.name} May.entries must match its exposed entries`;
+      return `${way.name} May.features must match its exposed features`;
     const exposed =
       way.protocol === "http"
-        ? way.endpoints.map((shape) => shape.entry)
-        : way.tools.map((tool) => tool.entry);
-    for (const entry of exposed)
-      if (!way.entries.includes(entry)) return `${way.name} serves an entry it does not expose`;
-    for (const entry of way.entries)
-      if (!exposed.includes(entry)) return `${way.name} has an entry with no endpoint/tool`;
+        ? way.endpoints.map((shape) => shape.feature)
+        : way.tools.map((tool) => tool.feature);
+    for (const feature of exposed)
+      if (!way.features.includes(feature))
+        return `${way.name} serves an feature it does not expose`;
+    for (const feature of way.features)
+      if (!exposed.includes(feature)) return `${way.name} has an feature with no endpoint/tool`;
     if (way.protocol === "http") {
       const mismatch = prefixMismatch(way.endpoints, way.path === "/" ? "" : way.path);
       if (mismatch !== undefined) return mismatch;
@@ -72,12 +73,7 @@ export const validateWays = <R>(
         try {
           const params = pathParamNames(shape);
           if (new Set(params).size !== params.length) return `${way.name}: repeated path parameter`;
-          checkSessionPlace(
-            shape.entry.node.name,
-            shape.method,
-            shape.session,
-            shape.entry.node.output,
-          );
+          checkSessionPlace(shape.feature.name, shape.method, shape.session, shape.feature.output);
           if (
             shape.csrf !== "check" &&
             (shape.csrf.reason.trim() === "" || shape.session !== "none")

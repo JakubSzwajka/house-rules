@@ -43,6 +43,10 @@ describe("rules page", () => {
   const text = pages[0]?.text ?? "";
   const allAnchors = [...text.matchAll(/<span id="([^"]+)"><\/span>/g)].map((match) => match[1]);
   const retired = [
+    "retired-v1-rules",
+    "use-case-is-capability",
+    "node-file",
+    "entry-from-app-node",
     "delivery-does-not-import-server",
     "server-does-not-import-delivery",
     "use-cases-do-not-import-outer-layers",
@@ -62,7 +66,7 @@ describe("rules page", () => {
     .split("\n")
     .filter((line) => line.startsWith("| "))
     .flatMap((line) => [...line.matchAll(/<span id="([^"]+)"><\/span>/g)].map((match) => match[1]));
-  const anchors = rowAnchors.filter((anchor) => anchor !== "use-case-is-capability");
+  const anchors = rowAnchors;
 
   it("has one row with one anchor per row of the rules table", () => {
     assert.ok(rows.length >= 30, `only ${rows.length} rules parsed from the rules table`);
@@ -72,36 +76,31 @@ describe("rules page", () => {
     );
     assert.deepEqual(allAnchors, [...rowAnchors, ...retired]);
     assert.equal(new Set(allAnchors).size, allAnchors.length, "two rules share an anchor");
-    assert.ok(!allAnchors.includes("retired-v1-rules"), "notice heading shares a span anchor");
+    assert.equal(allAnchors.filter((anchor) => anchor === "retired-v1-rules").length, 1);
   });
 
-  it("keeps exactly one legacy hash beside the canonical node-file row", () => {
-    assert.equal(rowAnchors.length, rows.length + 1);
-    assert.equal(allAnchors.length, rows.length + 1 + retired.length);
-    assert.equal(allAnchors.filter((anchor) => anchor === "use-case-is-capability").length, 1);
-    assert.equal(allAnchors.filter((anchor) => anchor === "node-file").length, 1);
-    const legacyRows = text
-      .split("\n")
-      .filter((line) => line.includes('id="use-case-is-capability"'));
-    assert.equal(legacyRows.length, 1);
-    assert.ok(
-      legacyRows[0]?.startsWith(
-        '| <span id="use-case-is-capability"></span><span id="node-file"></span>[`node-file`](#node-file) |',
-      ),
-    );
+  it("moves the old feature rule hashes to the retirement notice", () => {
+    assert.equal(rowAnchors.length, rows.length);
+    assert.equal(allAnchors.length, rows.length + retired.length);
+    for (const id of ["use-case-is-capability", "node-file", "entry-from-app-node"]) {
+      assert.equal(allAnchors.filter((anchor) => anchor === id).length, 1);
+      assert.ok(!rowAnchors.includes(id));
+    }
+    for (const id of ["feature-file", "feature-builders"]) assert.ok(rowAnchors.includes(id));
   });
 
   it("keeps all retired hashes on one notice, not on current rows", () => {
-    assert.equal(text.split("## Retired v1 rules").length, 2);
-    const notice = text.split("## Retired v1 rules\n\n")[1] ?? "";
+    assert.equal(text.split("## Retired rules").length, 2);
+    const notice = text.split("## Retired rules\n\n")[1] ?? "";
     assert.deepEqual(
       [...notice.matchAll(/<span id="([^"]+)"><\/span>/g)].map((match) => match[1]),
       retired,
     );
     assert.ok(notice.startsWith(retired.map((id) => `<span id="${id}"></span>`).join("")));
-    assert.ok(notice.includes("These v1 rule names no longer apply:"));
+    assert.ok(notice.includes("These rule names no longer apply:"));
     for (const id of retired) {
-      assert.ok(notice.includes(`\`${id}\``), `notice does not name ${id}`);
+      if (id !== "retired-v1-rules")
+        assert.ok(notice.includes(`\`${id}\``), `notice does not name ${id}`);
       assert.ok(!rowAnchors.includes(id), `${id} is aliased to a current row`);
     }
     assert.ok(notice.includes(`[current rules](#${ruleAnchor(rows[0]?.id ?? "")})`));

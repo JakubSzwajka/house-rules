@@ -2,7 +2,7 @@
 
 Rule ID: `house-rules/no-hand-run-effect`
 
-A test runs its Effects through `@effect/vitest`: `it.effect` for one case, `it.layer` to provide services. A test that calls `Effect.runPromise` or builds a `ManagedRuntime` runs outside that harness. It does not get the harness's test scope or clock. The harness does not own disposal of a runtime the test builds. The rule reports both. Enable it with `plugin.configs.nodes`, which runs it on test files: any JS or TS file under a `tests/`, `test/`, or `__tests__/` folder, or named `*.test.*` or `*.spec.*`. These are the same test paths Dependency Cruiser treats as tests.
+A test runs its Effects through `@effect/vitest`: `it.effect` for one case, `it.layer` to provide services. A test that calls `Effect.runPromise` or builds a `ManagedRuntime` runs outside that harness. It does not get the harness's test scope or clock. The harness does not own disposal of a runtime the test builds. The rule reports both. Enable it with `plugin.configs.features`, which runs it on test files: any JS or TS file under a `tests/`, `test/`, or `__tests__/` folder, or named `*.test.*` or `*.spec.*`. These are the same test paths Dependency Cruiser treats as tests.
 
 ```ts
 import { expect, it } from "@effect/vitest";
@@ -10,7 +10,7 @@ import { Effect } from "effect";
 
 it.effect("shows a booking", () =>
   Effect.gen(function* () {
-    expect(yield* runEntry(showBookingEntry, { id: "b-1" })).toEqual(booking);
+    expect(yield* runFeature(Features.showBooking, { id: "b-1" })).toEqual(booking);
   }),
 ); // passes
 

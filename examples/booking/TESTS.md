@@ -8,9 +8,9 @@ Paths start at the repository root unless stated otherwise. Evidence keys below 
 
 | Row | Reference behavior or finding | Evidence |
 | --- | --- | --- |
-| A1 | Exact app nodes, edges, closures, flags and app ownership | G |
-| A2 | Reject module-node entries and way exposures, including forged module exposure | O checks origins; X bypasses lint with public defineEntry(BookingsNodes.get) and proves acquisition fails with typed GraphInvalid for the unregistered entry. No private internals are forged; runtime checks registered identity, not source origin. |
-| A3 | Registry lists nodes, both Bookings.book callers, refund reason, closures and exposures | R, RR |
+| A1 | Exact app features, edges, closures, flags and app ownership | G |
+| A2 | Reject module operations as features and way exposures, including forged module exposure | O fences feature construction and operation builders; X constructs an unregistered feature over BookingsOperations.get and proves acquisition fails with typed GraphInvalid. Runtime checks registered identity, not source origin. Feature types reject exposing operations directly. |
+| A3 | Registry lists features and operations, both Bookings.book callers, refund reason, closures and exposures | R, RR |
 | A4 | Missing billing:charge refuses before booking/provider work over HTTP and in-process | H, E |
 | A5 | Cancellation has ordered person/system steps and refund reason | E; W also allows in-process cancellation |
 | A6 | Missing system refund permission refuses before approval, unit or steps | E |
@@ -44,7 +44,7 @@ Paths start at the repository root unless stated otherwise. Evidence keys below 
 | A21 | Defaults P2/X/P1/H and reading order | Prose and reading order in examples/booking/README.md and examples/booking/apps/api/AGENTS.md. F1 proves the policy behavior, not the prose. |
 | C6 | Record belongs in plugSockets: audit-storage.ts | Wiring placement in examples/booking/apps/api/src/composition/audit-storage.ts: AuditStorage carries the chosen memory log or existing SqlClient, not a runtime. H/P cover shared record behavior. |
 | C7 | Record belongs in plugSockets: modules.ts | Wiring placement in examples/booking/apps/api/src/composition/modules.ts: modulesLayer selects AuditStorage from STORAGE config; Record provision is elsewhere. |
-| C8 | Record belongs in plugSockets: app-layer.ts | Wiring placement and acquisition order in examples/booking/apps/api/src/composition/app-layer.ts: plugSockets provides Record before NodeRuntime and the hook. Shared runtime/trace/watch behavior is covered by H/P, not exempted. |
+| C8 | Record belongs in plugSockets: app-layer.ts | Wiring placement and acquisition order in examples/booking/apps/api/src/composition/app-layer.ts: plugSockets provides Record before Runtime and the hook. Shared runtime/trace/watch behavior is covered by H/P, not exempted. |
 | C10 | Named PG timeout alignment | Test configuration placement in examples/booking/apps/api/src/read-models/my-bookings/adapters/tests/my-bookings.test.ts: it.layer(world, { timeout: 30_000 }). The no-assertion-change statement is historical prose in the archived VERIFICATION.md under the read-only reference directory named above, not a timeout-behavior claim. V remains executable proof of the adapter. |
 | C11 | File/symbol defaults | Prose in examples/booking/README.md and examples/booking/apps/api/AGENTS.md replaces the reference's separate defaults document. |
 | C12 | Cleanup evidence | Historical report in the archived VERIFICATION.md under the read-only reference directory named above, under Accepted-verdict cleanup. Current gate logs are in ~/.local/state/v2-migration/phase2/. |
@@ -55,14 +55,14 @@ In this table, app-relative paths start at `examples/booking/apps/api/`.
 
 | Key | File | Exact test name |
 | --- | --- | --- |
-| G | app-relative `src/composition/tests/graph.test.ts` | `seven app entries retain exact closures, starts, edges and lifted flags` |
+| G | app-relative `src/composition/tests/graph.test.ts` | `seven app features retain exact closures, starts, edges and lifted flags` |
 | X | app-relative `src/ways-in/web/tests/module-entry.test.ts` | `composition refuses a way exposing a forged Bookings.get module entry` |
 | N | app-relative `src/ways-in/web/tests/mean-plugs.test.ts` | `ways select Mean.no for web and partner and Mean.elicitation for mcp` |
-| O | `packages/rules/tests/entry-from-app-node.test.mjs` | `follows app descriptors and entry barrels for ways, hooks, schedules and endpoints` |
+| O | `packages/rules/tests/feature-builders.test.mjs` | `defines features only in their own feature index` |
 | R | app-relative `src/composition/tests/registry.test.ts` | `REGISTRY.md matches pure output without rewriting` |
 | RR | `packages/application/src/tests/registry.test.ts` | `renders reverse callers, reasons, closures and way exposure without running anything` |
-| H | app-relative `src/ways-in/web/tests/http.test.ts` | `shared entries, one authenticated hook, HTTP closure refusal, approval and independent partner issuer` |
-| E | app-relative `src/composition/tests/entries.test.ts` | `checks closures before work, asks once, transacts once, traces only two inner steps, and audits entries` |
+| H | app-relative `src/ways-in/web/tests/http.test.ts` | `shared features, one authenticated hook, HTTP closure refusal, approval and independent partner issuer` |
+| E | app-relative `src/composition/tests/entries.test.ts` | `checks closures before work, asks once, transacts once, traces only two inner steps, and audits features` |
 | W | app-relative `src/ways-in/web/tests/http.test.ts` | `web denies cancel, in-process allows it, and missing database reads are unavailable` |
 | P | app-relative `src/composition/tests/postgres.test.ts` | `real PG refund failure rolls back cancel across modules and produces one failed entry record` |
 | B | app-relative `src/composition/tests/postgres.test.ts` | `MyStuff filters A/B ownership in SQL including mismatched payment owners` |
@@ -73,11 +73,11 @@ In this table, app-relative paths start at `examples/booking/apps/api/`.
 | J | app-relative `src/ways-in/mcp/tests/auth.test.ts` | `signed MCP admission checks challenge, metadata, signature, issuer, audience, expiry and existing sessions` |
 | I | app-relative `src/features/make-booking/tests/input-boundary.test.ts` | `memory: reused schemas reject invalid HTTP and in-process inputs before all work`; `postgres: reused schemas reject invalid HTTP and in-process inputs before all work` |
 | Q | `packages/application/src/tests/elicitation-approval.test.ts` | `an accept with no content approves and runs the handler`; `a declined form fails with ApprovalDenied`; `a cancelled form fails with ApprovalDenied`; `a client without elicitation is refused without being asked` |
-| F1 | `packages/application/src/tests/gate-policy.test.ts` | `entry-and-recheck: keeps the forged closure backstop policy explicit`; `entry-only: keeps the forged closure backstop policy explicit` |
-| F2 | `packages/application/src/tests/node-runtime.test.ts` | `fails acquisition for cycles, unbound nodes, duplicate bindings and duplicate exposures`; `inherits the original system caller and removes ambient person authority`; `refuses forged undeclared calls by descriptor identity` |
+| F1 | `packages/application/src/tests/gate-policy.test.ts` | `feature-and-recheck: keeps the forged closure backstop policy explicit`; `feature-only: keeps the forged closure backstop policy explicit` |
+| F2 | `packages/application/src/tests/runtime.test.ts` | `fails acquisition for cycles, unbound operations, duplicate bindings and duplicate exposures`; `inherits the original system caller and removes ambient person authority`; `refuses forged undeclared calls by descriptor identity` |
 | F3 | `packages/domain/src/tests/graph.test.ts` | `does not throw while defining a dynamic blank reason; graph validation refuses it`; `dedupes each closure and never switches a system path back to person` |
-| F4 | `packages/domain/src/tests/node-types.test.ts` | `keeps literal flags and edge targets`; the same file's compiler-negative assertions reject an empty reason and undeclared call |
-| F5 | `packages/application/src/tests/entry-types.test.ts` | `keeps concrete flags and erases only the AnyEntry container`; compiler-negative assertions prove the requirement types |
+| F4 | `packages/domain/src/tests/operation-types.test.ts` | `keeps literal flags and edge targets`; the same file's compiler-negative assertions reject an empty reason and undeclared call |
+| F5 | `packages/application/src/tests/feature-types.test.ts` | `keeps concrete flags and erases only the AnyFeature container`; compiler-negative assertions prove the requirement types |
 
 ## Additional current proofs
 
@@ -85,4 +85,4 @@ The reference rows do not exhaust the current suite. First-sign-in atomicity is 
 
 App-relative `src/tests/node-host.test.ts` runs `built Node Host fails MCP closed, shuts down, and refuses production demo JWT`. It builds and starts real child processes and waits for shutdown. The fake provider never contacts a bank; rollback tests assert database state, not compensation of external effects.
 
-All 14 example-owned node descriptors have concrete descriptions. MCP exposes two titled read tools, `Show your booking` and `List your bookings and payments`, in app-relative `src/ways-in/mcp/way.ts`. This metadata was inspected, not asserted by a dedicated metadata test.
+All 14 example-owned feature and operation descriptors have concrete descriptions. MCP exposes two titled read tools, `Show your booking` and `List your bookings and payments`, in app-relative `src/ways-in/mcp/way.ts`. This metadata was inspected, not asserted by a dedicated metadata test.

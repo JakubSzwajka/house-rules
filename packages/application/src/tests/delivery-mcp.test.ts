@@ -115,7 +115,7 @@ it.effect("tools/list takes input schemas from the contracts, a Union root inclu
       inputSchema: { type: string; properties: Record<string, unknown> };
       annotations: Record<string, unknown>;
     }>;
-    expect(tools.map((entry) => entry.name)).toEqual([
+    expect(tools.map((feature) => feature.name)).toEqual([
       "show_booking",
       "find_bookings",
       "cancel_booking",
@@ -155,7 +155,7 @@ it.effect("a contract failure over MCP is isError with the same view body", () =
   }),
 );
 
-it.effect("a read credential is refused by the mutable MCP way before any node work", () =>
+it.effect("a read credential is refused by the mutable MCP way before any callable work", () =>
   Effect.gen(function* forbidden() {
     const before = t.work.calls;
     const result = yield* rpc(

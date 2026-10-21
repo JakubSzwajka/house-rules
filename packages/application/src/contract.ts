@@ -1,4 +1,10 @@
-export { type Entry, type AnyEntry, type EntryFlags, defineEntry } from "./entry/entry.ts";
+export {
+  type Feature,
+  type AnyFeature,
+  type FeatureFlags,
+  defineFeature,
+  systemStart,
+} from "./feature/feature.ts";
 export {
   type Endpoint,
   type EndpointOptions,
@@ -19,7 +25,7 @@ export {
   toHttpClient,
 } from "./client/http-client.ts";
 export {
-  type CallEntry,
+  type CallReport,
   type PromiseCall,
   type PromiseClientOf,
   type PromiseClientOptions,
@@ -29,6 +35,6 @@ export {
 export { Forbidden, ApprovalDenied } from "./gates/gate-errors.ts";
 export { InputInvalid, type InputIssue } from "./ways-in/input.ts";
 export { Refused } from "./ways-in/caller.ts";
-export { NodeCallInvalid } from "./node/node-call-invalid.ts";
-export { GraphInvalid } from "./node/graph-invalid.ts";
+export { CallInvalid } from "./runtime/call-invalid.ts";
+export { GraphInvalid } from "./runtime/graph-invalid.ts";
 export { CompositionClosed } from "./ways-in/composition-closed.ts";

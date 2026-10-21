@@ -7,20 +7,20 @@ import { logLine, makeWatch, policyRecorder, storeRecorder } from "./watch/watch
 import { policy, presets } from "./policy/policy.ts";
 import { AuditStore } from "./storage.ts";
 import type {
-  AuditEntry,
+  AuditRecord,
   CallAuditLayerOptions,
   CallAuditOptions,
   CallAuditTableOptions,
 } from "./audit/audit.ts";
 
 export type MemoryAuditLog = Readonly<{
-  entries: () => ReadonlyArray<AuditEntry>;
+  entries: () => ReadonlyArray<AuditRecord>;
   clear: () => void;
-  record: (entry: AuditEntry) => Effect.Effect<void>;
+  record: (entry: AuditRecord) => Effect.Effect<void>;
 }>;
 
 export const memoryAuditLog = (): MemoryAuditLog => {
-  const recorded: Array<AuditEntry> = [];
+  const recorded: Array<AuditRecord> = [];
   return {
     entries: () => [...recorded],
     clear: () => {

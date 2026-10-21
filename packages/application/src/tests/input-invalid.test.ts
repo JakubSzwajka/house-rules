@@ -1,17 +1,18 @@
-import { defineNode } from "@house-rules/domain";
-import { bindFixture } from "./entry-fixtures.ts";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation } from "@house-rules/domain";
+import { bindFixture } from "./execution-fixtures.ts";
 import { httpFixture, mcpFixture } from "./router-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import { call, decodeInput, defineEntry, type InputInvalid, endpoint } from "../index.ts";
+import { call, decodeInput, type InputInvalid, endpoint } from "../index.ts";
 import { answer, webRequest } from "./delivery-fixtures.ts";
 import { callMcpTool, openMcpSession } from "./delivery-mcp-client.ts";
 
 const Status = Schema.Literals(["todo", "doing", "done"]);
 
 const listThings = bindFixture(
-  defineEntry(
-    defineNode("list_things", {
+  featureFixture(
+    defineOperation("list_things", {
       description: "List things.",
       input: Schema.Struct({ q: Schema.String, limit: Schema.optionalKey(Schema.Int) }),
       output: Schema.Struct({ q: Schema.String }),
@@ -24,8 +25,8 @@ const listThings = bindFixture(
 );
 
 const moveThing = bindFixture(
-  defineEntry(
-    defineNode("move_thing", {
+  featureFixture(
+    defineOperation("move_thing", {
       description: "Move a thing.",
       input: Schema.Struct({ id: Schema.Int, to: Status }),
       output: Schema.Struct({ id: Schema.Int, to: Status }),
@@ -43,8 +44,8 @@ const validName = Schema.makeFilter<string>((name) => {
 });
 
 const pickThing = bindFixture(
-  defineEntry(
-    defineNode("pick_thing", {
+  featureFixture(
+    defineOperation("pick_thing", {
       description: "Pick a thing by name.",
       input: Schema.Struct({ name: Schema.String.check(validName) }),
       output: Schema.Struct({ name: Schema.String }),
@@ -58,7 +59,7 @@ const pickThing = bindFixture(
 
 const exposed = {
   InputInvalid: (error: InputInvalid) =>
-    `${error.entry}|${error.field}|${error.issue}|${error.message}`,
+    `${error.feature}|${error.field}|${error.issue}|${error.message}`,
 };
 const fixture = httpFixture([listThings, moveThing], {
   endpoints: [endpoint(listThings, "GET /things"), endpoint(moveThing, "POST /things/:id/move")],
@@ -66,7 +67,7 @@ const fixture = httpFixture([listThings, moveThing], {
 });
 const plain = httpFixture([listThings], { endpoints: [endpoint(listThings, "GET /things")] });
 const mcpApp = mcpFixture([pickThing], {
-  tools: [{ entry: pickThing, title: "Pick", idempotent: true, openWorld: false }],
+  tools: [{ feature: pickThing, title: "Pick", idempotent: true, openWorld: false }],
 });
 const app = fixture.app;
 const http = fixture.handler;
@@ -86,9 +87,9 @@ const post = (path: string, body: NonNullable<RequestInit["body"]>) =>
     }),
   );
 
-const fault = (entry: string, field: string, issue: string, message: string) => ({
+const fault = (feature: string, field: string, issue: string, message: string) => ({
   status: 400,
-  body: { error: { code: "invalid", message: `${entry}|${field}|${issue}|${message}` } },
+  body: { error: { code: "invalid", message: `${feature}|${field}|${issue}|${message}` } },
 });
 
 const outcomeOf = (r: Readonly<{ status: number; body: unknown }>) => ({
@@ -165,7 +166,7 @@ it.effect("path param: a value its field cannot decode is invalid", () =>
   }),
 );
 
-it.effect("MCP validates parameters once and refuses invalid arguments before the node", () =>
+it.effect("MCP validates parameters once and refuses invalid arguments before the callable", () =>
   Effect.gen(function* mcpParams() {
     const session = yield* openMcpSession(mcp, { authorization: "Bearer fixture" });
     nameChecks = 0;
@@ -189,21 +190,21 @@ it.effect("call(): an untrusted value names the capability and the issue", () =>
     if (outcome.ok) return;
     expect(outcome.error).toMatchObject({
       _tag: "InputInvalid",
-      entry: "move_thing",
+      feature: "move_thing",
       field: "to",
       issue: "invalid",
     });
   }),
 );
 
-it.effect("decodeInput names the entry it decodes for", () =>
+it.effect("decodeInput names the feature it decodes for", () =>
   Effect.gen(function* publicDecode() {
     const error = yield* Effect.flip(decodeInput(moveThing, { id: 1 }, "json"));
-    expect(error).toMatchObject({ entry: "move_thing", field: "to", issue: "missing" });
+    expect(error).toMatchObject({ feature: "move_thing", field: "to", issue: "missing" });
   }),
 );
 
-it.effect("a way can word its message per entry and field", () =>
+it.effect("a way can word its message per feature and field", () =>
   Effect.gen(function* perCapability() {
     const messages: Readonly<Record<string, Readonly<Record<string, string>>>> = {
       list_things: { q: "Type something to search for." },
@@ -216,7 +217,7 @@ it.effect("a way can word its message per entry and field", () =>
       overrides: {
         InputInvalid: (error) =>
           error.issue === "invalid" || error.issue === "missing"
-            ? (messages[error.entry]?.[error.field] ?? error.message)
+            ? (messages[error.feature]?.[error.field] ?? error.message)
             : error.message,
       },
     });

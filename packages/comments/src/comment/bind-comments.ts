@@ -1,4 +1,4 @@
-import { type Binding, bindNode } from "@house-rules/application";
+import { type Binding, bindOperation } from "@house-rules/application";
 import type { Actor, NoOpenUnit } from "@house-rules/domain";
 import { Effect } from "effect";
 import {
@@ -11,7 +11,7 @@ import {
   CommentTargetNotFound,
   type CommentTargetsUnavailable,
 } from "./comment.js";
-import { addComment, editComment, listComments, removeComment } from "./nodes.js";
+import { CommentsOperations } from "./operations.js";
 
 type Failure =
   | CommentInputInvalid
@@ -42,22 +42,22 @@ type Service = {
 };
 
 export const bindComments = (service: Service): readonly Binding[] => [
-  bindNode(listComments, ({ target, page }, { caller }) =>
+  bindOperation(CommentsOperations.listComments, ({ target, page }, { caller }) =>
     caller.kind === "person"
       ? service.list(caller.actor, target, page)
       : Effect.fail(new CommentTargetNotFound()),
   ),
-  bindNode(addComment, ({ target, body }, { caller }) =>
+  bindOperation(CommentsOperations.addComment, ({ target, body }, { caller }) =>
     caller.kind === "person"
       ? service.add(caller.actor, target, body)
       : Effect.fail(new CommentTargetNotFound()),
   ),
-  bindNode(editComment, ({ id, body }, { caller }) =>
+  bindOperation(CommentsOperations.editComment, ({ id, body }, { caller }) =>
     caller.kind === "person"
       ? service.edit(caller.actor, id, body)
       : Effect.fail(new CommentTargetNotFound()),
   ),
-  bindNode(removeComment, ({ id }, { caller }) =>
+  bindOperation(CommentsOperations.removeComment, ({ id }, { caller }) =>
     caller.kind === "person"
       ? service.remove(caller.actor, id)
       : Effect.fail(new CommentTargetNotFound()),

@@ -26,15 +26,13 @@ export function assertNextHost(app, tsc, { run, write, readJson, failure }) {
     [`${src}/composition/data.json`]: '{ "title": "Ready" }\n',
     [`${src}/composition/index.ts`]:
       'import data from "./data.json";\nimport { title } from "../read-models/items/index";\nexport const app = { title: data.title + title };\n',
-    [`${src}/features/show-item/node.ts`]:
-      'import { defineNode, NoInput } from "@house-rules/domain/contract";\nimport { Schema } from "effect";\nexport const showItem = defineNode("show_item", { description: "Show item.", input: NoInput, output: Schema.String, failure: Schema.Never, permission: null, readOnly: true });\n',
-    [`${src}/features/show-item/handler.ts`]:
-      'import { bindNode } from "@house-rules/application";\nimport { Effect } from "effect";\nimport { showItem } from "./node";\nexport const showItemHandler = bindNode(showItem, () => Effect.succeed("Ready"));\n',
+    [`${src}/features/show-item/index.ts`]:
+      'import { NoInput } from "@house-rules/domain/contract";\nimport { defineFeature } from "@house-rules/application/contract";\nimport { Effect, Schema } from "effect";\nexport const showItem = defineFeature("show_item", { description: "Show item.", input: NoInput, output: Schema.String, failure: Schema.Never, permission: null, flags: { readOnly: true }, handler: () => Effect.succeed("Ready") });\n',
     [`${src}/read-models/items/item/item.ts`]: 'export const title = "Private module value";\n',
     [`${src}/read-models/items/index.ts`]: 'export { title } from "./item/item";\n',
     [`${src}/read-models/items/adapters/memory/item.ts`]:
       'export const title = "Private adapter";\n',
-    [`${src}/app/page.tsx`]: `${useComposition}import { showItem } from "../features/show-item/node";\nexport default function Page() {\n  return app.title + showItem.name;\n}\n`,
+    [`${src}/app/page.tsx`]: `${useComposition}import { showItem } from "../features/show-item/index";\nexport default function Page() {\n  return app.title + showItem.name;\n}\n`,
     [`${src}/app/global-error.tsx`]:
       '"use client";\nexport default function GlobalError() { return "Try again."; }\n',
     [`${src}/proxy.ts`]:

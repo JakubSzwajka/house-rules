@@ -1,4 +1,4 @@
-import houseRules, { nodesConfig } from "@house-rules/rules";
+import houseRules, { featuresConfig } from "@house-rules/rules";
 import houseRulesMarkdown from "@house-rules/rules/markdown";
 
 export default [
@@ -14,7 +14,7 @@ export default [
     ],
   },
   ...houseRules.configs.recommended,
-  ...nodesConfig({
+  ...featuresConfig({
     appsDir: ["apps", "examples/booking/apps"],
     packagesDir: ["packages", "examples/booking/packages"],
   }),

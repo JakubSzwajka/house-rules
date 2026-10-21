@@ -1,13 +1,13 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { expect, expectTypeOf, it } from "@effect/vitest";
-import { defineNode, NoInput } from "@house-rules/domain";
+import { defineOperation, NoInput } from "@house-rules/domain";
 import { Effect, Schema } from "effect";
 import { Tool } from "effect/ai";
-import { defineEntry } from "../index.ts";
-import { bindFixture, runFixture } from "./entry-fixtures.ts";
+import { bindFixture, runFixture } from "./execution-fixtures.ts";
 import { mcpProbe } from "./mcp-probe.ts";
 const ping = bindFixture(
-  defineEntry(
-    defineNode("ping", {
+  featureFixture(
+    defineOperation("ping", {
       description: "Answer pong.",
       input: NoInput,
       output: Schema.String,
@@ -18,9 +18,9 @@ const ping = bindFixture(
   ),
   () => Effect.succeed("pong"),
 );
-it.effect("a bound node with no input is called with an empty object", () =>
+it.effect("a bound callable with no input is called with an empty object", () =>
   Effect.gen(function* () {
-    expectTypeOf<typeof ping.node.input.Type>().toEqualTypeOf<{ readonly [x: string]: never }>();
+    expectTypeOf<typeof ping.input.Type>().toEqualTypeOf<{ readonly [x: string]: never }>();
     expect(yield* runFixture(ping, {})).toBe("pong");
   }),
 );

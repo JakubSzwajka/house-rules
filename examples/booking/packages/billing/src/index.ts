@@ -1,6 +1,6 @@
 export { Billing } from "./facade.ts";
 export { bindBilling } from "./payment/bind-billing.ts";
-export { BillingNodes } from "./payment/nodes.ts";
+export { BillingOperations } from "./payment/operations.ts";
 export {
   Payment,
   PaymentStatus,

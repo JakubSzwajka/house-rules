@@ -58,8 +58,8 @@ export const defineApi = <const Endpoints extends Record<string, Endpoint>>(
   for (const [key, shape] of Object.entries(endpoints)) {
     checkedPath(key, shape.path);
     const at = routeKey(shape);
-    const name = shape.entry.node.name;
-    // Definition time, not a request: two entries on one address, or one contract twice, cannot both be served.
+    const name = shape.feature.name;
+    // Definition time, not a request: two features on one address, or one contract twice, cannot both be served.
     const route = routes.get(at);
     if (route !== undefined) {
       throw new TypeError(
@@ -68,7 +68,7 @@ export const defineApi = <const Endpoints extends Record<string, Endpoint>>(
     }
     const named = names.get(name);
     if (named !== undefined) {
-      throw new TypeError(`defineApi: ${key} and ${named} both name the entry ${name}`);
+      throw new TypeError(`defineApi: ${key} and ${named} both name the feature ${name}`);
     }
     routes.set(at, key);
     names.set(name, key);

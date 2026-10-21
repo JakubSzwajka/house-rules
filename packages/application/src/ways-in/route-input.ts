@@ -60,7 +60,7 @@ export const rawInput = (
     const body = yield* parseObject(yield* readCapped(server, request, limit));
     for (const [key, value] of pathKeys) {
       if (Object.hasOwn(body, key)) return yield* givenTwice(key);
-      body[key] = yield* pathParamAsJson(route.entry.node.input, key, value);
+      body[key] = yield* pathParamAsJson(route.feature.input, key, value);
     }
     return { value: body, source: "json" as const };
   });

@@ -2,14 +2,14 @@
 
 ## What it does
 
-Identity maps a verified login, its `(issuer, subject)` pair, to an `ActorId`. It owns `identity_binding`. One actor may have many bindings. It never links by email or stores claims. An `Authenticator` verifies tokens; `Identity.who` resolves the Actor for a way. Version 0.1.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published entries load built `dist/`; the workspace loads source.
+Identity maps a verified login, its `(issuer, subject)` pair, to an `ActorId`. It owns `identity_binding`. One actor may have many bindings. It never links by email or stores claims. An `Authenticator` verifies tokens; `Identity.who` resolves the Actor for a way. Version 0.1.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published packages load built `dist/`; the workspace loads source.
 
 ## Mount and bind
 
 1. [ ] Pick an actor resolver. `Identity.layerPostgres` needs the shared SQL client; `layerMemory` is for tests. Both provide `Identity` and `ActorResolver`. Raw `Identity.layer` needs `BindingStore`. For one issuer with no table, `Identity.subject({ issuer })` treats its subject as the ActorId. A foreign issuer is refused before the new-login hook.
 2. [ ] With bindings, register `{ "package": "@house-rules/identity" }` in `migrations.json`, or `{ "workspace": "packages/identity" }` in this repo.
-3. [ ] Acquire `Identity` once and call `bindIdentity(service)`. Add its binding to the app's `NodeRuntime`. The browser-safe `/contract` door exports binding schemas/errors and `bindLogin`; main adds services, ports, adapters and the binder.
-4. [ ] Fill `FirstSignIn`. `Identity.refuse` answers 403 `not_invited`. For open signup, capture the app's runtime, trace, watch and unit after runtime acquisition. The hook runs the app's system-start first-sign-in entry with `May.system`, system permissions and approval. That entry calls the system-only shared creation/binding nodes. Return its ActorId and map hook failures to `Refused`.
+3. [ ] Acquire `Identity` once and call `bindIdentity(service)`. Add its binding to the app's `Runtime`. The browser-safe `./contract` door exports binding schemas/errors and `IdentityOperations`; main adds services, ports, adapters and the binder.
+4. [ ] Fill `FirstSignIn`. `Identity.refuse` answers 403 `not_invited`. For open signup, capture the app's runtime, trace, watch and unit after runtime acquisition. The hook runs the app's system-start first-sign-in feature with `May.system`, system permissions and approval. That feature calls the shared creation/binding operations as system. Return its ActorId and map hook failures to `Refused`.
 5. [ ] Provide an `Authenticator` and the resolver/hook in the final root layer. Fill a way's Who with `Identity.who({ token: "bearer", audience?, challenge? })`. Cookie sources and ordered token sources work too. May owns permissions separately.
 6. [ ] Call `identity.unbindAll(actorId)` in the account-deletion unit.
 
@@ -31,7 +31,7 @@ Identity maps a verified login, its `(issuer, subject)` pair, to an `ActorId`. I
 
 Methods stay `resolve`, `bind`, `unbind`, `bindingsOf`, `unbindAll`. They return Effects with no requirements. Writes join an open unit and fail `NoOpenUnit` outside one; the module never opens a unit.
 
-`bindLogin`, named `Identity.bindLogin`, takes `{ issuer, subject, personId }` and returns that ActorId after binding. Permission is `identity:bind`; flags are transactional true, all others false; edges are empty. A person caller gets forbidden `IdentityCallerDenied`. Only app nodes become entries; the shared node is an edge.
+`IdentityOperations.bindLogin`, declared with `defineOperation` and named `Identity.bindLogin`, takes `{ issuer, subject, personId }` and returns that ActorId after binding. Permission is `identity:bind`; flags are transactional true, all others false; edges are empty. A person caller gets forbidden `IdentityCallerDenied`. `bindIdentity` uses `bindOperation`. App features call this operation through declared edges. Only features are exposed.
 
 - Binding the same login to its current actor is a no-op. Binding it to another fails with conflict `BindingTaken`.
 - Empty issuer/subject fails with invalid `BindingInvalid` and never resolves. `unbind(actorId, login)` removes only that actor's binding.

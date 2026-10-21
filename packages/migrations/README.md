@@ -104,7 +104,7 @@ Leave the `adopt` key in the list. On a database that already adopted it does no
 
 ## The migrate script
 
-`Migrations.script(listFile)` reads the list, runs it, and logs the report lines. An app bundles a short entry around it:
+`Migrations.script(listFile)` reads the list, runs it, and logs the report lines. An app bundles a short script around it. It runs before `Runtime`, not through a feature or operation:
 
 ```ts
 // scripts/migrate.ts

@@ -119,7 +119,7 @@ for (const key of ["0", "Symbol(value)"]) {
   );
 }
 it.effect(
-  "the gate preserves the known value's identity between transport decoding and entry decoding",
+  "the gate preserves the known value's identity between transport decoding and feature decoding",
   () =>
     Effect.gen(function* () {
       const seen: unknown[] = [];
@@ -171,16 +171,17 @@ it.effect("an empty Struct member still rejects non-object MCP arguments", () =>
     )({ name: "empty_member" });
     expect(normalized.arguments).toEqual({});
     expect(yield* probe.decode(undefined)).toEqual({});
-    for (const raw of [null, undefined]) yield* Effect.flip(decodeInput(probe.entry, raw, "json"));
+    for (const raw of [null, undefined])
+      yield* Effect.flip(decodeInput(probe.feature, raw, "json"));
     expect(yield* probe.decode({})).toEqual({});
   }),
 );
-const localRefs = (node: unknown): readonly string[] =>
-  typeof node !== "object" || node === null
+const localRefs = (callable: unknown): readonly string[] =>
+  typeof callable !== "object" || callable === null
     ? []
     : [
-        ...("$ref" in node && typeof node.$ref === "string" ? [node.$ref] : []),
-        ...Object.values(node).flatMap(localRefs),
+        ...("$ref" in callable && typeof callable.$ref === "string" ? [callable.$ref] : []),
+        ...Object.values(callable).flatMap(localRefs),
       ];
 it.effect("the MCP server lists a closed object with resolving local refs", () =>
   Effect.gen(function* () {

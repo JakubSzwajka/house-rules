@@ -1,7 +1,8 @@
-import { defineNode } from "@house-rules/domain";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation } from "@house-rules/domain";
 import { expect, it } from "@effect/vitest";
 import { Schema } from "effect";
-import { defineEntry, endpoint, failureCodeHeader, toOpenApi } from "../index.ts";
+import { endpoint, failureCodeHeader, toOpenApi } from "../index.ts";
 
 type Json = Record<string, unknown>;
 type Operation = Json & { operationId: string; parameters: Array<Json>; requestBody?: Json };
@@ -12,8 +13,8 @@ const integer = {
   maximum: Number.MAX_SAFE_INTEGER,
 };
 
-const lookup = defineEntry(
-  defineNode("lookup", {
+const lookup = featureFixture(
+  defineOperation("lookup", {
     description: "A named Struct input.",
     input: Schema.Struct({ id: Schema.Int, limit: Schema.Int }).annotate({ identifier: "Lookup" }),
     output: Schema.Struct({ ok: Schema.Boolean }),
@@ -22,8 +23,8 @@ const lookup = defineEntry(
   }),
 );
 
-const search = defineEntry(
-  defineNode("search", {
+const search = featureFixture(
+  defineOperation("search", {
     description: "A named Union input.",
     input: Schema.Union([
       Schema.Struct({ id: Schema.Int, by: Schema.Literal("guest"), guest: Schema.String }).annotate(

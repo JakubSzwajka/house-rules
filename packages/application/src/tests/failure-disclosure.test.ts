@@ -1,9 +1,9 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { afterAll, expect, expectTypeOf, it } from "@effect/vitest";
-import { defineNode, errorKind, NoInput } from "@house-rules/domain";
+import { defineOperation, errorKind, NoInput } from "@house-rules/domain";
 import { Effect, Logger, References, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import {
-  defineEntry,
   defineWay,
   endpoint,
   failureCodeHeader,
@@ -13,7 +13,7 @@ import {
   type WordingOverrides,
 } from "../index.ts";
 import { answer, BookingNotFound, makeApp, renameGuest, webRequest } from "./delivery-fixtures.ts";
-import { bindFixture } from "./entry-fixtures.ts";
+import { bindFixture } from "./execution-fixtures.ts";
 import { httpFixture } from "./router-fixtures.ts";
 const disposers: Array<() => Promise<void>> = [];
 afterAll(() => Promise.all(disposers.map((dispose) => dispose())));
@@ -76,8 +76,8 @@ it.effect(
         annotations: Readonly<Record<string, unknown>>;
       }> = [];
       const missingBooking = bindFixture(
-        defineEntry(
-          defineNode("missing_booking", {
+        featureFixture(
+          defineOperation("missing_booking", {
             description: "Report a missing booking.",
             input: Schema.Struct({ id: Schema.String, guestName: Schema.String }),
             output: Schema.Struct({ id: Schema.String }),
@@ -144,8 +144,8 @@ class Offline extends Schema.TaggedError<Offline>()("Offline", { kind: errorKind
   }
 }
 const offline = bindFixture(
-  defineEntry(
-    defineNode("offline", {
+  featureFixture(
+    defineOperation("offline", {
       description: "Report unavailability.",
       input: NoInput,
       output: Schema.Void,
@@ -195,12 +195,12 @@ it("wording override types refuse status, code, unknown tags and the wrong error
   >();
   expect([typeof object, typeof unknown]).toEqual(["function", "function"]);
 });
-it.effect("a node cannot use a transport Refused to replace its kind status or code", () =>
+it.effect("a callable cannot use a transport Refused to replace its kind status or code", () =>
   Effect.gen(function* () {
-    const entry = bindFixture(
-      defineEntry(
-        defineNode("node_refusal", {
-          description: "Refuse as a node.",
+    const feature = bindFixture(
+      featureFixture(
+        defineOperation("node_refusal", {
+          description: "Refuse as a callable.",
           input: NoInput,
           output: Schema.Void,
           failure: Refused,
@@ -217,8 +217,8 @@ it.effect("a node cannot use a transport Refused to replace its kind status or c
           }),
         ),
     );
-    const fixture = httpFixture([entry], {
-      endpoints: [endpoint(entry, "POST /refuse", { codes: ["forbidden"] })],
+    const fixture = httpFixture([feature], {
+      endpoints: [endpoint(feature, "POST /refuse", { codes: ["forbidden"] })],
     });
     disposers.push(fixture.dispose);
     const result = yield* answer(

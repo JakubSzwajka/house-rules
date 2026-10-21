@@ -1,11 +1,11 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
-import { defineNode } from "@house-rules/domain";
+import { defineOperation } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import {
   Approval,
   CallRequestId,
   composition,
-  defineEntry,
   defineWay,
   endpoint,
   May,
@@ -14,7 +14,7 @@ import {
   toFetchHandler,
 } from "../index.ts";
 import { makeApp, showBooking, webRequest } from "./delivery-fixtures.ts";
-import { bindFixture, fixtureLayer, testActor } from "./entry-fixtures.ts";
+import { bindFixture, fixtureLayer, testActor } from "./execution-fixtures.ts";
 import { mcpFixture } from "./router-fixtures.ts";
 import { callMcpTool, mcpInitialize, mcpPost, openMcpSession } from "./delivery-mcp-client.ts";
 const t = makeApp();
@@ -22,8 +22,8 @@ const one = makeApp({ path: "/one", endpoints: [endpoint(showBooking, "GET /book
 const two = makeApp({ path: "/two", endpoints: [endpoint(showBooking, "GET /bookings/:id")] });
 let approvedRuns = 0;
 const approved = bindFixture(
-  defineEntry(
-    defineNode("approved_action", {
+  featureFixture(
+    defineOperation("approved_action", {
       description: "Needs a human's yes.",
       input: Schema.Struct({ note: Schema.optionalKey(Schema.String) }),
       output: Schema.Struct({ ran: Schema.Boolean }),
@@ -38,11 +38,11 @@ const approved = bindFixture(
       return { ran: true };
     }),
 );
-const entries = [approved] as const;
+const features = [approved] as const;
 const plugs = {
-  entries,
+  features,
   who: { resolve: () => Effect.succeed(testActor) },
-  may: May.fixed(entries, []),
+  may: May.fixed(features, []),
 };
 const http = defineWay({
   ...plugs,
@@ -71,19 +71,19 @@ const mcp = defineWay({
     authorizationServers: ["https://issuer.example"],
   }),
   server: { name: "approval", version: "1" },
-  tools: [{ entry: approved, title: "Approved", idempotent: false, openWorld: false }],
+  tools: [{ feature: approved, title: "Approved", idempotent: false, openWorld: false }],
 });
 const yesMan = composition({
-  layer: fixtureLayer(entries).pipe(Layer.provideMerge(Approval.allowAll)),
-  entries,
+  layer: fixtureLayer(features).pipe(Layer.provideMerge(Approval.allowAll)),
+  features: features,
   ways: [http, trusted, mcp],
   system: [],
 });
 const yesManRouter = toFetchHandler(yesMan);
 const admissionIds: Array<string | null> = [];
 const echo = bindFixture(
-  defineEntry(
-    defineNode("echo_request_id", {
+  featureFixture(
+    defineOperation("echo_request_id", {
       description: "Echo the id seen by the tool.",
       input: Schema.Struct({ note: Schema.optionalKey(Schema.String) }),
       output: Schema.Struct({ requestId: Schema.String }),
@@ -95,7 +95,7 @@ const echo = bindFixture(
   () => Effect.map(CallRequestId, (id) => ({ requestId: id ?? "none" })),
 );
 const echoApp = mcpFixture([echo], {
-  tools: [{ entry: echo, title: "Echo", idempotent: true, openWorld: false }],
+  tools: [{ feature: echo, title: "Echo", idempotent: true, openWorld: false }],
   who: {
     resolve: () =>
       Effect.gen(function* () {
@@ -124,7 +124,7 @@ const status = (handler: (request: Request) => Promise<Response>, request: Reque
     (response) => response.status,
   );
 it.effect(
-  "the router dispatches MCP itself and refuses an unauthenticated initialize before nodes",
+  "the router dispatches MCP itself and refuses an unauthenticated initialize before callables",
   () =>
     Effect.gen(function* () {
       const before = { ...t.work };

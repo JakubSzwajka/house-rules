@@ -14,22 +14,22 @@ import {
   type WordingOverrides,
 } from "../index.ts";
 import { Bookings, type BookingNotFound, findBookings, showBooking } from "./delivery-fixtures.ts";
-import { fixtureLayer } from "./entry-fixtures.ts";
-const entries = [showBooking, findBookings] as const;
+import { fixtureLayer } from "./execution-fixtures.ts";
+const features = [showBooking, findBookings] as const;
 const actor = Actor.make({ id: ActorId.make("ada") });
 const modules = Bookings.fromRecords([], { calls: 0, callers: 0 });
-const layer = fixtureLayer(entries).pipe(Layer.provideMerge(modules));
+const layer = fixtureLayer(features).pipe(Layer.provideMerge(modules));
 const way = defineWay({
   name: "web",
   path: "/",
   protocol: "http",
-  entries,
+  features,
   endpoints: [endpoint(showBooking), endpoint(findBookings)],
   who: { resolve: () => Effect.succeed(actor) },
-  may: May.fixed(entries, ["bookings:read"]),
+  may: May.fixed(features, ["bookings:read"]),
   mean: Mean.no,
 });
-const app = composition({ layer, entries, ways: [way], system: [] });
+const app = composition({ layer, features: features, ways: [way], system: [] });
 const handlers = [toFetchHandler(app)];
 afterAll(() => Promise.all(handlers.map((handler) => handler.dispose())).then(app.dispose));
 it("kinded failures need no view table on the composition or router", () => {
@@ -46,11 +46,11 @@ const dependent = defineWay({ ...way, who: { resolve: () => WhoPort } });
 it("composition retains unmet Who requirements rather than erasing R", () => {
   const invalid = () => {
     // @ts-expect-error The layer supplies runtime and stores, but not WhoPort.
-    return composition({ layer, entries, ways: [dependent], system: [] });
+    return composition({ layer, features: features, ways: [dependent], system: [] });
   };
   const provided = composition({
     layer: Layer.merge(layer, Layer.succeed(WhoPort, actor)),
-    entries,
+    features: features,
     ways: [dependent],
     system: [],
   });
@@ -60,8 +60,8 @@ it("composition retains unmet Who requirements rather than erasing R", () => {
 });
 it("composition requires the runtime and trace supplied at the root", () => {
   const invalid = () => {
-    // @ts-expect-error No NodeRuntime or StepTrace was supplied.
-    return composition({ layer: Layer.empty, entries, ways: [way], system: [] });
+    // @ts-expect-error No Runtime or StepTrace was supplied.
+    return composition({ layer: Layer.empty, features: features, ways: [way], system: [] });
   };
   expect(typeof invalid).toBe("function");
 });

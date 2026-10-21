@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
-import { BookingsNodes } from "@example/bookings";
-import { defineEntry, defineWay, GraphInvalid, May } from "@house-rules/application";
+import { BookingsOperations } from "@example/bookings";
+import { defineFeature, defineWay, GraphInvalid, May } from "@house-rules/application";
 import { endpoint } from "@house-rules/application/contract";
 import { Effect } from "effect";
 import { createApp } from "../../../composition/index.ts";
@@ -8,12 +8,16 @@ import { webWay } from "../way.ts";
 
 it.effect("composition refuses a way exposing a forged Bookings.get module entry", () =>
   Effect.gen(function* () {
-    // Tests can bypass the app-node lint fence through the public builder.
-    const forged = defineEntry(BookingsNodes.get);
+    // A feature must still belong to the app's registered feature set.
+    const forged = defineFeature(BookingsOperations.get.name, {
+      ...BookingsOperations.get,
+      edges: [BookingsOperations.get],
+      handler: (input, { call }) => call(BookingsOperations.get, input),
+    });
     const way = defineWay({
       ...webWay,
       protocol: "http",
-      entries: [forged],
+      features: [forged],
       endpoints: [endpoint(forged)],
       may: May.fixed([forged], ["bookings:read"]),
     });
@@ -23,6 +27,6 @@ it.effect("composition refuses a way exposing a forged Bookings.get module entry
     );
     const error = yield* app.runtime.contextEffect.pipe(Effect.flip);
     assert.instanceOf(error, GraphInvalid);
-    assert.strictEqual(error.reason, "web exposes an unregistered entry Bookings.get");
+    assert.strictEqual(error.reason, "web exposes an unregistered feature Bookings.get");
   }).pipe(Effect.scoped),
 );

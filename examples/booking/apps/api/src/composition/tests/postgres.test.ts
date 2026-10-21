@@ -1,6 +1,6 @@
-import { runEntry } from "@house-rules/application";
+import { runFeature } from "@house-rules/application";
 import { assert, it } from "@effect/vitest";
-import { Entries, memberPermissions, systemPermissions } from "../entries.ts";
+import { Features, memberPermissions, systemPermissions } from "../../features/index.ts";
 import { Billing, makeFakePaymentProvider } from "@example/billing";
 import { Bookings } from "@example/bookings";
 import { MyStuff } from "../../read-models/my-bookings/index.ts";
@@ -29,12 +29,12 @@ it.effect(
       const trace = Context.get(ctx, StepTrace);
       const request = Context.merge(
         ctx,
-        May.context(May.fixed(Object.values(Entries), memberPermissions), {
+        May.context(May.fixed(Object.values(Features), memberPermissions), {
           system: systemPermissions,
           via: "test",
         }),
       ).pipe(Context.add(CurrentActor, alice));
-      const refused = yield* runEntry(Entries.makeBooking, {
+      const refused = yield* runFeature(Features.makeBooking, {
         id: "refused",
         guestName: "Alice",
         paymentId: "no-pay",
@@ -44,7 +44,7 @@ it.effect(
         Effect.provideContext(
           Context.merge(
             request,
-            May.context(May.fixed(Object.values(Entries), ["bookings:write"]), {
+            May.context(May.fixed(Object.values(Features), ["bookings:write"]), {
               system: systemPermissions,
               via: "test",
             }),
@@ -56,14 +56,14 @@ it.effect(
       assert.strictEqual(refused._tag, "Forbidden");
       assert.deepStrictEqual(yield* provider.calls, []);
       assert.deepStrictEqual((yield* trace.read("refused-charge")).steps, []);
-      yield* runEntry(Entries.makeBooking, {
+      yield* runFeature(Features.makeBooking, {
         id: "rollback",
         guestName: "Alice",
         paymentId: "pay",
         amount: 42,
       }).pipe(Effect.provideContext(request), Effect.provide(Approval.allowAll));
       yield* provider.setFailure("refund", true);
-      const failure = yield* runEntry(Entries.cancelBooking, { id: "rollback" }).pipe(
+      const failure = yield* runFeature(Features.cancelBooking, { id: "rollback" }).pipe(
         withRequestId("failed-refund"),
         Effect.provideContext(request),
         Effect.provide(Approval.allowAll),

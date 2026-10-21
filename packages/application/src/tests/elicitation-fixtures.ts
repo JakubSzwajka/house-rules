@@ -1,11 +1,12 @@
-import { defineNode } from "@house-rules/domain";
-import { bindFixture, runFixture } from "./entry-fixtures.ts";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation } from "@house-rules/domain";
+import { bindFixture, runFixture } from "./execution-fixtures.ts";
 import { Effect, Logger, References, Schema } from "effect";
 import { McpSchema } from "effect/ai";
-import { defineEntry, elicitationApproval } from "../index.ts";
+import { elicitationApproval } from "../index.ts";
 
-export const shareContract = defineEntry(
-  defineNode("share_trip", {
+export const shareContract = featureFixture(
+  defineOperation("share_trip", {
     description: "Share a trip with someone by email.",
     input: Schema.Struct({ tripId: Schema.String, email: Schema.String }),
     output: Schema.String,

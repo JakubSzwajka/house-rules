@@ -1,0 +1,41 @@
+# v2 naming and layers
+
+This page fixes the words for decisions 32 to 35 in [v2-decisions.md](v2-decisions.md). Code, rules and docs use these words and no others.
+
+## The layers
+
+```text
+ways-in         how the outside reaches the app: HTTP, MCP, a hook, a schedule
+  │ start
+features        what a user or the system can do; one feature per folder
+  │ call (edges)
+operations      what a domain module can do; declared by the module
+  │ run
+modules         packages that own data: tables, views, rules, adapters
+
+read models     one SELECT over published views; publish read operations
+composition     picks adapters, binds operations, plugs sockets, opens ways
+```
+
+## The words
+
+| Word | What it is | Where it lives | Builder |
+| --- | --- | --- | --- |
+| Feature | One thing the app lets someone do. It is its own entry: ways, hooks and schedules start it. | `apps/<app>/src/features/<name>/index.ts` | `defineFeature` |
+| Feature registry | Every feature as one `Features` object, plus the permission lists | `apps/<app>/src/features/index.ts` | plain object |
+| Operation | One thing a module can do, such as `Bookings.cancel` | the module package, exported from `./contract` as `<Module>Operations` | `defineOperation` |
+| Operation binding | The code behind an operation; it captures the module's services | the module package, wired in composition | `bindOperation` |
+| Edge | A declared call from a feature or operation to an operation or feature | the `edges` field | plain list, `asSystem(target, reason)` |
+| Graph | All features, operations and edges together | built by the runtime | none |
+| Runtime | Runs features: gates, approval, one unit of work, trace | application kit | `Runtime.layer` |
+| Way in | One door: HTTP API, MCP server | `apps/<app>/src/ways-in/<name>/` | `defineWay`, `endpoint` |
+| Module | A package that owns data and its operations | `packages/<name>` or `examples/*/packages/<name>` | `defineModule` |
+| Read model | A query shaped for one screen, over published views | `apps/<app>/src/read-models/<name>/` | `defineOperation` for its read operations |
+| Composition | The root that wires everything | `apps/<app>/src/composition/` | `composition(...)` |
+
+## Rules of thumb
+
+1. A feature handler only calls its declared edges through `call`. It never imports a module service, so the feature file stays browser-safe.
+2. An operation handler gets real services. That is why it is bound in composition, not declared with its handler.
+3. Only features are exposed. Ways, May lists, hooks and schedules accept `Feature` values only.
+4. "Node" is gone from the API. "Edge" and "graph" stay.

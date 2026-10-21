@@ -1,8 +1,9 @@
+import { featureFixture, RuntimeFixture } from "./feature-fixtures.ts";
 import { expect, expectTypeOf, it } from "@effect/vitest";
-import { defineNode, errorKind } from "@house-rules/domain";
+import { defineOperation, errorKind } from "@house-rules/domain";
 import { Context, Effect, Layer, Schema } from "effect";
-import { bindNode, defineEntry, type InnerFailure, NodeRuntime } from "../index.ts";
-import { bindFixture, runFixture } from "./entry-fixtures.ts";
+import { bindOperation, type InnerFailure, Runtime } from "../index.ts";
+import { bindFixture, runFixture } from "./execution-fixtures.ts";
 class Greetings extends Context.Service<
   Greetings,
   { readonly greet: (name: string) => Effect.Effect<string> }
@@ -17,7 +18,7 @@ class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {
 class Unplanned extends Schema.TaggedError<Unplanned>()("Unplanned", {
   kind: errorKind("invalid"),
 }) {}
-const node = defineNode("greet", {
+const callable = defineOperation("greet", {
   description: "Greet someone by name.",
   input: Schema.Struct({ name: Schema.String }),
   output: Schema.String,
@@ -25,21 +26,21 @@ const node = defineNode("greet", {
   permission: null,
   readOnly: true,
 });
-const entry = bindFixture(defineEntry(node), ({ name }) =>
+const feature = bindFixture(featureFixture(callable), ({ name }) =>
   Effect.gen(function* () {
     if (name === "") return yield* new NameIsEmpty();
     return yield* (yield* Greetings).greet(name);
   }),
 );
 it("the descriptor retains schemas and defaults the other flags", () => {
-  expect(node.name).toBe("greet");
-  expect(node.readOnly).toBe(true);
-  expect(node.destructive).toBe(false);
+  expect(callable.name).toBe("greet");
+  expect(callable.readOnly).toBe(true);
+  expect(callable.destructive).toBe(false);
 });
-it("a node with no flag declarations neither reads only nor destroys", () => {
-  const plain = defineNode("forget", {
+it("a callable with no flag declarations neither reads only nor destroys", () => {
+  const plain = defineOperation("forget", {
     description: "Forget a name.",
-    input: node.input,
+    input: callable.input,
     output: Schema.Void,
     failure: Schema.Never,
     permission: null,
@@ -48,7 +49,7 @@ it("a node with no flag declarations neither reads only nor destroys", () => {
   expect(plain.destructive).toBe(false);
 });
 it("the binding constructor checks descriptor input, output and failures before erasure", () => {
-  type Handler = Parameters<typeof bindNode<typeof node>>[1];
+  type Handler = Parameters<typeof bindOperation<typeof callable>>[1];
   expectTypeOf<Parameters<Handler>[0]>().toEqualTypeOf<{ readonly name: string }>();
   expectTypeOf<() => Effect.Effect<string, NameIsEmpty | InnerFailure>>().toExtend<Handler>();
   expectTypeOf<() => Effect.Effect<string, Unplanned>>().not.toExtend<Handler>();
@@ -58,38 +59,38 @@ it.effect("a binder captures a long-lived service while building its runtime lay
   Effect.gen(function* () {
     let captured = 0;
     const layer = Layer.effect(
-      NodeRuntime,
+      Runtime,
       Effect.gen(function* () {
         const greetings = yield* Greetings;
         captured += 1;
-        return yield* NodeRuntime.make({
-          bindings: [bindNode(node, ({ name }) => greetings.greet(name))],
-          entries: [entry],
+        return yield* RuntimeFixture.make({
+          bindings: [bindOperation(callable, ({ name }) => greetings.greet(name))],
+          features: [feature],
           ways: [],
         });
       }),
     ).pipe(Layer.provide(Greetings.layer));
-    const runtime = yield* Effect.service(NodeRuntime).pipe(Effect.provide(layer));
+    const runtime = yield* Effect.service(Runtime).pipe(Effect.provide(layer));
     expect(typeof runtime.run).toBe("function");
     expect(captured).toBe(1);
   }),
 );
 it.effect("providing the module layer removes its capture requirement", () =>
   Effect.gen(function* () {
-    expect(yield* runFixture(entry, { name: "Grace" }).pipe(Effect.provide(Greetings.layer))).toBe(
-      "Hello, Grace",
-    );
+    expect(
+      yield* runFixture(feature, { name: "Grace" }).pipe(Effect.provide(Greetings.layer)),
+    ).toBe("Hello, Grace");
   }),
 );
-it.layer(Greetings.layer)("a bound entry", (test) => {
+it.layer(Greetings.layer)("a bound feature", (test) => {
   test.effect("uses the captured module service", () =>
     Effect.gen(function* () {
-      expect(yield* runFixture(entry, { name: "Ada" })).toBe("Hello, Ada");
+      expect(yield* runFixture(feature, { name: "Ada" })).toBe("Hello, Ada");
     }),
   );
   test.effect("returns its declared kinded failure", () =>
     Effect.gen(function* () {
-      expect((yield* Effect.flip(runFixture(entry, { name: "" })))._tag).toBe("NameIsEmpty");
+      expect((yield* Effect.flip(runFixture(feature, { name: "" })))._tag).toBe("NameIsEmpty");
     }),
   );
 });

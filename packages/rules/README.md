@@ -7,14 +7,14 @@ House rules and presets for TypeScript workspaces. Version 0.18.0. Install every
 The root entry needs ESLint 10.11.0 and supplies its own TypeScript parser. Optional subpaths load their peers only when used: markdown uses @eslint/markdown 8.0.3; design uses @eslint/css 2.0.0; shadcn uses @shadcn/lint 0.2.0; dependency-cruiser uses 18.4.0. Biome uses 2.5.14. Keep the consumer's runtime and compiler pins as declared by its package.json.
 
 ```js
-import houseRules, { nodesConfig } from "@house-rules/rules";
+import houseRules, { featuresConfig } from "@house-rules/rules";
 export default [
   ...houseRules.configs.recommended,
-  ...nodesConfig({ appsDir: ["apps", "examples/*/apps"], packagesDir: "packages" }),
+  ...featuresConfig({ appsDir: ["apps", "examples/*/apps"], packagesDir: "packages" }),
 ];
 ```
 
-`configs.nodes` is the default-root form. There is no compatibility alias. It preserves no-hand-rolled-surface on JS/TS, no-hand-run-effect on tests, testing-exports-only-in-tests on JS/TS and no-computed-import on production package/app source. The descriptor rule runs on TypeScript app files. Builder provenance also checks production JS/TS workspace packages through packagesDir; only domain/application kit implementations, tests and top-level tooling are exempt. Pass the same roots to `layout()` and `nodesConfig()`.
+`configs.features` is the default-root form. There is no compatibility alias. It preserves no-hand-rolled-surface on JS/TS, no-hand-run-effect on tests, testing-exports-only-in-tests on JS/TS and no-computed-import on production package/app source. The feature rule checks feature indexes, sibling files and registry values. Builder provenance also checks production JS/TS workspace packages through packagesDir; only domain/application kit implementations, tests and top-level tooling are exempt. Pass the same roots to `layout()` and `featuresConfig()`.
 
 ## Rules and checks
 
@@ -31,21 +31,21 @@ Each rule id is a stable docs anchor. Change source, tests, docs and this table 
 | `design-css-layers` | Styles outside allowed layers, restricted-layer violations and important | ESLint | `design()` | `docs/design-css-layers.md` |
 | `design-no-raw-element` | Raw JSX elements where a design-system component exists | ESLint | `shadcn()` | `docs/design-no-raw-element.md` |
 | `shadcn/*` (six rules from `@shadcn/lint`) | Restyling, palette colours, arbitrary values, inline styles, dynamic classes and unknown classes | ESLint | `shadcn()` | `docs/shadcn.md` |
-| `node-file` | Multiple/non-direct node.ts descriptors, handler.ts bindings or optional entry.ts Entries; non-named builders, foreign-node bindings/Entries or entry.ts imports beyond own node.ts and application/contract | ESLint | `configs.nodes` | [node-file.md](docs/node-file.md) |
-| `entry-from-app-node` | Non-named/indirect builders, forbidden workspace-package entry/way/endpoint imports, any kit-builder re-export and CommonJS builder loaders; entry arguments outside the app's literal features folder, not finished descriptor/binder values | ESLint | `configs.nodes` | [entry-from-app-node.md](docs/entry-from-app-node.md) |
-| `esm-only-effect` | CommonJS loading in production app and Effect workspace-package src, including kits | ESLint | `configs.nodes` | [esm-only-effect.md](docs/esm-only-effect.md) |
-| `no-hand-rolled-surface` | Tool.make, Rpc.make and HttpApiEndpoint methods outside application | ESLint | `configs.nodes` | [no-hand-rolled-surface.md](docs/no-hand-rolled-surface.md) |
-| `no-hand-run-effect` | Effect.run* and ManagedRuntime.make in tests | ESLint | `configs.nodes` | [no-hand-run-effect.md](docs/no-hand-run-effect.md) |
-| `no-computed-import` | Computed production imports hiding package/app descriptor graph edges | ESLint | `configs.nodes` | `docs/no-computed-import.md` |
-| `testing-exports-only-in-tests` | Testing exports outside tests or testing-only code; path renames that drop Testing | ESLint | `configs.testing`, `configs.nodes` | [testing-exports-only-in-tests.md](docs/testing-exports-only-in-tests.md) |
+| `feature-file` | Extra feature files, multiple defineFeature calls or indirect exports, forbidden feature imports and registry values beyond features and const permission lists | ESLint | `configs.features` | [feature-file.md](docs/feature-file.md) |
+| `feature-builders` | Exposures or starts without app feature origins, feature builders outside feature indexes, operation builders inside features, indirect kit builders, forbidden package feature/way/endpoint imports, kit-builder re-exports and CommonJS builder loaders | ESLint | `configs.features` | [feature-builders.md](docs/feature-builders.md) |
+| `esm-only-effect` | CommonJS loading in production app and Effect workspace-package src, including kits | ESLint | `configs.features` | [esm-only-effect.md](docs/esm-only-effect.md) |
+| `no-hand-rolled-surface` | Tool.make, Rpc.make and HttpApiEndpoint methods outside application | ESLint | `configs.features` | [no-hand-rolled-surface.md](docs/no-hand-rolled-surface.md) |
+| `no-hand-run-effect` | Effect.run* and ManagedRuntime.make in tests | ESLint | `configs.features` | [no-hand-run-effect.md](docs/no-hand-run-effect.md) |
+| `no-computed-import` | Computed production imports hiding package/app descriptor graph edges | ESLint | `configs.features` | `docs/no-computed-import.md` |
+| `testing-exports-only-in-tests` | Testing exports outside tests or testing-only code; path renames that drop Testing | ESLint | `configs.testing`, `configs.features` | [testing-exports-only-in-tests.md](docs/testing-exports-only-in-tests.md) |
 | `no-cycles` | Circular file imports | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `packages-do-not-import-apps` | Packages importing apps | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `apps-do-not-import-other-apps` | Cross-app imports | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `packages-imported-by-name` | Relative cross-package imports | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `packages-public-entry-only` | Deep package imports | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
-| `contract-entry-is-browser-safe` | Package/read-model contracts, app node.ts, optional per-node entry.ts and way endpoints.ts reaching handlers, storage, facades, adapters or untrusted installed code; invalid package export manifests | Dependency Cruiser | `layout({ scope })`, `house-rules-layout` | [dependency-cruiser.md](docs/dependency-cruiser.md#contract-entry) |
+| `contract-entry-is-browser-safe` | Package/read-model contracts, feature indexes and registry, and way endpoints.ts reaching server code, storage, facades, adapters or untrusted installed code; invalid package export manifests | Dependency Cruiser | `layout({ scope })`, `house-rules-layout` | [dependency-cruiser.md](docs/dependency-cruiser.md#contract-entry) |
 | `domain-imports-no-house-rules` | Framework domain importing any other house-rules package, including type-only application/contract | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
-| `features-do-not-import-outer-folders` | App nodes reaching ways or composition | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
+| `features-do-not-import-outer-folders` | Features reaching ways or composition | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `read-models-import-packages-only` | Read models importing app files outside their own folder, including outside-src bridges | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `ways-in-import-app-folders-only` | Ways importing root entries or other app files, including outside src, as bridges around folder fences | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
 | `ways-in-do-not-import-read-model-values` | Ways importing read-model values rather than types | Dependency Cruiser | `layout({ scope })` | [dependency-cruiser.md](docs/dependency-cruiser.md) |
@@ -96,17 +96,23 @@ Browser checks follow package contracts, app descriptors and client endpoints tr
 
 ## Other presets and bins
 
-recommended remains independent of nodes/design/Markdown. testing is the testing-export rule alone. design returns CSS and source blocks; scale/layer checks are opt-in through their documented options. shadcn preserves its component-folder exemptions and six third-party rules. See each guide above for the unchanged option contracts.
+recommended remains independent of features/design/Markdown. testing is the testing-export rule alone. design returns CSS and source blocks; scale/layer checks are opt-in through their documented options. shadcn preserves its component-folder exemptions and six third-party rules. See each guide above for the unchanged option contracts.
 
 Use house-rules-pins, house-rules-migrations and house-rules-layout from package bins. Migrations accepts --adapter-package repeatedly; layout accepts --cwd. Package migration location/name/adoption rules match @house-rules/migrations. Domain modules are packages; folder locations are rejected. Read-model SQL accepts static tagged SELECT or WITH...SELECT over published views and proven scalar value parameters only; SQL functions and unsupported grammar fail. Ordinary module SQL ownership and transaction checks still have text-scan limits. See the [grammar and limits](docs/migrations.md#limits). Tests exercise the runner and checker against shared fixture files.
 
 ## Upgrade notes
 
-The unreleased v2 correction is breaking. The package stays at 0.18.0 until an approved release. Enable nodesConfig or configs.nodes; no old preset alias exists. Area keys are features/readModels/waysIn/composition. Domain modules are packages, never app folders. The old nodes and modules area keys are rejected without aliases. Next uses waysInLayer, not deliveryLayer. Builders require direct named kit imports; import renames are allowed. Non-kit production workspace packages cannot import defineEntry, defineWay or endpoint, even unused. Direct defineNode and bindNode imports support descriptors and service-capturing binders. No non-kit production code may re-export any kit builder, including bindNode and star exports. Finished descriptors, binder doors and app mounts such as bindComments(service) and bindParty(service) remain valid. Production app and Effect workspace-package src is ESM-only, including both kits. CommonJS builder loaders and nonliteral require still fail in other production package source. Rules and top-level tooling are outside the ESM-only scope. Installed non-workspace npm re-exports are not inspected. Descriptor/entry argument barrels still work. The ESLint node rules use literal features/, even when Dependency Cruiser has a custom node area.
+The unreleased v2 correction is breaking. The package stays at 0.18.0 until an approved release. Enable featuresConfig or configs.features; no old preset alias exists. Area keys are features/readModels/waysIn/composition. Domain modules are packages, never app folders. Unknown area keys are rejected without aliases. Next uses waysInLayer. Builders require direct named kit imports; import renames are allowed. Non-kit production workspace packages cannot import defineFeature, defineWay or endpoint, even unused. Direct defineOperation and bindOperation imports support descriptors and service-capturing binders. No non-kit production code may re-export any kit builder, including bindOperation and star exports. Finished descriptors, binder doors and app mounts such as bindComments(service) and bindParty(service) remain valid. Production app and Effect workspace-package src is ESM-only, including both kits. CommonJS builder loaders and nonliteral require still fail in other production package source. Rules and top-level tooling are outside the ESM-only scope. Installed non-workspace npm re-exports are not inspected. Each feature folder contains only index.ts and tests/. The index contains exactly one defineFeature call, exported directly from application/contract. Exposures and starts trace through imports and barrels to this app's feature indexes or Features registry. The registry exports features and const permission lists only. defineOperation and bindOperation stay outside features/. The ESLint feature rules use literal features/, even when Dependency Cruiser has a custom feature area.
 
 no-computed-import now covers production app source too. Markdown links admit tracked and non-ignored untracked regular files, but reject directories and tracked-ignored files. Read-model SQL uses the linked bounded grammar, and production app code cannot open units. Migration chunks use the runner's reserved breakpoint lines before SQL tokenization. A raw whole-word guard bans standard_conforming_strings, backslash_quote, set_config and pg_settings anywhere in migration/read-model SQL, including literals, comments and dollar bodies. The runner sets standard_conforming_strings on first inside its transaction and before every chunk. PL/pgSQL, DO bodies and dynamic EXECUTE need review, not semantic analysis by this checker. A SELECT-only role granted published views is a planned follow-up, not phase 1 implementation. Plain/N SQL strings with backslashes must use E or dollar quotes in read models and view-DDL scans. Port failing cases rather than adding exemptions.
 
-For an approved upgrade, review the rule diff, update exact pins and the lockfile together, then run package and consumer checks. Historical changes remain relevant, not alternate configuration paths:
+For an approved upgrade, review the rule diff, update exact pins and the lockfile together, then run package and consumer checks.
+
+## History
+
+The v2 correction removed the nodes and modules area keys and deliveryLayer.
+Retired node-file and entry-from-app-node links remain on the site retirement notice.
+Historical changes remain relevant, not alternate configuration paths:
 
 - 0.18.0 added multiple disjoint roots, whole-star root segments and migrations' layout-config root discovery.
 - 0.17.0 split the kits into domain and application and narrowed installed contract trust to their reviewed doors.

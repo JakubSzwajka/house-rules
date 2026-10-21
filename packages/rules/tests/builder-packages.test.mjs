@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { it } from "node:test";
 import { Linter } from "eslint";
-import plugin, { nodesConfig } from "../src/index.mjs";
+import plugin, { featuresConfig } from "../src/index.mjs";
 
 const root = mkdtempSync(path.join(tmpdir(), "builder-packages-"));
 const files = {
@@ -13,26 +13,26 @@ const files = {
     exports: { ".": "./src/index.ts" },
   }),
   "packages/bridge/src/index.ts":
-    'export { defineEntry as enter } from "@house-rules/application"; import { defineEntry } from "@house-rules/application"; export const wrap = (n: unknown) => defineEntry(n); export function functionWrap(n: unknown) { return defineEntry(n); } export let mutable = defineEntry; export * as Kit from "@house-rules/application";',
+    'export { defineFeature as enter } from "@house-rules/application"; import { defineFeature } from "@house-rules/application/contract"; export const wrap = (n: unknown) => defineFeature(n); export function functionWrap(n: unknown) { return defineFeature(n); } export let mutable = defineFeature; export * as Kit from "@house-rules/application";',
   "packages/bridge/src/barrel.ts": 'export * from "./index.ts";',
   "packages/domain/package.json": '{"name":"@house-rules/domain"}',
   "packages/application/package.json": '{"name":"@house-rules/application"}',
   "apps/api/src/features/show/node.ts":
-    'import { defineNode } from "@house-rules/domain/contract"; export const show = defineNode("show", {});',
+    'import { defineOperation } from "@house-rules/domain/contract"; export const show = defineOperation("show", {});',
 };
 for (const [file, content] of Object.entries(files)) {
   const target = path.join(root, file);
   mkdirSync(path.dirname(target), { recursive: true });
   writeFileSync(target, content);
 }
-const lint = (code, file, config = plugin.configs.nodes) =>
+const lint = (code, file, config = plugin.configs.features) =>
   new Linter({ cwd: root })
     .verify(code, config, { filename: path.join(root, file) })
-    .filter((m) => m.ruleId === "house-rules/entry-from-app-node" || m.fatal)
+    .filter((m) => m.ruleId === "house-rules/feature-builders" || m.fatal)
     .map((m) => m.messageId ?? m.message);
 for (const [name, door] of [
-  ["defineNode", "@house-rules/domain/contract"],
-  ["defineEntry", "@house-rules/application"],
+  ["defineOperation", "@house-rules/domain/contract"],
+  ["defineFeature", "@house-rules/application/contract"],
   ["defineWay", "@house-rules/application"],
   ["endpoint", "@house-rules/application/contract"],
 ]) {
@@ -45,7 +45,7 @@ for (const [name, door] of [
     it(`rejects package builder laundering: ${code}`, () => {
       assert.deepEqual(
         lint(code, "packages/bridge/src/builder.ts"),
-        name !== "defineNode" && code.includes("=>") ? ["named", "named"] : ["named"],
+        name !== "defineOperation" && code.includes("=>") ? ["named", "named"] : ["named"],
       );
     });
 }
@@ -74,7 +74,7 @@ it("bounds repeated helper paths without losing a reachable builder", { timeout:
   for (const [leaf, expected] of [
     ["export const f0 = (n: unknown) => n;", []],
     [
-      'import { defineEntry } from "@house-rules/application"; export const f0 = (n: unknown) => defineEntry(n);',
+      'import { defineFeature } from "@house-rules/application/contract"; export const f0 = (n: unknown) => defineFeature(n);',
       ["named"],
     ],
   ]) {
@@ -91,7 +91,7 @@ it("bounds repeated helper paths without losing a reachable builder", { timeout:
 it("checks JavaScript package production source too", () => {
   assert.deepEqual(
     lint(
-      'export { defineEntry as e } from "@house-rules/application";',
+      'export { defineFeature as e } from "@house-rules/application";',
       "packages/bridge/src/index.mjs",
     ),
     ["named"],
@@ -100,7 +100,7 @@ it("checks JavaScript package production source too", () => {
 it("rejects a package namespace re-export at the app member call", () => {
   assert.deepEqual(
     lint(
-      'import { Kit } from "@acme/bridge"; export const e = Kit.defineEntry(unknownNode);',
+      'import { Kit } from "@acme/bridge"; export const e = Kit.defineFeature(unknownNode);',
       "apps/api/src/composition/entries.ts",
     ),
     ["named"],
@@ -109,9 +109,9 @@ it("rejects a package namespace re-export at the app member call", () => {
 it("checks configured package roots rather than only defaults", () => {
   assert.deepEqual(
     lint(
-      'export { defineEntry as e } from "@house-rules/application";',
+      'export { defineFeature as e } from "@house-rules/application";',
       "examples/shop/libs/bridge/src/index.ts",
-      nodesConfig({ packagesDir: ["packages", "examples/*/libs"] }),
+      featuresConfig({ packagesDir: ["packages", "examples/*/libs"] }),
     ),
     ["named"],
   );
@@ -125,7 +125,7 @@ for (const file of [
 ]) {
   it(`allows kit implementation, tests or top-level tooling: ${file}`, () => {
     assert.deepEqual(
-      lint('export { defineEntry as e } from "@house-rules/application";', file),
+      lint('export { defineFeature as e } from "@house-rules/application";', file),
       [],
     );
   });
@@ -133,7 +133,7 @@ for (const file of [
 it("allows direct shared-package node descriptors and unrelated endpoint identities", () => {
   assert.deepEqual(
     lint(
-      'import { defineNode } from "@house-rules/domain/contract"; export const node = defineNode("node", {});',
+      'import { defineOperation } from "@house-rules/domain/contract"; export const node = defineOperation("node", {});',
       "packages/bridge/src/contract.ts",
     ),
     [],

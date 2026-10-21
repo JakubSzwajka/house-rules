@@ -1,9 +1,10 @@
+import { featureFixture } from "../../tests/feature-fixtures.ts";
 import { expect, layer } from "@effect/vitest";
-import { defineNode, NoInput } from "@house-rules/domain";
+import { defineOperation, NoInput } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
-import { call, defineEntry, endpoint } from "../../index.ts";
-import { bindFixture } from "../../tests/entry-fixtures.ts";
+import { call, endpoint } from "../../index.ts";
+import { bindFixture } from "../../tests/execution-fixtures.ts";
 import { bothFixture } from "../../tests/router-fixtures.ts";
 import { mcpInitialize } from "../../tests/delivery-mcp-client.ts";
 import { answer, webRequest } from "../../tests/delivery-fixtures.ts";
@@ -18,9 +19,9 @@ layer(sqlWorld, { excludeTestServices: true, timeout: "30 seconds" })(
         Effect.gen(function* () {
           const sql = yield* SqlClient;
           const error = yield* Effect.flip(sql`select house_rules_missing_private_column`);
-          const entry = bindFixture(
-            defineEntry(
-              defineNode("probe", {
+          const feature = bindFixture(
+            featureFixture(
+              defineOperation("probe", {
                 description: "Read.",
                 input: NoInput,
                 output: Schema.Void,
@@ -31,12 +32,12 @@ layer(sqlWorld, { excludeTestServices: true, timeout: "30 seconds" })(
             ),
             () => Effect.void,
           );
-          const fixture = bothFixture([entry], {
-            endpoints: [endpoint(entry)],
+          const fixture = bothFixture([feature], {
+            endpoints: [endpoint(feature)],
             extra: Layer.effectDiscard(Effect.fail(error)),
           });
           const result = yield* Effect.promise(() =>
-            call(fixture.app, entry, {}, { headers: new Headers(), url: "/" }, { way: "web" }),
+            call(fixture.app, feature, {}, { headers: new Headers(), url: "/" }, { way: "web" }),
           );
           expect(result).toMatchObject({
             ok: false,

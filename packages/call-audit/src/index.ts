@@ -17,4 +17,4 @@ export {
   type RetentionOptions,
   type RetentionRun,
 } from "./audit/audit.ts";
-export type { AuditEntry } from "./audit/audit.ts";
+export type { AuditRecord } from "./audit/audit.ts";

@@ -1,6 +1,6 @@
 import { Effect } from "effect";
-import type { AnyEntry } from "../entry/entry.ts";
-import type { EntryFailure } from "../execution/run-entry.ts";
+import type { AnyFeature } from "../feature/feature.ts";
+import type { FeatureFailure } from "../execution/run-feature.ts";
 import { requestIdHeader } from "../call/request-id.ts";
 import { Mean } from "../socket/mean.ts";
 import { type Admitted, admittedRequestId, resolvedFor } from "./admit.ts";
@@ -17,13 +17,13 @@ import {
 import { Refused as RefusedError } from "./caller.ts";
 
 export type CallOptions = Readonly<{ way: string; admitted?: Admitted }>;
-export const call = <A, AppBuildError, E extends AnyEntry>(
+export const call = <A, AppBuildError, E extends AnyFeature>(
   app: Composition<A, AppBuildError>,
-  entry: E,
-  input: E["node"]["input"]["Type"],
+  feature: E,
+  input: E["input"]["Type"],
   incoming: Incoming,
   options: CallOptions,
-): Promise<Outcome<E["node"]["output"]["Type"], EntryFailure<E> | Refused | AppBuildError>> => {
+): Promise<Outcome<E["output"]["Type"], FeatureFailure<E> | Refused | AppBuildError>> => {
   const way = app.ways.find((candidate) => candidate.name === options.way);
   const kept =
     (options.admitted === undefined ? undefined : admittedRequestId(options.admitted)) ??
@@ -49,7 +49,7 @@ export const call = <A, AppBuildError, E extends AnyEntry>(
           options.admitted === undefined
             ? undefined
             : yield* resolvedFor(app, options.admitted, options.way);
-        return yield* invoke(app, context, entry, {
+        return yield* invoke(app, context, feature, {
           way,
           incoming,
           input: Effect.succeed({ value: input, source: "json" }),
@@ -68,6 +68,6 @@ export const call = <A, AppBuildError, E extends AnyEntry>(
     closed: closedFailure(way?.overrides).pipe(inRequest(kept)),
   });
   return Effect.runPromise(answered.pipe(Effect.map(([outcome]) => outcome))) as Promise<
-    Outcome<E["node"]["output"]["Type"], EntryFailure<E> | Refused | AppBuildError>
+    Outcome<E["output"]["Type"], FeatureFailure<E> | Refused | AppBuildError>
   >;
 };

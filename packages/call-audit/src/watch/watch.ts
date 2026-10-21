@@ -1,7 +1,7 @@
 import { type CallWatchService, unknownCallFacts } from "@house-rules/application";
 import { Cause, Clock, DateTime, Effect, Exit, Option } from "effect";
 import type { AuditStore } from "../storage.ts";
-import type { AuditEntry, AuditPolicy } from "../audit/audit.ts";
+import type { AuditRecord, AuditPolicy } from "../audit/audit.ts";
 
 const outcomeOf = (exit: Exit.Exit<unknown, unknown>): string => {
   if (Exit.isSuccess(exit)) return "success";
@@ -19,7 +19,7 @@ const outcomeOf = (exit: Exit.Exit<unknown, unknown>): string => {
 
 export const makeWatch = (
   who: Effect.Effect<string | null>,
-  record: (entry: AuditEntry) => Effect.Effect<void>,
+  record: (entry: AuditRecord) => Effect.Effect<void>,
 ): CallWatchService => ({
   around: (entry, _input, run, given) =>
     Effect.gen(function* auditedCall() {
@@ -33,9 +33,9 @@ export const makeWatch = (
           Effect.gen(function* recordCall() {
             const end = yield* Clock.currentTimeMillis;
             yield* record({
-              capability: entry.node.name,
-              target: entry.node.name,
-              permission: entry.node.permission ?? "",
+              capability: entry.name,
+              target: entry.name,
+              permission: entry.permission ?? "",
               viewerId,
               outcome: outcomeOf(exit),
               ms: end - start,
@@ -50,7 +50,7 @@ export const makeWatch = (
     }),
 });
 
-export const logLine = (entry: AuditEntry) =>
+export const logLine = (entry: AuditRecord) =>
   Effect.logInfo(`capability call ${JSON.stringify(entry)}`);
 
 const tagOf = (error: unknown): string =>
@@ -58,7 +58,7 @@ const tagOf = (error: unknown): string =>
 
 export const storeRecorder =
   (store: AuditStore["Service"], onWriteFailure: AuditPolicy["onWriteFailure"]) =>
-  (entry: AuditEntry): Effect.Effect<void> =>
+  (entry: AuditRecord): Effect.Effect<void> =>
     DateTime.now.pipe(
       Effect.flatMap((now) => store.record({ ...entry, recordedAt: DateTime.toDateUtc(now) })),
       Effect.catchCause((cause) =>
@@ -77,7 +77,7 @@ export const storeRecorder =
       ),
     );
 
-const keeps = (policy: AuditPolicy, entry: AuditEntry): Effect.Effect<boolean> =>
+const keeps = (policy: AuditPolicy, entry: AuditRecord): Effect.Effect<boolean> =>
   Effect.try({ try: () => policy.keep(entry), catch: () => "keep threw" }).pipe(
     // A keep that throws keeps the entry: a broken filter fails toward recording.
     Effect.orElseSucceed(() => true),
@@ -86,9 +86,9 @@ const keeps = (policy: AuditPolicy, entry: AuditEntry): Effect.Effect<boolean> =
 export const policyRecorder =
   (
     policy: AuditPolicy,
-    record: (entry: AuditEntry) => Effect.Effect<void>,
+    record: (entry: AuditRecord) => Effect.Effect<void>,
     log: boolean,
-  ): ((entry: AuditEntry) => Effect.Effect<void>) =>
+  ): ((entry: AuditRecord) => Effect.Effect<void>) =>
   (entry) =>
     Effect.gen(function* recordByPolicy() {
       if (!(yield* keeps(policy, entry))) return;

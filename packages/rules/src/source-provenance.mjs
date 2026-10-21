@@ -202,24 +202,6 @@ export const sourceGraph = (
       ? { ...resolved, file: found.file, annotation: found.annotation }
       : resolved;
   };
-  const builder = (file, expression) => {
-    const node = unwrapExpression(expression);
-    if (node?.type !== "Identifier") return undefined;
-    load(file);
-    const def = definition(file, node);
-    if (
-      def?.type !== "ImportBinding" ||
-      def.node.type !== "ImportSpecifier" ||
-      def.parent.importKind === "type" ||
-      def.node.importKind === "type"
-    )
-      return undefined;
-    return {
-      file,
-      source: def.parent.source.value,
-      imported: def.node.imported.name ?? def.node.imported.value,
-    };
-  };
   const builderOrigins = new Map();
   const builderOrigin = (file, expression) => {
     const root = resolve(file, expression, new Set(), true);
@@ -231,7 +213,7 @@ export const sourceGraph = (
       const { found, withinFunction } = pending.pop();
       if (!found) continue;
       if (kitBuilderOrigin(found)) {
-        if (withinFunction && found.imported === "bindNode") continue;
+        if (withinFunction && found.imported === "bindOperation") continue;
         if (rootNode) builderOrigins.set(rootNode, found);
         return found;
       }
@@ -268,7 +250,8 @@ export const sourceGraph = (
             found: resolve(found.file, child, new Set(), true),
             withinFunction:
               nested &&
-              (child.type !== "Identifier" || kitBuilderOrigin(resolve(found.file, child))),
+              (!["Identifier", "MemberExpression"].includes(child.type) ||
+                kitBuilderOrigin(resolve(found.file, child))),
           });
         }
       }
@@ -295,5 +278,5 @@ export const sourceGraph = (
     if (imported === undefined) return builderOrigin(file, load(file));
     return builderFromExport(named(file, imported, true), builderOrigin);
   };
-  return { resolve, builder, builderOrigin, importOrigin, isRequire, packageBuilder };
+  return { resolve, builderOrigin, importOrigin, isRequire, packageBuilder };
 };

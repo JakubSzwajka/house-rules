@@ -27,9 +27,11 @@ Use `--public` instead of `--private` for a public repo. Install sets up the pre
 
 ## Read the example
 
-The [booking guide](../../../../../examples/booking/README.md) gives a reading order. The app joins booking and payment nodes into entries. It includes a system refund edge, Party and Identity nodes, and a read model over published views. It has no web page or real payment provider.
+The [booking guide](../../../../../examples/booking/README.md) gives a reading order. The app joins booking and payment operations into features. It includes a system refund edge, Party and Identity operations, and a read model over published views. It has no web page or real payment provider.
 
-Domain's `defineNode` describes a step. Application's `bindNode` runs it, and `defineEntry` chooses an app node as a graph start. A way exposes entries over HTTP or MCP. One record, one approval decision and one unit surround the graph when needed. Only the entry runtime opens a production unit.
+A feature is one app action and its own entry. Application's `defineFeature` puts its contract and handler in `features/<name>/index.ts`. The handler only calls declared edges. `features/index.ts` exports Features and the permission lists.
+
+Domain's `defineOperation` describes module or read-model work. Modules publish `<Module>Operations` through `./contract`. Application's `bindOperation` captures their services in composition. A way exposes features over HTTP or MCP, never module operations. One record, one approval decision and one unit surround the graph when needed. Only the feature runtime opens a production unit.
 
 All domain modules are packages, including app-owned ones under `examples/booking/packages/`. Each owns its tables, migrations and object rules. Stored modules ship memory and Postgres adapters. Read models stay in the app and select published views, filtering by person in SQL.
 

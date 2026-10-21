@@ -69,7 +69,7 @@
       "to": {
         "reachable": true,
         "pathNot": [
-          "^apps/[^/]+/src/features/[^/]+/(?:node|entry)[.]ts$",
+          "^apps/[^/]+/src/features/(?:[^/]+/|)index[.]ts$",
           "^apps/[^/]+/src/app/[^/]+/endpoints[.]ts$",
           "^apps/[^/]+/src/read-models/[^/]+/(?!adapters/|(?:index|facade|storage)[.]ts$|(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$).+",
           "^packages/[^/]+/(?!src/adapters(?:/|$)|(?:src/index[.]ts|src/facade[.]ts|src/storage[.]ts)$|src/(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$)src/",
@@ -398,12 +398,12 @@
       "severity": "error",
       "comment": "See https://stack.kubaszwajka.com/rules/#contract-entry-is-browser-safe",
       "from": {
-        "path": "(?:^apps/[^/]+/src/read-models/[^/]+/contract[.]ts$|^apps/[^/]+/src/features/[^/]+/(?:node|entry)[.]ts$|^apps/[^/]+/src/app/[^/]+/endpoints[.]ts$)"
+        "path": "(?:^apps/[^/]+/src/read-models/[^/]+/contract[.]ts$|^apps/[^/]+/src/features/(?:[^/]+/|)index[.]ts$|^apps/[^/]+/src/app/[^/]+/endpoints[.]ts$)"
       },
       "to": {
         "reachable": true,
         "pathNot": [
-          "^apps/[^/]+/src/features/[^/]+/(?:node|entry)[.]ts$",
+          "^apps/[^/]+/src/features/(?:[^/]+/|)index[.]ts$",
           "^apps/[^/]+/src/app/[^/]+/endpoints[.]ts$",
           "^apps/[^/]+/src/read-models/[^/]+/(?!adapters/|(?:index|facade|storage)[.]ts$|(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$).+",
           "^packages/[^/]+/(?!src/adapters(?:/|$)|(?:src/index[.]ts|src/facade[.]ts|src/storage[.]ts)$|src/(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$)src/",

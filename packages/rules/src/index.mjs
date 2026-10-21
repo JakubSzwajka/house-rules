@@ -13,8 +13,8 @@ import { noComputedImportRule } from "./no-computed-import.mjs";
 import { noHandRolledSurfaceRule } from "./no-hand-rolled-surface.mjs";
 import { noHandRunEffectRule } from "./no-hand-run-effect.mjs";
 import { testingExportsOnlyInTestsRule } from "./testing-exports-only-in-tests.mjs";
-import { nodeFileRule } from "./node-file.mjs";
-import { entryFromAppNodeRule } from "./entry-from-app-node.mjs";
+import { featureFileRule } from "./feature-file.mjs";
+import { featureBuildersRule } from "./feature-builders.mjs";
 import { esmOnlyEffectRule } from "./esm-only-effect.mjs";
 import { ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL } from "./rule-docs.mjs";
 
@@ -32,8 +32,8 @@ const plugin = {
     "design-no-unknown-token": designNoUnknownTokenRule,
     "design-scale-value": designScaleValueRule,
     "design-css-layers": designCssLayersRule,
-    "node-file": nodeFileRule,
-    "entry-from-app-node": entryFromAppNodeRule,
+    "feature-file": featureFileRule,
+    "feature-builders": featureBuildersRule,
     "esm-only-effect": esmOnlyEffectRule,
     "no-hand-rolled-surface": noHandRolledSurfaceRule,
     "no-hand-run-effect": noHandRunEffectRule,
@@ -89,8 +89,8 @@ plugin.configs.testing = [
 ];
 
 // Use the same roots as layout(), including app descriptor dependency trees.
-function nodesConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
-  const caller = "nodesConfig()";
+function featuresConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
+  const caller = "featuresConfig()";
   const packageRoots = layoutOptions.rootsOption(packagesDir, "packagesDir", caller);
   const appRoots = layoutOptions.rootsOption(appsDir, "appsDir", caller);
   layoutOptions.disjointRoots(appRoots, packageRoots, caller);
@@ -117,12 +117,12 @@ function nodesConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
     {
       files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
       rules: {
-        "house-rules/node-file": ["error", appOptions],
+        "house-rules/feature-file": ["error", appOptions],
         "house-rules/esm-only-effect": [
           "error",
           { ...appOptions, packagesDir: packageRoots.entries },
         ],
-        "house-rules/entry-from-app-node": [
+        "house-rules/feature-builders": [
           "error",
           { ...appOptions, packagesDir: packageRoots.entries },
         ],
@@ -150,12 +150,12 @@ function nodesConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
   ];
 }
 
-plugin.configs.nodes = nodesConfig();
+plugin.configs.features = featuresConfig();
 
 // A block with only `name` and `ignores` is a global ignore: ESLint never reads those paths.
 plugin.configs.nextHost = [
   { name: "house-rules/next-host", ignores: [...hosts.HOSTS.next.eslintIgnores] },
 ];
 
-export { nodesConfig, plugin, ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL };
+export { featuresConfig, plugin, ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL };
 export default plugin;

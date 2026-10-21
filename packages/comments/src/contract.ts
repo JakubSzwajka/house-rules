@@ -10,4 +10,4 @@ export {
   CommentTargetsUnavailable,
 } from "./comment/comment.js";
 export { type CommentPermission, CommentPermissions } from "./comment/permissions.js";
-export { listComments, addComment, editComment, removeComment } from "./comment/nodes.js";
+export { CommentsOperations } from "./comment/operations.js";

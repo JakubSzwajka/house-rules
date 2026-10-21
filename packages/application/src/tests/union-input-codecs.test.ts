@@ -82,7 +82,7 @@ it.effect(
         readonly kind: "default" | "text";
         readonly value?: string;
       }>();
-      expectTypeOf<typeof defaulted.entry.node.input.Type>().toEqualTypeOf<
+      expectTypeOf<typeof defaulted.feature.input.Type>().toEqualTypeOf<
         typeof DefaultOrText.Type
       >();
     }),

@@ -1,8 +1,8 @@
 {
   "apps/api/package.json": "{\"name\":\"@acme/api\"}",
   "apps/api/src/main.ts": "export { root } from './composition/index.ts'; export { way } from './ways-in/web/way.ts';",
-  "apps/api/src/composition/index.ts": "import { books } from '@acme/books'; import { show } from '../features/show/node.ts'; export const root = { books, show };",
-  "apps/api/src/features/show/node.ts": "import { Schema } from 'effect'; import { book } from '@acme/books/contract'; import { report } from '../../read-models/report/contract.ts'; export const show = { input: Schema, edges: [book, report] };",
+  "apps/api/src/composition/index.ts": "import { books } from '@acme/books'; import { show } from '../features/show/index.ts'; export const root = { books, show };",
+  "apps/api/src/features/show/index.ts": "import { Schema } from 'effect'; import { book } from '@acme/books/contract'; import { report } from '../../read-models/report/contract.ts'; export const show = { input: Schema, edges: [book, report] };",
   "apps/api/src/features/show/handler.ts": "import { books } from '@acme/books'; export const handler = books;",
   "packages/books/src/index.ts": "export { books } from './facade.ts'; export { book } from './contract.ts';",
   "packages/books/src/contract.ts": "export { book } from './book/book.ts';",
@@ -13,7 +13,7 @@
   "apps/api/src/read-models/report/contract.ts": "export { report } from './report/report.ts';",
   "apps/api/src/read-models/report/report/report.ts": "export const report = {};",
   "apps/api/src/read-models/report/adapters/postgres/report.ts": "import { SqlClient } from 'effect/unstable/sql'; export const rows = SqlClient;",
-  "apps/api/src/ways-in/web/way.ts": "import { root } from '../../composition/index.ts'; import { show } from '../../features/show/node.ts'; import type { books } from '@acme/books'; export const way = { root, show };",
-  "apps/api/src/ways-in/web/endpoints.ts": "import { show } from '../../features/show/node.ts'; export const endpoints = [show];",
+  "apps/api/src/ways-in/web/way.ts": "import { root } from '../../composition/index.ts'; import { show } from '../../features/show/index.ts'; import type { books } from '@acme/books'; export const way = { root, show };",
+  "apps/api/src/ways-in/web/endpoints.ts": "import { show } from '../../features/show/index.ts'; export const endpoints = [show];",
   "packages/books/package.json": "{\"name\": \"@acme/books\", \"exports\": {\".\": \"./src/index.ts\", \"./contract\": \"./src/contract.ts\"}}"
 }

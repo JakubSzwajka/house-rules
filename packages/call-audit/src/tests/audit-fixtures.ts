@@ -1,10 +1,9 @@
 import {
-  bindNode,
   CallChannel,
-  defineEntry,
+  defineFeature,
   May,
-  NodeRuntime,
-  runEntry,
+  Runtime,
+  runFeature,
   StepTrace,
   withRequestId,
 } from "@house-rules/application";
@@ -23,35 +22,29 @@ export class TripNotFound extends Schema.TaggedError<TripNotFound>()("TripNotFou
 const TripInput = Schema.Struct({ tripId: Schema.String, title: Schema.String });
 
 const trip = (name: string, readOnly: boolean) => {
-  const node = {
-    name,
+  const entry = defineFeature(name, {
     description: "Read or rename a trip.",
     input: TripInput,
     output: Schema.String,
     failure: TripNotFound,
     permission: null,
     edges: [],
-    readOnly,
-    destructive: false,
-    transactional: false,
-    needsApproval: false,
-  } as const;
-  const entry = defineEntry(node, {
+    flags: { readOnly },
     start: { kind: "system", reason: "audit test", startedBy: "test" },
+    handler: ({ tripId, title }) =>
+      tripId === "missing"
+        ? Effect.fail(new TripNotFound({ message: `No trip called ${title}` }))
+        : Effect.succeed(tripId),
   });
-  const binding = bindNode(node, ({ tripId, title }) =>
-    tripId === "missing"
-      ? Effect.fail(new TripNotFound({ message: `No trip called ${title}` }))
-      : Effect.succeed(tripId),
-  );
   const runtime = Layer.mergeAll(
-    NodeRuntime.layer({ bindings: [binding], entries: [entry], ways: [] }),
+    Runtime.layer({ bindings: [], features: [entry], ways: [] }),
     StepTrace.layer(),
     Layer.succeedContext(May.context(May.system([entry]), { system: [], via: "test" })),
   );
   return {
     entry,
-    handler: (input: typeof TripInput.Type) => runEntry(entry, input).pipe(Effect.provide(runtime)),
+    handler: (input: typeof TripInput.Type) =>
+      runFeature(entry, input).pipe(Effect.provide(runtime)),
   };
 };
 export const readTrip = trip("read_trip", true);

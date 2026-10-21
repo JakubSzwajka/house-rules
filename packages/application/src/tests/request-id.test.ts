@@ -1,5 +1,6 @@
-import { defineNode, NoInput } from "@house-rules/domain";
-import { bindFixture, runFixture } from "./entry-fixtures.ts";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation, NoInput } from "@house-rules/domain";
+import { bindFixture, runFixture } from "./execution-fixtures.ts";
 import { expect, it } from "@effect/vitest";
 import { Effect, Layer, Logger, Random, References, Schema } from "effect";
 import {
@@ -7,7 +8,6 @@ import {
   CallRequestId,
   CallWatch,
   call,
-  defineEntry,
   newRequestId,
   requestIdHeader,
   requestIdOf,
@@ -17,8 +17,8 @@ import { mcpFixture } from "./router-fixtures.ts";
 import { mcpInitialize, mcpPost } from "./delivery-mcp-client.ts";
 
 const loggingPing = bindFixture(
-  defineEntry(
-    defineNode("ping", {
+  featureFixture(
+    defineOperation("ping", {
       description: "Answer pong.",
       input: NoInput,
       output: Schema.String,
@@ -127,8 +127,8 @@ const zeroRandom = Layer.succeed(Random.Random, {
 const zeroId = "0".repeat(32);
 
 const idPing = bindFixture(
-  defineEntry(
-    defineNode("id_ping", {
+  featureFixture(
+    defineOperation("id_ping", {
       description: "Answer the request id.",
       input: NoInput,
       output: Schema.String,
@@ -146,7 +146,7 @@ it.effect("a built app's Random makes the fresh request id on call() and MCP", (
   Effect.gen(function* seededAdapters() {
     const fixture = mcpFixture([idPing], {
       extra: zeroRandom,
-      tools: [{ entry: idPing, title: "Id", idempotent: true, openWorld: false }],
+      tools: [{ feature: idPing, title: "Id", idempotent: true, openWorld: false }],
     });
     const outcome = yield* Effect.promise(() =>
       call(

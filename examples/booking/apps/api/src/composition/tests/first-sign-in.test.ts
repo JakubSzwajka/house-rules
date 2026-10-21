@@ -1,10 +1,10 @@
 import { assert, it } from "@effect/vitest";
-import { runEntry, May, Approval, StepTrace } from "@house-rules/application";
+import { runFeature, May, Approval, StepTrace } from "@house-rules/application";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { Identity } from "@house-rules/identity";
 import { Party, PersonNotFound } from "@house-rules/party";
 import { ConfigProvider, Context, Effect, Layer, Option } from "effect";
-import { Entries, systemPermissions } from "../entries.ts";
+import { Features, systemPermissions } from "../../features/index.ts";
 import { modulesLayer, plugSockets } from "../index.ts";
 import { databaseTesting } from "./database.ts";
 
@@ -44,12 +44,12 @@ for (const backend of ["memory", "postgres"] as const)
         const original = ActorId.make("original");
         const login = { issuer: "https://login.invalid", subject: "existing" };
         yield* UnitOfWork.atomic(identity.bind(login, original)).pipe(Effect.provideContext(ctx));
-        const permissions = May.context(May.system([Entries.firstSignIn]), {
+        const permissions = May.context(May.system([Features.firstSignIn]), {
           system: systemPermissions,
           via: "hook:new-login",
         });
         const run = (subject: string) =>
-          runEntry(Entries.firstSignIn, { ...login, subject, displayName: "New person" }).pipe(
+          runFeature(Features.firstSignIn, { ...login, subject, displayName: "New person" }).pipe(
             Effect.provideContext(Context.merge(ctx, permissions)),
             Effect.provide(Approval.allowAll),
           );

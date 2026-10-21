@@ -21,7 +21,7 @@ const tree = {
     name: "@house-rules/domain",
     exports: { ".": "./dist/index.js", "./contract": "./dist/contract.js" },
   }),
-  "node_modules/@house-rules/domain/dist/index.js": "export const defineNode = {};",
+  "node_modules/@house-rules/domain/dist/index.js": "export const defineOperation = {};",
   "node_modules/@house-rules/domain/dist/contract.js": "export const Actor = {};",
 };
 for (const [name, source, extra = {}] of [
@@ -62,10 +62,10 @@ const allowed = [
   "import {Effect} from 'effect';",
   "import {May} from '@house-rules/application';",
   "import {endpoint} from '@house-rules/application/contract';",
-  "import {defineNode} from '@house-rules/domain';",
+  "import {defineOperation} from '@house-rules/domain';",
   "import {Actor} from '@house-rules/domain/contract';",
   "import {root} from '../../composition/index.ts';",
-  "import {show} from '../../features/show/node.ts';",
+  "import {show} from '../../features/show/index.ts';",
   "import {Booking} from './barrel.ts';",
 ].join("\n");
 it("ways allow contracts, main types, kits, effect, composition, features and own barrels", async () => {

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { it } from "node:test";
 import { Linter } from "eslint";
-import { nodesConfig } from "../src/index.mjs";
+import { featuresConfig } from "../src/index.mjs";
 
 const root = mkdtempSync(path.join(tmpdir(), "esm-effect-"));
 for (const [folder, json] of Object.entries({
@@ -22,7 +22,7 @@ for (const [folder, json] of Object.entries({
 }
 const lint = (code, file) =>
   new Linter({ cwd: root })
-    .verify(code, nodesConfig(), { filename: path.join(root, file) })
+    .verify(code, featuresConfig(), { filename: path.join(root, file) })
     .filter((m) => m.ruleId === "house-rules/esm-only-effect" || m.fatal)
     .map((m) => m.messageId ?? m.message);
 const forms = [

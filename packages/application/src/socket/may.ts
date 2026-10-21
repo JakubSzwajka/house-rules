@@ -1,22 +1,22 @@
 import type { Permission } from "@house-rules/domain";
 import { Context } from "effect";
-import type { AnyEntry } from "../entry/entry.ts";
-import { CallPermissions, entryAndRecheck, type PermissionLists } from "./permission-lists.ts";
+import type { AnyFeature } from "../feature/feature.ts";
+import { CallPermissions, featureAndRecheck, type PermissionLists } from "./permission-lists.ts";
 
 export interface MaySocket {
-  readonly entries: readonly AnyEntry[];
+  readonly features: readonly AnyFeature[];
   readonly person: readonly Permission[];
 }
 export const May = {
-  fixed: (entries: readonly AnyEntry[], person: readonly Permission[]): MaySocket => ({
-    entries,
+  fixed: (features: readonly AnyFeature[], person: readonly Permission[]): MaySocket => ({
+    features,
     person,
   }),
-  system: (entries: readonly AnyEntry[]): MaySocket => ({ entries, person: [] }),
+  system: (features: readonly AnyFeature[]): MaySocket => ({ features, person: [] }),
   context: (may: MaySocket, options: PermissionLists): Context.Context<CallPermissions> =>
     Context.make(CallPermissions, {
       ...may,
       ...options,
-      gatePolicy: options.gatePolicy ?? entryAndRecheck,
+      gatePolicy: options.gatePolicy ?? featureAndRecheck,
     }),
 };

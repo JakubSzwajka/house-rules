@@ -1,8 +1,8 @@
-import { defineNode, type Permission } from "@house-rules/domain";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation, type Permission } from "@house-rules/domain";
 import { Effect, Layer, Logger, References, Schema } from "effect";
 import {
   composition,
-  defineEntry,
   defineWay,
   endpoint,
   May,
@@ -15,7 +15,7 @@ import {
 } from "../index.ts";
 import { bearerWhoFor, sessionWhoFor } from "./delivery-auth-fixtures.ts";
 export { bearerWhoFor, sessionWhoFor, metadataUrl } from "./delivery-auth-fixtures.ts";
-import { bindFixture, fixtureLayer } from "./entry-fixtures.ts";
+import { bindFixture, fixtureLayer } from "./execution-fixtures.ts";
 import {
   type Actor,
   Booking,
@@ -34,8 +34,8 @@ export {
 
 const viewerOf = (id: string): Actor => ({ userId: id, scope: "write" });
 export const showBooking = bindFixture(
-  defineEntry(
-    defineNode("show_booking", {
+  featureFixture(
+    defineOperation("show_booking", {
       description: "Show one booking by its id.",
       input: Schema.Struct({ id: Schema.String }),
       output: Booking,
@@ -52,8 +52,8 @@ export const showBooking = bindFixture(
     }),
 );
 export const findBookings = bindFixture(
-  defineEntry(
-    defineNode("find_bookings", {
+  featureFixture(
+    defineOperation("find_bookings", {
       description: "Find your bookings by guest name, or by a minimum number of nights.",
       input: Schema.Union([
         Schema.Struct({ by: Schema.Literal("guest"), guest: Schema.String }),
@@ -78,8 +78,8 @@ export const findBookings = bindFixture(
     }),
 );
 export const cancelBooking = bindFixture(
-  defineEntry(
-    defineNode("cancel_booking", {
+  featureFixture(
+    defineOperation("cancel_booking", {
       description: "Cancel one of your bookings.",
       input: Schema.Struct({ id: Schema.String }),
       output: Schema.Struct({ cancelled: Schema.String }),
@@ -98,8 +98,8 @@ export const cancelBooking = bindFixture(
     }),
 );
 export const renameGuest = bindFixture(
-  defineEntry(
-    defineNode("rename_guest", {
+  featureFixture(
+    defineOperation("rename_guest", {
       description: "Rename the guest on one of your bookings.",
       input: Schema.Struct({ id: Schema.String, guestName: Schema.String }),
       output: Schema.Struct({ id: Schema.String }),
@@ -116,8 +116,8 @@ export const renameGuest = bindFixture(
     }),
 );
 export const crash = bindFixture(
-  defineEntry(
-    defineNode("crash", {
+  featureFixture(
+    defineOperation("crash", {
       description: "Dies to show the defect response.",
       input: Schema.Struct({}),
       output: Schema.Struct({}),
@@ -127,7 +127,7 @@ export const crash = bindFixture(
   ),
   () => Effect.die("a bug in the handler"),
 );
-export const entries = [showBooking, findBookings, cancelBooking, renameGuest, crash] as const;
+export const features = [showBooking, findBookings, cancelBooking, renameGuest, crash] as const;
 const permissions: readonly Permission[] = ["bookings:read", "bookings:write"];
 export const overrides = {
   BookingNotFound: (error: BookingNotFound) => `Booking ${error.id} was not found.`,
@@ -171,14 +171,14 @@ export const makeApp = (options: HttpFixtureOptions = {}) => {
     endpoint(cancelBooking, "POST /bookings/:id/cancel"),
     endpoint(crash),
   ];
-  const selectedEntries = entries.filter((entry) =>
-    selectedEndpoints.some((shape) => shape.entry === entry),
+  const selectedEntries = features.filter((feature) =>
+    selectedEndpoints.some((shape) => shape.feature === feature),
   );
   const apiWay = defineWay({
     name: "api",
     path: options.path ?? "/api",
     protocol: "http",
-    entries: selectedEntries,
+    features: selectedEntries,
     endpoints: selectedEndpoints,
     who: options.who === "session" ? sessionWhoFor(work) : bearerWhoFor(work),
     may: May.fixed(selectedEntries, permissions),
@@ -193,7 +193,7 @@ export const makeApp = (options: HttpFixtureOptions = {}) => {
     name: "web",
     path: "/web",
     protocol: "http",
-    entries: [renameGuest, showBooking],
+    features: [renameGuest, showBooking],
     endpoints: [
       endpoint(renameGuest, "PATCH /bookings/:id"),
       endpoint(renameGuest, "POST /hooks/rename", {
@@ -211,7 +211,7 @@ export const makeApp = (options: HttpFixtureOptions = {}) => {
     name: "read",
     path: "/read",
     protocol: "http",
-    entries: [showBooking, findBookings],
+    features: [showBooking, findBookings],
     endpoints: [
       endpoint(showBooking, "GET /bookings/:id"),
       endpoint(findBookings, "GET /bookings"),
@@ -225,7 +225,7 @@ export const makeApp = (options: HttpFixtureOptions = {}) => {
     name: "mcp",
     path: "/mcp",
     protocol: "mcp",
-    entries: [showBooking, findBookings, cancelBooking],
+    features: [showBooking, findBookings, cancelBooking],
     who: bearerWhoFor(work),
     may: May.fixed([showBooking, findBookings, cancelBooking], permissions),
     mean: Mean.elicitation,
@@ -236,13 +236,18 @@ export const makeApp = (options: HttpFixtureOptions = {}) => {
     }),
     server: { name: "test", version: "0.0.0" },
     tools: [
-      { entry: showBooking, title: "Show a booking", idempotent: true, openWorld: false },
-      { entry: findBookings, title: "Find bookings", idempotent: true, openWorld: false },
-      { entry: cancelBooking, title: "Cancel a booking", idempotent: false, openWorld: false },
+      { feature: showBooking, title: "Show a booking", idempotent: true, openWorld: false },
+      { feature: findBookings, title: "Find bookings", idempotent: true, openWorld: false },
+      { feature: cancelBooking, title: "Cancel a booking", idempotent: false, openWorld: false },
     ],
   });
-  const layer = fixtureLayer(entries).pipe(Layer.provideMerge(modules));
-  const app = composition({ layer, entries, ways: [apiWay, webWay, readWay, mcpWay], system: [] });
+  const layer = fixtureLayer(features).pipe(Layer.provideMerge(modules));
+  const app = composition({
+    layer,
+    features: features,
+    ways: [apiWay, webWay, readWay, mcpWay],
+    system: [],
+  });
   const router = toFetchHandler(app);
   const dispose = () => router.dispose().then(() => app.dispose());
   return { app, api: router, web: router, mcp: router, router, work, logs, dispose };

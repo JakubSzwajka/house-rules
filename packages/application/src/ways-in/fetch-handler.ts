@@ -63,7 +63,7 @@ const makeHttpHandler = <A, E>(
   const cors = checkCors(options.cors);
   const session = checkSession(options.session, options.endpoints);
   const serve = (route: Endpoint) => {
-    const arrayKeys = arrayKeysOf(route.entry.node.input);
+    const arrayKeys = arrayKeysOf(route.feature.input);
     return HttpRouter.add(route.method, `${prefix}${route.path}`, (request) =>
       Effect.gen(function* serveRoute() {
         const params = yield* HttpRouter.params;
@@ -79,7 +79,7 @@ const makeHttpHandler = <A, E>(
           }
           const outcome = yield* serveIn<A, Outcome<unknown, unknown>>(app, {
             ready: (context) =>
-              invoke(app, context, route.entry, {
+              invoke(app, context, route.feature, {
                 way: options,
                 incoming,
                 input: rawInput(route, arrayKeys, request, web.success, params, limit),
@@ -136,7 +136,7 @@ const makeHttpHandler = <A, E>(
 };
 
 export const toFetchHandler = <A, E>(app: Composition<A, E>): FetchHandler => {
-  const invalid = validateWays(app.entries, app.ways);
+  const invalid = validateWays(app.features, app.ways);
   const handlers = new Map<AnyWay<A>, FetchHandler>();
   const matcher = FindMyWay.make<AnyWay<A>>();
   if (invalid === undefined) {

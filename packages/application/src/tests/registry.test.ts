@@ -1,7 +1,8 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { expect, it } from "@effect/vitest";
-import { asSystem, defineNode, NoInput } from "@house-rules/domain";
+import { asSystem, defineOperation, NoInput } from "@house-rules/domain";
 import { Schema } from "effect";
-import { defineEntry, renderRegistry } from "../index.ts";
+import { renderRegistry } from "../index.ts";
 
 it("renders reverse callers, reasons, closures and way exposure without running anything", () => {
   const base = {
@@ -11,14 +12,14 @@ it("renders reverse callers, reasons, closures and way exposure without running 
     failure: Schema.Never,
     permission: null,
   } as const;
-  const child = defineNode("child", { ...base, permission: "items:read" });
-  const root = defineNode("root", { ...base, edges: [asSystem(child, "background read")] });
-  const second = defineNode("second", { ...base, edges: [child] });
-  const entry = defineEntry(root);
+  const child = defineOperation("child", { ...base, permission: "items:read" });
+  const root = defineOperation("root", { ...base, edges: [asSystem(child, "background read")] });
+  const second = defineOperation("second", { ...base, edges: [child] });
+  const feature = featureFixture(root);
   const data = {
-    nodes: [root, second],
-    entries: [entry],
-    ways: [{ name: "web", path: "/api", entries: [entry] }],
+    operations: [second],
+    features: [feature],
+    ways: [{ name: "web", path: "/api", features: [feature] }],
   };
   const rendered = renderRegistry(data);
   expect(rendered).toBe(renderRegistry(data));
@@ -28,4 +29,7 @@ it("renders reverse callers, reasons, closures and way exposure without running 
   expect(rendered).toContain("System closure: items:read");
   expect(rendered).toContain("Exposed by: web (/api)");
   expect(rendered).not.toContain("Defined by");
+  expect(rendered).toContain("## Features");
+  expect(rendered).toContain("## Operations");
+  expect(rendered).not.toContain("## Nodes");
 });

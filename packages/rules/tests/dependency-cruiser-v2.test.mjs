@@ -23,7 +23,7 @@ const cases = [
   ],
   [
     "descriptor cannot import handler",
-    "features/show/node.ts",
+    "features/show/index.ts",
     "import {handler} from './handler.ts'; export const show = handler;",
     "contract-entry-is-browser-safe",
   ],
@@ -48,13 +48,13 @@ const cases = [
   [
     "package to node",
     "packages/books/src/facade.ts",
-    "import {show} from '../../../apps/api/src/features/show/node.ts';",
+    "import {show} from '../../../apps/api/src/features/show/index.ts';",
     "packages-do-not-import-apps",
   ],
   [
     "read model to feature",
     "read-models/report/report/report.ts",
-    "import {books} from '../../../features/show/node.ts';",
+    "import {books} from '../../../features/show/index.ts';",
     "read-models-import-packages-only",
   ],
   [
@@ -118,17 +118,18 @@ it("rejects removed area keys and literal app areas without aliases", async () =
 it("default v2 roots permit schema/contract/read-model edges and type-only way imports", async () => {
   assert.deepEqual(await violatedRules(base, config), []);
 });
-it("per-node entries are shared browser roots, including unexposed and custom roots", async () => {
+it("feature indexes and registries are browser roots, including unexposed and custom roots", async () => {
   const tree = {
     ...base,
-    [root + "features/show/entry.ts"]: "import {show} from './node.ts'; export const entry = show;",
-    [root + "features/unexposed/entry.ts"]: "export const entry = {};",
+    [root + "features/show/index.ts"]: "export const entry = {};",
+    [root + "features/unexposed/index.ts"]: "export const entry = {};",
+    [root + "features/index.ts"]: "export {entry} from './show/index.ts';",
     [root + "ways-in/web/endpoints.ts"]:
-      "import {entry} from '../../features/show/entry.ts'; export const endpoints = [entry];",
+      "import {entry} from '../../features/show/index.ts'; export const endpoints = [entry];",
     [root + "ways-in/web/way.ts"]:
-      "import {entry} from '../../features/show/entry.ts'; export const way = entry;",
+      "import {entry} from '../../features/show/index.ts'; export const way = entry;",
     [root + "composition/index.ts"]:
-      "import {entry} from '../features/show/entry.ts'; export const root = entry;",
+      "import {entry} from '../features/show/index.ts'; export const root = entry;",
   };
   assert.deepEqual(await violatedRules(tree, config), []);
   const custom = Object.fromEntries(
@@ -142,20 +143,24 @@ it("per-node entries are shared browser roots, including unexposed and custom ro
     [],
   );
   for (const [file, code] of [
-    ["features/show/entry.ts", "import {handler} from './handler.ts';"],
-    ["features/show/entry.ts", "import {root} from '../../composition/index.ts';"],
-    ["features/show/entry.ts", "import {store} from '@acme/books/adapters/memory/book.ts';"],
+    ["features/show/index.ts", "import {handler} from './handler.ts';"],
+    ["features/show/index.ts", "import {root} from '../../composition/index.ts';"],
+    ["features/show/index.ts", "import {store} from '@acme/books/adapters/memory/book.ts';"],
     [
-      "features/show/entry.ts",
+      "features/show/index.ts",
       "import type {store} from '@acme/books/adapters/memory/book.ts'; export type X = typeof store;",
     ],
-    ["features/unexposed/entry.ts", "import {handler} from '../show/handler.ts';"],
+    ["features/unexposed/index.ts", "import {handler} from '../show/handler.ts';"],
     [
-      "features/unexposed/entry.ts",
+      "features/unexposed/index.ts",
       "import type {handler} from '../show/handler.ts'; export type X = typeof handler;",
     ],
-    ["features/show/node.ts", "import {handler} from './handler.ts'; export const show = handler;"],
+    [
+      "features/show/index.ts",
+      "import {handler} from './handler.ts'; export const show = handler;",
+    ],
     ["ways-in/web/endpoints.ts", "import {root} from '../../composition/index.ts';"],
+    ["features/index.ts", "export {root} from '../composition/index.ts';"],
     ["ways-in/web/endpoints.ts", "import {entry} from '../../features/entries.ts';"],
   ]) {
     const violations = await violatedRules(
@@ -169,7 +174,7 @@ it("per-node entries are shared browser roots, including unexposed and custom ro
   }
   const mainDoor = {
     ...tree,
-    [root + "features/unexposed/entry.ts"]:
+    [root + "features/unexposed/index.ts"]:
       "import * as server from '@house-rules/application'; export const entry = server;",
   };
   assert.ok(

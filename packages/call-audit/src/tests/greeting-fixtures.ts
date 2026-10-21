@@ -1,11 +1,4 @@
-import {
-  bindNode,
-  defineEntry,
-  May,
-  NodeRuntime,
-  runEntry,
-  StepTrace,
-} from "@house-rules/application";
+import { defineFeature, May, Runtime, runFeature, StepTrace } from "@house-rules/application";
 import { Context, Effect, Layer, Option, Schema } from "effect";
 import { type memoryAuditLog, CallAudit } from "../index.ts";
 
@@ -37,13 +30,15 @@ const greeting = (
   permission: "greetings:read" | null,
   handler: typeof greetHandler,
 ) => {
-  const node = { ...base, name, permission };
-  const entry = defineEntry(node, {
+  const entry = defineFeature(name, {
+    ...base,
+    permission,
     start: { kind: "system", reason: "audit test", startedBy: "test" },
+    handler,
   });
-  const runtime = NodeRuntime.layer({
-    bindings: [bindNode(node, handler)],
-    entries: [entry],
+  const runtime = Runtime.layer({
+    bindings: [],
+    features: [entry],
     ways: [],
   });
   return {
@@ -52,7 +47,7 @@ const greeting = (
       input: typeof base.input.Type,
       allowed: readonly "greetings:read"[] = ["greetings:read"],
     ) =>
-      runEntry(entry, input).pipe(
+      runFeature(entry, input).pipe(
         Effect.provide(
           Layer.mergeAll(
             runtime,

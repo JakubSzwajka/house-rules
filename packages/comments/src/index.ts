@@ -7,10 +7,7 @@ export { commentPolicy } from "./comment/policy.js";
 export { memoryCommentStore } from "./adapters/memory/comment.js";
 export { postgresCommentStore } from "./adapters/postgres/comment.js";
 export {
-  addComment,
-  editComment,
-  listComments,
-  removeComment,
+  CommentsOperations,
   Comment,
   CommentCursor,
   CommentInputInvalid,

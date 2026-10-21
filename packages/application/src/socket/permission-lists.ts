@@ -1,10 +1,10 @@
 import { PerRequest, type Permission } from "@house-rules/domain";
 import { Context } from "effect";
-import type { AnyEntry } from "../entry/entry.ts";
+import type { AnyFeature } from "../feature/feature.ts";
 
-export const entryAndRecheck = "entry-and-recheck";
-export const entryOnly = "entry-only";
-export type GatePolicy = typeof entryAndRecheck | typeof entryOnly;
+export const featureAndRecheck = "feature-and-recheck";
+export const featureOnly = "feature-only";
+export type GatePolicy = typeof featureAndRecheck | typeof featureOnly;
 export type PermissionLists = Readonly<{
   system: readonly Permission[];
   via: string;
@@ -14,7 +14,7 @@ export class CallPermissions extends Context.Service<
   CallPermissions,
   PermissionLists &
     Readonly<{
-      entries: readonly AnyEntry[];
+      features: readonly AnyFeature[];
       person: readonly Permission[];
     }>
 >()("@house-rules/application/CallPermissions") {

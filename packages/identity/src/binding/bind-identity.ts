@@ -1,4 +1,4 @@
-import { type Binding, bindNode } from "@house-rules/application";
+import { type Binding, bindOperation } from "@house-rules/application";
 import type { ActorId, NoOpenUnit } from "@house-rules/domain";
 import { Effect, type Option } from "effect";
 import {
@@ -8,7 +8,7 @@ import {
   IdentityCallerDenied,
   type IdentityStoreUnavailable,
 } from "./binding.js";
-import { bindLogin } from "./nodes.js";
+import { IdentityOperations } from "./operations.js";
 
 type Login = Readonly<{ issuer: string; subject: string }>;
 type Service = {
@@ -32,7 +32,7 @@ type Service = {
 };
 
 export const bindIdentity = (service: Service): readonly Binding[] => [
-  bindNode(bindLogin, ({ issuer, subject, personId }, { caller }) =>
+  bindOperation(IdentityOperations.bindLogin, ({ issuer, subject, personId }, { caller }) =>
     caller.kind === "system"
       ? service.bind({ issuer, subject }, personId).pipe(Effect.as(personId))
       : Effect.fail(new IdentityCallerDenied()),

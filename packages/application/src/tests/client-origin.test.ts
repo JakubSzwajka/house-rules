@@ -1,18 +1,12 @@
-import { defineNode } from "@house-rules/domain";
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation } from "@house-rules/domain";
 import { expect, it, vi } from "@effect/vitest";
 import { Effect, Layer, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
-import {
-  defineApi,
-  defineEntry,
-  endpoint,
-  HttpFailure,
-  toHttpClient,
-  toPromiseClient,
-} from "../index.ts";
+import { defineApi, endpoint, HttpFailure, toHttpClient, toPromiseClient } from "../index.ts";
 
-const read = defineEntry(
-  defineNode("read_value", {
+const read = featureFixture(
+  defineOperation("read_value", {
     description: "Read one value by id.",
     input: Schema.Struct({ id: Schema.String }),
     output: Schema.String,
@@ -21,8 +15,8 @@ const read = defineEntry(
   }),
 );
 
-const write = defineEntry(
-  defineNode("write_value", {
+const write = featureFixture(
+  defineOperation("write_value", {
     description: "Write one value.",
     input: Schema.Struct({ value: Schema.String }),
     output: Schema.String,
@@ -34,7 +28,7 @@ const write = defineEntry(
 type Hit = Readonly<{ url: string; method: string; bearer: boolean; init?: RequestInit }>;
 
 const reply = (body: string | null, init: ResponseInit): Promise<Response> =>
-  // This workspace loads two @types/node versions, so tsc sees the Response constructor and the Response type differ.
+  // This workspace loads two @types/callable versions, so tsc sees the Response constructor and the Response type differ.
   Promise.resolve(new Response(body, init) as Response);
 
 const network = (status: number) => {

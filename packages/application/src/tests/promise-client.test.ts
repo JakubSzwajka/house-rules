@@ -1,7 +1,7 @@
 import { afterAll, expect, it, vi } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import {
-  type CallEntry,
+  type CallReport,
   defineApi,
   endpoint,
   HttpFailure,
@@ -133,13 +133,13 @@ it.effect("the token goes out as Authorization: Bearer, and none goes out withou
 
 it.effect("onCall reports every call, with its failure code", () =>
   Effect.gen(function* report() {
-    const entries: Array<CallEntry> = [];
-    const client = clientWith({ onCall: (entry) => entries.push(entry) });
+    const features: Array<CallReport> = [];
+    const client = clientWith({ onCall: (feature) => features.push(feature) });
     yield* Effect.promise(() => client.showBooking({ id: "b 1" }).catch(() => undefined));
     yield* Effect.promise(() => client.findBookings({ by: "guest", guest: "Ada" }));
     yield* failureOf(() => client.showBooking({ id: "missing" }));
     yield* failureOf(() => client.crash({}));
-    expect(entries.map(({ ms: _ms, requestId: _id, ...entry }) => entry)).toEqual([
+    expect(features.map(({ ms: _ms, requestId: _id, ...feature }) => feature)).toEqual([
       {
         name: "show_booking",
         method: "GET",
@@ -162,7 +162,7 @@ it.effect("onCall reports every call, with its failure code", () =>
       },
       { name: "crash", method: "POST", path: "/api/crash", status: 500, code: "Unknown" },
     ]);
-    expect(entries.every((entry) => Number.isInteger(entry.ms) && entry.ms >= 0)).toBe(true);
+    expect(features.every((feature) => Number.isInteger(feature.ms) && feature.ms >= 0)).toBe(true);
   }),
 );
 

@@ -52,7 +52,7 @@ it.effect("call() decodes its input, because a server action's input is untruste
     const sneaky = {
       by: "nights",
       minNights: "5",
-    } as unknown as typeof findBookings.node.input.Type;
+    } as unknown as typeof findBookings.input.Type;
     const result = yield* Effect.promise(() =>
       call(t.app, findBookings, sneaky, signedIn, { way: "api" }),
     );

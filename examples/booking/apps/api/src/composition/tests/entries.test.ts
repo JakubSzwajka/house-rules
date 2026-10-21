@@ -1,6 +1,6 @@
-import { runEntry } from "@house-rules/application";
+import { runFeature } from "@house-rules/application";
 import { assert, it } from "@effect/vitest";
-import { Entries, memberPermissions, systemPermissions } from "../entries.ts";
+import { Features, memberPermissions, systemPermissions } from "../../features/index.ts";
 import { makeFakePaymentProvider } from "@example/billing";
 import { Bookings, BookingNotFound } from "@example/bookings";
 import { May, StepTrace } from "@house-rules/application";
@@ -9,13 +9,13 @@ import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { memoryAuditLog } from "@house-rules/call-audit";
 import { Effect, Layer, Context } from "effect";
 import { TestClock } from "effect/testing";
-import { modulesLayer, plugSockets, scheduleEntries } from "../index.ts";
+import { modulesLayer, plugSockets, scheduleFeatures } from "../index.ts";
 
 const alice = Actor.make({ id: ActorId.make("alice") });
 const input = { id: "booking", guestName: "Alice", paymentId: "payment", amount: 100 };
 
 it.effect(
-  "checks closures before work, asks once, transacts once, traces only two inner steps, and audits entries",
+  "checks closures before work, asks once, transacts once, traces only two inner steps, and audits features",
   () =>
     Effect.gen(function* () {
       const provider = makeFakePaymentProvider();
@@ -50,9 +50,9 @@ it.effect(
       const may = (
         person: readonly `${string}:${string}`[] = memberPermissions,
         system: readonly `${string}:${string}`[] = systemPermissions,
-      ) => May.context(May.fixed(Object.values(Entries), person), { system, via: "in-process" });
+      ) => May.context(May.fixed(Object.values(Features), person), { system, via: "in-process" });
 
-      const refused = yield* runEntry(Entries.makeBooking, input).pipe(
+      const refused = yield* runFeature(Features.makeBooking, input).pipe(
         withRequestId("no-charge"),
         Effect.provideContext(Context.merge(runContext, may(["bookings:write"]))),
         Effect.flip,
@@ -65,19 +65,19 @@ it.effect(
       assert.deepStrictEqual((yield* trace.read("no-charge")).steps, []);
       assert.strictEqual(log.entries().length, 1);
 
-      yield* runEntry(Entries.makeBooking, input).pipe(
+      yield* runFeature(Features.makeBooking, input).pipe(
         withRequestId("make"),
         Effect.provideContext(Context.merge(runContext, may())),
       );
       assert.strictEqual(transactions, 1);
       assert.strictEqual(approvals, 0);
-      yield* runEntry(Entries.showBooking, { id: input.id }).pipe(
+      yield* runFeature(Features.showBooking, { id: input.id }).pipe(
         Effect.provideContext(Context.merge(runContext, may())),
       );
       assert.strictEqual(transactions, 1);
       assert.strictEqual(approvals, 0);
 
-      const denied = yield* runEntry(Entries.cancelBooking, { id: input.id }).pipe(
+      const denied = yield* runFeature(Features.cancelBooking, { id: input.id }).pipe(
         withRequestId("no-refund"),
         Effect.provideContext(Context.merge(runContext, may(memberPermissions, []))),
         Effect.flip,
@@ -86,7 +86,7 @@ it.effect(
       assert.deepStrictEqual((yield* trace.read("no-refund")).steps, []);
       assert.strictEqual(approvals, 0);
       assert.strictEqual(transactions, 1);
-      yield* runEntry(Entries.cancelBooking, { id: input.id }).pipe(
+      yield* runFeature(Features.cancelBooking, { id: input.id }).pipe(
         withRequestId("cancel"),
         Effect.provideContext(Context.merge(runContext, may())),
       );
@@ -118,26 +118,26 @@ it.effect("runs the schedule once using Effect Clock, expires only pending older
     const trace = Context.get(context, StepTrace);
     const request = Context.merge(
       Context.add(context, CurrentActor, alice),
-      May.context(May.fixed(Object.values(Entries), memberPermissions), {
+      May.context(May.fixed(Object.values(Features), memberPermissions), {
         system: systemPermissions,
         via: "test",
       }),
     );
-    yield* runEntry(Entries.makeBooking, input).pipe(
+    yield* runFeature(Features.makeBooking, input).pipe(
       Effect.provideContext(request),
       Effect.provide(Approval.allowAll),
     );
     yield* TestClock.adjust("24 hours");
-    const atBoundary = yield* scheduleEntries.nightlyCleanup.pipe(Effect.provideContext(context));
+    const atBoundary = yield* scheduleFeatures.nightlyCleanup.pipe(Effect.provideContext(context));
     assert.strictEqual(atBoundary.expired, 0);
     yield* TestClock.adjust(1);
-    const expired = yield* scheduleEntries.nightlyCleanup.pipe(
+    const expired = yield* scheduleFeatures.nightlyCleanup.pipe(
       withRequestId("schedule"),
       Effect.provideContext(context),
     );
     assert.strictEqual(expired.expired, 1);
     assert.deepStrictEqual(
-      (yield* trace.read("schedule")).steps.map((s) => [s.entry, s.target, s.caller, s.reason]),
+      (yield* trace.read("schedule")).steps.map((s) => [s.feature, s.target, s.caller, s.reason]),
       [["nightly_cleanup", "Billing.expirePending", "system", "nightly cleanup"]],
     );
   }).pipe(Effect.scoped),
