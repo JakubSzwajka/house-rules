@@ -1,0 +1,146 @@
+import { runEntry } from "@house-rules/application";
+import { assert, it } from "@effect/vitest";
+import { Entries, memberPermissions, systemPermissions } from "../entries.ts";
+import { makeFakePaymentProvider } from "@example/billing";
+import { Bookings, BookingNotFound } from "@example/bookings";
+import { May, StepTrace } from "@house-rules/application";
+import { Approval, CurrentActor, withRequestId } from "@house-rules/application";
+import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
+import { memoryAuditLog } from "@house-rules/call-audit";
+import { Effect, Layer, Context } from "effect";
+import { TestClock } from "effect/testing";
+import { mountMemoryModules, plugSockets, scheduleEntries } from "../index.ts";
+
+const alice = Actor.make({ id: ActorId.make("alice") });
+const input = { id: "booking", guestName: "Alice", paymentId: "payment", amount: 100 };
+
+it.effect(
+  "checks closures before work, asks once, transacts once, traces only two inner steps, and audits entries",
+  () =>
+    Effect.gen(function* () {
+      const provider = makeFakePaymentProvider();
+      const log = memoryAuditLog();
+      let approvals = 0;
+      let transactions = 0;
+      const modules = mountMemoryModules({ provider: provider.layer, log });
+      const counted = Layer.effect(
+        UnitOfWork,
+        Effect.gen(function* () {
+          const unit = yield* UnitOfWork;
+          return {
+            atomic: (work) =>
+              Effect.sync(() => {
+                transactions++;
+              }).pipe(Effect.andThen(unit.atomic(work))),
+          };
+        }),
+      ).pipe(Layer.provide(modules));
+      const context = yield* Layer.build(plugSockets(Layer.merge(modules, counted)));
+      const trace = Context.get(context, StepTrace);
+      const bookings = Context.get(context, Bookings);
+      const approval = Approval.of({
+        approve: () =>
+          Effect.sync(() => {
+            approvals++;
+          }),
+      });
+      const runContext = Context.add(context, CurrentActor, alice).pipe(
+        Context.add(Approval, approval),
+      );
+      const may = (
+        person: readonly `${string}:${string}`[] = memberPermissions,
+        system: readonly `${string}:${string}`[] = systemPermissions,
+      ) => May.context(May.fixed(Object.values(Entries), person), { system, via: "in-process" });
+
+      const refused = yield* runEntry(Entries.makeBooking, input).pipe(
+        withRequestId("no-charge"),
+        Effect.provideContext(Context.merge(runContext, may(["bookings:write"]))),
+        Effect.flip,
+      );
+      assert.strictEqual(refused._tag, "Forbidden");
+      assert.strictEqual(transactions, 0);
+      assert.strictEqual(approvals, 0);
+      assert.deepStrictEqual(yield* provider.calls, []);
+      assert.instanceOf(yield* bookings.get(alice, input.id).pipe(Effect.flip), BookingNotFound);
+      assert.deepStrictEqual((yield* trace.read("no-charge")).steps, []);
+      assert.strictEqual(log.entries().length, 1);
+
+      yield* runEntry(Entries.makeBooking, input).pipe(
+        withRequestId("make"),
+        Effect.provideContext(Context.merge(runContext, may())),
+      );
+      assert.strictEqual(transactions, 1);
+      assert.strictEqual(approvals, 0);
+      yield* runEntry(Entries.showBooking, { id: input.id }).pipe(
+        Effect.provideContext(Context.merge(runContext, may())),
+      );
+      assert.strictEqual(transactions, 1);
+      assert.strictEqual(approvals, 0);
+
+      const denied = yield* runEntry(Entries.cancelBooking, { id: input.id }).pipe(
+        withRequestId("no-refund"),
+        Effect.provideContext(Context.merge(runContext, may(memberPermissions, []))),
+        Effect.flip,
+      );
+      assert.strictEqual(denied._tag, "Forbidden");
+      assert.deepStrictEqual((yield* trace.read("no-refund")).steps, []);
+      assert.strictEqual(approvals, 0);
+      assert.strictEqual(transactions, 1);
+      yield* runEntry(Entries.cancelBooking, { id: input.id }).pipe(
+        withRequestId("cancel"),
+        Effect.provideContext(Context.merge(runContext, may())),
+      );
+      assert.strictEqual(approvals, 1);
+      assert.strictEqual(transactions, 2);
+      assert.deepStrictEqual(
+        (yield* trace.read("cancel")).steps.map((s) => [s.target, s.caller, s.reason, s.order]),
+        [
+          ["Bookings.cancel", "person", null, 1],
+          ["Billing.refund", "system", "refund after cancel", 2],
+        ],
+      );
+      assert.deepStrictEqual(
+        (yield* provider.calls).map((c) => c.operation),
+        ["charge", "refund"],
+      );
+      assert.strictEqual(log.entries().length, 5);
+      assert.deepStrictEqual(
+        log.entries().map((e) => e.capability),
+        ["make_booking", "make_booking", "show_booking", "cancel_booking", "cancel_booking"],
+      );
+    }).pipe(Effect.scoped),
+);
+
+it.effect("runs the schedule once using Effect Clock, expires only pending older than 24h", () =>
+  Effect.gen(function* () {
+    const provider = makeFakePaymentProvider({ chargeStatus: "pending" });
+    const context = yield* Layer.build(
+      plugSockets(mountMemoryModules({ provider: provider.layer })),
+    );
+    const trace = Context.get(context, StepTrace);
+    const request = Context.merge(
+      Context.add(context, CurrentActor, alice),
+      May.context(May.fixed(Object.values(Entries), memberPermissions), {
+        system: systemPermissions,
+        via: "test",
+      }),
+    );
+    yield* runEntry(Entries.makeBooking, input).pipe(
+      Effect.provideContext(request),
+      Effect.provide(Approval.allowAll),
+    );
+    yield* TestClock.adjust("24 hours");
+    const atBoundary = yield* scheduleEntries.nightlyCleanup.pipe(Effect.provideContext(context));
+    assert.strictEqual(atBoundary.expired, 0);
+    yield* TestClock.adjust(1);
+    const expired = yield* scheduleEntries.nightlyCleanup.pipe(
+      withRequestId("schedule"),
+      Effect.provideContext(context),
+    );
+    assert.strictEqual(expired.expired, 1);
+    assert.deepStrictEqual(
+      (yield* trace.read("schedule")).steps.map((s) => [s.entry, s.target, s.caller, s.reason]),
+      [["nightly_cleanup", "Billing.expirePending", "system", "nightly cleanup"]],
+    );
+  }).pipe(Effect.scoped),
+);

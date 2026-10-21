@@ -1,0 +1,31 @@
+{
+  "name": "@example/billing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/contract.ts"
+  },
+  "houseRules": {
+    "migrations": "migrations"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "varlock run --path ../../../../ -- vitest run"
+  },
+  "dependencies": {
+    "@house-rules/application": "workspace:0.2.0",
+    "@house-rules/domain": "workspace:0.1.0",
+    "effect": "4.0.3"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "4.0.3",
+    "@effect/platform-node-shared": "4.0.3",
+    "@effect/sql-pg": "4.0.3",
+    "@effect/vitest": "4.0.3",
+    "@house-rules/migrations": "workspace:0.3.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}

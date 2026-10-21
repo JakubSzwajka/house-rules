@@ -1,0 +1,68 @@
+import {
+  composition,
+  protectedResource,
+  type WayOptions,
+  type WhoSocket,
+  type GatePolicy,
+} from "@house-rules/application";
+import { type ActorResolver, type FirstSignIn } from "@house-rules/identity";
+import { Config } from "effect";
+import { Entries, systemPermissions } from "./entries.ts";
+import { plugSockets } from "./app-layer.ts";
+import { mountMemoryModules } from "./modules.ts";
+import type { DemoIssuers } from "./demo-issuers.ts";
+import type { McpAuthenticator } from "./mcp-authenticator.ts";
+export const resourceOf = (appOrigin: string, issuer: string) =>
+  issuer === ""
+    ? protectedResource(undefined, "/mcp")
+    : protectedResource({
+        resource: `${new URL(appOrigin).origin}/mcp`,
+        authorizationServers: [issuer],
+        resourceName: "Booking",
+      });
+type WhoServices = DemoIssuers | McpAuthenticator | ActorResolver | FirstSignIn;
+export type WayPlugs = {
+  web: WhoSocket<WhoServices>;
+  partner: WhoSocket<WhoServices>;
+  mcp: WhoSocket<WhoServices>;
+};
+type AppWay =
+  | Omit<Extract<WayOptions<WhoServices>, { protocol: "http" }>, "overrides">
+  | Omit<Extract<WayOptions<WhoServices>, { protocol: "mcp" }>, "overrides">;
+export type OpenWays = readonly AppWay[];
+export const createApp = <E = never>(
+  ways: OpenWays,
+  options: {
+    modules?: Parameters<typeof plugSockets<E>>[0];
+    nodeEnv?: string;
+    issuer?: string;
+    gatePolicy?: GatePolicy;
+  } = {},
+) => {
+  const layer = plugSockets(
+    options.modules ?? mountMemoryModules(),
+    ways,
+    options.nodeEnv,
+    options.issuer,
+  );
+  return composition({
+    layer,
+    entries: Object.values(Entries),
+    ways,
+    system: systemPermissions,
+    ...(options.gatePolicy === undefined ? {} : { gatePolicy: options.gatePolicy }),
+  });
+};
+export const appConfig = Config.all({
+  databaseUrl: Config.String("DATABASE_URL").pipe(Config.withDefault("")),
+  mcpIssuer: Config.String("MCP_AUTH_ISSUER").pipe(Config.withDefault("")),
+  nodeEnv: Config.String("NODE_ENV").pipe(Config.withDefault("development")),
+  port: Config.Int("PORT").pipe(Config.withDefault(3000)),
+  appOrigin: Config.String("APP_ORIGIN").pipe(Config.withDefault("http://localhost:3000")),
+});
+export { mountMemoryModules, mountPostgresModules, readUnavailablePort } from "./modules.ts";
+export { plugSockets } from "./app-layer.ts";
+export { DemoIssuers, DemoForbidden } from "./demo-issuers.ts";
+export { McpAuthenticator } from "./mcp-authenticator.ts";
+export { Entries, memberPermissions, systemPermissions } from "./entries.ts";
+export { scheduleEntries } from "./schedule.ts";
