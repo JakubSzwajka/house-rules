@@ -17,8 +17,10 @@ Use `apps/api/REGISTRY.md` to navigate callers and closures. `TESTS.md` maps the
 
 ## Run and limits
 
-Use the root's pinned Node and pnpm. Start Postgres with `docker compose up -d`, run `pnpm --filter @example/api build`, then run through the root's validated environment. Existing `.env.schema` variables configure the database, origin, port and MCP issuer. Tests create and drop their own databases.
+Use the root's pinned Node and pnpm. Start Postgres with `docker compose up -d`, run `pnpm --filter @example/api build`, then run through the root's validated environment. `composition/modules.ts` exports `modulesLayer({ provider?, log? })`. It selects all storage from `STORAGE`, defaulting to `memory`. Set `STORAGE=postgres` and `DATABASE_URL` for Postgres; a missing or empty URL fails configuration rather than falling back. Apply module migrations before serving. The origin, port and MCP issuer also come from `.env.schema`.
 
-Without a database MyStuff returns unavailable, never memory rows. Unset MCP auth fails closed. Local demo JWT issuers refuse production startup. No UI, timer or real payment integration is supplied.
+Tests create and drop their own databases. `composition/tests/database.ts` provides a ConfigProvider with `STORAGE=postgres` and that test database URL to the same modules layer. Payment-provider and memory audit-log doubles remain explicit options.
+
+With memory storage MyStuff returns unavailable, never memory rows. Unset MCP auth fails closed. Local demo JWT issuers refuse production startup. No UI, timer or real payment integration is supplied.
 
 P2 is the open gate-policy decision. Set `gatePolicy` on `createApp` in `apps/api/src/composition/index.ts`. The default, `entry-and-recheck`, checks entry closures and each inner node's own permission. Switch to `entry-only` to skip inner rechecks. Both are tested; neither removes entry closure checks.

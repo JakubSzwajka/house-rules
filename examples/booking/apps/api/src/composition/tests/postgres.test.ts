@@ -9,7 +9,7 @@ import { Approval, CurrentActor, withRequestId } from "@house-rules/application"
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { CallAudit } from "@house-rules/call-audit";
 import { Context, Effect, Layer } from "effect";
-import { mountPostgresModules, plugSockets } from "../index.ts";
+import { modulesLayer, plugSockets } from "../index.ts";
 import { databaseTesting } from "./database.ts";
 
 it.effect(
@@ -19,7 +19,11 @@ it.effect(
       const provider = makeFakePaymentProvider();
       const database = yield* Layer.build(databaseTesting);
       const ctx = yield* Layer.build(
-        plugSockets(mountPostgresModules(Layer.succeedContext(database), provider.layer)),
+        plugSockets(
+          modulesLayer({ provider: provider.layer }).pipe(
+            Layer.provide(Layer.succeedContext(database)),
+          ),
+        ),
       );
       const alice = Actor.make({ id: ActorId.make("alice") });
       const trace = Context.get(ctx, StepTrace);
@@ -98,7 +102,9 @@ it.effect(
   "MyStuff filters A/B ownership in SQL including mismatched payment owners",
   () =>
     Effect.gen(function* () {
-      const ctx = yield* Layer.build(plugSockets(mountPostgresModules(databaseTesting)));
+      const ctx = yield* Layer.build(
+        plugSockets(modulesLayer().pipe(Layer.provide(databaseTesting))),
+      );
       const bookings = Context.get(ctx, Bookings);
       const billing = Context.get(ctx, Billing);
       const read = Context.get(ctx, MyStuff);

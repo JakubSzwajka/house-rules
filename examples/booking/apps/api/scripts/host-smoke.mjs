@@ -26,7 +26,8 @@ const start = (nodeEnv) =>
   spawn(process.execPath, ["dist/main.js"], {
     env: {
       ...process.env,
-      DATABASE_URL: "",
+      STORAGE: process.env.STORAGE ?? "memory",
+      DATABASE_URL: process.env.DATABASE_URL ?? "",
       MCP_AUTH_ISSUER: "",
       NODE_ENV: nodeEnv,
       PORT: String(port),
@@ -60,7 +61,7 @@ try {
   }
   assert.equal(response.status, 503);
   assert.match(await response.text(), /not_configured/u);
-  console.log("built Host: GET /mcp -> 503 not_configured");
+  console.log(`built Host (${process.env.STORAGE ?? "memory"}): GET /mcp -> 503 not_configured`);
 } finally {
   await stop(child);
 }
@@ -76,7 +77,9 @@ try {
   const [code] = await once(production, "exit");
   assert.notEqual(code, 0);
   assert.match(output, /DemoForbidden/u);
-  console.log("built production: exit nonzero DemoForbidden; both children exited");
+  console.log(
+    `built production (${process.env.STORAGE ?? "memory"}): exit nonzero DemoForbidden; both children exited`,
+  );
 } finally {
   await stop(production);
 }

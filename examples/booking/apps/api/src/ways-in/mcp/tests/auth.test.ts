@@ -4,12 +4,7 @@ import { AuthJwt, AuthJwtTesting } from "@house-rules/auth-jwt";
 import { Actor, ActorId } from "@house-rules/domain";
 import { Identity } from "@house-rules/identity";
 import { Effect, Layer } from "effect";
-import {
-  createApp,
-  Entries,
-  mountPostgresModules,
-  resourceOf,
-} from "../../../composition/index.ts";
+import { createApp, Entries, modulesLayer, resourceOf } from "../../../composition/index.ts";
 import { databaseTesting } from "../../../composition/tests/database.ts";
 import { webWay } from "../../web/way.ts";
 import { mcpWay } from "../way.ts";
@@ -151,7 +146,7 @@ it.live(
                 },
               },
             ],
-            { modules: mountPostgresModules(databaseTesting) },
+            { modules: modulesLayer().pipe(Layer.provide(databaseTesting)) },
           ),
         ),
         (app) => Effect.promise(() => app.dispose()),

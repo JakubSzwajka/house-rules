@@ -19,7 +19,7 @@ import { DemoIssuers } from "./demo-issuers.ts";
 import { McpAuthenticator } from "./mcp-authenticator.ts";
 import { newLoginHook } from "./first-sign-in.ts";
 import { Entries } from "./entries.ts";
-import { mountMemoryModules } from "./modules.ts";
+import { modulesLayer } from "./modules.ts";
 export const auditOptions = {
   who: Effect.serviceOption(CurrentActor).pipe(
     Effect.map(Option.match({ onNone: () => null, onSome: (actor) => actor.id })),
@@ -55,7 +55,7 @@ export const linkModules = (ways: NodeRuntimeOptions["ways"]) =>
     }),
   );
 export const plugSockets = <E>(
-  modules: Layer.Layer<Layer.Success<ReturnType<typeof mountMemoryModules>>, E>,
+  modules: Layer.Layer<Layer.Success<ReturnType<typeof modulesLayer>>, E>,
   ways: NodeRuntimeOptions["ways"] = [],
   nodeEnv = "development",
   mcpIssuer = "",

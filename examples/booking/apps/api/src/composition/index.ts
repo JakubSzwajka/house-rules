@@ -6,10 +6,10 @@ import {
   type GatePolicy,
 } from "@house-rules/application";
 import { type ActorResolver, type FirstSignIn } from "@house-rules/identity";
-import { Config } from "effect";
+import { Config, type Layer } from "effect";
 import { Entries, systemPermissions } from "./entries.ts";
 import { plugSockets } from "./app-layer.ts";
-import { mountMemoryModules } from "./modules.ts";
+import { modulesLayer } from "./modules.ts";
 import type { DemoIssuers } from "./demo-issuers.ts";
 import type { McpAuthenticator } from "./mcp-authenticator.ts";
 export const resourceOf = (appOrigin: string, issuer: string) =>
@@ -39,8 +39,8 @@ export const createApp = <E = never>(
     gatePolicy?: GatePolicy;
   } = {},
 ) => {
-  const layer = plugSockets(
-    options.modules ?? mountMemoryModules(),
+  const layer = plugSockets<E | Layer.Error<ReturnType<typeof modulesLayer>>>(
+    options.modules ?? modulesLayer(),
     ways,
     options.nodeEnv,
     options.issuer,
@@ -54,13 +54,12 @@ export const createApp = <E = never>(
   });
 };
 export const appConfig = Config.all({
-  databaseUrl: Config.String("DATABASE_URL").pipe(Config.withDefault("")),
   mcpIssuer: Config.String("MCP_AUTH_ISSUER").pipe(Config.withDefault("")),
   nodeEnv: Config.String("NODE_ENV").pipe(Config.withDefault("development")),
   port: Config.Int("PORT").pipe(Config.withDefault(3000)),
   appOrigin: Config.String("APP_ORIGIN").pipe(Config.withDefault("http://localhost:3000")),
 });
-export { mountMemoryModules, mountPostgresModules, readUnavailablePort } from "./modules.ts";
+export { modulesLayer, readUnavailablePort } from "./modules.ts";
 export { plugSockets } from "./app-layer.ts";
 export { DemoIssuers, DemoForbidden } from "./demo-issuers.ts";
 export { McpAuthenticator } from "./mcp-authenticator.ts";

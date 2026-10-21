@@ -3,9 +3,9 @@ import { runEntry, May, Approval, StepTrace } from "@house-rules/application";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { Identity } from "@house-rules/identity";
 import { Party, PersonNotFound } from "@house-rules/party";
-import { Context, Effect, Layer, Option } from "effect";
+import { ConfigProvider, Context, Effect, Layer, Option } from "effect";
 import { Entries, systemPermissions } from "../entries.ts";
-import { mountMemoryModules, mountPostgresModules, plugSockets } from "../index.ts";
+import { modulesLayer, plugSockets } from "../index.ts";
 import { databaseTesting } from "./database.ts";
 
 for (const backend of ["memory", "postgres"] as const)
@@ -13,8 +13,13 @@ for (const backend of ["memory", "postgres"] as const)
     `${backend}: first sign-in person and login binding share one entry unit`,
     () =>
       Effect.gen(function* () {
-        const modules =
-          backend === "memory" ? mountMemoryModules() : mountPostgresModules(databaseTesting);
+        const modules = modulesLayer().pipe(
+          Layer.provide(
+            backend === "memory"
+              ? ConfigProvider.layer(ConfigProvider.fromUnknown({ STORAGE: "memory" }))
+              : databaseTesting,
+          ),
+        );
         const created: ActorId[] = [];
         const observed = Layer.effect(
           Party,

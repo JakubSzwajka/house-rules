@@ -9,7 +9,7 @@ import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { memoryAuditLog } from "@house-rules/call-audit";
 import { Effect, Layer, Context } from "effect";
 import { TestClock } from "effect/testing";
-import { mountMemoryModules, plugSockets, scheduleEntries } from "../index.ts";
+import { modulesLayer, plugSockets, scheduleEntries } from "../index.ts";
 
 const alice = Actor.make({ id: ActorId.make("alice") });
 const input = { id: "booking", guestName: "Alice", paymentId: "payment", amount: 100 };
@@ -22,7 +22,7 @@ it.effect(
       const log = memoryAuditLog();
       let approvals = 0;
       let transactions = 0;
-      const modules = mountMemoryModules({ provider: provider.layer, log });
+      const modules = modulesLayer({ provider: provider.layer, log });
       const counted = Layer.effect(
         UnitOfWork,
         Effect.gen(function* () {
@@ -114,9 +114,7 @@ it.effect(
 it.effect("runs the schedule once using Effect Clock, expires only pending older than 24h", () =>
   Effect.gen(function* () {
     const provider = makeFakePaymentProvider({ chargeStatus: "pending" });
-    const context = yield* Layer.build(
-      plugSockets(mountMemoryModules({ provider: provider.layer })),
-    );
+    const context = yield* Layer.build(plugSockets(modulesLayer({ provider: provider.layer })));
     const trace = Context.get(context, StepTrace);
     const request = Context.merge(
       Context.add(context, CurrentActor, alice),

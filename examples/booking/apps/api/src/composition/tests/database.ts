@@ -1,7 +1,7 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { PgClient } from "@effect/sql-pg";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
-import { Layer } from "effect";
+import { ConfigProvider, Layer, Redacted } from "effect";
 
 const modules = [
   {
@@ -32,7 +32,16 @@ export const databaseTesting = Layer.effectDiscard(
     Layer.merge(
       MigrationsTesting.database({
         label: "acceptance",
-        client: (url) => PgClient.layer({ url, maxConnections: 3 }),
+        client: (url) =>
+          Layer.merge(
+            PgClient.layer({ url, maxConnections: 3 }),
+            ConfigProvider.layer(
+              ConfigProvider.fromUnknown({
+                STORAGE: "postgres",
+                DATABASE_URL: Redacted.value(url),
+              }),
+            ),
+          ),
       }),
       NodeServices.layer,
     ),

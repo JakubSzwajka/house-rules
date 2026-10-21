@@ -3,12 +3,7 @@ import { call, toFetchHandler, StepTrace } from "@house-rules/application";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { CallAudit, memoryAuditLog } from "@house-rules/call-audit";
 import { Context, Effect, Layer, Schema } from "effect";
-import {
-  createApp,
-  Entries,
-  mountMemoryModules,
-  mountPostgresModules,
-} from "../../../composition/index.ts";
+import { createApp, Entries, modulesLayer } from "../../../composition/index.ts";
 import { databaseTesting } from "../../../composition/tests/database.ts";
 import { makeFakePaymentProvider, NewPayment } from "@example/billing";
 import { Bookings, BookingNotFound, NewBooking } from "@example/bookings";
@@ -37,10 +32,11 @@ for (const backend of ["memory", "postgres"] as const)
         const provider = makeFakePaymentProvider();
         const log = memoryAuditLog();
         const database = backend === "postgres" ? yield* Layer.build(databaseTesting) : undefined;
+        const configured = modulesLayer({ provider: provider.layer, log });
         const modules =
           database === undefined
-            ? mountMemoryModules({ provider: provider.layer, log })
-            : mountPostgresModules(Layer.succeedContext(database), provider.layer);
+            ? configured
+            : configured.pipe(Layer.provide(Layer.succeedContext(database)));
         let transactions = 0;
         const counted = Layer.effect(
           UnitOfWork,

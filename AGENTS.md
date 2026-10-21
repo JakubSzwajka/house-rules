@@ -81,7 +81,7 @@ Execution runs CallWatch once, checks exposed entry identity, checks person then
 
 `NodeRuntime.layer` and composition acquisition reject cycles, missing bindings, invalid system reasons and duplicate exposures with typed GraphInvalid. Bindings capture long-lived module services. Only CallerContext may remain as a per-request handler requirement. Person execution installs CurrentActor from the same Actor; system execution cannot inherit person authority.
 
-The root owns `composition({ layer, entries, ways, system, gatePolicy? })`. Acquire modules, unit, trace and record; capture services and bind nodes; acquire NodeRuntime; then acquire hooks that need it. The router from toFetchHandler owns dispatch, endpoints, MCP toolkit and metadata paths. Do not hand-build Tool.make, Rpc.make or HttpApiEndpoint calls outside application. Dispose the router before the composition. Lazy build retries, scoped sharing, interruption and final disposal stay intact.
+The root owns `composition({ layer, entries, ways, system, gatePolicy? })`. Adapter selection happens only in the app's composition modules file, from config; main.ts, ways, features and tests get one modules layer and never name an adapter. Acquire modules, unit, trace and record; capture services and bind nodes; acquire NodeRuntime; then acquire hooks that need it. The router from toFetchHandler owns dispatch, endpoints, MCP toolkit and metadata paths. Do not hand-build Tool.make, Rpc.make or HttpApiEndpoint calls outside application. Dispose the router before the composition. Lazy build retries, scoped sharing, interruption and final disposal stay intact.
 
 ## Inside a module
 

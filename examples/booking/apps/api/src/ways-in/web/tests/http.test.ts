@@ -12,7 +12,7 @@ import { Identity } from "@house-rules/identity";
 import { Party } from "@house-rules/party";
 import { memoryAuditLog } from "@house-rules/call-audit";
 import { Context, Effect } from "effect";
-import { createApp, DemoIssuers, mountMemoryModules, Entries } from "../../../composition/index.ts";
+import { createApp, DemoIssuers, modulesLayer, Entries } from "../../../composition/index.ts";
 import { makeFakePaymentProvider } from "@example/billing";
 import { Bookings, BookingNotFound } from "@example/bookings";
 import { webWay } from "../way.ts";
@@ -48,7 +48,7 @@ it.live(
       const app = yield* Effect.acquireRelease(
         Effect.sync(() =>
           createApp([limited, partnerWay, mcpWay], {
-            modules: mountMemoryModules({ provider: provider.layer, log }),
+            modules: modulesLayer({ provider: provider.layer, log }),
           }),
         ),
         (app) => Effect.promise(() => app.dispose()),
