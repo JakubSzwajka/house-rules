@@ -1,7 +1,6 @@
 import { IdentityOperations } from "@house-rules/identity/contract";
 import { PartyOperations } from "@house-rules/party/contract";
-import { Schema } from "effect";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { defineFeature } from "@house-rules/application/contract";
 export const firstSignIn = defineFeature("first_sign_in", {
   description: "Create a person and bind a verified login atomically.",
@@ -19,12 +18,12 @@ export const firstSignIn = defineFeature("first_sign_in", {
   ]),
   edges: [PartyOperations.createPerson, IdentityOperations.bindLogin],
   start: { kind: "system", reason: "new login", startedBy: "hook:new-login" },
-  handler: (input, { call: callNode }) =>
+  handler: (input, { call }) =>
     Effect.gen(function* () {
-      const person = yield* callNode(PartyOperations.createPerson, {
+      const person = yield* call(PartyOperations.createPerson, {
         displayName: input.displayName,
       });
-      return yield* callNode(IdentityOperations.bindLogin, {
+      return yield* call(IdentityOperations.bindLogin, {
         issuer: input.issuer,
         subject: input.subject,
         personId: person.id,

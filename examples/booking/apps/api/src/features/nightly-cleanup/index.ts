@@ -9,5 +9,5 @@ export const nightlyCleanup = defineFeature("nightly_cleanup", {
   failure: BillingOperations.expirePending.failure,
   edges: [BillingOperations.expirePending],
   start: { kind: "system", reason: "nightly cleanup", startedBy: "schedule:nightly_cleanup" },
-  handler: (input, { call: callNode }) => callNode(BillingOperations.expirePending, input),
+  handler: (input, { call }) => call(BillingOperations.expirePending, input),
 });

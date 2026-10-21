@@ -1,7 +1,6 @@
 import { BookingsOperations, NewBooking } from "@example/bookings/contract";
 import { BillingOperations, NewPayment } from "@example/billing/contract";
-import { Schema } from "effect";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { defineFeature } from "@house-rules/application/contract";
 export const makeBooking = defineFeature("make_booking", {
   description: "Create a booking and charge its payment.",
@@ -15,11 +14,11 @@ export const makeBooking = defineFeature("make_booking", {
   output: BookingsOperations.book.output,
   failure: Schema.Union([BookingsOperations.book.failure, BillingOperations.initPayment.failure]),
   edges: [BookingsOperations.book, BillingOperations.initPayment],
-  handler: (input, { call: callNode }) =>
+  handler: (input, { call }) =>
     Effect.gen(function* () {
       const { paymentId, amount, ...bookingInput } = input;
-      const booking = yield* callNode(BookingsOperations.book, bookingInput);
-      yield* callNode(BillingOperations.initPayment, {
+      const booking = yield* call(BookingsOperations.book, bookingInput);
+      yield* call(BillingOperations.initPayment, {
         id: paymentId,
         bookingId: booking.id,
         amount,

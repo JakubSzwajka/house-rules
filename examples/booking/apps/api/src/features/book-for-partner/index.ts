@@ -8,5 +8,5 @@ export const partnerBooking = defineFeature("book_for_partner", {
   output: BookingsOperations.book.output,
   failure: BookingsOperations.book.failure,
   edges: [BookingsOperations.book],
-  handler: (input, { call: callNode }) => callNode(BookingsOperations.book, input),
+  handler: (input, { call }) => call(BookingsOperations.book, input),
 });

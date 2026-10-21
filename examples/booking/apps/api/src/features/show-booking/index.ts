@@ -9,5 +9,5 @@ export const showBooking = defineFeature("show_booking", {
   failure: BookingsOperations.get.failure,
   flags: { readOnly: true },
   edges: [BookingsOperations.get],
-  handler: (input, { call: callNode }) => callNode(BookingsOperations.get, input),
+  handler: (input, { call }) => call(BookingsOperations.get, input),
 });
