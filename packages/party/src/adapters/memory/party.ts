@@ -1,0 +1,102 @@
+import { UnitOfWork } from "@house-rules/domain";
+import { Effect, Layer } from "effect";
+import type { Assignment } from "../../assignment/assignment.js";
+import type { Organisation } from "../../organisation/organisation.js";
+import type { Relationship } from "../../relationship/relationship.js";
+import type { Role } from "../../role/role.js";
+import { PartyStore } from "../../storage.js";
+
+export const memoryPartyStore = (): Layer.Layer<PartyStore> =>
+  Layer.sync(PartyStore, () => {
+    const organisations = new Map<string, Organisation>();
+    const relationships = new Map<string, Relationship>();
+    const roles = new Map<string, Role>();
+    const assignments = new Map<string, Assignment>();
+    const copy = <A>(value: A): A => structuredClone(value);
+    const key = (value: Relationship | Assignment) => JSON.stringify(value);
+    const change = Effect.fn("PartyStore.memory.change")(function* <A>(run: () => A) {
+      yield* UnitOfWork.required;
+      const before = [
+        new Map(organisations),
+        new Map(relationships),
+        new Map(roles),
+        new Map(assignments),
+      ] as const;
+      yield* UnitOfWork.onRollback(
+        Effect.sync(() => {
+          organisations.clear();
+          for (const [k, v] of before[0]) organisations.set(k, v);
+          relationships.clear();
+          for (const [k, v] of before[1]) relationships.set(k, v);
+          roles.clear();
+          for (const [k, v] of before[2]) roles.set(k, v);
+          assignments.clear();
+          for (const [k, v] of before[3]) assignments.set(k, v);
+        }),
+      );
+      return run();
+    });
+    return PartyStore.of({
+      organisation: (id) => Effect.sync(() => copy(organisations.get(id))),
+      insertOrganisation: (value) =>
+        change(() => {
+          if (organisations.has(value.id)) return false;
+          organisations.set(value.id, copy(value));
+          return true;
+        }),
+      relate: (value) =>
+        change(() => {
+          relationships.set(key(value), copy(value));
+        }),
+      unrelate: (value) =>
+        change(() => {
+          relationships.delete(key(value));
+        }),
+      isRelated: (value) => Effect.sync(() => relationships.has(key(value))),
+      role: (id) => Effect.sync(() => copy(roles.get(id))),
+      roles: (organisationIds) =>
+        Effect.sync(() =>
+          copy(
+            [...roles.values()]
+              .filter(
+                (r) =>
+                  organisationIds == null ||
+                  (r.organisationId !== null && organisationIds.includes(r.organisationId)),
+              )
+              .sort((a, b) => a.key.localeCompare(b.key)),
+          ),
+        ),
+      putRole: (value) =>
+        change(() => {
+          roles.set(value.key, copy(value));
+        }),
+      deleteRole: (id) =>
+        change(() => {
+          roles.delete(id);
+          for (const [k, v] of assignments) if (v.roleKey === id) assignments.delete(k);
+        }),
+      assign: (value) =>
+        change(() => {
+          assignments.set(key(value), copy(value));
+        }),
+      revoke: (value) =>
+        change(() => {
+          assignments.delete(key(value));
+        }),
+      assignments: (id, organisationIds, builtInKeys = []) =>
+        Effect.sync(() =>
+          copy(
+            [...assignments.values()].filter(
+              (a) =>
+                a.personId === id &&
+                (organisationIds == null ||
+                  (a.organisationId === null
+                    ? builtInKeys.includes(a.roleKey)
+                    : organisationIds.includes(a.organisationId) &&
+                      (builtInKeys.includes(a.roleKey) ||
+                        roles.get(a.roleKey)?.organisationId === a.organisationId))),
+            ),
+          ),
+        ),
+    });
+  });

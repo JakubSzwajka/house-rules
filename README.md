@@ -57,16 +57,16 @@ Domain modules are packages, including app-owned ones such as `examples/booking/
 ## How a call runs
 
 ```text
-request -> way (Who, May, Mean) -> app feature
+request -> way (Who, Mean) -> app feature -> app May role check
   record -> feature identity -> person/system closures -> approval -> one unit
     handler -> declared edges -> module or read-model operations
                |
             step trace
 ```
 
-Application's `defineFeature` puts one app action and its handler in `features/<name>/index.ts`. A feature is its own entry. Its handler only calls declared edges, so the file stays browser-safe. `features/index.ts` exports Features and the permission lists.
+Application's `defineFeature` puts one app action and its handler in `features/<name>/index.ts`. A feature is its own entry. Its handler only calls declared edges, so the file stays browser-safe. `features/index.ts` exports only Features. Composition declares built-in roles and system permissions, and plugs `Party.may()` once. Party owns custom roles and assignments. The runtime publishes the operation permission catalogue.
 
-Domain's `defineOperation` describes module or read-model work. Modules export `<Module>Operations` from `./contract`. Application's `bindOperation` captures their services in composition. Only features can be exposed through ways, May lists, hooks or schedules.
+Domain's `defineOperation` describes module or read-model work. Modules export `<Module>Operations` from `./contract`. Application's `bindOperation` captures their services in composition. Only features can be exposed through ways, hooks or schedules.
 
 A plain edge keeps the caller. `asSystem(target, reason)` switches that branch to the system and never back. A feature derives its permission closures and flags from the graph. Approval runs once. Only the feature runtime opens a production unit; handlers and modules join it. A failed write rolls back the graph's stored changes, not external provider effects.
 

@@ -182,7 +182,9 @@ it("undefined has no second output schema to select", () => {
   if (fixture.way.protocol === "mcp") expect("success" in (fixture.way.tools[0] ?? {})).toBe(false);
 });
 it("feature failures retain real gate failures without a contract wrapper", () => {
-  expectTypeOf<FeatureFailure<typeof greet>>().toEqualTypeOf<NameIsEmpty | InnerFailure>();
+  expectTypeOf<FeatureFailure<typeof greet>>().toEqualTypeOf<
+    NameIsEmpty | InnerFailure | import("../index.ts").MayUnavailable
+  >();
   const ask = featureFixture(defineOperation("ask", { ...greet, needsApproval: true }));
   expectTypeOf<
     Extract<FeatureFailure<typeof ask>, ApprovalDenied>

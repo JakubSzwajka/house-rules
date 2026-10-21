@@ -6,6 +6,7 @@ import {
   type Endpoint,
   type AnyFeature,
   type MeanSocket,
+  type MaySocket,
   May,
   Mean,
   protectedResource,
@@ -25,6 +26,7 @@ type Options<Features extends readonly AnyFeature[], E> = Readonly<{
   who?: WhoSocket;
   mean?: MeanSocket;
   person?: readonly import("@house-rules/domain").Permission[];
+  may?: MaySocket<unknown>;
   extra?: Layer.Layer<never, E>;
   overrides?: WordingOverrides<WayFailure<Features>>;
 }>;
@@ -50,10 +52,6 @@ export const httpFixture = <
     protocol: "http",
     features,
     who: options.who ?? { resolve: () => Effect.succeed(testActor) },
-    may: May.fixed(
-      features,
-      options.person ?? features.flatMap((feature) => feature.closures.person),
-    ),
     mean: options.mean ?? Mean.no,
   });
   const runtime = Layer.merge(
@@ -61,7 +59,15 @@ export const httpFixture = <
     memoryUnitOfWork,
   );
   const layer = extra === undefined ? runtime : Layer.merge(runtime, extra);
-  const app = composition({ layer, features: features, ways: [way], system: [] });
+  const app = composition({
+    layer,
+    features: features,
+    ways: [way],
+    may:
+      options.may ??
+      May.fixed(options.person ?? features.flatMap((feature) => feature.closures.person)),
+    system: [],
+  });
   const handler = toFetchHandler(app);
   return { app, handler, way, dispose: () => handler.dispose().then(() => app.dispose()) };
 };
@@ -74,10 +80,9 @@ export const bothFixture = <
   options: Options<Features, E> & Readonly<{ endpoints: readonly Endpoint[] }>,
 ) => {
   const who = options.who ?? { resolve: () => Effect.succeed(testActor) };
-  const may = May.fixed(
-    features,
-    options.person ?? features.flatMap((feature) => feature.closures.person),
-  );
+  const may =
+    options.may ??
+    May.fixed(options.person ?? features.flatMap((feature) => feature.closures.person));
   const http = defineWay({
     name: "web",
     path: "/",
@@ -85,7 +90,6 @@ export const bothFixture = <
     features,
     endpoints: options.endpoints,
     who,
-    may,
     mean: Mean.no,
     ...(options.overrides === undefined ? {} : { overrides: options.overrides }),
   });
@@ -106,7 +110,6 @@ export const bothFixture = <
       authorizationServers: ["https://issuer.example"],
     }),
     who,
-    may,
     mean: Mean.elicitation,
     ...(options.overrides === undefined ? {} : { overrides: options.overrides }),
   });
@@ -115,7 +118,7 @@ export const bothFixture = <
     memoryUnitOfWork,
   );
   const layer = options.extra === undefined ? runtime : Layer.merge(runtime, options.extra);
-  const app = composition({ layer, features: features, ways: [http, mcp], system: [] });
+  const app = composition({ layer, features: features, ways: [http, mcp], may, system: [] });
   const handler = toFetchHandler(app);
   return { app, handler, dispose: () => handler.dispose().then(() => app.dispose()) };
 };
@@ -149,10 +152,6 @@ export const mcpFixture = <const Features extends readonly Fixture<AnyFeature, n
         authorizationServers: ["https://issuer.example"],
       }),
     who: options.who ?? { resolve: () => Effect.succeed(testActor) },
-    may: May.fixed(
-      features,
-      options.person ?? features.flatMap((feature) => feature.closures.person),
-    ),
     mean: options.mean ?? Mean.elicitation,
   });
   const runtime = Layer.merge(
@@ -160,7 +159,15 @@ export const mcpFixture = <const Features extends readonly Fixture<AnyFeature, n
     memoryUnitOfWork,
   );
   const layer = extra === undefined ? runtime : Layer.merge(runtime, extra);
-  const app = composition({ layer, features: features, ways: [way], system: [] });
+  const app = composition({
+    layer,
+    features: features,
+    ways: [way],
+    may:
+      options.may ??
+      May.fixed(options.person ?? features.flatMap((feature) => feature.closures.person)),
+    system: [],
+  });
   const handler = toFetchHandler(app);
   return { app, handler, way, dispose: () => handler.dispose().then(() => app.dispose()) };
 };

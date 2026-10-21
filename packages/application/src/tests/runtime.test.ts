@@ -92,7 +92,9 @@ it.effect("inherits the original system caller and removes ambient person author
     const trace = StepTrace.make();
     yield* runFeature(feature, {}).pipe(
       Effect.provide(RuntimeFixture.layer({ bindings, features: [feature], ways: [] })),
-      Effect.provideContext(May.context(May.fixed([feature], []), { system: [], via: "web" })),
+      Effect.provideContext(
+        May.context(May.fixed([]), { features: [feature], system: [], via: "web" }),
+      ),
       Effect.provideService(StepTrace, trace),
       Effect.provideService(CurrentActor, actor),
       withRequestId("system-switch"),
@@ -134,7 +136,9 @@ it.effect("refuses forged undeclared calls by descriptor identity", () =>
     const error = yield* Effect.flip(
       runFeature(feature, {}).pipe(
         Effect.provide(RuntimeFixture.layer({ bindings: [bad], features: [feature], ways: [] })),
-        Effect.provideContext(May.context(May.fixed([feature], []), { system: [], via: "test" })),
+        Effect.provideContext(
+          May.context(May.fixed([]), { features: [feature], system: [], via: "test" }),
+        ),
         Effect.provide(StepTrace.layer()),
         Effect.provideService(CurrentActor, actor),
       ),

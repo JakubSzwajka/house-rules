@@ -2,7 +2,6 @@ import type { Endpoint } from "../contract/endpoint.ts";
 import type { AnyFeature } from "../feature/feature.ts";
 import type { FeatureFailure } from "../execution/run-feature.ts";
 import type { ProtectedResource } from "../auth/protected-resource.ts";
-import type { MaySocket } from "../socket/may.ts";
 import type { MeanSocket } from "../socket/mean.ts";
 import type { WhoSocket } from "../socket/who.ts";
 import type { CorsOptions } from "./cors.ts";
@@ -23,7 +22,6 @@ export type WayOptions<
   path: `/${string}`;
   features: Features;
   who: WhoSocket<R>;
-  may: MaySocket;
   mean: MeanSocket;
   overrides?: WordingOverrides<WayFailure<Features>>;
 }> &

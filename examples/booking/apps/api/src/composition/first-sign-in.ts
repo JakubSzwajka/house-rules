@@ -1,4 +1,5 @@
-import { Features, systemPermissions } from "../features/index.ts";
+import { Features } from "../features/index.ts";
+import { systemPermissions } from "./roles.ts";
 import {
   May,
   Runtime,
@@ -23,7 +24,7 @@ export const newLoginHook = Layer.effect(
       Context.add(UnitOfWork, unit),
       Context.add(CallWatch, watch),
     );
-    const permissions = May.context(May.system([Features.firstSignIn]), {
+    const permissions = May.system([Features.firstSignIn], {
       system: systemPermissions,
       via: "hook:new-login",
     });

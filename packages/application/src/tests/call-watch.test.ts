@@ -90,7 +90,7 @@ it.effect("a watch sees Forbidden", () =>
   Effect.gen(function* watchSeesForbidden() {
     const seen: Array<Seen> = [];
     const error = yield* Effect.flip(
-      runFixture(readGreeting, { name: "Ada" }, May.fixed([readGreeting], [])).pipe(
+      runFixture(readGreeting, { name: "Ada" }, May.fixed([])).pipe(
         Effect.provide(recordingWatch(seen)),
       ),
     );

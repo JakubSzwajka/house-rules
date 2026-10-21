@@ -181,7 +181,6 @@ export const makeApp = (options: HttpFixtureOptions = {}) => {
     features: selectedEntries,
     endpoints: selectedEndpoints,
     who: options.who === "session" ? sessionWhoFor(work) : bearerWhoFor(work),
-    may: May.fixed(selectedEntries, permissions),
     mean: Mean.no,
     overrides: { ...overrides, ...options.overrides },
     ...(options.cors === undefined ? {} : { cors: options.cors }),
@@ -203,7 +202,6 @@ export const makeApp = (options: HttpFixtureOptions = {}) => {
     ],
     origins: ["https://app.example"],
     who: sessionWhoFor(work),
-    may: May.fixed([renameGuest, showBooking], permissions),
     mean: Mean.no,
     overrides,
   });
@@ -217,7 +215,6 @@ export const makeApp = (options: HttpFixtureOptions = {}) => {
       endpoint(findBookings, "GET /bookings"),
     ],
     who: bearerWhoFor(work, true),
-    may: May.fixed([showBooking, findBookings], ["bookings:read"]),
     mean: Mean.no,
     overrides,
   });
@@ -227,7 +224,6 @@ export const makeApp = (options: HttpFixtureOptions = {}) => {
     protocol: "mcp",
     features: [showBooking, findBookings, cancelBooking],
     who: bearerWhoFor(work),
-    may: May.fixed([showBooking, findBookings, cancelBooking], permissions),
     mean: Mean.elicitation,
     overrides,
     resource: protectedResource({
@@ -246,6 +242,7 @@ export const makeApp = (options: HttpFixtureOptions = {}) => {
     layer,
     features: features,
     ways: [apiWay, webWay, readWay, mcpWay],
+    may: May.fixed(permissions),
     system: [],
   });
   const router = toFetchHandler(app);

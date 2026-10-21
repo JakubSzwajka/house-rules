@@ -82,13 +82,13 @@ layer(migratedDatabase("audit_http"), { timeout: "30 seconds" })(
             features,
             endpoints: [endpoint(entry, "POST /audit_failure")],
             who: { resolve: () => Effect.succeed(actor) },
-            may: May.fixed(features, []),
             mean: Mean.no,
           });
           const app = composition({
             layer: Layer.merge(runtime, StepTrace.layer()),
             features,
             ways: [way],
+            may: May.fixed([]),
             system: [],
           });
           const handler = toFetchHandler(app);

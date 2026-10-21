@@ -78,7 +78,7 @@ const permissions = ["identity:bind"] as const;
 const caller = Layer.merge(
   Layer.succeed(CurrentActor, actor),
   Layer.succeedContext(
-    May.context(May.fixed(features, permissions), { system: permissions, via: "test" }),
+    May.context(May.fixed(permissions), { features, system: permissions, via: "test" }),
   ),
 );
 const createdAccounts = new Set<ActorId>();
@@ -162,7 +162,7 @@ it.layer(world)("Identity nodes and Who hook", (test) => {
             Effect.provideService(Runtime, runtime),
             Effect.provideService(StepTrace, trace),
             Effect.provideService(UnitOfWork, unit),
-            Effect.provide(May.context(May.system([first]), { system: permissions, via: "hook" })),
+            Effect.provide(May.system([first], { system: permissions, via: "hook" })),
             Effect.mapError(
               () => new Refused({ status: 503, code: "sign_in_failed", message: "Try again." }),
             ),

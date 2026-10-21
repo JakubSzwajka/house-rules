@@ -4,6 +4,7 @@ import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { CallAudit, memoryAuditLog } from "@house-rules/call-audit";
 import { Context, Effect, Layer, Schema } from "effect";
 import { createApp, Features, modulesLayer } from "../../../composition/index.ts";
+import { seedRoleTesting } from "../../../composition/tests/roles-testing.ts";
 import { databaseTesting } from "../../../composition/tests/database.ts";
 import { makeFakePaymentProvider, NewPayment } from "@example/billing";
 import { Bookings, BookingNotFound, NewBooking } from "@example/bookings";
@@ -60,6 +61,8 @@ for (const backend of ["memory", "postgres"] as const)
           (router) => Effect.promise(() => router.dispose()),
         );
         const ctx = yield* app.runtime.contextEffect;
+        yield* seedRoleTesting(alice.id).pipe(Effect.provideContext(ctx));
+        transactions = 0;
         const post = (input: typeof valid, id: string) =>
           Effect.promise(() =>
             router(

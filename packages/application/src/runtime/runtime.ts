@@ -2,6 +2,7 @@ import {
   type AnyCallable,
   type Caller,
   type KindedError,
+  type Permission,
   buildGraph,
   permissionClosures,
   targetOf,
@@ -17,6 +18,7 @@ import { StepTrace } from "../trace/step-trace.ts";
 import type { Binding, InnerFailure, ScopedCall } from "./binding.ts";
 import { GraphInvalid } from "./graph-invalid.ts";
 import { CallInvalid } from "./call-invalid.ts";
+import { permissionCatalogue } from "../registry/permission-catalogue.ts";
 
 export type RuntimeOptions = Readonly<{
   bindings: readonly Binding[];
@@ -89,6 +91,7 @@ export const validateRuntime = (options: RuntimeOptions): string | undefined => 
 export class Runtime extends Context.Service<
   Runtime,
   {
+    readonly permissions: readonly Permission[];
     run: <N extends AnyCallable>(
       callable: N,
       input: N["input"]["Type"],
@@ -189,7 +192,10 @@ export class Runtime extends Context.Service<
           ? work.pipe(Effect.provideService(CurrentActor, caller.actor))
           : work.pipe(Effect.updateContext<never, never>(Context.omit(CurrentActor)));
       });
-      const service = { run: run as Runtime["Service"]["run"] };
+      const service = {
+        permissions: permissionCatalogue([...registered]),
+        run: run as Runtime["Service"]["run"],
+      };
       runtimeOptions.set(service, options);
       return service;
     });

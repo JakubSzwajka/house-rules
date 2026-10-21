@@ -1,3 +1,21 @@
+export { Assignment } from "./assignment/assignment.js";
+export {
+  Organisation,
+  OrganisationId,
+  PartyNotFound,
+  PartyInputInvalid,
+  PartyDenied,
+  PartyConflict,
+  PartyUnavailable,
+} from "./organisation/organisation.js";
+export { Relationship, PartyReference } from "./relationship/relationship.js";
+export {
+  Role,
+  RoleKey,
+  RolePermission,
+  type BuiltInRoles,
+  type PartyOptions,
+} from "./role/role.js";
 export {
   DisplayName,
   Person,

@@ -9,7 +9,7 @@ Identity.who(options).resolve(incoming)
     unknown login -> FirstSignIn -> Actor
 ```
 
-`Identity.who({ token, audience?, challenge? })` returns a `WhoSocket<Authenticator | ActorResolver | FirstSignIn>`. Exported `IdentityWhoOptions` describes those options. It returns an Actor, not request services. There is no grant callback; a way's May plug owns its permissions. Construction captures no request context or new-login hook, and verification runs once per resolution.
+`Identity.who({ token, audience?, challenge? })` returns a `WhoSocket<Authenticator | ActorResolver | FirstSignIn>`. Exported `IdentityWhoOptions` describes those options. It returns an Actor, not request services. There is no grant callback. Composition's single May plug resolves Party roles; ways carry no permissions. Construction captures no request context or new-login hook, and verification runs once per resolution.
 
 Mount `Identity.layerPostgres` with the shared SQL client, or `Identity.layerMemory`. Both fill `ActorResolver` too. Register the package in `migrations.json`. `Identity.subject({ issuer })` needs no table: it uses the subject as the ActorId for that issuer only. A foreign issuer is refused before the hook runs. `Identity.refuse` fills `FirstSignIn` for invite-only signup.
 

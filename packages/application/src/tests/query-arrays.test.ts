@@ -82,13 +82,13 @@ const way = defineWay({
   features,
   endpoints: [at.list, at.search],
   who: { resolve: () => Effect.succeed(testActor) },
-  may: May.fixed(features, []),
   mean: Mean.no,
 });
 const app = composition({
   layer: fixtureLayer(features),
   features: features,
   ways: [way],
+  may: May.fixed([]),
   system: [],
 });
 const http = toFetchHandler(app);

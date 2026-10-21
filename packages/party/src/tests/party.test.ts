@@ -13,7 +13,7 @@ import {
 
 const ada = Actor.make({ id: ActorId.make("ada") });
 const grace = Actor.make({ id: ActorId.make("grace") });
-const world = Party.layerMemory.pipe(Layer.provideMerge(memoryUnitOfWork));
+const world = Party.layerMemory({ builtInRoles: {} }).pipe(Layer.provideMerge(memoryUnitOfWork));
 
 it.effect("the who × action table lets anyone read and only the person update", () =>
   Effect.sync(() => {
@@ -21,7 +21,11 @@ it.effect("the who × action table lets anyone read and only the person update",
       self: { "party:read": true, "party:update": true },
       other: { "party:read": true, "party:update": false },
     });
-    expect(PartyPermissions).toEqual({ read: "party:read", update: "party:update" });
+    expect(PartyPermissions).toEqual({
+      read: "party:read",
+      update: "party:update",
+      admin: "party:admin",
+    });
   }),
 );
 

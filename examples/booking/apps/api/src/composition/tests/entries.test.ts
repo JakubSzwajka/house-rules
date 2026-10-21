@@ -1,6 +1,7 @@
 import { runFeature } from "@house-rules/application";
 import { assert, it } from "@effect/vitest";
-import { Features, memberPermissions, systemPermissions } from "../../features/index.ts";
+import { Features } from "../../features/index.ts";
+import { builtInRoles, systemPermissions } from "../roles.ts";
 import { makeFakePaymentProvider } from "@example/billing";
 import { Bookings, BookingNotFound } from "@example/bookings";
 import { May, StepTrace } from "@house-rules/application";
@@ -48,9 +49,14 @@ it.effect(
         Context.add(Approval, approval),
       );
       const may = (
-        person: readonly `${string}:${string}`[] = memberPermissions,
+        person: readonly `${string}:${string}`[] = builtInRoles.member.permissions,
         system: readonly `${string}:${string}`[] = systemPermissions,
-      ) => May.context(May.fixed(Object.values(Features), person), { system, via: "in-process" });
+      ) =>
+        May.context(May.fixed(person), {
+          features: Object.values(Features),
+          system,
+          via: "in-process",
+        });
 
       const refused = yield* runFeature(Features.makeBooking, input).pipe(
         withRequestId("no-charge"),
@@ -79,7 +85,7 @@ it.effect(
 
       const denied = yield* runFeature(Features.cancelBooking, { id: input.id }).pipe(
         withRequestId("no-refund"),
-        Effect.provideContext(Context.merge(runContext, may(memberPermissions, []))),
+        Effect.provideContext(Context.merge(runContext, may(builtInRoles.member.permissions, []))),
         Effect.flip,
       );
       assert.strictEqual(denied._tag, "Forbidden");
@@ -118,7 +124,8 @@ it.effect("runs the schedule once using Effect Clock, expires only pending older
     const trace = Context.get(context, StepTrace);
     const request = Context.merge(
       Context.add(context, CurrentActor, alice),
-      May.context(May.fixed(Object.values(Features), memberPermissions), {
+      May.context(May.fixed(builtInRoles.member.permissions), {
+        features: Object.values(Features),
         system: systemPermissions,
         via: "test",
       }),

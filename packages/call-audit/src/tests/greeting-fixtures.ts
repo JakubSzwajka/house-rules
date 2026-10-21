@@ -52,9 +52,7 @@ const greeting = (
           Layer.mergeAll(
             runtime,
             StepTrace.layer(),
-            Layer.succeedContext(
-              May.context(May.system([entry]), { system: allowed, via: "test" }),
-            ),
+            Layer.succeedContext(May.system([entry], { system: allowed, via: "test" })),
           ),
         ),
       ),

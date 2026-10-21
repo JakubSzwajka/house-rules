@@ -42,6 +42,7 @@ const publicMessage = (error: KindedError): string => {
     case "GraphInvalid":
     case "CallInvalid":
     case "CompositionClosed":
+    case "MayUnavailable":
       return "Try again shortly.";
     default:
       return error.message;

@@ -22,6 +22,8 @@ import { Config, Effect, Layer, Schema } from "effect";
 import { PgClient } from "@effect/sql-pg";
 import { SqlClient } from "effect/sql/SqlClient";
 import { AuditStorage } from "./audit-storage.ts";
+import { builtInRoles } from "./roles.ts";
+import { Catalogue } from "./catalogue.ts";
 export const readUnavailablePort = Layer.succeed(MyBookingStore, {
   forPerson: () => Effect.fail(new ReadUnavailable({})),
 });
@@ -40,7 +42,7 @@ export const modulesLayer = (
           Billing.layer.pipe(Layer.provide(Layer.merge(memoryPaymentStore(), provider))),
           MyStuff.layer.pipe(Layer.provide(readUnavailablePort)),
           Identity.layerMemory,
-          Party.layerMemory,
+          Party.layerMemory({ builtInRoles }).pipe(Layer.provideMerge(Catalogue.layer)),
           memoryUnitOfWork,
           StepTrace.layer(),
           Layer.succeed(AuditStorage, { kind: "memory", log: options.log ?? memoryAuditLog() }),
@@ -51,7 +53,7 @@ export const modulesLayer = (
         Billing.layer.pipe(Layer.provide(Layer.merge(postgresPaymentStore, provider))),
         MyStuff.layer.pipe(Layer.provide(postgresMyBookingStore)),
         Identity.layerPostgres,
-        Party.layerPostgres,
+        Party.layerPostgres({ builtInRoles }).pipe(Layer.provideMerge(Catalogue.layer)),
         sqlUnitOfWork,
         StepTrace.layer(),
         Layer.effect(

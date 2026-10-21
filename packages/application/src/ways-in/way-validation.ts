@@ -35,12 +35,6 @@ export const validateWays = <R>(
       return `${way.name} exposes an feature twice`;
     for (const feature of way.features)
       if (!features.includes(feature)) return `${way.name} exposes an unregistered feature`;
-    if (
-      new Set(way.may.features).size !== way.may.features.length ||
-      way.may.features.length !== way.features.length ||
-      way.features.some((feature) => !way.may.features.includes(feature))
-    )
-      return `${way.name} May.features must match its exposed features`;
     const exposed =
       way.protocol === "http"
         ? way.endpoints.map((shape) => shape.feature)

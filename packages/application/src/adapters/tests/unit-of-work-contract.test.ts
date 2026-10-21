@@ -42,9 +42,7 @@ onBothAdapters("UnitOfWork with features", (it) => {
   it.effect("a refused closure opens no unit", () =>
     Effect.gen(function* () {
       yield* reset;
-      const error = yield* Effect.flip(
-        runFixture(writeBothEntry, { fail: false }, May.fixed([writeBothEntry], [])),
-      );
+      const error = yield* Effect.flip(runFixture(writeBothEntry, { fail: false }, May.fixed([])));
       expect(error._tag).toBe("Forbidden");
       expect((yield* Opens).calls).toEqual([]);
       expect(yield* contents).toEqual({ alpha: [], beta: [] });

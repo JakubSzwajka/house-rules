@@ -41,7 +41,6 @@ it.effect("nested way prefixes do not hide another way's concrete endpoint", () 
       features: [root],
       endpoints: [endpoint(root, "GET /api/root")],
       who,
-      may: May.fixed([root], []),
       mean: Mean.no,
     });
     const second = defineWay({
@@ -51,13 +50,13 @@ it.effect("nested way prefixes do not hide another way's concrete endpoint", () 
       features: [child],
       endpoints: [endpoint(child, "GET /child")],
       who,
-      may: May.fixed([child], []),
       mean: Mean.no,
     });
     const app = composition({
       layer: fixtureLayer(features),
       features: features,
       ways: [first, second],
+      may: May.fixed([]),
       system: [],
     });
     const handler = toFetchHandler(app);

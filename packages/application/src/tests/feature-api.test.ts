@@ -1,12 +1,13 @@
 import { expect, expectTypeOf, it } from "@effect/vitest";
 import { asSystem, defineOperation, NoInput } from "@house-rules/domain/contract";
-import { Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 import { defineFeature, endpoint, systemStart } from "../contract.ts";
 import {
   bindOperation,
   call,
   type Composition,
   CurrentActor,
+  CallPermissions,
   defineWay,
   GraphInvalid,
   May,
@@ -67,24 +68,24 @@ const negative = () => {
   // @ts-expect-error A structural feature has no private builder brand.
   endpoint(forged);
   // @ts-expect-error Ways require builder-created features.
-  defineWay({ ...way, features: [forged], endpoints: [], may: May.fixed([], []) });
-  // @ts-expect-error May.fixed requires the private feature brand.
-  May.fixed([forged], []);
+  defineWay({ ...way, features: [forged], endpoints: [] });
+  // @ts-expect-error May.fixed takes permissions, not features.
+  May.fixed([forged]);
   // @ts-expect-error May.system requires the private feature brand.
-  May.system([forged]);
+  May.system([forged], { system: [], via: "hook" });
   // @ts-expect-error runFeature requires the private feature brand.
   const forgedRun = runFeature(forged, {});
   const app = {} as Composition<never>;
   // @ts-expect-error In-process calls require the private feature brand.
   call(app, forged, {}, {}, { way: "web" });
   // @ts-expect-error Only features may be exposed.
-  defineWay({ ...way, features: [operation], endpoints: [], may: May.fixed([], []) });
+  defineWay({ ...way, features: [operation], endpoints: [] });
   // @ts-expect-error An operation is not an HTTP feature.
   endpoint(operation);
-  // @ts-expect-error May accepts feature identities only.
-  May.fixed([operation], []);
+  // @ts-expect-error May accepts permissions, not operation descriptors.
+  May.fixed([operation]);
   // @ts-expect-error System exposure also requires a feature.
-  May.system([operation]);
+  May.system([operation], { system: [], via: "hook" });
   // @ts-expect-error Operations cannot start a graph.
   const invalidRun = runFeature(operation, {});
   // @ts-expect-error A feature already has its handler.
@@ -107,10 +108,10 @@ const negative = () => {
 
 it("accepts features at every exposure door and preserves literal lifted flags", () => {
   const http = endpoint(read);
+  expect(defineWay({ ...way, features: [read], endpoints: [http] }).features).toEqual([read]);
   expect(
-    defineWay({ ...way, features: [read], endpoints: [http], may: May.fixed([read], []) }).features,
-  ).toEqual([read]);
-  expect(May.system([system]).features).toEqual([system]);
+    May.system([system], { system: [], via: "hook" }).pipe(Context.get(CallPermissions)).features,
+  ).toEqual([system]);
   expectTypeOf<() => Effect.Effect<void, never, CurrentActor>>().not.toExtend<
     typeof read.handler
   >();
@@ -161,7 +162,9 @@ it.effect("runs feature-to-feature edges and bound operations without feature bi
     );
     yield* runFeature(root, {}).pipe(
       Effect.provide(layer),
-      Effect.provideContext(May.context(May.fixed([root], []), { system: [], via: "test" })),
+      Effect.provideContext(
+        May.context(May.fixed([]), { features: [root], system: [], via: "test" }),
+      ),
       Effect.provideService(CurrentActor, testActor),
     );
     expect(seen).toEqual(["system"]);
@@ -172,7 +175,7 @@ it.effect("runs feature-to-feature edges and bound operations without feature bi
           StepTrace.layer(),
         ),
       ),
-      Effect.provideContext(May.context(May.system([system]), { system: [], via: "hook" })),
+      Effect.provideContext(May.system([system], { system: [], via: "hook" })),
     );
   }),
 );

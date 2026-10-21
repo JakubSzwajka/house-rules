@@ -1,10 +1,11 @@
 import { runFeature, May, Approval, CallChannel } from "@house-rules/application";
 import { Effect } from "effect";
-import { Features, systemPermissions } from "../features/index.ts";
+import { Features } from "../features/index.ts";
+import { systemPermissions } from "./roles.ts";
 export const scheduleFeatures = {
   nightlyCleanup: runFeature(Features.nightlyCleanup, {}).pipe(
     Effect.provideContext(
-      May.context(May.system([Features.nightlyCleanup]), {
+      May.system([Features.nightlyCleanup], {
         system: systemPermissions,
         via: "schedule:nightly_cleanup",
       }),

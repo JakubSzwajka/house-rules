@@ -1,5 +1,6 @@
 import { type AnyCallable, buildGraph, targetOf } from "@house-rules/domain/contract";
 import { type AnyFeature, isFeature } from "../feature/feature.ts";
+import { permissionCatalogue } from "./permission-catalogue.ts";
 
 const calls = (callable: AnyCallable): string[] =>
   callable.edges.map((edge) =>
@@ -22,6 +23,10 @@ export const renderRegistry = (
     "# Registry",
     "",
     ...(result._tag === "Invalid" ? [`Invalid graph: ${result.reason}`, ""] : []),
+    "## Permissions",
+    "",
+    ...permissionCatalogue(callables).map((permission) => `- ${permission}`),
+    "",
     "## Operations",
     "",
   ];

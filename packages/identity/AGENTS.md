@@ -10,7 +10,7 @@ Identity maps a verified login, its `(issuer, subject)` pair, to an `ActorId`. I
 2. [ ] With bindings, register `{ "package": "@house-rules/identity" }` in `migrations.json`, or `{ "workspace": "packages/identity" }` in this repo.
 3. [ ] Acquire `Identity` once and call `bindIdentity(service)`. Add its binding to the app's `Runtime`. The browser-safe `./contract` door exports binding schemas/errors and `IdentityOperations`; main adds services, ports, adapters and the binder.
 4. [ ] Fill `FirstSignIn`. `Identity.refuse` answers 403 `not_invited`. For open signup, capture the app's runtime, trace, watch and unit after runtime acquisition. The hook runs the app's system-start first-sign-in feature with `May.system`, system permissions and approval. That feature calls the shared creation/binding operations as system. Return its ActorId and map hook failures to `Refused`.
-5. [ ] Provide an `Authenticator` and the resolver/hook in the final root layer. Fill a way's Who with `Identity.who({ token: "bearer", audience?, challenge? })`. Cookie sources and ordered token sources work too. May owns permissions separately.
+5. [ ] Provide an `Authenticator` and the resolver/hook in the final root layer. Fill a way's Who with `Identity.who({ token: "bearer", audience?, challenge? })`. Cookie sources and ordered token sources work too. Composition plugs one Party.may() for roles. Identity knows no roles, and ways carry no permissions.
 6. [ ] Call `identity.unbindAll(actorId)` in the account-deletion unit.
 
 ## Who contract

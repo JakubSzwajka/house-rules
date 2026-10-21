@@ -4,6 +4,8 @@ import type { AnyFeature } from "../feature/feature.ts";
 import type { FeatureRequirements } from "../execution/run-feature.ts";
 import type { CurrentActor } from "../actor/current-actor.ts";
 import type { CallPermissions } from "../socket/permission-lists.ts";
+import { type MaySocket, normalizeMay } from "../socket/may.ts";
+import type { MayUnavailable } from "../socket/may-unavailable.ts";
 import type { Approval } from "../gates/approval.ts";
 import { Runtime, validateExposures } from "../runtime/runtime.ts";
 import { GraphInvalid } from "../runtime/graph-invalid.ts";
@@ -16,6 +18,7 @@ export type Composition<A, E = never> = Readonly<{
   runtime: ManagedRuntime.ManagedRuntime<A, E>;
   features: readonly AnyFeature[];
   ways: readonly AnyWay<A>[];
+  may: MaySocket<MayUnavailable>;
   system: readonly Permission[];
   gatePolicy: GatePolicy;
   dispose: () => Promise<void>;
@@ -38,6 +41,7 @@ export const composition = <
   A,
   E,
   R,
+  MayError,
   const Features extends readonly AnyFeature[],
   const Ways extends readonly AnyWay<R>[],
 >(
@@ -45,6 +49,7 @@ export const composition = <
     layer: Layer.Layer<A, E>;
     features: Features;
     ways: Ways;
+    may: MaySocket<MayError>;
     system: readonly Permission[];
     gatePolicy?: GatePolicy;
   }> &
@@ -113,6 +118,7 @@ export const composition = <
     },
     features: options.features,
     ways: options.ways as unknown as readonly AnyWay<A>[],
+    may: normalizeMay(options.may),
     system: options.system,
     gatePolicy: options.gatePolicy ?? featureAndRecheck,
     dispose,

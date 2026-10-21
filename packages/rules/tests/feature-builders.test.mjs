@@ -69,8 +69,8 @@ it("traces every exposure and start through imports, barrels and the Features re
     const doors = [
       (value) => `at(${value});`,
       (value) => `way({features:[${value}]});`,
-      (value) => `Access.fixed([${value}], []);`,
-      (value) => `Access.system([${value}]);`,
+      (value) => `Access.context(Access.fixed([]), {features:[${value}], system:[], via:"test"});`,
+      (value) => `Access.system([${value}], {system:[], via:"test"});`,
       (value) => `run(${value}, {});`,
     ];
     const run = (code) =>
@@ -79,6 +79,8 @@ it("traces every exposure and start through imports, barrels and the Features re
           filename: path.join(root, "apps/api/src/composition/hook.ts"),
         })
         .filter((m) => m.ruleId === "house-rules/feature-builders");
+    assert.deepEqual(run('Access.fixed(["party:read"]);'), []);
+    assert.deepEqual(run('const permissions = ["party:read"]; Access.fixed(permissions);'), []);
     for (const door of doors) {
       for (const value of ["Features.show", "exposed"])
         assert.deepEqual(run(door(value)), [], door(value));
@@ -95,12 +97,48 @@ it("traces every exposure and start through imports, barrels and the Features re
           door(value),
         );
     }
+    const optionsDoors = [
+      (options) => `Access.context(Access.fixed([]), ${options});`,
+      (options) => `way(${options});`,
+      (options) => `Access.system([Features.show], ${options});`,
+    ];
+    for (const door of optionsDoors) {
+      for (const options of [
+        "{features:[Features.show], ...{features:[{}]}}",
+        "{...{}, features:[Features.show]}",
+        "{features:[Features.show], features:[{}]}",
+        "{features:[Features.show], ['via']:'test'}",
+        "{features:[Features.show], get via(){return 'test'}}",
+        "{get features(){return [Features.show]}}",
+        "{features(){return [Features.show]}}",
+        "unknown",
+        "options",
+      ]) {
+        // May.system does not read features from options, so duplicates there cannot override it.
+        if (door === optionsDoors[2] && options === "{features:[Features.show], features:[{}]}")
+          continue;
+        const code = "const options = {features:[Features.show]};" + door(options);
+        assert.ok(
+          run(code).some((m) => m.messageId === "options"),
+          code,
+        );
+      }
+    }
+    for (const door of optionsDoors.slice(0, 2))
+      assert.ok(run(door("{}")).some((m) => m.messageId === "options"));
     for (const code of [
-      "Access.fixed([...operations], []);",
-      "Access.system([...operations]);",
+      'Access.context(Access.fixed([]), {"features":[Features.show], system:[], via:"test"} as const);',
+      'const features = [Features.show]; Access.context(Access.fixed([]), {features, system:[], via:"test"});',
+      'Access.system([Features.show], {system:[], via:"test"});',
+      'way({features:[Features.show], protocol:"http", path:"/"});',
+    ])
+      assert.deepEqual(run(code), [], code);
+    for (const code of [
+      "Access.context(Access.fixed([]), {features:[...operations]});",
+      'Access.system([...operations], {system:[], via:"test"});',
       "way({features:[...operations]});",
-      "const features = [forged]; Access.fixed(features, []);",
-      "const features = [Features.show]; Access.system(features);",
+      "const features = [forged]; Access.context(Access.fixed([]), {features});",
+      'const features = [Features.show]; Access.system(features, {system:[], via:"test"});',
     ]) {
       const messages = run(code);
       if (code.includes("Features.show")) assert.deepEqual(messages, [], code);

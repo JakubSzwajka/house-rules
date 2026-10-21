@@ -14,7 +14,7 @@ The **kits** are domain and application. Domain owns operation descriptors, edge
 
 A **feature** is one thing the app lets a person or the system do. One folder, `features/<name>/`, contains index.ts and tests/. Its single `defineFeature` call holds schemas, permission, description, edges, flags, optional start and handler. The feature is its own entry. The handler only calls declared edges through call; it never imports module services. The file stays browser-safe.
 
-The **feature registry**, `features/index.ts`, exports Features plus member, partner, agent and system permission lists. Ways, May lists, hooks and schedules accept features only.
+The **feature registry**, `features/index.ts`, exports only Features. Built-in roles and system permissions live in composition. Ways, hooks and schedules accept features only.
 
 An **operation** is one thing a module or read model can do. Domain's defineOperation describes it. A module publishes <Module>Operations through ./contract. Application's bindOperation supplies a handler that captures real services during composition. Only CallerContext may remain as a per-request requirement.
 
@@ -28,22 +28,32 @@ Execution records once, checks exposed feature identity and both closures, asks 
 
 Use direct named builder imports from the owning kit. Import renames are allowed; runtime aliases and builder re-exports are not. Non-kit packages may define and bind operations, never features, ways or endpoints. Production app and Effect package source is ESM-only. The law and rule guides give the exact scopes and exceptions.
 
+## Access
+
+A **permission** is the `resource:action` an operation declares in code. The **permission catalogue**, `Runtime.permissions`, contains every operation permission in the app.
+
+**Person** and **Organisation** are the parties an app knows. A **relationship** links two parties, such as staff of or partner of. Party owns these facts.
+
+A **role** names a set of catalogue permissions. Composition declares built-in roles; Party stores custom roles. A **role assignment** gives a person a role globally or within one organisation. A person defining or assigning a role must hold all its permissions in that same scope, even with `party:admin`. Trusted system assignment is exempt. Org-scoped role reads hide other organisations' custom roles and global custom roles. Revocation and relationship removal need approval. The **May plug**, `Party.may()`, answers which permissions the caller holds. Composition plugs it once.
+
+The gate checks roles at feature start and fails 403 when a closure permission is missing. A **relation check** runs inside the module's operation against the loaded object, in the write's unit. It may return not_found to hide the object. Lists filter relations in SQL. An agent is the user: MCP gets the same roles as HTTP, but exposes read features only.
+
 ## Ways and sockets
 
-A **way in** names a protocol, path, exposed features, Who, May, Mean and optional wording overrides. It lives in `ways-in/<name>/`. It imports values only from kits, `effect`, package contract doors, app features, composition and its own folder. Other package main entries and read-model doors allow types only. Ways never import each other.
+A **way in** names a protocol, path, exposed features, Who, Mean and optional wording overrides. It lives in `ways-in/<name>/`. It imports values only from kits, `effect`, package contract doors, app features, composition and its own folder. Other package main entries and read-model doors allow types only. Ways never import each other.
 
 A **socket** is a question the app answers. A **plug** bundles an answer. The interfaces are `WhoSocket`, `MaySocket`, `MeanSocket` and `RecordSocket`. There is no export named Record.
 
 | Question | Answer |
 | --- | --- |
 | Who is this? | `Identity.who` joins token source, Authenticator, ActorResolver and FirstSignIn. JWT verifies the token; Identity maps issuer/subject to ActorId. It never links by email. |
-| What may they do? | `May.fixed` and `May.system` name exposed features. `May.context` supplies permission lists. Holding another way's permissions does not expose its features. |
+| What may they do? | One app-level `Party.may()` plug resolves the caller's held roles on every feature start. Ways narrow exposure only. `May.context` supplies that plug and features for in-process calls; `May.system` supplies system permissions only. |
 | Do they mean it? | `Mean.no` denies approval, `Mean.elicitation` asks the human, `Mean.allow` allows in-process calls. Consent is not permission. |
 | What happened? | `CallAudit.record.memory/postgres` fills RecordSocket over CallWatch. It records one row per feature start, including refusals. |
 
 A **slot** or **port** is a service tag owned by its caller. Authenticator, Approval and CallWatch stay separate lower slots. A **cartridge** is a removable plug. Removing it and its `Layer.provide` line must leave the rest building and passing.
 
-The **composition root** mounts modules and read models, links ports, plugs sockets, opens ways and schedules features. It owns `composition({ layer, features, ways, system, gatePolicy? })`. Acquire services and bindings, then Runtime, then hooks that capture it. The root receives ways from `main.ts`; it never imports them. Hooks use `runFeature`, never a second runtime or Who call.
+The **composition root** mounts modules and read models, links ports, plugs sockets, opens ways and schedules features. It owns `composition({ layer, features, ways, may, system, gatePolicy? })`. Acquire services and bindings, then Runtime, then hooks that capture it. The root receives ways from `main.ts`; it never imports them. Hooks use `runFeature`, never a second runtime or Who call.
 
 The **router**, `toFetchHandler`, builds dispatch, HTTP routes, MCP tools and metadata paths from ways. A **Host** runs that fetch handler. Dispose the router before the composition. Composition builds lazily, shares a successful build, retries failures and makes disposal final. Next already has a Host.
 

@@ -5,7 +5,7 @@ import { MyStuff, bindMyStuff } from "../read-models/my-bookings/index.ts";
 import { Party, bindParty } from "@house-rules/party";
 import { Identity, bindIdentity } from "@house-rules/identity";
 import { CallAudit } from "@house-rules/call-audit";
-import { Effect, Layer, Option } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
 import { AuditStorage } from "./audit-storage.ts";
 import { DemoIssuers } from "./demo-issuers.ts";
@@ -13,6 +13,7 @@ import { McpAuthenticator } from "./mcp-authenticator.ts";
 import { newLoginHook } from "./first-sign-in.ts";
 import { Features } from "../features/index.ts";
 import { modulesLayer } from "./modules.ts";
+import { Catalogue } from "./catalogue.ts";
 export const auditOptions = {
   who: Effect.serviceOption(CurrentActor).pipe(
     Effect.map(Option.match({ onNone: () => null, onSome: (actor) => actor.id })),
@@ -27,6 +28,7 @@ export const linkModules = (ways: RuntimeOptions["ways"]) =>
       const read = yield* MyStuff;
       const party = yield* Party;
       const identity = yield* Identity;
+      const catalogue = yield* Catalogue;
       return Runtime.layer({
         bindings: [
           ...bindBookings(bookings),
@@ -37,7 +39,13 @@ export const linkModules = (ways: RuntimeOptions["ways"]) =>
         ],
         features: Object.values(Features),
         ways,
-      });
+      }).pipe(
+        Layer.tap((context) =>
+          Effect.sync(() => {
+            catalogue.install(Context.get(context, Runtime).permissions);
+          }),
+        ),
+      );
     }),
   );
 export const plugSockets = <E>(

@@ -44,10 +44,11 @@ it.live(
               );
           }),
       };
-      const limited = { ...webWay, who, may: May.fixed(webWay.features, ["bookings:write"]) };
+      const limited = { ...webWay, who };
       const app = yield* Effect.acquireRelease(
         Effect.sync(() =>
           createApp([limited, partnerWay, mcpWay], {
+            may: May.fixed(["bookings:write"]),
             modules: modulesLayer({ provider: provider.layer, log }),
           }),
         ),
@@ -91,6 +92,7 @@ it.live(
         trace.steps.map((s) => [s.feature, s.target, s.caller, s.reason]),
         [
           ["first_sign_in", "Party.createPerson", "system", "new login"],
+          ["first_sign_in", "Party.assignRole", "system", "new login"],
           ["first_sign_in", "Identity.bindLogin", "system", "new login"],
         ],
       );
@@ -142,6 +144,10 @@ it.live(
         Features.showBooking,
         Features.myBookings,
         Features.cancelBooking,
+        Features.defineRole,
+        Features.listRoles,
+        Features.assignRole,
+        Features.revokeRole,
       ]);
       assert.deepStrictEqual(partnerWay.features, [Features.partnerBooking]);
       const openapi = toOpenApi(Object.values(api.endpoints), { title: "Booking", version: "1" });

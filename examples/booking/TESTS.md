@@ -55,7 +55,7 @@ In this table, app-relative paths start at `examples/booking/apps/api/`.
 
 | Key | File | Exact test name |
 | --- | --- | --- |
-| G | app-relative `src/composition/tests/graph.test.ts` | `seven app features retain exact closures, starts, edges and lifted flags` |
+| G | app-relative `src/composition/tests/graph.test.ts` | `app features retain exact closures, starts, edges and lifted flags` |
 | X | app-relative `src/ways-in/web/tests/module-entry.test.ts` | `composition refuses a way exposing a forged Bookings.get module entry` |
 | N | app-relative `src/ways-in/web/tests/mean-plugs.test.ts` | `ways select Mean.no for web and partner and Mean.elicitation for mcp` |
 | O | `packages/rules/tests/feature-builders.test.mjs` | `defines features only in their own feature index` |
@@ -79,10 +79,14 @@ In this table, app-relative paths start at `examples/booking/apps/api/`.
 | F4 | `packages/domain/src/tests/operation-types.test.ts` | `keeps literal flags and edge targets`; the same file's compiler-negative assertions reject an empty reason and undeclared call |
 | F5 | `packages/application/src/tests/feature-types.test.ts` | `keeps concrete flags and erases only the AnyFeature container`; compiler-negative assertions prove the requirement types |
 
+## Access proofs
+
+`src/tests/access.test.ts` runs `memory: roles grant and revoke access, MCP is the user, and org admins stay scoped` and the same `postgres:` case. It proves a person without a role is refused, custom role definition/assignment grants the next call, revocation with explicit in-process approval removes it, the built-in admin can delegate member and partner, an organisation admin cannot assign in another organisation, and a member can read through MCP but cannot cancel there. Role management is web-only. `tests/retired-names.test.mjs` rejects the removed permission-list names. First-sign-in tests run both backends and retain atomic rollback assertions.
+
 ## Additional current proofs
 
 The reference rows do not exhaust the current suite. First-sign-in atomicity is proved by `memory: first sign-in person and login binding share one entry unit` and `postgres: first sign-in person and login binding share one entry unit` in app-relative `src/composition/tests/first-sign-in.test.ts`.
 
 App-relative `src/tests/node-host.test.ts` runs `built Node Host fails MCP closed, shuts down, and refuses production demo JWT`. It builds and starts real child processes and waits for shutdown. The fake provider never contacts a bank; rollback tests assert database state, not compensation of external effects.
 
-All 14 example-owned feature and operation descriptors have concrete descriptions. MCP exposes two titled read tools, `Show your booking` and `List your bookings and payments`, in app-relative `src/ways-in/mcp/way.ts`. This metadata was inspected, not asserted by a dedicated metadata test.
+The example-owned feature and operation descriptors have concrete descriptions. MCP exposes two titled read tools, `Show your booking` and `List your bookings and payments`, in app-relative `src/ways-in/mcp/way.ts`. This metadata was inspected, not asserted by a dedicated metadata test.

@@ -65,7 +65,7 @@ it.effect("opens one watch, one approval and one unit around the graph, in order
     yield* runFeature(feature, {}).pipe(
       Effect.provide(RuntimeFixture.layer({ bindings, features: [feature], ways: [] })),
       Effect.provideContext(
-        May.context(May.fixed([feature], ["items:write"]), { system: [], via: "web" }),
+        May.context(May.fixed(["items:write"]), { features: [feature], system: [], via: "web" }),
       ),
       Effect.provideService(CurrentActor, actor),
       Effect.provide(StepTrace.layer()),
@@ -113,7 +113,9 @@ it.effect("names the real missing permission and caller in either closure", () =
               ways: [],
             }),
           ),
-          Effect.provideContext(May.context(May.fixed([current], []), { system: [], via: "test" })),
+          Effect.provideContext(
+            May.context(May.fixed([]), { features: [current], system: [], via: "test" }),
+          ),
           Effect.provideService(CurrentActor, actor),
           Effect.provide(Layer.mergeAll(Approval.allowAll, memoryUnitOfWork)),
           Effect.provideService(StepTrace, trace),
@@ -170,7 +172,12 @@ for (const gatePolicy of [featureAndRecheck, featureOnly] as const) {
             runFeature(current, {}).pipe(
               Effect.provide(RuntimeFixture.layer({ bindings, features: [current], ways: [] })),
               Effect.provideContext(
-                May.context(May.fixed([current], held), { system: held, via: "test", gatePolicy }),
+                May.context(May.fixed(held), {
+                  features: [current],
+                  system: held,
+                  via: "test",
+                  gatePolicy,
+                }),
               ),
               Effect.provideService(CurrentActor, actor),
               Effect.provide(
@@ -214,7 +221,8 @@ it.effect("refuses an feature exposed by another way before approval, unit or ca
           }),
         ),
         Effect.provideContext(
-          May.context(May.fixed([other], ["items:write"]), {
+          May.context(May.fixed(["items:write"]), {
+            features: [other],
             system: ["items:write"],
             via: "other",
           }),

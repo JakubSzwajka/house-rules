@@ -5,6 +5,7 @@ import { Actor, ActorId } from "@house-rules/domain";
 import { Identity } from "@house-rules/identity";
 import { Effect, Layer } from "effect";
 import { createApp, Features, modulesLayer, resourceOf } from "../../../composition/index.ts";
+import { seedRoleTesting } from "../../../composition/tests/roles-testing.ts";
 import { databaseTesting } from "../../../composition/tests/database.ts";
 import { webWay } from "../../web/way.ts";
 import { mcpWay } from "../way.ts";
@@ -155,6 +156,8 @@ it.live(
         Effect.sync(() => toFetchHandler(app)),
         (router) => Effect.promise(() => router.dispose()),
       );
+      const context = yield* app.runtime.contextEffect;
+      for (const id of ["A", "B"]) yield* seedRoleTesting(id).pipe(Effect.provideContext(context));
       const booked = yield* Effect.promise(() =>
         call(
           app,

@@ -29,7 +29,7 @@ Use `--public` instead of `--private` for a public repo. Install sets up the pre
 
 The [booking guide](../../../../../examples/booking/README.md) gives a reading order. The app joins booking and payment operations into features. It includes a system refund edge, Party and Identity operations, and a read model over published views. It has no web page or real payment provider.
 
-A feature is one app action and its own entry. Application's `defineFeature` puts its contract and handler in `features/<name>/index.ts`. The handler only calls declared edges. `features/index.ts` exports Features and the permission lists.
+A feature is one app action and its own entry. Application's `defineFeature` puts its contract and handler in `features/<name>/index.ts`. The handler only calls declared edges. `features/index.ts` exports only Features. Composition declares built-in roles and system permissions. One `Party.may()` plug resolves roles for HTTP and MCP; MCP exposes read features only.
 
 Domain's `defineOperation` describes module or read-model work. Modules publish `<Module>Operations` through `./contract`. Application's `bindOperation` captures their services in composition. A way exposes features over HTTP or MCP, never module operations. One record, one approval decision and one unit surround the graph when needed. Only the feature runtime opens a production unit.
 

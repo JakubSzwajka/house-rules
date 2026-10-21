@@ -115,7 +115,7 @@ const as = (actor: Actor, allowed: readonly (typeof permissions)[number][] = per
   Layer.merge(
     Layer.succeed(CurrentActor, actor),
     Layer.succeedContext(
-      May.context(May.fixed(features, allowed), { system: permissions, via: "test" }),
+      May.context(May.fixed(allowed), { features, system: permissions, via: "test" }),
     ),
   );
 

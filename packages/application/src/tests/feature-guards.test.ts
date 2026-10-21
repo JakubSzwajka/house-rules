@@ -48,7 +48,6 @@ it.effect(
         features: [forged],
         endpoints: [],
         who: { resolve: () => Effect.succeed(testActor) },
-        may: May.fixed([forged], []),
         mean: Mean.no,
       });
       const error = yield* Effect.flip(
@@ -58,7 +57,9 @@ it.effect(
         }).pipe(
           Effect.provide(StepTrace.layer()),
           Effect.provideService(CurrentActor, testActor),
-          Effect.provideContext(May.context(way.may, { system: [], via: "probe" })),
+          Effect.provideContext(
+            May.context(May.fixed([]), { features: way.features, system: [], via: "probe" }),
+          ),
         ),
       );
       expect(error).toBeInstanceOf(GraphInvalid);
@@ -127,6 +128,7 @@ it.effect("composition revalidates its actual features against the acquired grap
       ),
       features: [forged],
       ways: [],
+      may: May.fixed([]),
       system: [],
     });
     const error = yield* Effect.flip(app.runtime.contextEffect);

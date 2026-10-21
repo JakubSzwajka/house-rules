@@ -4,7 +4,8 @@ import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { Identity } from "@house-rules/identity";
 import { Party, PersonNotFound } from "@house-rules/party";
 import { ConfigProvider, Context, Effect, Layer, Option } from "effect";
-import { Features, systemPermissions } from "../../features/index.ts";
+import { Features } from "../../features/index.ts";
+import { systemPermissions } from "../roles.ts";
 import { modulesLayer, plugSockets } from "../index.ts";
 import { databaseTesting } from "./database.ts";
 
@@ -44,7 +45,7 @@ for (const backend of ["memory", "postgres"] as const)
         const original = ActorId.make("original");
         const login = { issuer: "https://login.invalid", subject: "existing" };
         yield* UnitOfWork.atomic(identity.bind(login, original)).pipe(Effect.provideContext(ctx));
-        const permissions = May.context(May.system([Features.firstSignIn]), {
+        const permissions = May.system([Features.firstSignIn], {
           system: systemPermissions,
           via: "hook:new-login",
         });

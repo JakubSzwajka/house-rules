@@ -4,7 +4,12 @@ import { memoryUnitOfWork } from "@house-rules/domain";
 import { sqlUnitOfWork } from "@house-rules/application";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { Layer } from "effect";
-import { memoryPersonStore, postgresPersonStore } from "../../index.js";
+import {
+  memoryPartyStore,
+  postgresPartyStore,
+  memoryPersonStore,
+  postgresPersonStore,
+} from "../../index.js";
 
 const migratedDatabase = Layer.effectDiscard(
   Migrations.run([
@@ -29,9 +34,12 @@ const migratedDatabase = Layer.effectDiscard(
 export const stores = [
   {
     name: "postgres",
-    layer: Layer.merge(postgresPersonStore, sqlUnitOfWork).pipe(
+    layer: Layer.mergeAll(postgresPersonStore, postgresPartyStore, sqlUnitOfWork).pipe(
       Layer.provideMerge(migratedDatabase),
     ),
   },
-  { name: "memory", layer: Layer.merge(memoryPersonStore(), memoryUnitOfWork) },
+  {
+    name: "memory",
+    layer: Layer.mergeAll(memoryPersonStore(), memoryPartyStore(), memoryUnitOfWork),
+  },
 ] as const;

@@ -66,7 +66,7 @@ const runtime = Layer.unwrap(Effect.gen(function* () {
   ] });
 })).pipe(Layer.provide(comments));
 const world = Layer.mergeAll(runtime, Probe.layer, memoryUnitOfWork, StepTrace.layer(), NodeServices.layer);
-const as = (viewer) => Layer.merge(Layer.succeed(CurrentActor, viewer), Layer.succeedContext(May.context(May.fixed(features, Object.values(contract.CommentPermissions)), { system: [], via: "packed" })));
+const as = (viewer) => Layer.merge(Layer.succeed(CurrentActor, viewer), Layer.succeedContext(May.context(May.fixed(Object.values(contract.CommentPermissions)), { features, system: [], via: "packed" })));
 NodePlatform.runMain(Effect.gen(function* () {
   assert.equal(yield* (yield* Probe).echo(actor), actor.id);
   const target = { kind: "item", id: "packed" };

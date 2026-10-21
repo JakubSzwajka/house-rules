@@ -41,7 +41,6 @@ const http = defineWay({
   features,
   endpoints: [endpoint(showBooking, "GET /bookings/:id"), endpoint(findBookings, "GET /bookings")],
   who,
-  may: May.fixed(features, ["bookings:read"]),
   mean: Mean.no,
 });
 const mcp = defineWay({
@@ -50,7 +49,6 @@ const mcp = defineWay({
   protocol: "mcp",
   features: [showBooking],
   who,
-  may: May.fixed([showBooking], ["bookings:read"]),
   mean: Mean.elicitation,
   server: { name: "board", version: "1" },
   resource: protectedResource({
@@ -63,6 +61,7 @@ const app = composition({
   layer: fixtureLayer(features).pipe(Layer.provideMerge(modules)),
   features: features,
   ways: [http, mcp],
+  may: May.fixed(["bookings:read"]),
   system: [],
 });
 const router = toFetchHandler(app);

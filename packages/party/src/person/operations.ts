@@ -1,5 +1,6 @@
 import { ActorId, defineOperation, NoInput } from "@house-rules/domain/contract";
 import { Schema } from "effect";
+import { AccessOperations } from "../role/operations.js";
 import { PartyPermissions } from "./permissions.js";
 import {
   Person,
@@ -58,4 +59,10 @@ const renamePerson = defineOperation("rename_person", {
   transactional: true,
 });
 
-export const PartyOperations = { createPerson, showPerson, showMe, renamePerson } as const;
+export const PartyOperations = {
+  createPerson,
+  showPerson,
+  showMe,
+  renamePerson,
+  ...AccessOperations,
+} as const;

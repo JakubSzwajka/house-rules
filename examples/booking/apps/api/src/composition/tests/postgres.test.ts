@@ -1,6 +1,7 @@
 import { runFeature } from "@house-rules/application";
 import { assert, it } from "@effect/vitest";
-import { Features, memberPermissions, systemPermissions } from "../../features/index.ts";
+import { Features } from "../../features/index.ts";
+import { builtInRoles, systemPermissions } from "../roles.ts";
 import { Billing, makeFakePaymentProvider } from "@example/billing";
 import { Bookings } from "@example/bookings";
 import { MyStuff } from "../../read-models/my-bookings/index.ts";
@@ -29,7 +30,8 @@ it.effect(
       const trace = Context.get(ctx, StepTrace);
       const request = Context.merge(
         ctx,
-        May.context(May.fixed(Object.values(Features), memberPermissions), {
+        May.context(May.fixed(builtInRoles.member.permissions), {
+          features: Object.values(Features),
           system: systemPermissions,
           via: "test",
         }),
@@ -44,7 +46,8 @@ it.effect(
         Effect.provideContext(
           Context.merge(
             request,
-            May.context(May.fixed(Object.values(Features), ["bookings:write"]), {
+            May.context(May.fixed(["bookings:write"]), {
+              features: Object.values(Features),
               system: systemPermissions,
               via: "test",
             }),

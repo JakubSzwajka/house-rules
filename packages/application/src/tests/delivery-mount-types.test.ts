@@ -26,10 +26,15 @@ const way = defineWay({
   features,
   endpoints: [endpoint(showBooking), endpoint(findBookings)],
   who: { resolve: () => Effect.succeed(actor) },
-  may: May.fixed(features, ["bookings:read"]),
   mean: Mean.no,
 });
-const app = composition({ layer, features: features, ways: [way], system: [] });
+const app = composition({
+  layer,
+  features: features,
+  ways: [way],
+  may: May.fixed(["bookings:read"]),
+  system: [],
+});
 const handlers = [toFetchHandler(app)];
 afterAll(() => Promise.all(handlers.map((handler) => handler.dispose())).then(app.dispose));
 it("kinded failures need no view table on the composition or router", () => {
@@ -46,12 +51,19 @@ const dependent = defineWay({ ...way, who: { resolve: () => WhoPort } });
 it("composition retains unmet Who requirements rather than erasing R", () => {
   const invalid = () => {
     // @ts-expect-error The layer supplies runtime and stores, but not WhoPort.
-    return composition({ layer, features: features, ways: [dependent], system: [] });
+    return composition({
+      layer,
+      features: features,
+      ways: [dependent],
+      may: May.fixed(["bookings:read"]),
+      system: [],
+    });
   };
   const provided = composition({
     layer: Layer.merge(layer, Layer.succeed(WhoPort, actor)),
     features: features,
     ways: [dependent],
+    may: May.fixed(["bookings:read"]),
     system: [],
   });
   expect(typeof invalid).toBe("function");
@@ -61,7 +73,13 @@ it("composition retains unmet Who requirements rather than erasing R", () => {
 it("composition requires the runtime and trace supplied at the root", () => {
   const invalid = () => {
     // @ts-expect-error No Runtime or StepTrace was supplied.
-    return composition({ layer: Layer.empty, features: features, ways: [way], system: [] });
+    return composition({
+      layer: Layer.empty,
+      features: features,
+      ways: [way],
+      may: May.fixed([]),
+      system: [],
+    });
   };
   expect(typeof invalid).toBe("function");
 });

@@ -22,7 +22,7 @@ composition     picks adapters, binds operations, plugs sockets, opens ways
 | Word | What it is | Where it lives | Builder |
 | --- | --- | --- | --- |
 | Feature | One thing the app lets someone do. It is its own entry: ways, hooks and schedules start it. | `apps/<app>/src/features/<name>/index.ts` | `defineFeature` |
-| Feature registry | Every feature as one `Features` object, plus the permission lists | `apps/<app>/src/features/index.ts` | plain object |
+| Feature registry | Every feature as one `Features` object | `apps/<app>/src/features/index.ts` | plain object |
 | Operation | One thing a module can do, such as `Bookings.cancel` | the module package, exported from `./contract` as `<Module>Operations` | `defineOperation` |
 | Operation binding | The code behind an operation; it captures the module's services | the module package, wired in composition | `bindOperation` |
 | Edge | A declared call from a feature or operation to an operation or feature | the `edges` field | plain list, `asSystem(target, reason)` |
@@ -32,6 +32,21 @@ composition     picks adapters, binds operations, plugs sockets, opens ways
 | Module | A package that owns data and its operations | `packages/<name>` or `examples/*/packages/<name>` | `defineModule` |
 | Read model | A query shaped for one screen, over published views | `apps/<app>/src/read-models/<name>/` | `defineOperation` for its read operations |
 | Composition | The root that wires everything | `apps/<app>/src/composition/` | `composition(...)` |
+
+## Access words
+
+| Word | What it is | Where it lives |
+| --- | --- | --- |
+| Permission | `resource:action` an operation needs, such as `bookings:cancel` | the operation, in code |
+| Permission catalogue | Every permission the app's operations declare | built by the runtime |
+| Person, Organisation | The parties an app knows | party |
+| Relationship | A link between two parties, such as staff of or partner of | party |
+| Role | A name plus a set of permissions from the catalogue | built-in: composition code; custom: party tables |
+| Role assignment | A person holds a role, globally or within one organisation | party tables |
+| May plug | Answers which permissions a caller holds; the gate checks them | `Party.may(...)`, plugged once in composition |
+| Relation check | Whether this caller may touch this one object | inside the module's operation |
+
+The gate checks roles at feature start. The module checks relations on the object.
 
 ## Rules of thumb
 

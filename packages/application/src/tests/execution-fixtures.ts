@@ -61,12 +61,13 @@ export const fixtureLayer = <const Features extends readonly AnyFeature[]>(featu
 export const runFixture = <E extends AnyFeature>(
   feature: E,
   input: E["input"]["Type"],
-  may?: import("../index.ts").MaySocket,
+  may?: import("../index.ts").MaySocket<unknown>,
 ) =>
   runFeature(feature, input).pipe(
     Effect.provide(fixtureLayer([feature])),
     Effect.provideContext(
-      May.context(may ?? May.fixed([feature], feature.closures.person), {
+      May.context(may ?? May.fixed(feature.closures.person), {
+        features: [feature],
         system: feature.closures.system,
         via: "test",
       }),

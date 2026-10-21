@@ -4,8 +4,8 @@ Application runs features and their declared edges. A feature can be exposed dir
 
 ```text
 HTTP / MCP / call
-  way: Who + May + Mean
-    feature: watch -> closures -> approval -> one unit
+  way: Who + Mean + exposed features
+    feature: watch -> app May -> closures -> approval -> one unit
       handler -> declared edges -> bound operations or other features
                          |
                       step trace
@@ -62,7 +62,7 @@ export const showEndpoint = endpoint(showTitle, "GET /titles/:id");
 
 The options are `description`, optional `title`, `permission`, `input`, `output`, `failure`, optional `edges`, `flags`, `start` and `handler`. Permission is a `resource:action` string or explicit `null`. Omitted flags are literal false. `start` defaults to `"person"`. Use `systemStart("hook:first-sign-in")` for a system start. Its optional second argument sets `startedBy`; otherwise the reason supplies both fields.
 
-Export the app's features as one `Features` object in `features/index.ts`. Keep permission lists there too. Module packages export operation descriptors from their contract doors, often as `<Module>Operations`. Read models also publish operations.
+Export the app's features as one `Features` object in `features/index.ts`. Declare system permissions in composition. Module packages export operation descriptors from their contract doors, often as `<Module>Operations`. Read models also publish operations.
 
 ## Bind operations and build the runtime
 
@@ -75,7 +75,7 @@ const layer = Layer.mergeAll(
   Runtime.layer({ bindings, features, ways: [way] }),
   StepTrace.layer(),
 );
-const app = composition({ layer, features, ways: [way], system: [] });
+const app = composition({ layer, features, ways: [way], may: May.fixed(["items:read"]), system: [] });
 ```
 
 The wiring sketch uses names from the main application door and `Layer` from Effect. Acquire modules, storage, unit, trace and record first. Capture module services and bind operations next. Acquire `Runtime`, then hooks that capture it. The root accepts ways from `main.ts`; it never imports the ways folder.
@@ -88,7 +88,7 @@ The wiring sketch uses names from the main application door and `Layer` from Eff
 
 The `flags` object retains the feature's own literal flags. Its top-level booleans lift across the graph. `readOnly` uses AND; `transactional`, `destructive` and `needsApproval` use OR. A literal nontransactional feature needs no unit service. A system start needs no `CurrentActor`. Widened flags conservatively require transaction and approval services.
 
-Execution opens `CallWatch` once, checks exposed feature identity, checks person then system closures, asks approval once and opens one unit if transactional. Inner calls add trace steps and repeat none of those gates. `featureAndRecheck`, the default policy, also checks each called target's own permission. `featureOnly` skips that recheck. Both keep closure checks.
+Execution opens `CallWatch` once and checks exposed feature identity. For a person start it asks the app's May plug once, after Who, then checks person and system closures. It asks approval once and opens one unit if transactional. Inner calls add trace steps and repeat none of those gates. `featureAndRecheck`, the default policy, also checks each called target's own permission. `featureOnly` skips that recheck. Both keep closure checks.
 
 A plain edge preserves the caller. Domain's `asSystem(target, reason)` switches downward to a system caller. Later system edges preserve the first reason and `startedBy`. Person execution supplies `CurrentActor` from the same Actor. System execution removes ambient person authority. Modules take explicit Actor arguments for object access.
 
@@ -96,7 +96,11 @@ Only this runtime opens a production unit. Writes join it through domain's `Unit
 
 ## Open ways and plug sockets
 
-`defineWay({ name, path, features, who, may, mean, ...protocol })` accepts only features in `features`. `May.fixed(features, permissions)` and `May.system(features)` hold explicit feature identities. May's set must match the way's set. Holding permissions never exposes another way's feature.
+`defineWay({ name, path, features, who, mean, ...protocol })` accepts only features in `features`. Ways carry no permissions. Holding permissions never exposes another way's feature.
+
+Plug May once with `composition({ layer, features, ways, may, system, gatePolicy? })`. `MaySocket<E = never>` has `permissionsOf(caller: PersonCaller): Effect<readonly Permission[], E>`. Capture its long-lived services during mounting. `May.fixed(permissions)` gives every person the same list. A failed lookup is logged and becomes `MayUnavailable`, with fixed public 503 text.
+
+The gate checks the caller's roles through the feature's permission closure. A module checks relations on its loaded object in the same unit as a write. HTTP and MCP share the app May plug. MCP stays read-only by exposing only read features, not by using a separate agent permission list.
 
 `WhoSocket<R>` resolves an Actor from `Incoming`. Composition supplies its requirements. `Mean.no`, `Mean.elicitation` and `Mean.allow` supply lower Approval layers. Elicitation asks a human and fails closed on decline, cancel, malformed replies or missing support. `RecordSocket` supplies lower `CallWatch`; concrete audit storage belongs to call-audit. Authenticator, Approval and CallWatch remain separate slots. There is no export named Record.
 
@@ -112,13 +116,13 @@ Cookie writes require CSRF checks, even before a session cookie exists. Session 
 
 Every expected failure has a domain kind. Statuses are fixed: not_found 404, conflict 409, forbidden 403, unavailable 503, invalid 400. `WordingOverrides` changes messages only. Keep tags, causes, permission details and driver text internal. Plumbing failures use fixed public text; defects get generic 500. Only opted-in 4xx kind codes reach the failure-code header. HTTP and MCP encode outputs once.
 
-`call(app, feature, input, incoming, { way, admitted? })` returns a Promise `Outcome` and supplies Mean.allow. `admit` resolves Who before custom input parsing. Its opaque value belongs to one request, composition and way. Never cache it beyond that request. Hooks use Effect-returning `runFeature` with captured runtime services, `May.context(May.system(features), { system, via })` and approval. They never authenticate again or build another runtime.
+`call(app, feature, input, incoming, { way, admitted? })` returns a Promise `Outcome` and supplies Mean.allow. `admit` resolves Who before custom input parsing. Its opaque value belongs to one request, composition and way. Never cache it beyond that request. Hooks use Effect-returning `runFeature` with captured runtime services, `May.system(features, { system: app.system, via })` and approval. They never authenticate again or build another runtime. System starts ignore the person May plug. `May.context(may, { features, system, via, gatePolicy? })` supplies a person-capable in-process context; both helpers keep exposure separate from permissions.
 
 ## Trace, registry and doors
 
 `StepTrace.make/layer({ maxRequests? })` defaults to 1000 request buckets. Bounds must be positive safe integers. Eviction is oldest-created first; reads do not allocate or refresh buckets, and finishes do not revive them. Steps retain feature name, target, caller, reason, order and outcome. `CallWatch` writes once per feature start, refusals included. Inner calls never add audit rows.
 
-`renderRegistry({ operations, features, ways })` is pure Markdown rendering. It lists operations, features, reverse callers, system reasons, closures and exposures. Freshness tests compare without writing.
+`Runtime.permissions` is a frozen, sorted list of every unique permission declared by registered operations, including unused bound operations. It excludes null and feature-only permissions. `renderRegistry({ operations, features, ways })` is pure Markdown rendering. It lists the permission catalogue, operations, features, reverse callers, system reasons, closures and exposures. Freshness tests compare without writing.
 
 The contract door exports browser-safe feature builders and types, endpoint/API definitions, clients, session types and schema-only errors. Main adds runtime, bindings, sockets, ways, composition, trace, registry and lower slots. Neither kit owns tables or needs a migration registration. [AGENTS.md](AGENTS.md) lists the mounting rules.
 

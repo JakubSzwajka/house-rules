@@ -42,7 +42,6 @@ const features = [approved] as const;
 const plugs = {
   features,
   who: { resolve: () => Effect.succeed(testActor) },
-  may: May.fixed(features, []),
 };
 const http = defineWay({
   ...plugs,
@@ -77,6 +76,7 @@ const yesMan = composition({
   layer: fixtureLayer(features).pipe(Layer.provideMerge(Approval.allowAll)),
   features: features,
   ways: [http, trusted, mcp],
+  may: May.fixed([]),
   system: [],
 });
 const yesManRouter = toFetchHandler(yesMan);

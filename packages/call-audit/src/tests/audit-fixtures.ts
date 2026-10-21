@@ -39,7 +39,7 @@ const trip = (name: string, readOnly: boolean) => {
   const runtime = Layer.mergeAll(
     Runtime.layer({ bindings: [], features: [entry], ways: [] }),
     StepTrace.layer(),
-    Layer.succeedContext(May.context(May.system([entry]), { system: [], via: "test" })),
+    Layer.succeedContext(May.system([entry], { system: [], via: "test" })),
   );
   return {
     entry,

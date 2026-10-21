@@ -1,5 +1,19 @@
 # Registry
 
+## Permissions
+
+- billing:charge
+- billing:expire
+- billing:refund
+- bookings:cancel
+- bookings:read
+- bookings:write
+- identity:bind
+- party:admin
+- party:create
+- party:read
+- party:update
+
 ## Operations
 
 ### Billing.expirePending
@@ -42,10 +56,80 @@
 - Permission: bookings:read
 - Called by: my_bookings
 
+### Party.assignRole
+
+- Permission: party:admin
+- Called by: assign_role, first_sign_in
+
+### Party.createOrganisation
+
+- Permission: party:admin
+- Called by: none
+
 ### Party.createPerson
 
 - Permission: party:create
 - Called by: first_sign_in
+
+### Party.defineRole
+
+- Permission: party:admin
+- Called by: define_role
+
+### Party.deleteRole
+
+- Permission: party:admin
+- Called by: none
+
+### Party.isRelated
+
+- Permission: party:read
+- Called by: none
+
+### Party.listRoles
+
+- Permission: party:read
+- Called by: list_roles
+
+### Party.relate
+
+- Permission: party:admin
+- Called by: none
+
+### Party.revokeRole
+
+- Permission: party:admin
+- Called by: revoke_role
+
+### Party.rolesOf
+
+- Permission: party:read
+- Called by: none
+
+### Party.showOrganisation
+
+- Permission: party:read
+- Called by: none
+
+### Party.unrelate
+
+- Permission: party:admin
+- Called by: none
+
+### rename_person
+
+- Permission: party:update
+- Called by: none
+
+### show_me
+
+- Permission: party:read
+- Called by: none
+
+### show_person
+
+- Permission: party:read
+- Called by: none
 
 ## Features
 
@@ -95,10 +179,11 @@
 
 - Starts as: system: new login; hook:new-login
 - Person closure: none
-- System closure: party:create, identity:bind
+- System closure: party:create, identity:bind, party:admin
 - Exposed by: in-process only
 - Calls: Party.createPerson (person, inherited system stays system)
 - Calls: Identity.bindLogin (person, inherited system stays system)
+- Calls: ⚙ Party.assignRole (system: default role on first sign-in)
 
 ### nightly_cleanup
 
@@ -107,3 +192,35 @@
 - System closure: billing:expire
 - Exposed by: in-process only
 - Calls: Billing.expirePending (person, inherited system stays system)
+
+### define_role
+
+- Starts as: person
+- Person closure: party:admin
+- System closure: none
+- Exposed by: web (/api)
+- Calls: Party.defineRole (person, inherited system stays system)
+
+### list_roles
+
+- Starts as: person
+- Person closure: party:read
+- System closure: none
+- Exposed by: web (/api)
+- Calls: Party.listRoles (person, inherited system stays system)
+
+### assign_role
+
+- Starts as: person
+- Person closure: party:admin
+- System closure: none
+- Exposed by: web (/api)
+- Calls: Party.assignRole (person, inherited system stays system)
+
+### revoke_role
+
+- Starts as: person
+- Person closure: party:admin
+- System closure: none
+- Exposed by: web (/api)
+- Calls: Party.revokeRole (person, inherited system stays system)

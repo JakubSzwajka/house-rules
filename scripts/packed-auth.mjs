@@ -35,7 +35,7 @@ NodePlatform.runMain(Effect.gen(function* () {
   const runtime = Runtime.layer({ features, ways: [], bindings: [
     ...bindParty(party),
   ] });
-  const may = Layer.succeedContext(May.context(May.fixed(features, Object.values(contract.PartyPermissions)), { system: [], via: "packed" }));
+  const may = Layer.succeedContext(May.context(May.fixed(Object.values(contract.PartyPermissions)), { features, system: [], via: "packed" }));
   const as = (viewer) => Layer.mergeAll(runtime, StepTrace.layer(), may, Layer.succeed(CurrentActor, viewer));
   const person = yield* runFeature(show, { id: actor.id }).pipe(Effect.provide(as(actor)));
   assert.equal(person.displayName, "Packed");
@@ -44,7 +44,7 @@ NodePlatform.runMain(Effect.gen(function* () {
   assert.equal(denied._tag, "PersonUpdateRefused");
   assert.equal((yield* party.get(actor, actor.id)).displayName, "Packed");
   yield* Effect.log("cold install: signed JWT, issuer/audience refusals, Identity.who, bound Party app features and person policy pass");
-}).pipe(Effect.provide(Layer.merge(Party.layerMemory, memoryUnitOfWork))));
+}).pipe(Effect.provide(Layer.merge(Party.layerMemory({ builtInRoles: {} }), memoryUnitOfWork))));
 `,
   "auth.ts": `import { type Incoming, type Principal, tokenFrom } from "@house-rules/application";
 import { errorKind, defineOperation } from "@house-rules/domain/contract";

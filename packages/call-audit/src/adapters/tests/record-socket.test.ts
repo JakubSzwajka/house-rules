@@ -56,9 +56,7 @@ const runtime = Runtime.layer({
 });
 const execution = Layer.merge(runtime, StepTrace.layer());
 const permissions = (allow: boolean) =>
-  Layer.succeedContext(
-    May.context(May.system([entry]), { system: allow ? ["audit:read"] : [], via: "test" }),
-  );
+  Layer.succeedContext(May.system([entry], { system: allow ? ["audit:read"] : [], via: "test" }));
 const options = { who: Effect.succeed("before"), policy: CallAudit.presets.strict };
 expectTypeOf<typeof AuditReadFailed>().toExtend<AnyFeature["failure"]>();
 expectTypeOf<typeof AuditStoreUnavailable>().toExtend<AnyFeature["failure"]>();

@@ -1,5 +1,6 @@
 export const PartyPermissions = {
   read: "party:read",
+  admin: "party:admin",
   update: "party:update",
 } as const;
 

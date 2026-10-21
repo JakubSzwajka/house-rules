@@ -4,10 +4,13 @@ import {
   type WayOptions,
   type WhoSocket,
   type GatePolicy,
+  type MaySocket,
 } from "@house-rules/application";
 import { type ActorResolver, type FirstSignIn } from "@house-rules/identity";
-import { Config, type Layer } from "effect";
-import { Features, systemPermissions } from "../features/index.ts";
+import { Config, Context, Effect, Layer } from "effect";
+import { Party, PartyUnavailable } from "@house-rules/party";
+import { Features } from "../features/index.ts";
+import { systemPermissions } from "./roles.ts";
 import { plugSockets } from "./app-layer.ts";
 import { modulesLayer } from "./modules.ts";
 import type { DemoIssuers } from "./demo-issuers.ts";
@@ -37,18 +40,40 @@ export const createApp = <E = never>(
     nodeEnv?: string;
     issuer?: string;
     gatePolicy?: GatePolicy;
+    may?: MaySocket;
   } = {},
 ) => {
+  let plug: Effect.Success<ReturnType<typeof Party.may>> | undefined;
+  const may = {
+    permissionsOf: (caller: Parameters<NonNullable<typeof plug>["permissionsOf"]>[0]) =>
+      Effect.suspend(() =>
+        plug === undefined
+          ? Effect.fail(new PartyUnavailable({ cause: "Party May not acquired" }))
+          : plug.permissionsOf(caller),
+      ),
+  };
   const layer = plugSockets<E | Layer.Error<ReturnType<typeof modulesLayer>>>(
     options.modules ?? modulesLayer(),
     ways,
     options.nodeEnv,
     options.issuer,
+  ).pipe(
+    Layer.tap((context) =>
+      Party.may().pipe(
+        Effect.provideContext(Context.make(Party, Context.get(context, Party))),
+        Effect.tap((value) =>
+          Effect.sync(() => {
+            plug = value;
+          }),
+        ),
+      ),
+    ),
   );
   return composition({
     layer,
     features: Object.values(Features),
     ways,
+    may: options.may ?? may,
     system: systemPermissions,
     ...(options.gatePolicy === undefined ? {} : { gatePolicy: options.gatePolicy }),
   });
@@ -63,5 +88,6 @@ export { modulesLayer, readUnavailablePort } from "./modules.ts";
 export { plugSockets } from "./app-layer.ts";
 export { DemoIssuers, DemoForbidden } from "./demo-issuers.ts";
 export { McpAuthenticator } from "./mcp-authenticator.ts";
-export { Features, memberPermissions, systemPermissions } from "../features/index.ts";
+export { Features } from "../features/index.ts";
+export { builtInRoles, systemPermissions } from "./roles.ts";
 export { scheduleFeatures } from "./schedule.ts";

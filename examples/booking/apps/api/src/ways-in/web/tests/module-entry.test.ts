@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import { BookingsOperations } from "@example/bookings";
-import { defineFeature, defineWay, GraphInvalid, May } from "@house-rules/application";
+import { defineFeature, defineWay, GraphInvalid } from "@house-rules/application";
 import { endpoint } from "@house-rules/application/contract";
 import { Effect } from "effect";
 import { createApp } from "../../../composition/index.ts";
@@ -19,7 +19,6 @@ it.effect("composition refuses a way exposing a forged Bookings.get module entry
       protocol: "http",
       features: [forged],
       endpoints: [endpoint(forged)],
-      may: May.fixed([forged], ["bookings:read"]),
     });
     const app = yield* Effect.acquireRelease(
       Effect.sync(() => createApp([way])),

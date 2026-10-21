@@ -34,7 +34,7 @@ layer(stores[0].layer, { timeout: "30 seconds" })("Party unavailable disclosure"
   it.effect("the public showMe node hides a real backing Postgres failure over HTTP", () =>
     Effect.gen(function* () {
       const sql = yield* SqlClient;
-      const party = yield* Party.pipe(Effect.provide(Party.layer));
+      const party = yield* Party.pipe(Effect.provide(Party.layer({ builtInRoles: {} })));
       const entry = defineFeature("test_show_me", {
         ...showMe,
         permission: null,
@@ -50,7 +50,6 @@ layer(stores[0].layer, { timeout: "30 seconds" })("Party unavailable disclosure"
         features,
         endpoints: [endpoint(entry, "POST /show_me")],
         who: { resolve: () => Effect.succeed(Actor.make({ id: ActorId.make("viewer") })) },
-        may: May.fixed(features, ["party:read"]),
         mean: Mean.no,
       });
       const app = composition({
@@ -60,6 +59,7 @@ layer(stores[0].layer, { timeout: "30 seconds" })("Party unavailable disclosure"
         ),
         features,
         ways: [way],
+        may: May.fixed(["party:read"]),
         system: [],
       });
       const handler = toFetchHandler(app);

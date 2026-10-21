@@ -17,6 +17,9 @@ const skipped = new Set([
   ".git",
 ]);
 const retiredApiNames = [
+  "agentPermissions",
+  "memberPermissions",
+  "partnerPermissions",
   "defineNode",
   "bindNode",
   "defineEntry",

@@ -76,15 +76,15 @@ import { Features } from "../../features/index.ts";
 export const ownerFeature = Features.showOwner;
 export const ownerEndpoint = endpoint(ownerFeature, "GET /owner");
 `,
-  "apps/web/src/ways-in/web/way.ts": `import { defineWay, type WhoSocket, May, Mean } from "@house-rules/application";
+  "apps/web/src/ways-in/web/way.ts": `import { defineWay, type WhoSocket, Mean } from "@house-rules/application";
 import { ownerFeature, ownerEndpoint } from "./endpoints.ts";
 export const openWeb = (who: WhoSocket) => defineWay({
   name: "web", path: "/", protocol: "http", features: [ownerFeature], endpoints: [ownerEndpoint],
-  who, may: May.fixed([ownerFeature], []), mean: Mean.no,
+  who, mean: Mean.no,
 });
 `,
   "apps/web/src/composition/index.ts": `import { Catalogue } from "@consumer/catalogue";
-import { composition, type AnyFeature, type WayOptions, Runtime, StepTrace, bindOperation } from "@house-rules/application";
+import { composition, type AnyFeature, type WayOptions, Runtime, StepTrace, bindOperation, May } from "@house-rules/application";
 import { Comments, CommentTargets, bindComments } from "@house-rules/comments";
 import { Actor, ActorId, memoryUnitOfWork } from "@house-rules/domain";
 import { Effect, Layer } from "effect";
@@ -102,7 +102,7 @@ export const createApp = <const Entries extends readonly AnyFeature[]>(features:
         caller.kind === "person" ? ownerOf(caller.actor) : Effect.succeed("system")),
     ], features, ways });
   })).pipe(Layer.provide(modules));
-  return composition({ layer: Layer.mergeAll(runtime, memoryUnitOfWork, StepTrace.layer()), features, ways, system: [] });
+  return composition({ layer: Layer.mergeAll(runtime, memoryUnitOfWork, StepTrace.layer()), features, ways, may: May.fixed([]), system: [] });
 };
 `,
   "apps/web/src/main.ts": `import { NodeServices } from "@effect/platform-node";

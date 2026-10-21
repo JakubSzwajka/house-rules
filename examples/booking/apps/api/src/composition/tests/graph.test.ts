@@ -1,28 +1,25 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
-import {
-  Features,
-  memberPermissions,
-  partnerPermissions,
-  agentPermissions,
-  systemPermissions,
-} from "../../features/index.ts";
+import { Features } from "../../features/index.ts";
+import { builtInRoles, systemPermissions } from "../roles.ts";
 
-it.effect("seven app features retain exact closures, starts, edges and lifted flags", () =>
+it.effect("app features retain exact closures, starts, edges and lifted flags", () =>
   Effect.sync(() => {
-    assert.deepStrictEqual(memberPermissions, [
+    assert.deepStrictEqual(builtInRoles.member.permissions, [
       "bookings:read",
       "bookings:write",
       "bookings:cancel",
       "billing:charge",
+      "party:read",
     ]);
-    assert.deepStrictEqual(partnerPermissions, ["bookings:write"]);
-    assert.deepStrictEqual(agentPermissions, ["bookings:read"]);
+    assert.deepStrictEqual(builtInRoles.partner.permissions, ["bookings:write"]);
+    assert.deepStrictEqual(Object.keys(builtInRoles), ["member", "partner", "admin"]);
     assert.deepStrictEqual(systemPermissions, [
+      "party:create",
+      "party:admin",
+      "identity:bind",
       "billing:refund",
       "billing:expire",
-      "party:create",
-      "identity:bind",
     ]);
     const expected: readonly unknown[] = [
       [
@@ -51,12 +48,12 @@ it.effect("seven app features retain exact closures, starts, edges and lifted fl
       [
         "first_sign_in",
         [],
-        ["party:create", "identity:bind"],
+        ["party:create", "identity:bind", "party:admin"],
         false,
         true,
         false,
         false,
-        ["Party.createPerson", "Identity.bindLogin"],
+        ["Party.createPerson", "Identity.bindLogin", "Party.assignRole"],
       ],
       [
         "nightly_cleanup",
@@ -68,6 +65,10 @@ it.effect("seven app features retain exact closures, starts, edges and lifted fl
         false,
         ["Billing.expirePending"],
       ],
+      ["define_role", ["party:admin"], [], false, true, false, false, ["Party.defineRole"]],
+      ["list_roles", ["party:read"], [], true, false, false, false, ["Party.listRoles"]],
+      ["assign_role", ["party:admin"], [], false, true, false, false, ["Party.assignRole"]],
+      ["revoke_role", ["party:admin"], [], false, true, true, true, ["Party.revokeRole"]],
     ];
     assert.deepStrictEqual<readonly unknown[]>(
       Object.values(Features).map((e) => [

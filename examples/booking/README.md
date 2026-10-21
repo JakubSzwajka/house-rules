@@ -1,15 +1,15 @@
 # Booking reference app
 
-This app shows one booking crossing module boundaries without crossing their storage boundaries. Bookings owns the booking and its owner policy. Billing owns payment state and a fake provider. MyStuff reads their published views in Postgres. The app joins their operations into seven features. It is a runnable reference, not a payment service: the provider records calls but never contacts a bank.
+This app shows one booking crossing module boundaries without crossing their storage boundaries. Bookings owns the booking and its owner policy. Billing owns payment state and a fake provider. MyStuff reads their published views in Postgres. The app joins their operations into features. It is a runnable reference, not a payment service: the provider records calls but never contacts a bank.
 
 ## Reading order
 
-1. Start at `apps/api/src/features/index.ts`. Features holds all seven feature identities and the member, partner, agent and system permission lists.
+1. Start at `apps/api/src/features/index.ts`. Features holds only feature identities. Composition declares member, partner and admin roles in `roles.ts`, plus the system permission list. Admin holds the permissions it delegates to member and partner; `party:admin` alone cannot grant them.
 2. Read `apps/api/src/features/make-booking/index.ts`. One defineFeature call includes its handler. Input reuses module fields; the handler calls only its declared booking and payment edges. A feature is its own entry and stays browser-safe.
 3. Read `packages/bookings/src/contract.ts` and `packages/billing/src/contract.ts`, then their subject operations and binders. BookingsOperations and BillingOperations describe module work with defineOperation. bindOperation captures services in composition. Each module owns its rules, storage, migrations and memory/Postgres adapters. Writes join the feature's open unit. Their migrations publish booking_read and payment_read; neither module queries the other's tables.
 4. Read `apps/api/src/read-models/my-bookings`, starting at contract.ts, then the facade and Postgres adapter. MyStuffOperations publishes the read operation. MyStuff joins booking_read and payment_read, filtering both owners in SQL. It has no memory adapter.
-5. Read `apps/api/src/ways-in`. Web exposes four features at /api; the independently signed partner way exposes booking creation at /partner. HTTP denies approval. MCP exposes the two reads and uses human elicitation, not agent consent.
-6. Follow `apps/api/src/composition`. Choose adapters in modules.ts, capture services and bind operations, plug sockets, acquire Runtime, then capture it in the first-sign-in hook. First sign-in creates a Party person and Identity binding in one unit. scheduleFeatures.nightlyCleanup is one Effect, not a timer. Both start Features values as system callers.
+5. Read `apps/api/src/ways-in`. Web exposes booking and role-management features at /api; the independently signed partner way exposes booking creation at /partner. HTTP denies approval. MCP exposes the two reads and uses human elicitation, not agent consent.
+6. Follow `apps/api/src/composition`. Choose adapters in modules.ts, capture services and bind operations, plug sockets, acquire Runtime, then capture it in the first-sign-in hook. First sign-in creates a Party person, assigns the default role as system and binds Identity in one unit. The partner demo issuer gets partner; all other verified issuers get member, including remote MCP. One Party.may() plug resolves roles for every way. PermissionCatalogue reads Runtime.permissions after acquisition. A gate role check precedes the module's object relation check. scheduleFeatures.nightlyCleanup is one Effect, not a timer. Both start Features values as system callers.
 7. Finish at `apps/api/src/main.ts`. It passes ways into composition, gives the router's fetch handler to Node Host, and disposes the router before composition.
 
 ```text

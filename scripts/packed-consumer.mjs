@@ -175,7 +175,7 @@ const binding = application.bindOperation(write, () => Effect.gen(function* () {
 const features = [feature];
 const who = { resolve: () => Effect.succeed(actor) };
 const way = application.defineWay({ name: "web", path: "/", protocol: "http", features,
-  endpoints: [application.endpoint(feature)], who, may: application.May.fixed(features, []), mean: application.Mean.no });
+  endpoints: [application.endpoint(feature)], who, mean: application.Mean.no });
 const ways = [way];
 const lifecycle = Layer.effectDiscard(Effect.acquireRelease(
   Effect.sync(() => { state.builds++; }), () => Effect.sync(() => { state.releases++; })));
@@ -185,13 +185,13 @@ const watch = Layer.succeed(application.CallWatch, application.CallWatch.of({ ar
 }) }));
 const layer = Layer.mergeAll(application.Runtime.layer({ bindings: [binding], features, ways }),
   application.StepTrace.layer(), domain.memoryUnitOfWork, lifecycle, watch);
-const app = application.composition({ layer, features, ways, system: [] });
+const app = application.composition({ layer, features, ways, may: application.May.fixed([]), system: [] });
 const router = application.toFetchHandler(app);
 const incoming = { headers: new Headers(), url: "http://packed.test/" };
 assert.equal(state.builds, 0);
 try {
   const deniedWay = application.defineWay({ ...way, name: "denied", who: { resolve: () => Effect.fail(new application.Refused({ status: 401, code: "missing", message: "Sign in." })) } });
-  const denied = application.composition({ layer, features, ways: [deniedWay], system: [] });
+  const denied = application.composition({ layer, features, ways: [deniedWay], may: application.May.fixed([]), system: [] });
   try { assert.equal((await application.admit(denied, incoming, { way: "denied" })).ok, false); }
   finally { await denied.dispose(); }
   const admitted = await application.admit(app, incoming, { way: "web", channel: "api" });
@@ -210,7 +210,7 @@ assert.equal((await application.call(app, feature, {}, incoming, { way: "web" })
 NodePlatform.runMain(Effect.gen(function* () {
   assert.equal(yield* (yield* FileSystem.FileSystem).exists("package.json"), true);
   const value = yield* application.runFeature(feature, {}).pipe(
-    Effect.provideContext(application.May.context(application.May.fixed(features, []), { system: [], via: "node" })),
+    Effect.provideContext(application.May.context(application.May.fixed([]), { features, system: [], via: "node" })),
     Effect.provideService(application.CurrentActor, actor));
   assert.equal(value, "stable");
   yield* Effect.log("cold install: transactional feature, admission, in-process call, router, lazy build/disposal and Node services pass");

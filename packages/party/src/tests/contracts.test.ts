@@ -100,20 +100,24 @@ const runtime = Layer.unwrap(
   }),
 );
 const world = runtime.pipe(
-  Layer.provideMerge(Party.layerMemory),
+  Layer.provideMerge(Party.layerMemory({ builtInRoles: {} })),
   Layer.provideMerge(memoryUnitOfWork),
   Layer.provideMerge(StepTrace.layer()),
 );
 const as = (
   actor: Actor,
-  permissions: readonly ("party:read" | "party:update" | "party:create")[] = Object.values(
-    PartyPermissions,
-  ),
+  permissions: readonly (
+    | "party:read"
+    | "party:update"
+    | "party:create"
+    | "party:admin"
+  )[] = Object.values(PartyPermissions),
 ) =>
   Layer.merge(
     Layer.succeed(CurrentActor, actor),
     Layer.succeedContext(
-      May.context(May.fixed(features, permissions), {
+      May.context(May.fixed(permissions), {
+        features,
         system: ["party:create", "party:read", "party:update"],
         via: "test",
       }),

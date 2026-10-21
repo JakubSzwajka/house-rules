@@ -52,7 +52,6 @@ it.effect("composition passes its default and explicit gate policy into every wa
             features: [current],
             endpoints: [endpoint(current)],
             who: { resolve: () => Effect.succeed(testActor) },
-            may: May.fixed([current], held),
             mean: Mean.no,
           }),
         );
@@ -79,6 +78,7 @@ it.effect("composition passes its default and explicit gate policy into every wa
           ),
           features: [current],
           ways,
+          may: May.fixed(held),
           system: held,
           ...(gatePolicy === undefined ? {} : { gatePolicy }),
         });

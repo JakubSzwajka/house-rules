@@ -16,6 +16,7 @@ import type { InnerFailure } from "../runtime/binding.ts";
 import { CallInvalid } from "../runtime/call-invalid.ts";
 import { Runtime } from "../runtime/runtime.ts";
 import { CallPermissions } from "../socket/permission-lists.ts";
+import { MayUnavailable } from "../socket/may-unavailable.ts";
 import { StepTrace } from "../trace/step-trace.ts";
 import { type AnyFeature, isFeature } from "../feature/feature.ts";
 
@@ -25,6 +26,7 @@ export type FeatureFailure<E extends AnyFeature> =
       E["transactional"] extends true ? NoOpenUnit : never
     >
   | Forbidden
+  | MayUnavailable
   | (E["needsApproval"] extends false ? never : ApprovalDenied)
   | (E["transactional"] extends false ? never : UnitOfWorkFailed);
 export type FeatureRequirements<E extends AnyFeature> =
@@ -62,11 +64,26 @@ export function runFeature(
           callable: feature.name,
           reason: "Feature is not exposed by this way",
         });
+      let person = permissions.person;
+      if (feature.start === "person") {
+        const actor = yield* Effect.serviceOption(CurrentActor);
+        if (Option.isNone(actor))
+          return yield* new CallInvalid({
+            callable: feature.name,
+            reason: "Person feature requires CurrentActor",
+          });
+        person = yield* permissions.may.permissionsOf({
+          kind: "person",
+          actor: actor.value,
+          via: permissions.via,
+        });
+      }
+      const held = { ...permissions, person };
       const trace = yield* StepTrace;
       const requestId = yield* CallRequestId;
       for (const caller of ["person", "system"] as const) {
         for (const permission of feature.closures[caller]) {
-          if (!permissions[caller].includes(permission)) {
+          if (!held[caller].includes(permission)) {
             yield* trace.refuse(requestId, { feature: feature.name, permission, caller });
             return yield* new Forbidden({ feature: feature.name, permission, caller });
           }
@@ -90,9 +107,10 @@ export function runFeature(
           feature.name,
         );
       });
-      return yield* feature.transactional
+      const execution = feature.transactional
         ? UnitOfWork.atomic(callables.pipe(Effect.catchIf(Schema.is(NoOpenUnitSchema), Effect.die)))
         : callables;
+      return yield* execution.pipe(Effect.provideService(CallPermissions, held));
     });
     const facts = yield* callFactsOf(feature);
     return yield* watch.around(feature, input, run, facts);

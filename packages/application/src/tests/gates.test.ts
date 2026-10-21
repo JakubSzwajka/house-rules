@@ -11,7 +11,7 @@ import {
   Forbidden,
   May,
 } from "../index.ts";
-import { bindFixture, runFixture } from "./execution-fixtures.ts";
+import { bindFixture, runFixture, testActor } from "./execution-fixtures.ts";
 class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {
   kind: errorKind("invalid"),
 }) {}
@@ -69,7 +69,7 @@ it("a permission must be resource:action, with null replacing the public pseudo-
 });
 it.effect("a null-permission feature runs without any held permission", () =>
   Effect.gen(function* () {
-    expect(yield* runFixture(open, { name: "Ada" }, May.fixed([open], []))).toBe("Hello, Ada");
+    expect(yield* runFixture(open, { name: "Ada" }, May.fixed([]))).toBe("Hello, Ada");
   }),
 );
 it("feature types always retain real closure and invocation failures", () => {
@@ -100,20 +100,23 @@ it("a widened approval flag conservatively requires approval", () => {
 });
 it.effect("May passes the caller whose fixed list holds the closure", () =>
   Effect.gen(function* () {
-    expect(yield* runFixture(read, { name: "Ada" }, May.fixed([read], ["greetings:read"]))).toBe(
+    expect(yield* runFixture(read, { name: "Ada" }, May.fixed(["greetings:read"]))).toBe(
       "Hello, Ada",
     );
   }),
 );
 it.effect("May.context supplies exposure, person/system lists and via independently", () =>
   Effect.gen(function* () {
-    const context = May.context(May.fixed([read], ["greetings:read"]), {
+    const context = May.context(May.fixed(["greetings:read"]), {
+      features: [read],
       system: ["system:work"],
       via: "web",
     });
     const held = yield* CallPermissions.pipe(Effect.provideContext(context));
     expect(held.features).toEqual([read]);
-    expect(held.person).toEqual(["greetings:read"]);
+    expect(
+      yield* held.may.permissionsOf({ kind: "person", actor: testActor, via: held.via }),
+    ).toEqual(["greetings:read"]);
     expect(held.system).toEqual(["system:work"]);
     expect(held.via).toBe("web");
   }),
@@ -121,20 +124,16 @@ it.effect("May.context supplies exposure, person/system lists and via independen
 it.effect("a complete explicit fixed list allows its feature", () =>
   Effect.gen(function* () {
     expect(
-      yield* runFixture(
-        read,
-        { name: "Ada" },
-        May.fixed([read], ["greetings:read", "greetings:send"]),
-      ),
+      yield* runFixture(read, { name: "Ada" }, May.fixed(["greetings:read", "greetings:send"])),
     ).toBe("Hello, Ada");
   }),
 );
 it.effect("a missing closure permission fails with its real permission and caller kind", () =>
   Effect.gen(function* () {
     const other = yield* Effect.flip(
-      runFixture(read, { name: "Ada" }, May.fixed([read], ["greetings:send"])),
+      runFixture(read, { name: "Ada" }, May.fixed(["greetings:send"])),
     );
-    const denied = yield* Effect.flip(runFixture(read, { name: "Ada" }, May.fixed([read], [])));
+    const denied = yield* Effect.flip(runFixture(read, { name: "Ada" }, May.fixed([])));
     expect(other).toEqual(
       new Forbidden({ feature: "read_greeting", permission: "greetings:read", caller: "person" }),
     );
@@ -178,7 +177,7 @@ it.effect("closure checks happen before approval and approval before the handler
     const calls: string[] = [];
     const feature = recorded(calls);
     expect(
-      yield* runFixture(feature, { name: "Ada" }, May.fixed([feature], ["greetings:send"])).pipe(
+      yield* runFixture(feature, { name: "Ada" }, May.fixed(["greetings:send"])).pipe(
         Effect.provide(approval(calls, true)),
       ),
     ).toBe("Sent to Ada");
@@ -190,7 +189,7 @@ it.effect("a refused closure never asks approval", () =>
     const calls: string[] = [];
     const feature = recorded(calls);
     const error = yield* Effect.flip(
-      runFixture(feature, { name: "Ada" }, May.fixed([feature], [])).pipe(
+      runFixture(feature, { name: "Ada" }, May.fixed([])).pipe(
         Effect.provide(approval(calls, true)),
       ),
     );

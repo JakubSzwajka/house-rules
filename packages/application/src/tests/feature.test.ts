@@ -87,9 +87,7 @@ it.effect(
             memoryUnitOfWork,
           ),
         ),
-        Effect.provideContext(
-          May.context(May.system([feature]), { system: ["items:write"], via: "schedule" }),
-        ),
+        Effect.provideContext(May.system([feature], { system: ["items:write"], via: "schedule" })),
       );
       expect(seen).toEqual([{ kind: "system", reason: "nightly", startedBy: "schedule:cleanup" }]);
     }),
@@ -153,7 +151,6 @@ it.effect(
               return testActor;
             }),
         },
-        may: May.fixed([actual], []),
         mean: Mean.no,
       });
       const app = composition({
@@ -167,6 +164,7 @@ it.effect(
         ),
         features: [actual],
         ways: [way],
+        may: May.fixed([]),
         system: [],
       });
       const result = yield* Effect.promise(() =>

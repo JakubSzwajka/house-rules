@@ -24,6 +24,7 @@ export {
 } from "./execution/run-feature.ts";
 export { type WhoSocket } from "./socket/who.ts";
 export { type MaySocket, May } from "./socket/may.ts";
+export { MayUnavailable } from "./socket/may-unavailable.ts";
 export { type MeanSocket, Mean } from "./socket/mean.ts";
 export { type RecordSocket } from "./socket/record.ts";
 export {
