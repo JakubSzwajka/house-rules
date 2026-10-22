@@ -12,6 +12,7 @@ export {
   PartyInputInvalid,
   PartyDenied,
   PartyConflict,
+  PartyLastAdmin,
   PartyUnavailable,
   Relationship,
   PartyReference,

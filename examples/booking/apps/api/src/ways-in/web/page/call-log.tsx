@@ -20,7 +20,8 @@ export function CallLog({ rows }: { rows: readonly CallRow[] }) {
       <CardHeader>
         <CardTitle>Calls in this tab</CardTitle>
         <CardDescription>
-          Passwords and session tokens are never logged. Reloading clears this log.
+          Passwords and session tokens are never logged. Reloading or switching accounts clears this
+          log.
         </CardDescription>
       </CardHeader>
       <CardContent className="overflow-auto">

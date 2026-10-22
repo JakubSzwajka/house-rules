@@ -3,6 +3,15 @@ import { webWho } from "../../composition/callers.ts";
 import { defineWay, Mean } from "@house-rules/application";
 import { endpoints } from "./endpoints.ts";
 const features = [
+  Features.createOrganisation,
+  Features.myOrganisations,
+  Features.createInvitation,
+  Features.acceptInvitation,
+  Features.listInvitations,
+  Features.revokeInvitation,
+  Features.removeMember,
+  Features.listPeople,
+  Features.myActivity,
   Features.myProfile,
   Features.listPermissions,
   Features.recentAudit,

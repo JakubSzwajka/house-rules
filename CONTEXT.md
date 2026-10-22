@@ -36,6 +36,8 @@ A **permission** is the `resource:action` an operation declares in code. The **p
 
 A **role** names a set of catalogue permissions. Composition declares built-in roles; Party stores custom roles. A **role assignment** gives a person a role globally or within one organisation. A person defining or assigning a role must hold all its permissions in that same scope, even with `party:admin`. Trusted system assignment is exempt. Org-scoped role reads hide other organisations' custom roles and global custom roles. Revocation and relationship removal need approval. The **May plug**, `Party.may()`, answers which permissions the caller holds. Composition plugs it once.
 
+An **invitation** is a one-time, expiring code for joining an organisation as staff, with an optional role. Party stores only its hash. The inviter must administer that org and hold every attached permission there. Acceptance consumes the code and relates the person; an app feature assigns the role through an explicit system edge in the same unit. Removing staff revokes that person's org-scoped assignments, preserves global roles and refuses removal of the last org admin.
+
 The gate checks roles at feature start and fails 403 when a closure permission is missing. A **relation check** runs inside the module's operation against the loaded object, in the write's unit. It may return not_found to hide the object. Lists filter relations in SQL. An agent is the user: MCP gets the same roles as HTTP, but exposes read features only.
 
 ## Ways and sockets

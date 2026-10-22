@@ -28,6 +28,8 @@ export class Party extends defineModule<Party, PartyService>()("party", {
           {
             find: (id) =>
               persons.find(id).pipe(Effect.mapError((cause) => new PartyUnavailable({ cause }))),
+            list: (ids) =>
+              persons.list(ids).pipe(Effect.mapError((cause) => new PartyUnavailable({ cause }))),
           },
           options,
           catalogue,

@@ -10,13 +10,22 @@ export const AuditEntry = Schema.Struct({
   outcome: Schema.String,
   requestId: Schema.NullOr(Schema.String),
   ms: Schema.Finite,
+  kind: Schema.NullOr(Schema.String),
 });
 const recent = defineOperation("AuditTrail.recent", {
-  description: "Read your own recent feature audit rows.",
+  description: "Read all recent feature audit rows as a global administrator.",
   input: NoInput,
   output: Schema.Array(AuditEntry),
   failure: AuditUnavailable,
   permission: "audit:read",
   readOnly: true,
 });
-export const AuditTrailOperations = { recent } as const;
+const mine = defineOperation("AuditTrail.mine", {
+  description: "Read only your own recent feature audit rows.",
+  input: NoInput,
+  output: Schema.Array(AuditEntry),
+  failure: AuditUnavailable,
+  permission: null,
+  readOnly: true,
+});
+export const AuditTrailOperations = { recent, mine } as const;

@@ -140,6 +140,15 @@ it.live(
       assert.strictEqual(mcpWay.features[0], Features.showBooking);
       assert.strictEqual(mcpWay.features[1], Features.myBookings);
       assert.deepStrictEqual(webWay.features, [
+        Features.createOrganisation,
+        Features.myOrganisations,
+        Features.createInvitation,
+        Features.acceptInvitation,
+        Features.listInvitations,
+        Features.revokeInvitation,
+        Features.removeMember,
+        Features.listPeople,
+        Features.myActivity,
         Features.myProfile,
         Features.listPermissions,
         Features.recentAudit,

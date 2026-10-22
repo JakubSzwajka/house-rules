@@ -58,11 +58,16 @@ for (const storage of ["memory", "postgres"] as const) {
           Effect.provideContext(as("alice")),
         );
         assert.isTrue(alice.some((row) => row.requestId === "profile-alice"));
-        assert.isFalse(alice.some((row) => row.requestId === "profile-bob"));
+        assert.isTrue(alice.some((row) => row.requestId === "profile-bob"));
         const carol = yield* runFeature(Features.recentAudit, {}).pipe(
           Effect.provideContext(as("carol")),
         );
-        assert.isFalse(carol.some((row) => row.requestId === "profile-alice"));
+        assert.isTrue(carol.some((row) => row.requestId === "profile-alice"));
+        const mine = yield* runFeature(Features.myActivity, {}).pipe(
+          Effect.provideContext(as("bob")),
+        );
+        assert.isTrue(mine.some((row) => row.requestId === "profile-bob"));
+        assert.isFalse(mine.some((row) => row.requestId === "profile-alice"));
         yield* runFeature(Features.defineRole, {
           key: "temporary",
           name: "Temporary",

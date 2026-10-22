@@ -239,7 +239,6 @@ for (const { name, layer: storeLayer } of stores) {
       it.effect("management and read descriptors declare permissions and destructive flags", () =>
         Effect.sync(() => {
           for (const operation of [
-            PartyOperations.createOrganisation,
             PartyOperations.relate,
             PartyOperations.unrelate,
             PartyOperations.defineRole,
@@ -247,6 +246,7 @@ for (const { name, layer: storeLayer } of stores) {
             PartyOperations.assignRole,
             PartyOperations.revokeRole,
           ]) {
+            expect(PartyOperations.createOrganisation.permission).toBe("party:create-organisation");
             expect(operation.permission).toBe("party:admin");
             expect(operation.transactional).toBe(true);
           }

@@ -8,14 +8,17 @@ export const builtInRoles = {
       "bookings:cancel",
       "billing:charge",
       "party:read",
+      "party:create-organisation",
     ],
   },
-  partner: { name: "Partner", permissions: ["bookings:write"] },
+  partner: { name: "Partner", permissions: ["bookings:write", "party:read"] },
+  "org-admin": { name: "Organisation admin", permissions: ["party:admin", "party:read"] },
   admin: {
     name: "Admin",
     permissions: [
       "identity:update",
       "party:admin",
+      "party:create-organisation",
       "audit:read",
       "party:read",
       "bookings:read",

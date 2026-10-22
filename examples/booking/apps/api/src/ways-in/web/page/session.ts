@@ -8,4 +8,9 @@ export const makeClient = (onCall: (row: CallRow) => void) =>
   });
 export type Client = ReturnType<typeof makeClient>;
 export type Action = keyof Client;
+export const clearsCallHistory = (action: Action, previousId?: string, nextId?: string) =>
+  action === "signIn" ||
+  action === "signUp" ||
+  action === "signOut" ||
+  (action === "myProfile" && previousId !== nextId);
 export const approvalNeeded = (action: Action) => api.endpoints[action].feature.needsApproval;

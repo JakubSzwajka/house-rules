@@ -6,13 +6,23 @@ Paths start at the repository root unless stated otherwise. Evidence keys below 
 
 ## Browser dashboard
 
-- `apps/api/src/composition/tests/browser-reads.test.ts`: memory/Postgres A/B profile and catalogue reads, admin audit gate, private audit filtering, and custom-role deletion.
+- `apps/api/src/composition/tests/browser-reads.test.ts`: memory/Postgres A/B profile and catalogue reads, admin-wide audit gate, private my_activity filtering, and custom-role deletion.
 - `packages/party/src/adapters/tests/my-access.test.ts`: both stores return only the caller's assignments and refuse system reads.
 - `packages/call-audit/src/adapters/tests/reader.test.ts`: captured readers on memory/Postgres filter A/B rows before limiting and need no per-call SQL service.
 - `apps/api/src/tests/node-host.test.ts` runs `scripts/host-smoke.mjs`: builds the page, serves GET / as HTML, preserves POST /api/my_profile as 401 JSON, checks unset MCP and production refusal, and closes children.
 - `apps/api/src/ways-in/web/page/tests/approval.test.ts`: lifted needsApproval selects cancellation, role revoke and deletion for browser confirmation.
 - `packages/rules/tests/dependency-cruiser-ways.test.mjs`: browser UI dependencies work only under a way's page folder, with workspace main, builtin and SQL fences intact.
 - Browser layout and dialog interaction still need a manual browser check. The host and HTTP proofs do not verify pixels or focus.
+
+## Organisations, invitations and demo seed
+
+- `apps/api/src/composition/tests/organisations.test.ts`, on memory and Postgres: `organisations, invites and people enforce A/B privacy, delegation and approval` proves every new org/invitation/member/people feature. It covers creator-only scoped bootstrap, no-permission 403, org A/B lists and invite refusal, optional role system assignment, single-use and revoked codes, admin delegation limits, scoped people filtering, global-admin visibility, approval flags, member removal with scoped-role revocation and preserved global roles, and last-admin conflict.
+- The same file's `seed is idempotent, creates scoped demo users and refuses production` runs the seed twice and checks stable ids, Acme membership and production refusal on both stores.
+- Root `packages/party/src/adapters/tests/invitations.test.ts` runs the shared memory/Postgres suite: hash-only storage, hidden hashes in lists, org scope and delegation checks, atomic acceptance, expired/revoked/unknown codes, and rollback restoring a claimed code.
+- `apps/api/src/ways-in/web/page/tests/activity.test.ts`: dock rows join by request id without duplicates, retain audit-only rows and mark reads for the toggle.
+- `apps/api/src/ways-in/web/page/tests/session-history.test.ts`: local person-owned call history clears on sign_in, sign_up, sign_out and a changed my_profile id. Signed-out attempts do not carry into the next person's log; same-person refreshes preserve history.
+- The existing call-audit reader test above proves SQL actor filtering before LIMIT. No reader API change was needed.
+- Quick sign-in buttons use the build-time Vite development flag, not a new public feature. Browser interaction and production-bundle omission need build/browser checks in addition to unit tests.
 
 ## Identity passwords provider
 

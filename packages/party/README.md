@@ -19,7 +19,7 @@ const partyLayer = Party.layerPostgres(options).pipe(
 );
 ```
 
-Use `Party.layerMemory(options)` for memory storage. Raw `Party.layer(options)` needs `PersonStore` and `PartyStore`. Share the app's unit adapter and SQL client. Register `@house-rules/party` in `migrations.json`. Migrations `0001` and `0002` create Party's tables.
+Use `Party.layerMemory(options)` for memory storage. Raw `Party.layer(options)` needs `PersonStore` and `PartyStore`. Share the app's unit adapter and SQL client. Register `@house-rules/party` in `migrations.json`. Migrations `0001` and `0002` create Party's core tables. Append-only `0003` adds invitations.
 
 Acquire Party, pass the service to `bindParty(service)`, then acquire Runtime with those bindings. Plug `yield* Party.may()` into composition's app-level `may`. It captures Party and returns a MaySocket with no per-call requirements.
 
@@ -41,7 +41,13 @@ Descriptors come from `@house-rules/party/contract`. Only app features are expos
 | showPerson | party:read | R |
 | showMe | party:read | R |
 | renamePerson | party:update | T |
-| createOrganisation | party:admin | T |
+| createOrganisation | party:create-organisation | T |
+| myOrganisations | party:read | R |
+| listPeople | party:admin | R |
+| createInvitation | party:admin | T |
+| acceptInvitation | party:read | T |
+| listInvitations | party:admin | R |
+| revokeInvitation | party:admin | T D A |
 | showOrganisation | party:read | R |
 | relate | party:admin | T |
 | unrelate | party:admin | T D A |
@@ -54,6 +60,20 @@ Descriptors come from `@house-rules/party/contract`. Only app features are expos
 | rolesOf | party:read | R |
 
 Organisation creation takes `{ id, name }`. Relationships take `{ from: { kind, id }, to: { kind, id }, kind }`; endpoint kinds are `person` or `organisation`. Roles take `{ key, name, permissions, organisationId }`. Assignments take `{ personId, roleKey, organisationId }`. Use `null` for global scope. Role reads add `builtIn`.
+
+## Invitations and membership
+
+`createOrganisation(caller, { id, name })` accepts a person and relates them as staff. The operation gate needs `party:create-organisation`. Bootstrap the creator's scoped admin assignment in the app through an explicit system `assignRole` edge, in the same feature transaction.
+
+`createInvitation(caller, { organisationId, roleKey })` needs an administrator of that organisation. Use `null` to omit a role. The inviter must hold every attached role permission in that scope. Creation returns `{ invitation, code }`. Save the code then: it is never listed again. It has 256 random bits, a seven-day expiry and only its SHA-256 hash is stored.
+
+`acceptInvitation(caller, code)` consumes the code with a conditional write and relates that person as staff. Its result is `{ personId, organisationId, roleKey }`. A feature calls the optional `assignRole` through a system edge. Keep both calls in one transaction, so a failed assignment restores the code and relation. Acceptance rechecks that the inviter can still delegate the current role. Unknown, expired, used and revoked codes all fail with `PartyNotFound`.
+
+`listInvitations(caller, organisationId)` shows only an administered org's invitations, without codes or hashes. `revokeInvitation(caller, id)` checks the invitation's org and needs approval.
+
+`myOrganisations(caller)` returns only the person's organisations, selected through staff relationships or scoped assignments. `listPeople(caller)` shows everyone to global admins, and only staff of administered organisations to org admins. Other callers are refused. Postgres filters both lists in SQL.
+
+`unrelate` on person-to-organisation staff also revokes that person's assignments scoped to that org. Global roles stay. It refuses removal of the last scoped org admin with `PartyLastAdmin`, kind conflict, and locks the organisation before checking on Postgres.
 
 ## Fixed rules
 

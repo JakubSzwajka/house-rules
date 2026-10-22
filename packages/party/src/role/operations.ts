@@ -3,6 +3,7 @@ import { Schema } from "effect";
 import { Assignment } from "../assignment/assignment.js";
 import {
   Organisation,
+  PartyLastAdmin,
   PartyConflict,
   PartyDenied,
   PartyInputInvalid,
@@ -11,8 +12,10 @@ import {
 } from "../organisation/organisation.js";
 import { Relationship } from "../relationship/relationship.js";
 import { Role } from "./role.js";
+import { CreatedInvitation, Invitation, InvitationAcceptance } from "../invitation/invitation.js";
 
 const failure = Schema.Union([
+  PartyLastAdmin,
   PartyConflict,
   PartyDenied,
   PartyInputInvalid,
@@ -24,7 +27,7 @@ const createOrganisation = defineOperation("Party.createOrganisation", {
   input: Organisation,
   output: Organisation,
   failure,
-  permission: "party:admin",
+  permission: "party:create-organisation",
   edges: [],
   transactional: true,
 });
@@ -142,7 +145,54 @@ const myAccess = defineOperation("Party.myAccess", {
   edges: [],
   readOnly: true,
 });
+const createInvitation = defineOperation("Party.createInvitation", {
+  description: "Invite a person into your organisation with an optional delegated role.",
+  input: Schema.Struct({ organisationId: Schema.String, roleKey: Schema.NullOr(Schema.String) }),
+  output: CreatedInvitation,
+  failure,
+  permission: "party:admin",
+  transactional: true,
+});
+const acceptInvitation = defineOperation("Party.acceptInvitation", {
+  description: "Consume a one-time invitation and join as staff.",
+  input: Schema.Struct({ code: Schema.String }),
+  output: InvitationAcceptance,
+  failure,
+  permission: "party:read",
+  transactional: true,
+});
+const revokeInvitation = defineOperation("Party.revokeInvitation", {
+  description: "Revoke an invitation in your organisation.",
+  input: Schema.Struct({ id: Schema.String }),
+  output: Schema.Void,
+  failure,
+  permission: "party:admin",
+  transactional: true,
+  destructive: true,
+  needsApproval: true,
+});
+const listInvitations = defineOperation("Party.listInvitations", {
+  description: "List invitations in an organisation you administer, without codes or hashes.",
+  input: Schema.Struct({ organisationId: Schema.String }),
+  output: Schema.Array(Invitation),
+  failure,
+  permission: "party:admin",
+  readOnly: true,
+});
+const myOrganisations = defineOperation("Party.myOrganisations", {
+  description: "List organisations you belong to.",
+  input: NoInput,
+  output: Schema.Array(Organisation),
+  failure,
+  permission: "party:read",
+  readOnly: true,
+});
 export const AccessOperations = {
+  createInvitation,
+  acceptInvitation,
+  revokeInvitation,
+  listInvitations,
+  myOrganisations,
   myAccess,
   createOrganisation,
   showOrganisation,

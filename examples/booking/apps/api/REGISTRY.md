@@ -15,10 +15,16 @@
 - identity:update
 - party:admin
 - party:create
+- party:create-organisation
 - party:read
 - party:update
 
 ## Operations
+
+### AuditTrail.mine
+
+- Permission: none
+- Called by: my_activity
 
 ### AuditTrail.recent
 
@@ -80,15 +86,25 @@
 - Permission: bookings:read
 - Called by: my_bookings
 
+### Party.acceptInvitation
+
+- Permission: party:read
+- Called by: accept_invitation
+
 ### Party.assignRole
 
 - Permission: party:admin
-- Called by: assign_role, first_sign_in
+- Called by: accept_invitation, assign_role, create_organisation, first_sign_in
+
+### Party.createInvitation
+
+- Permission: party:admin
+- Called by: create_invitation
 
 ### Party.createOrganisation
 
-- Permission: party:admin
-- Called by: none
+- Permission: party:create-organisation
+- Called by: create_organisation
 
 ### Party.createPerson
 
@@ -110,6 +126,16 @@
 - Permission: party:read
 - Called by: none
 
+### Party.listInvitations
+
+- Permission: party:admin
+- Called by: list_invitations
+
+### Party.listPeople
+
+- Permission: party:admin
+- Called by: list_people
+
 ### Party.listRoles
 
 - Permission: party:read
@@ -120,10 +146,20 @@
 - Permission: party:read
 - Called by: list_permissions, my_profile
 
+### Party.myOrganisations
+
+- Permission: party:read
+- Called by: my_organisations
+
 ### Party.relate
 
 - Permission: party:admin
 - Called by: none
+
+### Party.revokeInvitation
+
+- Permission: party:admin
+- Called by: revoke_invitation
 
 ### Party.revokeRole
 
@@ -143,7 +179,7 @@
 ### Party.unrelate
 
 - Permission: party:admin
-- Called by: none
+- Called by: remove_member
 
 ### rename_person
 
@@ -161,6 +197,80 @@
 - Called by: none
 
 ## Features
+
+### create_organisation
+
+- Starts as: person
+- Person closure: party:create-organisation
+- System closure: party:admin
+- Exposed by: in-process only
+- Calls: Party.createOrganisation (person, inherited system stays system)
+- Calls: ⚙ Party.assignRole (system: creator of organisation)
+
+### my_organisations
+
+- Starts as: person
+- Person closure: party:read
+- System closure: none
+- Exposed by: in-process only
+- Calls: Party.myOrganisations (person, inherited system stays system)
+
+### create_invitation
+
+- Starts as: person
+- Person closure: party:admin
+- System closure: none
+- Exposed by: in-process only
+- Calls: Party.createInvitation (person, inherited system stays system)
+
+### accept_invitation
+
+- Starts as: person
+- Person closure: party:read
+- System closure: party:admin
+- Exposed by: in-process only
+- Calls: Party.acceptInvitation (person, inherited system stays system)
+- Calls: ⚙ Party.assignRole (system: role delegated by organisation invitation)
+
+### list_invitations
+
+- Starts as: person
+- Person closure: party:admin
+- System closure: none
+- Exposed by: in-process only
+- Calls: Party.listInvitations (person, inherited system stays system)
+
+### revoke_invitation
+
+- Starts as: person
+- Person closure: party:admin
+- System closure: none
+- Exposed by: in-process only
+- Calls: Party.revokeInvitation (person, inherited system stays system)
+
+### remove_member
+
+- Starts as: person
+- Person closure: party:admin
+- System closure: none
+- Exposed by: in-process only
+- Calls: Party.unrelate (person, inherited system stays system)
+
+### list_people
+
+- Starts as: person
+- Person closure: party:admin
+- System closure: none
+- Exposed by: in-process only
+- Calls: Party.listPeople (person, inherited system stays system)
+
+### my_activity
+
+- Starts as: person
+- Person closure: none
+- System closure: none
+- Exposed by: in-process only
+- Calls: AuditTrail.mine (person, inherited system stays system)
 
 ### my_profile
 

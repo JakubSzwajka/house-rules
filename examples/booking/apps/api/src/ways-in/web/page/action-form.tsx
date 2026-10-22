@@ -18,6 +18,7 @@ export function ActionForm({
     type?: string;
     value?: string;
     optional?: boolean;
+    options?: readonly { value: string; label: string }[];
   }[];
   submit: (data: FormData) => void;
   children?: ReactNode;
@@ -38,13 +39,30 @@ export function ActionForm({
           {fields.map((field) => (
             <div className="grid gap-2" key={field.name}>
               <Label htmlFor={`${id}-${field.name}`}>{field.label}</Label>
-              <Input
-                id={`${id}-${field.name}`}
-                name={field.name}
-                type={field.type ?? "text"}
-                defaultValue={field.value}
-                required={!field.optional}
-              />
+              {field.options ? (
+                <select
+                  id={`${id}-${field.name}`}
+                  name={field.name}
+                  required={!field.optional}
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  defaultValue=""
+                >
+                  <option value="">Choose a person</option>
+                  {field.options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  id={`${id}-${field.name}`}
+                  name={field.name}
+                  type={field.type ?? "text"}
+                  defaultValue={field.value}
+                  required={!field.optional}
+                />
+              )}
             </div>
           ))}
           {children}

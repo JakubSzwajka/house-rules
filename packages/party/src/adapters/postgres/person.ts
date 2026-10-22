@@ -21,6 +21,10 @@ export const postgresPersonStore: Layer.Layer<PersonStore, never, SqlClient> = L
         read(sql`select ${columns} from party_person where id = ${id}`).pipe(
           Effect.map((rows) => rows[0]),
         ),
+      list: (ids) =>
+        read(
+          sql`select ${columns} from party_person where ${ids === null ? sql`true` : sql.in("id", ids)} order by display_name, id`,
+        ),
       insertIfFree: Effect.fn("PersonStore.postgres.insert")(function* (person: Person) {
         yield* UnitOfWork.required;
         const rows = yield* sql`insert into party_person (id, display_name, created_at)

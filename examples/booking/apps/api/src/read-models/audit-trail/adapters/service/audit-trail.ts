@@ -6,19 +6,19 @@ export const auditTrailReader = Layer.effect(
   AuditTrail,
   Effect.gen(function* () {
     const reader = yield* AuditReader;
-    return {
-      recent: (personId: string) =>
-        reader.readRows({ viewerId: personId, limit: 50 }).pipe(
-          Effect.map((rows) =>
-            rows.map((row) => ({
-              feature: row.target,
-              outcome: row.outcome,
-              requestId: row.requestId ?? null,
-              ms: row.ms,
-            })),
-          ),
-          Effect.mapError(() => new AuditUnavailable()),
+    const read = (viewerId?: string) =>
+      reader.readRows(viewerId === undefined ? { limit: 50 } : { viewerId, limit: 50 }).pipe(
+        Effect.map((rows) =>
+          rows.map((row) => ({
+            feature: row.target,
+            outcome: row.outcome,
+            requestId: row.requestId ?? null,
+            ms: row.ms,
+            kind: row.kind ?? null,
+          })),
         ),
-    };
+        Effect.mapError(() => new AuditUnavailable()),
+      );
+    return { recent: () => read(), mine: (personId: string) => read(personId) };
   }),
 );

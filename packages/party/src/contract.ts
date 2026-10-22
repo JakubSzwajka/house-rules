@@ -1,3 +1,4 @@
+export { Invitation, CreatedInvitation, InvitationAcceptance } from "./invitation/invitation.js";
 export { Assignment } from "./assignment/assignment.js";
 export {
   Organisation,
@@ -6,6 +7,7 @@ export {
   PartyInputInvalid,
   PartyDenied,
   PartyConflict,
+  PartyLastAdmin,
   PartyUnavailable,
 } from "./organisation/organisation.js";
 export { Relationship, PartyReference } from "./relationship/relationship.js";

@@ -2,11 +2,17 @@ import { useRef, useState } from "react";
 import { Blocks, BookOpen, Fingerprint, ListChecks, ScrollText, Users } from "lucide-react";
 import { Schema } from "effect";
 import { HttpFailure } from "@house-rules/application/contract";
-import { ActorId } from "@house-rules/domain/contract";
 import { FrameworkPanel } from "./framework-panel.tsx";
 import { api } from "../endpoints.ts";
 import { ActionForm, text } from "./action-form.tsx";
-import { approvalNeeded, makeClient, type Action, type CallRow, type Client } from "./session.ts";
+import {
+  approvalNeeded,
+  clearsCallHistory,
+  makeClient,
+  type Action,
+  type CallRow,
+  type Client,
+} from "./session.ts";
 import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert.tsx";
 import { Button } from "./components/ui/button.tsx";
 import {
@@ -24,12 +30,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./components/ui/dialog.tsx";
-import { Label } from "./components/ui/label.tsx";
 import { CallLog } from "./call-log.tsx";
+import { QuickSignIn } from "./quick-sign-in.tsx";
+import { AuditDock } from "./audit-dock.tsx";
+import { OrganisationsPanel } from "./organisations-panel.tsx";
+import { PeoplePanel } from "./people-panel.tsx";
 
 const menu = [
   { name: "Account", note: "@house-rules/identity · passwords", icon: Fingerprint },
   { name: "Bookings", note: "@example/bookings + @example/billing", icon: BookOpen },
+  { name: "Organisations", note: "@house-rules/party · invitations + staff", icon: Users },
   { name: "People & roles", note: "@house-rules/party", icon: Users },
   { name: "Audit", note: "@house-rules/call-audit", icon: ScrollText },
   { name: "Framework", note: "domain + application + auth-jwt + node-host", icon: Blocks },
@@ -39,12 +49,6 @@ type Profile = Awaited<ReturnType<Client["myProfile"]>>;
 const email = { name: "email", label: "Email", type: "email" };
 const password = { name: "password", label: "Password", type: "password" };
 const id = { name: "id", label: "Booking id" };
-const scope = { name: "organisationId", label: "Organisation id (blank = global)", optional: true };
-const assignment = [
-  { name: "personId", label: "Person id" },
-  { name: "roleKey", label: "Role key", value: "member" },
-  scope,
-];
 const print = (value: unknown) => JSON.stringify(value, null, 2);
 
 export function App() {
@@ -58,6 +62,7 @@ export function App() {
     }),
   );
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [people, setPeople] = useState<Awaited<ReturnType<Client["listPeople"]>>>([]);
   const [catalogue, setCatalogue] = useState<readonly string[]>([]);
   const [result, setResult] = useState<unknown>(null);
   const [problem, setProblem] = useState<CallRow | null>(null);
@@ -68,6 +73,7 @@ export function App() {
   const execute = (action: Action, send: () => Promise<unknown>) => {
     setBusy(true);
     setProblem(null);
+    if (clearsCallHistory(action)) setRows([]);
     return send()
       .then((value) => {
         setResult(value ?? { message: "Done" });
@@ -85,13 +91,31 @@ export function App() {
           setProblem(row);
           setRows((previous) => [row, ...previous.slice(1)]);
         } else if (action === "signIn" || action === "signUp" || action === "myProfile") {
+          if (action !== "myProfile") {
+            // Authentication replaces the session. Signed-out attempts belong to neither person.
+            setRows([]);
+            setProfile(null);
+            setPeople([]);
+            setCatalogue([]);
+          }
           return (
             action === "myProfile" ? Promise.resolve(value as Profile) : client.myProfile({})
           ).then((me) => {
+            if (clearsCallHistory(action, profile?.person.id, me.person.id)) {
+              setRows([]);
+              last.current = undefined;
+            }
             setProfile(me);
             setCatalogue(me.access.catalogue);
           });
-        } else if (action === "signOut") setProfile(null);
+        } else if (action === "signOut") {
+          setRows([]);
+          last.current = undefined;
+          setProfile(null);
+          setPeople([]);
+          setCatalogue([]);
+        } else if (action === "listPeople")
+          setPeople(value as Awaited<ReturnType<Client["listPeople"]>>);
         else if (action === "listPermissions") setCatalogue(value as readonly string[]);
       })
       .catch((error: unknown) => {
@@ -146,11 +170,6 @@ export function App() {
       {label}
     </Button>
   );
-  const roleAssignment = (data: FormData) => ({
-    personId: ActorId.make(text(data, "personId")),
-    roleKey: text(data, "roleKey"),
-    organisationId: text(data, "organisationId") || null,
-  });
 
   return (
     <div className="min-h-screen md:flex">
@@ -188,7 +207,7 @@ export function App() {
           {profile?.person.id}
         </p>
       </aside>
-      <main className="min-w-0 flex-1 p-5 md:ml-72 md:p-10">
+      <main className="min-w-0 flex-1 p-5 pb-28 md:ml-72 md:p-10 md:pb-28">
         <header className="mb-8 border-b pb-5">
           <h2 className="text-2xl font-semibold tracking-tight">{section}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -221,9 +240,18 @@ export function App() {
                     displayName: text(data, "displayName"),
                   }),
               )}
-              {form("signIn", "Sign in", [email, password], (data) =>
-                client.signIn({ email: text(data, "email"), password: text(data, "password") }),
-              )}
+              <ActionForm
+                title="Sign in"
+                fields={[email, password]}
+                disabled={busy}
+                submit={(data) =>
+                  run("signIn", () =>
+                    client.signIn({ email: text(data, "email"), password: text(data, "password") }),
+                  )
+                }
+              >
+                <QuickSignIn disabled={busy} />
+              </ActionForm>
               {form(
                 "changePassword",
                 "Change password",
@@ -321,73 +349,25 @@ export function App() {
             )}
           </div>
         )}
+        {section === "Organisations" && (
+          <OrganisationsPanel client={client} busy={busy} run={run} people={people} />
+        )}
         {section === "People & roles" && (
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Roles and permissions</CardTitle>
-                <CardDescription>
-                  Custom roles respect organisation scope and cannot grant permissions you lack.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex gap-3">
-                {button("listRoles", "List roles", () => client.listRoles({}))}
-                {button("listPermissions", "Load catalogue", () => client.listPermissions({}))}
-              </CardContent>
-            </Card>
-            <ActionForm
-              title="Define custom role"
-              disabled={busy}
-              fields={[
-                { name: "key", label: "Role key" },
-                { name: "name", label: "Role name" },
-                scope,
-              ]}
-              submit={(data) =>
-                run("defineRole", () =>
-                  client.defineRole({
-                    key: text(data, "key"),
-                    name: text(data, "name"),
-                    organisationId: text(data, "organisationId") || null,
-                    permissions: data.getAll("permission").map(String),
-                  }),
-                )
-              }
-            >
-              <fieldset className="grid gap-2">
-                <legend className="mb-2 text-sm font-medium">Permissions from app catalogue</legend>
-                {catalogue.map((permission) => (
-                  <Label key={permission} className="flex items-center gap-2">
-                    <input type="checkbox" name="permission" value={permission} />
-                    {permission}
-                  </Label>
-                ))}
-                {catalogue.length === 0 && (
-                  <p className="text-sm text-muted-foreground">Load the catalogue first.</p>
-                )}
-              </fieldset>
-            </ActionForm>
-            {form("assignRole", "Assign role", assignment, (data) =>
-              client.assignRole(roleAssignment(data)),
-            )}
-            {form("revokeRole", "Revoke role", assignment, (data) =>
-              client.revokeRole(roleAssignment(data)),
-            )}
-            {form(
-              "deleteRole",
-              "Delete custom role",
-              [{ name: "key", label: "Role key" }],
-              (data) => client.deleteRole({ key: text(data, "key") }),
-            )}
-          </div>
+          <PeoplePanel
+            client={client}
+            busy={busy}
+            run={run}
+            people={people}
+            catalogue={catalogue}
+          />
         )}
         {section === "Audit" && (
           <Card>
             <CardHeader>
               <CardTitle>Recent audit</CardTitle>
               <CardDescription>
-                Admin-only. Your own latest 50 calls, including refusals. Other people's rows remain
-                private.
+                Global admin only. The latest 50 calls across all people, including refusals. Your
+                own activity is also available in the bottom dock.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -410,6 +390,12 @@ export function App() {
           </Card>
         )}
       </main>
+      <AuditDock
+        key={profile?.person.id ?? "signed-out"}
+        client={client}
+        personId={profile?.person.id}
+        calls={rows}
+      />
       <Dialog
         open={pending !== null}
         onOpenChange={(open) => {

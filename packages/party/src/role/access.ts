@@ -6,6 +6,7 @@ import {
   UnitOfWork,
 } from "@house-rules/domain";
 import { Effect } from "effect";
+import { makeInvitations } from "../invitation/invitations.js";
 import { type Assignment, validateAssignment } from "../assignment/assignment.js";
 import {
   type Organisation,
@@ -21,13 +22,22 @@ import {
   type PartyReference,
   validateRelationship,
 } from "../relationship/relationship.js";
-import type { PartyStore } from "../storage.js";
+import type { PartyStore, PersonStore } from "../storage.js";
+import { removeStaffAssignments } from "../relationship/removal.js";
 import type { PermissionCatalogue } from "./permission-catalogue.js";
 import { type PartyOptions, type Role, validateRole } from "./role.js";
 
 export const makeAccess = (
   store: PartyStore["Service"],
-  persons: { readonly find: (id: ActorId) => Effect.Effect<unknown, PartyUnavailable> },
+  persons: {
+    readonly find: (id: ActorId) => Effect.Effect<unknown, PartyUnavailable>;
+    readonly list: (
+      ids: readonly ActorId[] | null,
+    ) => Effect.Effect<
+      Effect.Success<ReturnType<PersonStore["Service"]["list"]>>,
+      PartyUnavailable
+    >;
+  },
   options: PartyOptions,
   catalogue: PermissionCatalogue["Service"] | undefined,
 ) => {
@@ -127,7 +137,45 @@ export const makeAccess = (
     if (organisations.length === 0) yield* admin(caller, null);
     for (const org of organisations) yield* admin(caller, org.id);
   });
+  const adminScopes = Effect.fn("Party.adminScopes")(function* (caller: Caller) {
+    if (caller.kind !== "person") return yield* new PartyDenied();
+    const scopes = new Set<string>();
+    for (const assignment of yield* store.assignments(caller.actor.id)) {
+      const held = yield* role(assignment.roleKey);
+      if (
+        !held ||
+        !held.permissions.includes("party:admin") ||
+        (held.organisationId !== null && held.organisationId !== assignment.organisationId)
+      )
+        continue;
+      if (assignment.organisationId === null) return null;
+      scopes.add(assignment.organisationId);
+    }
+    if (scopes.size === 0) return yield* new PartyDenied();
+    return [...scopes];
+  });
+  const checkInvitationRole = Effect.fn("Party.checkInvitationRole")(function* (
+    caller: Caller,
+    key: string,
+    org: string,
+  ) {
+    yield* admin(caller, org);
+    const held = yield* role(key);
+    if (!held) return yield* new PartyNotFound();
+    if (held.organisationId !== null && held.organisationId !== org)
+      return yield* new PartyDenied();
+    yield* mayDelegate(caller, held.permissions, org);
+  });
   return {
+    ...makeInvitations(store, admin, checkInvitationRole),
+    listPeople: Effect.fn("Party.listPeople")(function* (caller: Caller) {
+      const scopes = yield* adminScopes(caller);
+      return yield* persons.list(scopes === null ? null : yield* store.memberIds(scopes));
+    }),
+    myOrganisations: Effect.fn("Party.myOrganisations")(function* (caller: Caller) {
+      if (caller.kind !== "person") return yield* new PartyDenied();
+      return yield* store.organisationsFor(caller.actor.id);
+    }),
     permissionsOf,
     myAccess: Effect.fn("Party.myAccess")(function* (caller: Caller) {
       if (caller.kind !== "person") return yield* new PartyDenied();
@@ -142,9 +190,14 @@ export const makeAccess = (
       input: Organisation,
     ) {
       yield* UnitOfWork.required;
-      yield* admin(caller, null);
+      if (caller.kind !== "person") return yield* new PartyDenied();
       const value = yield* validateOrganisation(input);
       if (!(yield* store.insertOrganisation(value))) return yield* new PartyConflict();
+      yield* store.relate({
+        from: { kind: "person", id: caller.actor.id },
+        to: { kind: "organisation", id: value.id },
+        kind: "staff",
+      });
       return value;
     }),
     showOrganisation: Effect.fn("Party.showOrganisation")(function* (id: string) {
@@ -164,6 +217,7 @@ export const makeAccess = (
       yield* UnitOfWork.required;
       const value = yield* validateRelationship(input);
       yield* relationScope(caller, value);
+      yield* removeStaffAssignments(store, role, value);
       yield* store.unrelate(value);
     }),
     isRelated: (input: Relationship) =>

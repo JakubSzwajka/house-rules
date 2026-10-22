@@ -19,6 +19,12 @@ export const memoryPersonStore = (): Layer.Layer<PersonStore> =>
     });
     return PersonStore.of({
       find: (id) => Effect.sync(() => rows.get(id)).pipe(Effect.map((row) => row && { ...row })),
+      list: (ids) =>
+        Effect.sync(() =>
+          [...rows.values()]
+            .filter((p) => ids === null || ids.includes(p.id))
+            .map((p) => ({ ...p })),
+        ),
       insertIfFree: (person) =>
         Effect.gen(function* () {
           yield* UnitOfWork.required;

@@ -4,6 +4,7 @@ import type { Assignment } from "./assignment/assignment.js";
 import type { Organisation, PartyUnavailable } from "./organisation/organisation.js";
 import type { Relationship } from "./relationship/relationship.js";
 import type { Role } from "./role/role.js";
+import type { StoredInvitation } from "./invitation/invitation.js";
 
 export { PersonStore } from "./person/person-store.js";
 type Read<A> = Effect.Effect<A, PartyUnavailable>;
@@ -13,6 +14,15 @@ export class PartyStore extends Context.Service<
   PartyStore,
   {
     readonly organisation: (id: string) => Read<Organisation | undefined>;
+    readonly organisationsFor: (personId: ActorId) => Read<readonly Organisation[]>;
+    readonly assignmentsInOrganisation: (organisationId: string) => Read<readonly Assignment[]>;
+    readonly lockOrganisation: (organisationId: string) => Write<void>;
+    readonly memberIds: (organisationIds: readonly string[]) => Read<readonly ActorId[]>;
+    readonly insertInvitation: (value: StoredInvitation) => Write<void>;
+    readonly consumeInvitation: (hash: string, now: number) => Write<StoredInvitation | undefined>;
+    readonly invitation: (id: string) => Read<StoredInvitation | undefined>;
+    readonly invitations: (organisationId: string) => Read<readonly StoredInvitation[]>;
+    readonly revokeInvitation: (id: string) => Write<void>;
     readonly insertOrganisation: (organisation: Organisation) => Write<boolean>;
     readonly relate: (relationship: Relationship) => Write<void>;
     readonly unrelate: (relationship: Relationship) => Write<void>;

@@ -21,6 +21,10 @@ export class PartyDenied extends Schema.TaggedError<PartyDenied>()("PartyDenied"
     return "You do not have permission for this action in this scope.";
   }
 }
+export class PartyLastAdmin extends Schema.TaggedError<PartyLastAdmin>()("PartyLastAdmin", {
+  kind: errorKind("conflict"),
+  message: Schema.tag("An organisation must keep at least one administrator."),
+}) {}
 export class PartyConflict extends Schema.TaggedError<PartyConflict>()("PartyConflict", {
   kind: errorKind("conflict"),
 }) {}

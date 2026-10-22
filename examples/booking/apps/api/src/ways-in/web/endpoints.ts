@@ -3,6 +3,15 @@ import { endpoint, defineApi } from "@house-rules/application/contract";
 export const api = defineApi(
   { prefix: "/api" },
   {
+    createOrganisation: endpoint(Features.createOrganisation),
+    myOrganisations: endpoint(Features.myOrganisations),
+    createInvitation: endpoint(Features.createInvitation),
+    acceptInvitation: endpoint(Features.acceptInvitation),
+    listInvitations: endpoint(Features.listInvitations),
+    revokeInvitation: endpoint(Features.revokeInvitation),
+    removeMember: endpoint(Features.removeMember),
+    listPeople: endpoint(Features.listPeople),
+    myActivity: endpoint(Features.myActivity),
     myProfile: endpoint(Features.myProfile),
     listPermissions: endpoint(Features.listPermissions),
     recentAudit: endpoint(Features.recentAudit),

@@ -4,7 +4,7 @@ This app shows one booking crossing module boundaries without crossing their sto
 
 ## Reading order
 
-1. Start at `apps/api/src/features/index.ts`. Features holds only feature identities. Composition declares member, partner and admin roles in `roles.ts`, plus the system permission list. Admin holds the permissions it delegates to member and partner; `party:admin` alone cannot grant them.
+1. Start at `apps/api/src/features/index.ts`. Features holds only feature identities. Composition declares member, partner, org-admin and admin roles in `roles.ts`, plus the system permission list. Admin holds the permissions it delegates to member and partner; `party:admin` alone cannot grant them.
 2. Read `apps/api/src/features/make-booking/index.ts`. One defineFeature call includes its handler. Input reuses module fields; the handler calls only its declared booking and payment edges. A feature is its own entry and stays browser-safe.
 3. Read `packages/bookings/src/contract.ts` and `packages/billing/src/contract.ts`, then their subject operations and binders. BookingsOperations and BillingOperations describe module work with defineOperation. bindOperation captures services in composition. Each module owns its rules, storage, migrations and memory/Postgres adapters. Writes join the feature's open unit. Their migrations publish booking_read and payment_read; neither module queries the other's tables.
 4. Read `apps/api/src/read-models/my-bookings`, starting at contract.ts, then the facade and Postgres adapter. MyStuffOperations publishes the read operation. MyStuff joins booking_read and payment_read, filtering both owners in SQL. It has no memory adapter.
@@ -28,21 +28,44 @@ From the repo root, with the pinned Node and pnpm:
 
 ```sh
 docker compose up -d
-MIGRATION_DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/booking_e2e pnpm --filter @example/api migrate
-pnpm --filter @example/api build
+MIGRATION_DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/booking_dev pnpm --filter @example/api migrate
+NODE_ENV=development pnpm --filter @example/api build
+STORAGE=postgres DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/booking_dev APP_ORIGIN=http://192.168.1.23:3000 NODE_ENV=development pnpm --filter @example/api seed
 cd examples/booking/apps/api
-STORAGE=postgres DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/booking_e2e APP_ORIGIN=http://192.168.1.23:3000 PORT=3000 NODE_ENV=development pnpm exec varlock run --path ../../../../ -- node dist/main.js
+STORAGE=postgres DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/booking_dev APP_ORIGIN=http://192.168.1.23:3000 PORT=3000 NODE_ENV=development pnpm exec varlock run --path ../../../../ -- node dist/main.js
 ```
 
-Create the database first if it does not exist. Open http://192.168.1.23:3000 or http://localhost:3000 and sign up. The page loads your profile, creating the bound Party person. In another shell at the repo root, grant admin with server access:
+Create the database first if it does not exist, for example with `docker exec house-rules-postgres-1 psql -U house_rules -d postgres -c 'create database booking_dev'`. Use a fresh demo database if those emails already belong to accounts with different passwords; the seed preserves existing credentials. Open http://192.168.1.23:3000 or http://localhost:3000 and sign up. The page loads your profile, creating the bound Party person. In another shell at the repo root, grant admin with server access:
 
 ```sh
-STORAGE=postgres DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/booking_e2e APP_ORIGIN=http://192.168.1.23:3000 NODE_ENV=development pnpm --filter @example/api grant-admin admin@example.test
+STORAGE=postgres DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/booking_dev APP_ORIGIN=http://192.168.1.23:3000 NODE_ENV=development pnpm --filter @example/api grant-admin admin@example.test
 ```
 
-Refresh the profile to see the admin role. Unknown or unbound accounts fail with a message to sign in once first. No email-based admin seed exists. The development signing key is ephemeral; restarting requires signing in again.
+Refresh the profile to see the admin role. Unknown or unbound accounts fail with a message to sign in once first. Ordinary sign-up never grants admin based on email. The explicit development seed below creates a demo admin. The development signing key is ephemeral; restarting requires signing in again.
 
-The sidebar has Account (Identity passwords), Bookings (Bookings and Billing), People & roles (Party), Audit (call-audit), Framework (features and ways), and Call log. Use a second account for member and hidden-booking demos. The catalogue picker lists operation permissions; role delegation still requires holding each permission in the target scope. Audit is admin-only and shows only the caller's rows. Profile ids can be copied to role assignments; there is no global people directory.
+The sidebar has Account, Bookings, Organisations, People & roles, Audit, Framework and Call log. The catalogue picker lists operation permissions; role delegation still requires holding each permission in the target scope. Load people for the role and member pickers. A global admin sees everyone, an org admin sees only staff of their own organisations, and members get 403. These filters run in SQL.
+
+The Audit page is global-admin-only and shows the latest 50 calls across people. The fixed bottom "Under the hood" dock merges this tab's calls with the signed-in person's own audit, linked by request id. Open it to refresh after calls, or refresh manually; enable "Include reads" for read-only calls. The tab log belongs to the signed-in person and clears on sign-in, sign-up, sign-out or a changed profile id. Signed-out attempts do not carry into another person's log. `my_activity` filters by actor in the reader's SQL, not in the page.
+
+## Seed and organisations walkthrough
+
+`pnpm --filter @example/api seed` is tooling, not a public feature. It refuses `NODE_ENV=production` and uses Identity and Party services in a script-owned unit. Re-running it keeps the same accounts, relations and assignments. All five accounts use `@example.test` and password `house-rules-demo`:
+
+| Account | Roles and membership |
+| --- | --- |
+| alice | member |
+| bob | partner |
+| carol | org-admin scoped to Acme, id `acme` |
+| dave | member, Acme staff |
+| admin | global admin |
+
+Quick sign-in buttons appear inside the normal sign-in card only when Vite builds with `NODE_ENV=development`, or serves its dev page. They prefill credentials and submit the existing `sign_in` form. A normal production build removes them. There is no new public path, runtime environment endpoint or seed-enabled feature. Setting only the server's NODE_ENV after a production page build cannot enable these buttons.
+
+1. Sign in as Carol. Open Organisations, load your organisations and load members. Acme lists Carol and Dave, not Alice or Bob.
+2. Create an invitation for `acme`, leaving its role blank, or use `org-admin` to delegate Carol's own scoped powers. Copy the returned one-time code. Carol cannot attach `member`: that role includes booking permissions Carol does not hold.
+3. Sign in as Alice and accept the code. Alice becomes Acme staff; an attached role is assigned through a system edge in the same transaction. A reused code fails with generic not_found. Codes expire after seven days; revocation needs confirmation.
+4. Alice can also create a separate organisation as a member. Its creator gets only `org-admin` in that org through the system edge with reason `creator of organisation`. Carol cannot invite into or list invitations in Alice's org.
+5. Remove a member with the picker and confirm. Their org-scoped assignments are revoked, but their global roles stay. Removing the last org admin fails with conflict.
 
 Web uses Mean.allow only after the page's confirm dialog for lifted needsApproval features. The dialog is the person's approval, not a server-verifiable token. Direct authenticated HTTP callers can also invoke these features. Partner remains Mean.no and MCP remains Mean.elicitation. All role and object checks still run. APP_ORIGIN adds the exact LAN origin; localhost:3000 stays allowed. booking_session is HttpOnly/SameSite=Lax and is not Secure over plain HTTP. HTTPS adds Secure. Session writes retain exact-origin CSRF, including sign-up and sign-in.
 

@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 import { parseSync } from "@swc/core";
+import { withoutEffectRuntimeTesting } from "./effect-runtime-source.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const self = "tests/retired-names.test.mjs";
@@ -46,11 +47,6 @@ const retired = [
 ];
 const allowlist = [
   {
-    path: "examples/booking/apps/api/scripts/grant-admin.ts",
-    line: "  }).pipe(Effect.provide(modulesLayer()), NodePlatform.NodeRuntime.runMain);",
-    reason: "Third-party Effect platform runtime, not the retired house-rules API.",
-  },
-  {
     path: "scripts/packed-consumer.mjs",
     line: 'for (const name of ["implement", "defineContract", "Grant", "route", "toTool", "toMcpHandler", "mount", "problemView"])',
     reason: "Cold-consumer fixture asserts that these application exports are absent.",
@@ -78,16 +74,6 @@ const allowlist = [
   {
     path: "scripts/packed-auth.mjs",
     line: 'import { NodeRuntime as NodePlatform } from "@effect/platform-node";',
-    reason: "Third-party Effect platform runtime, not the retired house-rules API.",
-  },
-  {
-    path: "examples/booking/apps/api/src/main.ts",
-    line: "}).pipe(NodePlatform.NodeRuntime.runMain);",
-    reason: "Third-party Effect platform runtime, not the retired house-rules API.",
-  },
-  {
-    path: "examples/booking/apps/api/scripts/migrate.ts",
-    line: "  NodePlatform.NodeRuntime.runMain,",
     reason: "Third-party Effect platform runtime, not the retired house-rules API.",
   },
   {
@@ -140,6 +126,9 @@ function matches(path, line) {
   );
 }
 
+const withoutEffectRuntime = (path, source) =>
+  withoutEffectRuntimeTesting(path, source, "NodeRuntime");
+
 function files(path) {
   if (!existsSync(resolve(root, path))) return [];
   return readdirSync(resolve(root, path), { withFileTypes: true }).flatMap((entry) => {
@@ -188,7 +177,9 @@ test("live files contain no code-shaped retired names", () => {
   const hits = [];
   for (const path of liveFiles()) {
     if (matches(path, path)) hits.push(`${path}: retired path`);
-    const lines = readFileSync(resolve(root, path), "utf8").split(/\r?\n/u);
+    const lines = withoutEffectRuntime(path, readFileSync(resolve(root, path), "utf8")).split(
+      /\r?\n/u,
+    );
     lines.forEach((line, index) => {
       if (matches(path, line)) hits.push(`${path}:${index + 1}: ${line}`);
     });
@@ -236,6 +227,23 @@ test("matcher rejects retired code but allows ordinary prose", () => {
     '{ "package": "@house-rules/comments" }',
   ])
     assert.equal(matches("migrations.json", line), false, line);
+});
+
+test("Effect runtime imports are allowed without hiding the retired kit runtime", () => {
+  for (const source of [
+    'import * as Platform from "@effect/platform-node"; Platform.NodeRuntime.runMain(program);',
+    'import { NodeRuntime } from "@effect/platform-node"; NodeRuntime.runMain(program);',
+    'import { NodeRuntime as Platform } from "@effect/platform-node"; Platform.runMain(program);',
+  ])
+    assert.equal(matches("fixture.ts", withoutEffectRuntime("fixture.ts", source)), false, source);
+  for (const source of [
+    "NodeRuntime.runMain(program);",
+    'import { NodeRuntime } from "@house-rules/application"; NodeRuntime.runMain(program);',
+    'import * as Platform from "@house-rules/application"; Platform.NodeRuntime.runMain(program);',
+    'import * as Platform from "@effect/platform-node"; NodeRuntime.runMain(program);',
+    'import * as Platform from "@effect/platform-node"; function f(Platform) { return Platform.NodeRuntime; }',
+  ])
+    assert.equal(matches("fixture.ts", withoutEffectRuntime("fixture.ts", source)), true, source);
 });
 
 test("allowlist is exact, not a whole-file exemption", () => {

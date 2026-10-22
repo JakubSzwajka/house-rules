@@ -1,6 +1,7 @@
-import { UnitOfWork } from "@house-rules/domain";
+import { ActorId, UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
+import { StoredInvitation } from "../../invitation/invitation.js";
 import { Assignment } from "../../assignment/assignment.js";
 import { Organisation, PartyUnavailable } from "../../organisation/organisation.js";
 import type { Relationship } from "../../relationship/relationship.js";
@@ -28,6 +29,9 @@ export const postgresPartyStore = Layer.effect(
     const roleColumns = sql.literal(
       'key, name, permissions, organisation_id as "organisationId", false as "builtIn"',
     );
+    const invitationColumns = sql.literal(
+      'id, organisation_id as "organisationId", role_key as "roleKey", created_by as "createdBy", code_hash as "codeHash", expires_at as "expiresAt", state',
+    );
     const relation = (r: Relationship) => sql`from_kind = ${r.from.kind} and from_id = ${r.from.id}
     and to_kind = ${r.to.kind} and to_id = ${r.to.id} and kind = ${r.kind}`;
     return PartyStore.of({
@@ -35,6 +39,47 @@ export const postgresPartyStore = Layer.effect(
         read(Organisation, sql`select id, name from party_organisation where id = ${id}`).pipe(
           Effect.map((rows) => rows[0]),
         ),
+      organisationsFor: (id) =>
+        read(
+          Organisation,
+          sql`select id, name from party_organisation o where exists (select 1 from party_relationship r where r.from_kind = 'person' and r.from_id = ${id} and r.to_kind = 'organisation' and r.to_id = o.id and r.kind = 'staff') or exists (select 1 from party_assignment a where a.person_id = ${id} and a.organisation_id = o.id) order by name, id`,
+        ),
+      assignmentsInOrganisation: (id) =>
+        read(
+          Assignment,
+          sql`select person_id as "personId", role_key as "roleKey", organisation_id as "organisationId" from party_assignment where organisation_id = ${id}`,
+        ),
+      lockOrganisation: (id) =>
+        write(sql`select id from party_organisation where id = ${id} for update`),
+      memberIds: (ids) =>
+        read(
+          Schema.Struct({ id: ActorId }),
+          sql`select distinct from_id as id from party_relationship where from_kind = 'person' and to_kind = 'organisation' and kind = 'staff' and ${sql.in("to_id", ids)}`,
+        ).pipe(Effect.map((rows) => rows.map((r) => r.id))),
+      insertInvitation: (i) =>
+        write(
+          sql`insert into party_invitation (id, organisation_id, role_key, created_by, code_hash, expires_at, state) values (${i.id}, ${i.organisationId}, ${i.roleKey}, ${i.createdBy}, ${i.codeHash}, ${i.expiresAt}, ${i.state})`,
+        ),
+      invitation: (id) =>
+        read(
+          StoredInvitation,
+          sql`select ${invitationColumns} from party_invitation where id = ${id}`,
+        ).pipe(Effect.map((rows) => rows[0])),
+      invitations: (id) =>
+        read(
+          StoredInvitation,
+          sql`select ${invitationColumns} from party_invitation where organisation_id = ${id} order by id`,
+        ),
+      consumeInvitation: Effect.fn("PartyStore.postgres.consumeInvitation")(function* (hash, now) {
+        yield* UnitOfWork.required;
+        const rows = yield* read(
+          StoredInvitation,
+          sql`update party_invitation set state = 'used' where code_hash = ${hash} and state = 'pending' and expires_at > ${now} returning ${invitationColumns}`,
+        );
+        return rows[0];
+      }),
+      revokeInvitation: (id) =>
+        write(sql`update party_invitation set state = 'revoked' where id = ${id}`),
       insertOrganisation: Effect.fn("PartyStore.postgres.insertOrganisation")(function* (value) {
         yield* UnitOfWork.required;
         const rows =

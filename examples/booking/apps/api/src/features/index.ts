@@ -17,7 +17,25 @@ import { myProfile } from "./my-profile/index.ts";
 import { listPermissions } from "./list-permissions/index.ts";
 import { recentAudit } from "./recent-audit/index.ts";
 import { deleteRole } from "./delete-role/index.ts";
+import { createOrganisation } from "./create-organisation/index.ts";
+import { myOrganisations } from "./my-organisations/index.ts";
+import { createInvitation } from "./create-invitation/index.ts";
+import { acceptInvitation } from "./accept-invitation/index.ts";
+import { listInvitations } from "./list-invitations/index.ts";
+import { revokeInvitation } from "./revoke-invitation/index.ts";
+import { removeMember } from "./remove-member/index.ts";
+import { listPeople } from "./list-people/index.ts";
+import { myActivity } from "./my-activity/index.ts";
 export const Features = {
+  createOrganisation,
+  myOrganisations,
+  createInvitation,
+  acceptInvitation,
+  listInvitations,
+  revokeInvitation,
+  removeMember,
+  listPeople,
+  myActivity,
   myProfile,
   listPermissions,
   recentAudit,

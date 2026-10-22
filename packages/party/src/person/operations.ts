@@ -1,5 +1,6 @@
 import { ActorId, defineOperation, NoInput } from "@house-rules/domain/contract";
 import { Schema } from "effect";
+import { PartyDenied, PartyUnavailable } from "../organisation/organisation.js";
 import { AccessOperations } from "../role/operations.js";
 import { PartyPermissions } from "./permissions.js";
 import {
@@ -59,7 +60,17 @@ const renamePerson = defineOperation("rename_person", {
   transactional: true,
 });
 
+const listPeople = defineOperation("Party.listPeople", {
+  description:
+    "List everyone for global admins, or only your organisations' staff for scoped admins.",
+  input: NoInput,
+  output: Schema.Array(Person),
+  failure: Schema.Union([PartyDenied, PartyUnavailable]),
+  permission: "party:admin",
+  readOnly: true,
+});
 export const PartyOperations = {
+  listPeople,
   createPerson,
   showPerson,
   showMe,
