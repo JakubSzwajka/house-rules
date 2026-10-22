@@ -15,6 +15,12 @@ Paths start at the repository root unless stated otherwise. Evidence keys below 
 - `packages/rules/tests/dependency-cruiser-ways.test.mjs`: browser UI dependencies work only under a way's page folder, with workspace main, builtin and SQL fences intact.
 - Browser layout and dialog interaction still need a manual browser check. The host and HTTP proofs do not verify pixels or focus.
 
+## Organisation bookings
+
+`apps/api/src/composition/tests/org-bookings.test.ts` runs `org bookings check live relations and scoped admin in the module` on memory and Postgres. It proves Acme staff access, Beta/non-member refusal, forbidden creation outside your org, scoped admin cancellation and immediate removal. The Postgres branch calls MyStuff directly and asserts owner-or-staff A/B privacy, including removal. No feature/page filter can hide leaked rows from this assertion. The SELECT uses EXISTS over party_staff_read and a left payment join matching booking owners.
+
+`packages/bookings/src/adapters/tests/booking-store.test.ts` runs both stores and checks rollback, owner/status compare-and-set and the republished booking view. `apps/api/src/composition/tests/postgres.test.ts` checks mismatched payments stay null rather than leaking another owner's payment. The read-adapter suite migrates all three view owners. The seed test runs twice on both stores; org booking ids and payment ids are stable.
+
 ## Organisations, invitations and demo seed
 
 - `apps/api/src/composition/tests/organisations.test.ts`, on memory and Postgres: `organisations, invites and people enforce A/B privacy, delegation and approval` proves every new org/invitation/member/people feature. It covers creator-only scoped bootstrap, no-permission 403, org A/B lists and invite refusal, optional role system assignment, single-use and revoked codes, admin delegation limits, scoped people filtering, global-admin visibility, approval flags, member removal with scoped-role revocation and preserved global roles, and last-admin conflict.

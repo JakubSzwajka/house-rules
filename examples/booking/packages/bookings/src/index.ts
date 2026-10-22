@@ -8,6 +8,7 @@ export {
   BookingNotFound,
   BookingAlreadyExists,
   BookingCallerDenied,
+  BookingOrganisationDenied,
   BookingStoreUnavailable,
 } from "./booking/booking.ts";
 export {

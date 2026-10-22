@@ -21,6 +21,7 @@ import { Button } from "./components/ui/button.tsx";
 import { TableCell } from "./components/ui/table.tsx";
 import { Badge } from "./components/ui/badge.tsx";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs.tsx";
+import { BookingsPanel } from "./bookings-panel.tsx";
 import { CopyButton } from "./copy-button.tsx";
 function Members({ org }: { org: Organisations[number] }) {
   const { client, epoch, profile, roles, approve } = useDashboard();
@@ -238,10 +239,14 @@ export function OrganisationsPanel() {
           <Tabs defaultValue="members">
             <TabsList>
               <TabsTrigger value="members">Members</TabsTrigger>
+              <TabsTrigger value="bookings">Bookings</TabsTrigger>
               {canAdmin(profile, roles, org.id) && (
                 <TabsTrigger value="invitations">Invitations</TabsTrigger>
               )}
             </TabsList>
+            <TabsContent value="bookings">
+              <BookingsPanel organisationId={org.id} />
+            </TabsContent>
             <TabsContent value="members">
               <Members org={org} />
             </TabsContent>

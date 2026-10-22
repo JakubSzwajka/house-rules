@@ -109,6 +109,7 @@ for (const backend of ["memory", "postgres"] as const)
           id: valid.id,
           guestName: valid.guestName,
           ownerId: alice.id,
+          organisationId: null,
           status: "active",
         });
         const second = { ...valid, id: "second", paymentId: "second-payment" };
@@ -127,6 +128,7 @@ for (const backend of ["memory", "postgres"] as const)
             id: second.id,
             guestName: second.guestName,
             ownerId: alice.id,
+            organisationId: null,
             status: "active",
           });
         assert.strictEqual(transactions, 2);

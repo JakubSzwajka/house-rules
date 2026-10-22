@@ -15,7 +15,7 @@ export const postgresBookingStore = Layer.effect(
       Request: Schema.String,
       Result: Booking,
       execute: (id) =>
-        sql`select id, guest_name as "guestName", owner_id as "ownerId", status from booking where id = ${id}`,
+        sql`select id, guest_name as "guestName", owner_id as "ownerId", organisation_id as "organisationId", status from booking where id = ${id}`,
     });
     const insert = SqlSchema.findAll({
       Request: Booking,
@@ -25,8 +25,9 @@ export const postgresBookingStore = Layer.effect(
         guestName,
         ownerId,
         status,
-      }) => sql`insert into booking (id, guest_name, owner_id, status)
-      values (${id}, ${guestName}, ${ownerId}, ${status}) on conflict (id) do nothing returning id`,
+        organisationId,
+      }) => sql`insert into booking (id, guest_name, owner_id, status, organisation_id)
+      values (${id}, ${guestName}, ${ownerId}, ${status}, ${organisationId}) on conflict (id) do nothing returning id`,
     });
     const transition = SqlSchema.findAll({
       Request: Schema.Struct({

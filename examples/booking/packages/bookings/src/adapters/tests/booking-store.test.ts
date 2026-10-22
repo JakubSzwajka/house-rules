@@ -19,6 +19,7 @@ const row = (id: string): Booking => ({
   id,
   guestName: "Ada",
   ownerId: owner.id,
+  organisationId: null,
   status: "active",
 });
 
@@ -171,7 +172,7 @@ layer(stores[1].layer, { excludeTestServices: true, timeout: "30 seconds" })(
           Request: Schema.Void,
           Result: Booking,
           execute: () =>
-            sql`select id, guest_name as "guestName", owner_id as "ownerId", status from booking_read where id = 'published'`,
+            sql`select id, guest_name as "guestName", owner_id as "ownerId", organisation_id as "organisationId", status from booking_read where id = 'published'`,
         })();
         expect(published).toEqual([row("published")]);
       }),

@@ -1,4 +1,6 @@
 import * as NodePlatform from "@effect/platform-node";
+import { Bookings } from "@example/bookings";
+import { Billing } from "@example/billing";
 import { Identity } from "@house-rules/identity";
 import { Party } from "@house-rules/party";
 import { Actor, type ActorId, UnitOfWork } from "@house-rules/domain";
@@ -27,6 +29,8 @@ export const seed = Effect.fn("seed")(function* (nodeEnv: string) {
     return yield* new SeedRefused({ message: "Demo seeding is refused in production." });
   const identity = yield* Identity;
   const party = yield* Party;
+  const bookings = yield* Bookings;
+  const billing = yield* Billing;
   const issuer = yield* identity.passwordIssuer();
   if (!issuer)
     return yield* new SeedRefused({ message: "Demo seeding needs the passwords provider." });
@@ -94,6 +98,33 @@ export const seed = Effect.fn("seed")(function* (nodeEnv: string) {
         roleKey: "org-admin",
         organisationId: org.id,
       });
+      for (const [name, id, organisationId] of [
+        ["dave", "demo-acme-1", org.id],
+        ["dave", "demo-acme-2", org.id],
+        ["alice", "demo-personal-1", null],
+      ] as const) {
+        const actor = Actor.make({ id: yield* idFor(name) });
+        yield* bookings
+          .book(
+            actor,
+            { id, guestName: name, organisationId },
+            {
+              staff: (organisationId) =>
+                party
+                  .isRelated({
+                    from: { kind: "person", id: actor.id },
+                    to: { kind: "organisation", id: organisationId },
+                    kind: "staff",
+                  })
+                  .pipe(Effect.orDie),
+              admin: () => Effect.succeed(false),
+            },
+          )
+          .pipe(Effect.catchTag("BookingAlreadyExists", () => Effect.void));
+        yield* billing
+          .initPayment(actor, { id: `payment-${id}`, bookingId: id, amount: 100 })
+          .pipe(Effect.catchTag("PaymentAlreadyExists", () => Effect.void));
+      }
       return [...people.entries()];
     }),
   );

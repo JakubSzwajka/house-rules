@@ -173,6 +173,16 @@ export const makeAccess = (
     ...makeInvitations(store, admin, checkInvitationRole),
     ...makePeople(store, persons, role, adminScopes, organisationExists),
     permissionsOf,
+    canAdminOrganisation: Effect.fn("Party.canAdminOrganisation")(function* (
+      caller: Caller,
+      organisationId: string,
+    ) {
+      if (!(yield* store.organisation(organisationId))) return false;
+      return yield* admin(caller, organisationId).pipe(
+        Effect.as(true),
+        Effect.catchTag("PartyDenied", () => Effect.succeed(false)),
+      );
+    }),
     myAccess: Effect.fn("Party.myAccess")(function* (caller: Caller) {
       if (caller.kind !== "person") return yield* new PartyDenied();
       return {

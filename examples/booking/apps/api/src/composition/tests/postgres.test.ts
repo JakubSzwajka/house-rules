@@ -131,8 +131,11 @@ it.effect(
       ).pipe(Effect.provideContext(ctx));
       assert.deepStrictEqual(
         (yield* read.myBookings(a)).map((row) => row.id),
-        ["a"],
+        ["a", "mixed"],
       );
+      const mixed = (yield* read.myBookings(a)).find((row) => row.id === "mixed");
+      assert.strictEqual(mixed?.paymentStatus, null);
+      assert.strictEqual(mixed?.amount, null);
       assert.deepStrictEqual(
         (yield* read.myBookings(b)).map((row) => row.id),
         ["b"],

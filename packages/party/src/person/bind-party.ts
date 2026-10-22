@@ -8,6 +8,9 @@ import { PersonCallerDenied, PersonNotFound, PersonUpdateRefused } from "./perso
 type Service = ReturnType<typeof makeParty> & ReturnType<typeof makeAccess>;
 
 export const bindParty = (service: Service): readonly Binding[] => [
+  bindOperation(PartyOperations.canAdminOrganisation, ({ organisationId }, { caller }) =>
+    service.canAdminOrganisation(caller, organisationId),
+  ),
   bindOperation(PartyOperations.createInvitation, (input, { caller }) =>
     service.createInvitation(caller, input),
   ),

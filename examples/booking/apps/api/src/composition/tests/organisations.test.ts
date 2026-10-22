@@ -5,7 +5,7 @@ import { Party } from "@house-rules/party";
 import { Context, Effect, Layer } from "effect";
 import { Features } from "../../features/index.ts";
 import { modulesLayer, plugSockets } from "../index.ts";
-import { systemPermissions } from "../roles.ts";
+import { builtInRoles, systemPermissions } from "../roles.ts";
 import { seedRoleTesting } from "./roles-testing.ts";
 import { databaseTesting } from "./database.ts";
 import { seed } from "../../../scripts/seed.ts";
@@ -53,7 +53,7 @@ for (const storage of ["memory", "postgres"] as const) {
           {
             roleKey: "org-admin",
             roleName: "Organisation admin",
-            permissions: ["party:admin", "party:read"],
+            permissions: [...builtInRoles["org-admin"].permissions],
           },
         ];
         for (const [id, org] of [
@@ -283,7 +283,7 @@ for (const storage of ["memory", "postgres"] as const) {
                 {
                   roleKey: "org-admin",
                   roleName: "Organisation admin",
-                  permissions: ["party:admin", "party:read"],
+                  permissions: [...builtInRoles["org-admin"].permissions],
                 },
               ],
             },

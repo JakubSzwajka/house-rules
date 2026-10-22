@@ -8,7 +8,7 @@ Party owns persons, organisations, relationships, roles and assignments. It owns
 
 Call `Party.layerMemory({ builtInRoles })` or `Party.layerPostgres({ builtInRoles })`. Each role entry is `{ name, permissions }`, keyed by role key. Raw `Party.layer(options)` needs `PersonStore` and `PartyStore`. Share the app's unit adapter. Postgres also needs the shared SQL client.
 
-Register this package in `migrations.json`. Never edit applied migrations. `0001` owns persons; `0002` adds organisations, relationships, custom roles and assignments; `0003` adds hashed one-time invitations. No cross-module foreign keys.
+Register this package in `migrations.json`. Never edit applied migrations. `0001` owns persons; `0002` adds organisations, relationships, custom roles and assignments; `0003` adds hashed one-time invitations; append-only `0004` publishes party_staff_read (person_id, organisation_id), containing current person-to-organisation staff relationships only. Read models may select this view for SQL privacy filters, never the relationship table. No cross-module foreign keys.
 
 Mount `PermissionCatalogue` before Party. Its `permissions: () => Effect<readonly Permission[], PartyUnavailable>` callback reads `Runtime.permissions` lazily. Acquire Party and `bindParty(service)` first, then Runtime. Only then fill the callback's reference. Custom-role writes fail closed without the port. May filters permissions when the port is present.
 
@@ -30,7 +30,7 @@ Use `PartyOperations` from the browser-safe contract door. Bind all descriptors 
 | myOrganisations, listMembers | party:read | readOnly |
 | revokeInvitation | party:admin | transactional, destructive, needsApproval |
 | unrelate, revokeRole, deleteRole | party:admin | transactional, destructive, needsApproval |
-| showOrganisation, isRelated, listRoles, rolesOf, myAccess | party:read | readOnly |
+| showOrganisation, isRelated, canAdminOrganisation, listRoles, rolesOf, myAccess | party:read | readOnly |
 
 ## Service and fixed rules
 
@@ -47,6 +47,7 @@ Use `PartyOperations` from the browser-safe contract door. Bind all descriptors 
 - `listPeople` returns `{ id, displayName, createdAt, assignments: [{ roleKey, roleName, organisationId, organisationName }], organisations: [{ id, name, relation }] }[]`. Global admins see all people and assignments. Scoped admins see only staff in administered orgs and only assignments and relations there, never global or other-org assignments. Non-admins get forbidden. Both adapters filter facts before returning; Postgres filters people, assignments and relations in SQL.
 - `listMembers({ organisationId })` needs `party:read` at the gate and admin authority in that org inside Party. It returns `{ id, displayName, createdAt, relation, roles: [{ roleKey, roleName }] }[]` for staff, with only org-scoped roles. Members, admins of other orgs and unknown ids get the same not_found. It needs no migration.
 - Removing a person's staff relation revokes all assignments scoped to that org in the same unit. Global assignments stay. Removing the last scoped org admin fails with conflict, with a clear message. Postgres locks the organisation before checking, so concurrent removals cannot remove both admins.
+- `canAdminOrganisation({ organisationId })` answers whether the current person holds party:admin globally or in that scope, using live assignments and the catalogue. It is a party:read operation, not an admin gate. It returns false for absent authority, including system callers. This lets modules own object checks through declared edges without requiring party:admin for every ordinary booking call.
 - Relationships are directional facts. Management checks every organisation endpoint. Other modules ask `isRelated` through an operation edge; they never query Party tables.
 - Domain checks run inside the write unit. All writes require `UnitOfWork.required`. Memory registers undo before mutation; Postgres joins the transaction. Modules never open units.
 - Expected errors declare kinds. Unavailable errors have fixed public messages and private diagnostic causes.

@@ -356,6 +356,9 @@ importers:
       '@house-rules/domain':
         specifier: workspace:0.1.0
         version: link:../../../../packages/domain
+      '@house-rules/party':
+        specifier: workspace:0.1.0
+        version: link:../../../../packages/party
       effect:
         specifier: 4.0.3
         version: 4.0.3

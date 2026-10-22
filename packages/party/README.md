@@ -19,7 +19,9 @@ const partyLayer = Party.layerPostgres(options).pipe(
 );
 ```
 
-Use `Party.layerMemory(options)` for memory storage. Raw `Party.layer(options)` needs `PersonStore` and `PartyStore`. Share the app's unit adapter and SQL client. Register `@house-rules/party` in `migrations.json`. Migrations `0001` and `0002` create Party's core tables. Append-only `0003` adds invitations.
+Use `Party.layerMemory(options)` for memory storage. Raw `Party.layer(options)` needs `PersonStore` and `PartyStore`. Share the app's unit adapter and SQL client. Register `@house-rules/party` in `migrations.json`. Migrations `0001` and `0002` create Party's core tables. Append-only `0003` adds invitations. `0004_publish_staff.sql` publishes `party_staff_read(person_id, organisation_id)` over current staff relationships. App read models may use it for SQL privacy filters. Modules still ask Party operations through declared edges, never read this view to make domain decisions.
+
+`PartyOperations.canAdminOrganisation({ organisationId })` needs party:read and returns whether the current person holds party:admin globally or in that scope. It uses live assignments and the catalogue. System callers and unrelated scoped admins get false.
 
 Acquire Party, pass the service to `bindParty(service)`, then acquire Runtime with those bindings. Plug `yield* Party.may()` into composition's app-level `may`. It captures Party and returns a MaySocket with no per-call requirements.
 

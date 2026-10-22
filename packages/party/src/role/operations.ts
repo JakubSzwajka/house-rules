@@ -70,6 +70,14 @@ const isRelated = defineOperation("Party.isRelated", {
   edges: [],
   readOnly: true,
 });
+const canAdminOrganisation = defineOperation("Party.canAdminOrganisation", {
+  description: "Check your current admin permission in an organisation scope.",
+  input: Schema.Struct({ organisationId: Schema.String }),
+  output: Schema.Boolean,
+  failure,
+  permission: "party:read",
+  readOnly: true,
+});
 const defineRole = defineOperation("Party.defineRole", {
   description: "Create or update a custom role.",
   input: Schema.Struct({
@@ -200,6 +208,7 @@ const myOrganisations = defineOperation("Party.myOrganisations", {
   readOnly: true,
 });
 export const AccessOperations = {
+  canAdminOrganisation,
   createInvitation,
   acceptInvitation,
   revokeInvitation,

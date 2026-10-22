@@ -6,15 +6,11 @@ import {
   type NewBooking,
   BookingNotFound,
   BookingAlreadyExists,
-  BookingCallerDenied,
+  BookingOrganisationDenied,
+  type BookingAccess,
   type BookingStoreUnavailable,
 } from "./booking/booking.ts";
-import {
-  type BookingRelation,
-  relationOf,
-  bookingPolicy,
-  BookingPermissions,
-} from "./booking/booking-policy.ts";
+import { type BookingRelation, relationOf } from "./booking/booking-policy.ts";
 
 export class Bookings extends defineModule<
   Bookings,
@@ -22,14 +18,20 @@ export class Bookings extends defineModule<
     readonly get: (
       actor: Actor,
       id: string,
+      access?: BookingAccess,
     ) => Effect.Effect<Booking, BookingNotFound | BookingStoreUnavailable>;
     readonly book: (
       actor: Actor,
       input: NewBooking,
-    ) => Effect.Effect<Booking, BookingAlreadyExists | BookingStoreUnavailable | NoOpenUnit>;
+      access?: BookingAccess,
+    ) => Effect.Effect<
+      Booking,
+      BookingAlreadyExists | BookingOrganisationDenied | BookingStoreUnavailable | NoOpenUnit
+    >;
     readonly cancel: (
       actor: Actor,
       id: string,
+      access?: BookingAccess,
     ) => Effect.Effect<Booking, BookingNotFound | BookingStoreUnavailable | NoOpenUnit>;
     readonly relation: (
       actor: Actor,
@@ -41,32 +43,57 @@ export class Bookings extends defineModule<
     const store = yield* BookingStore;
     const required = UnitOfWork.required;
     return {
-      get: Effect.fn("Bookings.get")(function* (actor: Actor, id: string) {
+      get: Effect.fn("Bookings.get")(function* (actor: Actor, id: string, access?: BookingAccess) {
         const row = yield* store.find(id);
         if (
           row === undefined ||
-          !bookingPolicy.allows(relationOf(actor, row), row.status, BookingPermissions.read)
+          (row.ownerId !== actor.id &&
+            !(row.organisationId && access && (yield* access.staff(row.organisationId))))
         ) {
           return yield* new BookingNotFound({ id });
         }
         return row;
       }),
-      book: Effect.fn("Bookings.book")(function* (actor: Actor, input: NewBooking) {
+      book: Effect.fn("Bookings.book")(function* (
+        actor: Actor,
+        input: NewBooking,
+        access?: BookingAccess,
+      ) {
         yield* required;
-        const row: Booking = { ...input, ownerId: actor.id, status: "active" };
+        const organisationId = input.organisationId ?? null;
+        if (
+          organisationId &&
+          !(
+            access &&
+            ((yield* access.staff(organisationId)) || (yield* access.admin(organisationId)))
+          )
+        )
+          return yield* new BookingOrganisationDenied();
+        const row: Booking = { ...input, organisationId, ownerId: actor.id, status: "active" };
         if (!(yield* store.insert(row))) return yield* new BookingAlreadyExists({ id: input.id });
         return row;
       }),
-      cancel: Effect.fn("Bookings.cancel")(function* (actor: Actor, id: string) {
+      cancel: Effect.fn("Bookings.cancel")(function* (
+        actor: Actor,
+        id: string,
+        access?: BookingAccess,
+      ) {
         yield* required;
         const row = yield* store.find(id);
         if (
           row === undefined ||
-          !bookingPolicy.allows(relationOf(actor, row), row.status, BookingPermissions.cancel)
+          row.status !== "active" ||
+          (row.ownerId !== actor.id &&
+            !(
+              row.organisationId &&
+              access &&
+              (yield* access.staff(row.organisationId)) &&
+              (yield* access.admin(row.organisationId))
+            ))
         ) {
           return yield* new BookingNotFound({ id });
         }
-        if (!(yield* store.transition(id, actor.id, "active", "cancelled")))
+        if (!(yield* store.transition(id, row.ownerId, "active", "cancelled")))
           return yield* new BookingNotFound({ id });
         return { ...row, status: "cancelled" as const };
       }),

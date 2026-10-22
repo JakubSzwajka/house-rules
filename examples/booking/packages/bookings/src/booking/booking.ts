@@ -1,15 +1,22 @@
 import { errorKind } from "@house-rules/domain/contract";
-import { Schema } from "effect";
+import { type Effect, Schema } from "effect";
+
+export type BookingAccess = {
+  readonly staff: (organisationId: string) => Effect.Effect<boolean, BookingStoreUnavailable>;
+  readonly admin: (organisationId: string) => Effect.Effect<boolean, BookingStoreUnavailable>;
+};
 
 export const BookingStatus = Schema.Literals(["active", "cancelled"]);
 export type BookingStatus = typeof BookingStatus.Type;
 export const NewBooking = Schema.Struct({
   id: Schema.NonEmptyString,
   guestName: Schema.NonEmptyString,
+  organisationId: Schema.optionalKey(Schema.NullOr(Schema.NonEmptyString)),
 });
 export type NewBooking = typeof NewBooking.Type;
 export const Booking = Schema.Struct({
   ...NewBooking.fields,
+  organisationId: Schema.NullOr(Schema.NonEmptyString),
   ownerId: Schema.String,
   status: BookingStatus,
 });
@@ -42,6 +49,14 @@ export class BookingCallerDenied extends Schema.TaggedError<BookingCallerDenied>
 ) {
   override get message() {
     return "Person required.";
+  }
+}
+export class BookingOrganisationDenied extends Schema.TaggedError<BookingOrganisationDenied>()(
+  "BookingOrganisationDenied",
+  { kind: errorKind("forbidden") },
+) {
+  override get message() {
+    return "You must be staff or an administrator of this organisation to book for it.";
   }
 }
 export class BookingStoreUnavailable extends Schema.TaggedError<BookingStoreUnavailable>()(

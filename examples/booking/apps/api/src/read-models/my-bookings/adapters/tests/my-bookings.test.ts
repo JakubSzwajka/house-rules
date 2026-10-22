@@ -9,6 +9,11 @@ import { MyStuff, postgresMyBookingStore } from "../../index.ts";
 const database = Layer.effectDiscard(
   Migrations.run([
     {
+      name: "party",
+      table: "party_migrations",
+      directory: new URL("../migrations", import.meta.resolve("@house-rules/party")).pathname,
+    },
+    {
       name: "bookings",
       table: "bookings_migrations",
       directory: new URL("../migrations", import.meta.resolve("@example/bookings")).pathname,

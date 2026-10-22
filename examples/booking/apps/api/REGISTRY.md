@@ -50,16 +50,21 @@
 
 - Permission: bookings:write
 - Called by: book_for_partner, make_booking
+- Calls: Party.isRelated (person, inherited system stays system)
+- Calls: Party.canAdminOrganisation (person, inherited system stays system)
 
 ### Bookings.cancel
 
 - Permission: bookings:cancel
 - Called by: cancel_booking
+- Calls: Party.isRelated (person, inherited system stays system)
+- Calls: Party.canAdminOrganisation (person, inherited system stays system)
 
 ### Bookings.get
 
 - Permission: bookings:read
 - Called by: show_booking
+- Calls: Party.isRelated (person, inherited system stays system)
 
 ### Identity.bindLogin
 
@@ -96,6 +101,11 @@
 - Permission: party:admin
 - Called by: accept_invitation, assign_role, create_organisation, first_sign_in
 
+### Party.canAdminOrganisation
+
+- Permission: party:read
+- Called by: Bookings.book, Bookings.cancel
+
 ### Party.createInvitation
 
 - Permission: party:admin
@@ -124,7 +134,7 @@
 ### Party.isRelated
 
 - Permission: party:read
-- Called by: none
+- Called by: Bookings.book, Bookings.cancel, Bookings.get
 
 ### Party.listInvitations
 
@@ -352,7 +362,7 @@
 ### make_booking
 
 - Starts as: person
-- Person closure: bookings:write, billing:charge
+- Person closure: bookings:write, party:read, billing:charge
 - System closure: none
 - Exposed by: web (/api)
 - Calls: Bookings.book (person, inherited system stays system)
@@ -361,7 +371,7 @@
 ### book_for_partner
 
 - Starts as: person
-- Person closure: bookings:write
+- Person closure: bookings:write, party:read
 - System closure: none
 - Exposed by: partner (/partner)
 - Calls: Bookings.book (person, inherited system stays system)
@@ -369,7 +379,7 @@
 ### cancel_booking
 
 - Starts as: person
-- Person closure: bookings:cancel
+- Person closure: bookings:cancel, party:read
 - System closure: billing:refund
 - Exposed by: web (/api)
 - Calls: Bookings.cancel (person, inherited system stays system)
@@ -378,7 +388,7 @@
 ### show_booking
 
 - Starts as: person
-- Person closure: bookings:read
+- Person closure: bookings:read, party:read
 - System closure: none
 - Exposed by: web (/api), mcp (/mcp)
 - Calls: Bookings.get (person, inherited system stays system)

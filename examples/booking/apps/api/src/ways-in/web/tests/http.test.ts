@@ -48,7 +48,7 @@ it.live(
       const app = yield* Effect.acquireRelease(
         Effect.sync(() =>
           createApp([limited, partnerWay, mcpWay], {
-            may: May.fixed(["bookings:write"]),
+            may: May.fixed(["bookings:write", "party:read"]),
             modules: modulesLayer({ provider: provider.layer, log }),
           }),
         ),
