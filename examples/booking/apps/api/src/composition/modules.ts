@@ -23,6 +23,7 @@ import { DemoForbidden } from "./demo-issuers.ts";
 import { PgClient } from "@effect/sql-pg";
 import { builtInRoles } from "./roles.ts";
 import { Catalogue } from "./catalogue.ts";
+import { auditTrailReader } from "../read-models/audit-trail/index.ts";
 const auditOptions = {
   who: Effect.serviceOption(CurrentActor).pipe(
     Effect.map(Option.match({ onNone: () => null, onSome: (actor) => actor.id })),
@@ -48,11 +49,7 @@ export const modulesLayer = (
         Config.withDefault(Redacted.make("")),
       );
       const environment = yield* Config.String("NODE_ENV").pipe(Config.withDefault("development"));
-      const admin = yield* Config.String("DEMO_ADMIN_EMAIL").pipe(Config.withDefault(""));
-      if (
-        environment === "production" &&
-        (admin !== "" || Redacted.value(signingKey).trim() === "")
-      ) {
+      if (environment === "production" && Redacted.value(signingKey).trim() === "") {
         return yield* new DemoForbidden();
       }
       const passwordOptions = { issuer: issuer || origin || `http://localhost:${port}` };
@@ -65,6 +62,7 @@ export const modulesLayer = (
           ),
         ],
       };
+      const log = options.log ?? memoryAuditLog();
       if (storage === "memory")
         return Layer.mergeAll(
           Identity.layerMemory(identityOptions),
@@ -74,7 +72,8 @@ export const modulesLayer = (
           Party.layerMemory({ builtInRoles }).pipe(Layer.provideMerge(Catalogue.layer)),
           memoryUnitOfWork,
           StepTrace.layer(),
-          CallAudit.record.memory(options.log ?? memoryAuditLog(), auditOptions).layer,
+          CallAudit.record.memory(log, auditOptions).layer,
+          auditTrailReader.pipe(Layer.provide(CallAudit.reader.memory(log))),
         );
       const url = yield* Config.schema(Schema.Redacted(Schema.NonEmptyString), "DATABASE_URL");
       return Layer.mergeAll(
@@ -86,6 +85,7 @@ export const modulesLayer = (
         sqlUnitOfWork,
         StepTrace.layer(),
         CallAudit.record.postgres(auditOptions).layer,
+        auditTrailReader.pipe(Layer.provide(CallAudit.reader.postgres)),
       ).pipe(Layer.provide(PgClient.layer({ url })));
     }),
   );

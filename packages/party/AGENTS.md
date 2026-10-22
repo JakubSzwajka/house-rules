@@ -25,10 +25,11 @@ Use `PartyOperations` from the browser-safe contract door. Bind all descriptors 
 | renamePerson | party:update | transactional |
 | createOrganisation, relate, defineRole, assignRole | party:admin | transactional |
 | unrelate, revokeRole, deleteRole | party:admin | transactional, destructive, needsApproval |
-| showOrganisation, isRelated, listRoles, rolesOf | party:read | readOnly |
+| showOrganisation, isRelated, listRoles, rolesOf, myAccess | party:read | readOnly |
 
 ## Service and fixed rules
 
+- `myAccess` is person-only and takes no target id. It reads only the caller's assignments, effective permissions and the public app catalogue. Postgres filters assignments by that caller id in SQL; memory uses the same port. System callers are refused.
 - Person creation is system-only at the binder. Person reads need a person caller. Rename allows only the target person. `erase(id)` is a trusted service hook, not an operation.
 - Global admins manage all scopes. An admin whose authority comes only from organisation X may manage roles and assignments only in X. Check both old and new scope when moving a custom role. Only global admins create organisations.
 - A person defining or assigning a role must hold every permission it grants in the target scope. Global assignments count in any organisation; another organisation's assignments never count. This covers built-in roles and updates to already assigned custom roles. System assignment is exempt. `party:admin` alone cannot delegate unheld permissions.

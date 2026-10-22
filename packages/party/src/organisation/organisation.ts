@@ -16,7 +16,11 @@ export class PartyInputInvalid extends Schema.TaggedError<PartyInputInvalid>()(
 ) {}
 export class PartyDenied extends Schema.TaggedError<PartyDenied>()("PartyDenied", {
   kind: errorKind("forbidden"),
-}) {}
+}) {
+  override get message(): string {
+    return "You do not have permission for this action in this scope.";
+  }
+}
 export class PartyConflict extends Schema.TaggedError<PartyConflict>()("PartyConflict", {
   kind: errorKind("conflict"),
 }) {}

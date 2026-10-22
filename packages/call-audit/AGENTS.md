@@ -12,6 +12,10 @@ Call-audit records one row per feature through application's lower `CallWatch`, 
 4. [ ] Use the same root watch for all ways and hooks. Application supplies channel/request facts. Custom runners may supply `CallChannel`; the default is `unknown`.
 5. [ ] For erasure, provide `AuditStore` too and call `CallAudit.erase(viewerId)` in account deletion. The socket exposes only `CallWatch`; `CallAudit.layerPostgres(options)` still exposes `CallWatch | AuditStore` when both are wanted. App code never queries this table directly.
 
+## Mount a captured reader
+
+Provide `CallAudit.reader.postgres` with the shared SQL client, or `CallAudit.reader.memory(log)` with the same `memoryAuditLog()` used by Record. Both layers export `AuditReader`. Capture that service during composition; its `readRows({ viewerId?, limit? })` has no requirements. The reader filters before limiting. It grants no permission: the calling feature must gate access and supply the person's id for private reads. Memory logs keep timestamped `rows()` alongside unchanged `entries()`.
+
 ## Feature facts and migrations
 
 `AuditRecord` and `AuditRow` require `target: string`. Both `capability` and `target` are the feature's name. Permission is the feature's permission or the empty string for null, never an invented permission. `kind` comes from the lifted feature readOnly flag. `targetId` is a distinct optional object id, null by default; no input field or operation audit option selects it. Columns, migrations and stored text values stay unchanged. Other fields remain viewerId, outcome, ms, channel, requestId and recordedAt on rows.

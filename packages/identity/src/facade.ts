@@ -1,6 +1,8 @@
 import { type ActorId, defineModule, type NoOpenUnit } from "@house-rules/domain";
 import { Effect, Layer, Option } from "effect";
 import { AccountStore } from "./passwords/account-store.js";
+import { makeAccountLookup, type PasswordAccountNotFound } from "./passwords/account-lookup.js";
+import type { AccountStoreUnavailable } from "./passwords/store-unavailable.js";
 import { makeAccounts, type PasswordMethods } from "./passwords/accounts.js";
 import { PasswordIssuer } from "./passwords/accounts-issuer.js";
 import { PasswordsUnavailable } from "./passwords/provider-unavailable.js";
@@ -26,6 +28,12 @@ export type Login = Readonly<{ issuer: string; subject: string }>;
 export class Identity extends defineModule<
   Identity,
   PasswordMethods & {
+    readonly accountByEmail: (
+      email: string,
+    ) => Effect.Effect<
+      { accountId: string; actorId: ActorId; displayName: string },
+      PasswordAccountNotFound | AccountStoreUnavailable
+    >;
     readonly passwordIssuer: () => Effect.Effect<PasswordIssuer["Service"] | undefined>;
     readonly resolve: (
       login: Login,
@@ -61,6 +69,11 @@ export class Identity extends defineModule<
     return {
       ...makeIdentity(store),
       ...passwordMethods,
+      accountByEmail: makeAccountLookup(
+        Option.getOrUndefined(accounts),
+        Option.getOrUndefined(issuer),
+        store,
+      ),
       passwordIssuer: () => Effect.succeed(Option.getOrUndefined(issuer)),
     };
   }),

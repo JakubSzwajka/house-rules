@@ -1,5 +1,7 @@
 # @house-rules/call-audit
 
+For a reader with no per-call SQL requirement, mount `CallAudit.reader.postgres` with the shared SQL client, or `CallAudit.reader.memory(log)` with the same memory log as Record. Capture `AuditReader`; call `reader.readRows({ viewerId, limit: 50 })` behind an app permission gate. Both filter by viewer before limiting. Omitting viewerId is a trusted all-row read, never a public endpoint default.
+
 Version 0.7.0 peers on exact `effect` 4.0.3 and `@house-rules/application` 0.2.0, which replaces the retired capability package. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
 
 An audit trail for every feature call. It plugs into the `CallWatch` hook of `@house-rules/application`, so it sees HTTP, MCP and hook features, `Forbidden` and `ApprovalDenied` included. Inner operation and feature calls do not add rows. An `AuditPolicy` decides which calls it keeps and how long their rows live. `AGENTS.md` in this package is the short mounting guide.

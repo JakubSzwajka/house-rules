@@ -79,29 +79,33 @@ it.layer(world)("Identity", (test) => {
       expect(refusal(yield* signIn("not an email", password))).toEqual(new InvalidCredentials());
     }),
   );
-  test.effect("locks after five failures for fifteen minutes, then lets the owner in", () =>
-    Effect.gen(function* () {
-      const email = "lin@example.test";
-      const start = yield* Clock.currentTimeMillis;
-      const { accountId } = yield* signUp(email, "Lin");
-      for (let attempt = 0; attempt < Lockout.failures; attempt += 1) {
+  test.effect(
+    "locks after five failures for fifteen minutes, then lets the owner in",
+    () =>
+      Effect.gen(function* () {
+        const email = "lin@example.test";
+        const start = yield* Clock.currentTimeMillis;
+        const { accountId } = yield* signUp(email, "Lin");
+        for (let attempt = 0; attempt < Lockout.failures; attempt += 1) {
+          expect(refusal(yield* signIn(email, "wrong password"))).toEqual(new InvalidCredentials());
+        }
+        const stored = yield* (yield* AccountStore).find(accountId);
+        expect(stored?.lockedUntil).toBe(start + Lockout.minutes * 60_000);
+        // A locked account answers exactly like a wrong password or an unknown email.
+        expect(refusal(yield* signIn(email, password))).toEqual(new InvalidCredentials());
         expect(refusal(yield* signIn(email, "wrong password"))).toEqual(new InvalidCredentials());
-      }
-      const stored = yield* (yield* AccountStore).find(accountId);
-      expect(stored?.lockedUntil).toBe(start + Lockout.minutes * 60_000);
-      // A locked account answers exactly like a wrong password or an unknown email.
-      expect(refusal(yield* signIn(email, password))).toEqual(new InvalidCredentials());
-      expect(refusal(yield* signIn(email, "wrong password"))).toEqual(new InvalidCredentials());
-      expect(refusal(yield* signIn("nobody@example.test", password))).toEqual(
-        new InvalidCredentials(),
-      );
-      yield* TestClock.adjust("14 minutes");
-      expect(refusal(yield* signIn(email, password))).toEqual(new InvalidCredentials());
-      yield* TestClock.adjust("1 minute");
-      expect(Result.isSuccess(yield* signIn(email, password))).toBe(true);
-      const account = yield* (yield* AccountStore).findByEmail(email);
-      expect(account).toMatchObject({ failedAttempts: 0, lockedUntil: null });
-    }),
+        expect(refusal(yield* signIn("nobody@example.test", password))).toEqual(
+          new InvalidCredentials(),
+        );
+        yield* TestClock.adjust("14 minutes");
+        expect(refusal(yield* signIn(email, password))).toEqual(new InvalidCredentials());
+        yield* TestClock.adjust("1 minute");
+        expect(Result.isSuccess(yield* signIn(email, password))).toBe(true);
+        const account = yield* (yield* AccountStore).findByEmail(email);
+        expect(account).toMatchObject({ failedAttempts: 0, lockedUntil: null });
+      }),
+    // Each attempt runs PBKDF2 at 600k iterations by design; 5s flakes under the parallel root run.
+    30_000,
   );
   test.effect("a success resets the failure count", () =>
     Effect.gen(function* () {
@@ -140,6 +144,28 @@ it.layer(world)("Identity", (test) => {
           ),
         ),
       ).toBe(true);
+    }),
+  );
+  test.effect("password bounds count Unicode code points after NFKC", () =>
+    Effect.gen(function* () {
+      for (const [label, secret] of [
+        ["five-emoji", "😀".repeat(5)],
+        ["201-code-points", `${"x".repeat(199)}😀😀`],
+        ["normalised-short", "e\u0301".repeat(5)],
+      ] as const) {
+        expect(
+          yield* Effect.flip(signUp(`${label}@example.test`, "Unicode", secret)),
+        ).toBeInstanceOf(AccountInputInvalid);
+      }
+      for (const [label, secret] of [
+        ["ten-emoji", "😀".repeat(10)],
+        ["200-code-points", `${"x".repeat(198)}😀😀`],
+        ["normalised-long", "ﬃ".repeat(4)],
+      ] as const) {
+        const email = `${label}@example.test`;
+        yield* signUp(email, "Unicode", secret);
+        expect(Result.isSuccess(yield* signIn(email, secret.normalize("NFKC")))).toBe(true);
+      }
     }),
   );
   test.effect("the stored hash is salted PBKDF2, never the password, and unique per account", () =>

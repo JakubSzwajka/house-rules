@@ -4,13 +4,23 @@ The read-only spike reference is stored outside this repo under `~/.local/state/
 
 Paths start at the repository root unless stated otherwise. Evidence keys below resolve to a real file and exact test name. A source-location claim is not proved merely because a behavior test passes.
 
+## Browser dashboard
+
+- `apps/api/src/composition/tests/browser-reads.test.ts`: memory/Postgres A/B profile and catalogue reads, admin audit gate, private audit filtering, and custom-role deletion.
+- `packages/party/src/adapters/tests/my-access.test.ts`: both stores return only the caller's assignments and refuse system reads.
+- `packages/call-audit/src/adapters/tests/reader.test.ts`: captured readers on memory/Postgres filter A/B rows before limiting and need no per-call SQL service.
+- `apps/api/src/tests/node-host.test.ts` runs `scripts/host-smoke.mjs`: builds the page, serves GET / as HTML, preserves POST /api/my_profile as 401 JSON, checks unset MCP and production refusal, and closes children.
+- `apps/api/src/ways-in/web/page/tests/approval.test.ts`: lifted needsApproval selects cancellation, role revoke and deletion for browser confirmation.
+- `packages/rules/tests/dependency-cruiser-ways.test.mjs`: browser UI dependencies work only under a way's page folder, with workspace main, builtin and SQL fences intact.
+- Browser layout and dialog interaction still need a manual browser check. The host and HTTP proofs do not verify pixels or focus.
+
 ## Identity passwords provider
 
 - `apps/api/src/ways-in/web/tests/accounts.test.ts`: "real account cookies, CSRF, generic refusals, password change and A/B booking privacy" covers public issuance with exact-origin CSRF, token omission, generic 200 refusals without cookies, password change, booking access, Alice/Bob isolation and session clearing.
-- `apps/api/src/composition/tests/admin-seed.test.ts`: "development admin seed requires the accounts issuer and exact email, and keeps member" and "production refuses DEMO_ADMIN_EMAIL even with a signing key" cover the seed boundary.
+- `apps/api/src/composition/tests/admin-seed.test.ts`: former admin email sign-up gets only member; the shell grant adds admin. Unknown account and unapproved production grants fail clearly.
 - Root `packages/identity/src/adapters/tests/accounts-on-store.test.ts`: shared memory/Postgres tests cover committed refusal counts, lock/admit races and hash upgrades. `account-store.test.ts` checks storage rollback and conditional updates. Postgres uses MigrationsTesting and Identity's own migrations.
 - Root `packages/identity/src/tests/accounts.test.ts` and `accounts-issuer.test.ts` retain password policy, dummy work, password changes, rollback, key validation, reserved claims and ES256 verification tests. `contracts.test.ts` checks identity operation permissions and transactions. `providers.test.ts` proves OIDC-only acquisition with typed password refusal, issuer/key pairing, audience checks, duplicate issuer rejection and ephemeral production refusal.
-- The migrate command bundles `apps/api/scripts/migrate.ts` and reads MIGRATION_DATABASE_URL. It has no production-database execution test. No web page is part of phase A.
+- The migrate command bundles `apps/api/scripts/migrate.ts` and reads MIGRATION_DATABASE_URL. It has no production-database execution test. The dashboard is built in phase B.
 
 ## Covered
 

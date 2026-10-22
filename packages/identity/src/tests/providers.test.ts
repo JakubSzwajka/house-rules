@@ -3,7 +3,12 @@ import { Authenticator } from "@house-rules/application";
 import { AuthJwtTesting } from "@house-rules/auth-jwt";
 import { ConfigProvider, Effect, Layer } from "effect";
 import { ActorId, memoryUnitOfWork, UnitOfWork } from "@house-rules/domain";
-import { Identity, PasswordIssuer, PasswordsUnavailable } from "../index.js";
+import {
+  Identity,
+  PasswordAccountNotFound,
+  PasswordIssuer,
+  PasswordsUnavailable,
+} from "../index.js";
 
 it.effect("an OIDC-only identity builds and refuses passwords with a typed error", () =>
   Effect.gen(function* () {
@@ -11,6 +16,10 @@ it.effect("an OIDC-only identity builds and refuses passwords with a typed error
     yield* Effect.gen(function* () {
       const identity = yield* Identity;
       assert.isUndefined(yield* identity.passwordIssuer());
+      assert.instanceOf(
+        yield* Effect.flip(identity.accountByEmail("a@example.test")),
+        PasswordAccountNotFound,
+      );
       const failure = yield* Effect.flip(
         identity.signIn({ email: "a@example.test", password: "secret" }),
       );

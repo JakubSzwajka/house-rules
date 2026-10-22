@@ -5,10 +5,12 @@ import { mcpWay } from "../../mcp/way.ts";
 import { partnerWay } from "../../partner/way.ts";
 import { webWay } from "../way.ts";
 
-it.effect("ways select Mean.no for web and partner and Mean.elicitation for mcp", () =>
-  Effect.sync(() => {
-    assert.strictEqual(webWay.mean, Mean.no);
-    assert.strictEqual(partnerWay.mean, Mean.no);
-    assert.strictEqual(mcpWay.mean, Mean.elicitation);
-  }),
+it.effect(
+  "ways select browser-confirmed Mean.allow for web, Mean.no for partner and Mean.elicitation for mcp",
+  () =>
+    Effect.sync(() => {
+      assert.strictEqual(webWay.mean, Mean.allow);
+      assert.strictEqual(partnerWay.mean, Mean.no);
+      assert.strictEqual(mcpWay.mean, Mean.elicitation);
+    }),
 );

@@ -94,6 +94,51 @@ it("ways allow contracts, main types, kits, effect, composition, features and ow
     [],
   );
 });
+for (const name of ["react", "radix-ui", "lucide-react"]) {
+  for (const file of ["way.ts", "page/panel.tsx"]) {
+    it(`third-party ${name} is allowed only inside a way page (${file})`, async () => {
+      const violations = await violatedRules(
+        {
+          ...tree,
+          [`node_modules/${name}/package.json`]: JSON.stringify({ name, main: "index.js" }),
+          [`node_modules/${name}/index.js`]: "export const value = {};",
+          [root + "ways-in/web/" + file]: `import {value} from '${name}';`,
+        },
+        layout({ scope: "@acme/" }),
+      );
+      assert.equal(
+        violations.some((v) => v.rule === rule),
+        file === "way.ts",
+        JSON.stringify(violations),
+      );
+    });
+  }
+}
+for (const specifier of [
+  "@example/bookings",
+  "@house-rules/identity",
+  "node:fs",
+  "@effect/sql-pg",
+]) {
+  it(`way pages still reject ${specifier}`, async () => {
+    const violations = await violatedRules(
+      {
+        ...tree,
+        "node_modules/@effect/sql-pg/package.json": JSON.stringify({
+          name: "@effect/sql-pg",
+          main: "index.js",
+        }),
+        "node_modules/@effect/sql-pg/index.js": "export const value = {};",
+        [root + "ways-in/web/page/panel.tsx"]: `import * as value from '${specifier}';`,
+      },
+      layout({ scope: "@acme/" }),
+    );
+    assert.ok(
+      violations.some((v) => v.rule === rule),
+      JSON.stringify(violations),
+    );
+  });
+}
 it("workspace kits retain their value doors", async () => {
   for (const name of ["application", "domain"]) {
     const kit = {

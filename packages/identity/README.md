@@ -19,6 +19,8 @@ The browser-safe `./contract` door exports binding schemas, errors and `Identity
 
 Binding methods are `resolve`, `bind`, `unbind`, `bindingsOf` and `unbindAll`, with no Effect requirements. Writes require an open unit, never open one, and retain idempotent same-actor binding and conflict protection. Call `unbindAll` in the account-deletion unit.
 
+Trusted tooling can call the read-only facade method `identity.accountByEmail(email: string)`. It returns `Effect<{ accountId: string; actorId: ActorId; displayName: string }, PasswordAccountNotFound | AccountStoreUnavailable>` with no requirements. It trims and lowercases the email like sign-in, then resolves the account's binding under the configured passwords issuer. Invalid, unknown or unbound emails and mounts without passwords fail with `PasswordAccountNotFound`. It never links accounts by email and is not an operation exposed to features.
+
 ## Providers
 
 ```ts
@@ -47,6 +49,10 @@ An OIDC-only mount builds without a passwords provider. Password calls then fail
 | changePassword | `{ current, next }` | `{ _tag: "PasswordChanged" }` or `{ _tag: "InvalidCredentials" }` | identity:update |
 
 All three join an open unit. Refusals are data, not failures, so attempts commit. Password change resolves only the caller's own passwords binding. Sign-out belongs to the HTTP way: clearing its cookie cannot revoke copied bearer tokens.
+
+Sign-in conceals account existence; sign-up does not. As in v1, a registered email returns conflict 409 `AccountEmailTaken`. Apps that need protection against sign-up enumeration add email verification or rate limiting.
+
+Passwords must have 10 to 200 Unicode code points after NFKC normalization.
 
 The passwords subject retains PBKDF2-SHA256 at 600,000 iterations, dummy hashing for unknown emails, random salts and constant-time comparison. Five failed attempts lock for 15 minutes; admission rechecks the lock and stored hash after hashing. Shared memory and real Postgres suites cover counts, races, hash upgrades and rollback through MigrationsTesting.
 

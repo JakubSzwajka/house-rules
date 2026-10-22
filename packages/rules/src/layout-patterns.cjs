@@ -199,6 +199,9 @@ function patterns(options) {
     featuresRoot: layerRoot(layers.features),
     readModelsRoot: layerRoot(layers.readModels),
     waysInRoot: layerRoot(layers.waysIn),
+    waysInPage: `^(${apps}/[^/]+/src)/${layers.waysIn}/[^/]+/page/`,
+    waysInThirdParty:
+      "(?:^|/)node_modules/(?![.]pnpm/|@house-rules/|@effect/sql-|@effect/platform-|effect/)[^/]+/",
     waysInImporter: `^(${apps}/[^/]+/src)/${layers.waysIn}(?:/|$)`,
     waysInValues: [
       `^$1/(?:${layers.features}|${layers.composition}|${layers.waysIn})/`,

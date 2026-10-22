@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { mkdir, mkdtemp } from "node:fs/promises";
 import { createServer } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
 import { build } from "esbuild";
+import { build as buildPage } from "vite";
+
+await mkdir("dist", { recursive: true });
+const buildDirectory = await mkdtemp("dist/host-smoke-");
+await buildPage({ build: { outDir: `${buildDirectory}/web` } });
 
 await build({
   entryPoints: ["src/main.ts"],
@@ -11,7 +17,7 @@ await build({
   platform: "node",
   format: "esm",
   external: ["effect", "@effect/*"],
-  outfile: "dist/main.js",
+  outfile: `${buildDirectory}/main.js`,
   logLevel: "silent",
 });
 const socket = createServer();
@@ -23,7 +29,7 @@ const port = address.port;
 socket.close();
 await once(socket, "close");
 const start = (nodeEnv) =>
-  spawn(process.execPath, ["dist/main.js"], {
+  spawn(process.execPath, [`${buildDirectory}/main.js`], {
     env: {
       ...process.env,
       STORAGE: process.env.STORAGE ?? "memory",
@@ -59,6 +65,17 @@ try {
       await delay(25);
     }
   }
+  const page = await fetch(`http://127.0.0.1:${port}/`);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /<title>Booking example<\/title>/u);
+  const api = await fetch(`http://127.0.0.1:${port}/api/my_profile`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: `http://127.0.0.1:${port}` },
+    body: "{}",
+  });
+  assert.equal(api.status, 401);
+  assert.match(api.headers.get("content-type"), /json/u);
+  console.log("built page: GET / -> HTML; POST /api/my_profile -> 401 JSON");
   assert.equal(response.status, 503);
   assert.match(await response.text(), /not_configured/u);
   console.log(`built Host (${process.env.STORAGE ?? "memory"}): GET /mcp -> 503 not_configured`);

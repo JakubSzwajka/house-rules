@@ -13,7 +13,15 @@ import { signUp } from "./sign-up/index.ts";
 import { signIn } from "./sign-in/index.ts";
 import { signOut } from "./sign-out/index.ts";
 import { changePassword } from "./change-password/index.ts";
+import { myProfile } from "./my-profile/index.ts";
+import { listPermissions } from "./list-permissions/index.ts";
+import { recentAudit } from "./recent-audit/index.ts";
+import { deleteRole } from "./delete-role/index.ts";
 export const Features = {
+  myProfile,
+  listPermissions,
+  recentAudit,
+  deleteRole,
   signUp,
   signIn,
   signOut,

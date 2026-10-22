@@ -1,5 +1,7 @@
 # @house-rules/party
 
+`PartyOperations.myAccess` reads the caller's own assignments and effective permissions plus the app's public permission catalogue. It needs `party:read`, is read-only and refuses system callers. Bind it with `bindParty` like the other operations. It accepts no target person id. Both stores filter assignments by the caller id before returning them.
+
 Party owns persons, organisations, relationships, roles and role assignments. Identity owns login bindings. Party stores no email, issuer or login subject.
 
 ## Mount

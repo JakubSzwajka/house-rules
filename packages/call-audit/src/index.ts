@@ -1,5 +1,6 @@
 export { memoryAuditStore } from "./adapters/memory/memory-audit-store.ts";
 export { postgresAuditStore } from "./adapters/postgres/postgres-audit-store.ts";
+export { AuditReader } from "./audit/reader.ts";
 export { CallAudit, type MemoryAuditLog, memoryAuditLog } from "./facade.ts";
 export { classOf } from "./policy/policy.ts";
 export { AuditStore } from "./storage.ts";

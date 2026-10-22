@@ -140,6 +140,10 @@ it.live(
       assert.strictEqual(mcpWay.features[0], Features.showBooking);
       assert.strictEqual(mcpWay.features[1], Features.myBookings);
       assert.deepStrictEqual(webWay.features, [
+        Features.myProfile,
+        Features.listPermissions,
+        Features.recentAudit,
+        Features.deleteRole,
         Features.signUp,
         Features.signIn,
         Features.signOut,
@@ -159,55 +163,70 @@ it.live(
     }).pipe(Effect.scoped),
 );
 
-it.live("web denies cancel, in-process allows it, and missing database reads are unavailable", () =>
-  Effect.gen(function* () {
-    const app = yield* Effect.acquireRelease(
-      Effect.sync(() => createApp([webWay, partnerWay, mcpWay])),
-      (app) => Effect.promise(() => app.dispose()),
-    );
-    const router = yield* Effect.acquireRelease(
-      Effect.sync(() => toFetchHandler(app)),
-      (router) => Effect.promise(() => router.dispose()),
-    );
-    const ctx = yield* app.runtime.contextEffect;
-    const issuer = yield* Context.get(ctx, Identity).passwordIssuer();
-    assert.isDefined(issuer);
-    const { token } = yield* issuer.sign("alice");
-    const headers = new Headers({ authorization: `Bearer ${token}` });
-    const incoming = { headers, url: "https://booking.example/api" };
-    const post = (name: string, body: unknown) =>
-      Effect.promise(() =>
-        router(
-          new Request(`${incoming.url}/${name}`, {
-            method: "POST",
-            headers,
-            body: JSON.stringify(body),
-          }),
-        ),
+it.live(
+  "web confirms cancel through Mean.allow, in-process allows it, and missing database reads are unavailable",
+  () =>
+    Effect.gen(function* () {
+      const app = yield* Effect.acquireRelease(
+        Effect.sync(() => createApp([webWay, partnerWay, mcpWay])),
+        (app) => Effect.promise(() => app.dispose()),
       );
-    for (const [entry, input] of [
-      [Features.partnerBooking, { id: "unexposed", guestName: "No" }],
-      [{ ...Features.showBooking }, { id: "one" }],
-    ] as const) {
-      const refused = yield* Effect.promise(() =>
-        call(app, entry, input, incoming, { way: "web" }),
+      const router = yield* Effect.acquireRelease(
+        Effect.sync(() => toFetchHandler(app)),
+        (router) => Effect.promise(() => router.dispose()),
       );
-      assert.isFalse(refused.ok);
-      if (!refused.ok) assert.strictEqual(refused.error?._tag, "CallInvalid");
-    }
-    assert.strictEqual(
-      (yield* post("make_booking", { id: "one", guestName: "Alice", paymentId: "pay", amount: 10 }))
-        .status,
-      200,
-    );
-    assert.strictEqual((yield* post("cancel_booking", { id: "one" })).status, 403);
-    assert.strictEqual((yield* post("my_bookings", {})).status, 503);
-    assert.isTrue(
-      (yield* Effect.promise(() =>
-        call(app, Features.cancelBooking, { id: "one" }, incoming, { way: "web" }),
-      )).ok,
-    );
-  }).pipe(Effect.scoped),
+      const ctx = yield* app.runtime.contextEffect;
+      const issuer = yield* Context.get(ctx, Identity).passwordIssuer();
+      assert.isDefined(issuer);
+      const { token } = yield* issuer.sign("alice");
+      const headers = new Headers({ authorization: `Bearer ${token}` });
+      const incoming = { headers, url: "https://booking.example/api" };
+      const post = (name: string, body: unknown) =>
+        Effect.promise(() =>
+          router(
+            new Request(`${incoming.url}/${name}`, {
+              method: "POST",
+              headers,
+              body: JSON.stringify(body),
+            }),
+          ),
+        );
+      for (const [entry, input] of [
+        [Features.partnerBooking, { id: "unexposed", guestName: "No" }],
+        [{ ...Features.showBooking }, { id: "one" }],
+      ] as const) {
+        const refused = yield* Effect.promise(() =>
+          call(app, entry, input, incoming, { way: "web" }),
+        );
+        assert.isFalse(refused.ok);
+        if (!refused.ok) assert.strictEqual(refused.error?._tag, "CallInvalid");
+      }
+      assert.strictEqual(
+        (yield* post("make_booking", {
+          id: "one",
+          guestName: "Alice",
+          paymentId: "pay",
+          amount: 10,
+        })).status,
+        200,
+      );
+      assert.strictEqual((yield* post("cancel_booking", { id: "one" })).status, 200);
+      assert.strictEqual(
+        (yield* post("make_booking", {
+          id: "two",
+          guestName: "Alice",
+          paymentId: "pay-two",
+          amount: 10,
+        })).status,
+        200,
+      );
+      assert.strictEqual((yield* post("my_bookings", {})).status, 503);
+      assert.isTrue(
+        (yield* Effect.promise(() =>
+          call(app, Features.cancelBooking, { id: "two" }, incoming, { way: "web" }),
+        )).ok,
+      );
+    }).pipe(Effect.scoped),
 );
 
 it.live("refuses production demo JWT configuration", () =>

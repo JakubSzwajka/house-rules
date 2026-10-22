@@ -129,6 +129,14 @@ export const makeAccess = (
   });
   return {
     permissionsOf,
+    myAccess: Effect.fn("Party.myAccess")(function* (caller: Caller) {
+      if (caller.kind !== "person") return yield* new PartyDenied();
+      return {
+        roles: yield* store.assignments(caller.actor.id),
+        permissions: yield* permissionsOf(caller),
+        catalogue: catalogue ? [...(yield* catalogue.permissions())].sort() : [],
+      };
+    }),
     createOrganisation: Effect.fn("Party.createOrganisation")(function* (
       caller: Caller,
       input: Organisation,

@@ -3,6 +3,10 @@ import { webWho } from "../../composition/callers.ts";
 import { defineWay, Mean } from "@house-rules/application";
 import { endpoints } from "./endpoints.ts";
 const features = [
+  Features.myProfile,
+  Features.listPermissions,
+  Features.recentAudit,
+  Features.deleteRole,
   Features.signUp,
   Features.signIn,
   Features.signOut,
@@ -26,5 +30,5 @@ export const webWay = defineWay({
   public: [Features.signUp, Features.signIn],
   session: { cookie: "booking_session" },
   origins: ["http://localhost:3000", "https://booking.example"],
-  mean: Mean.no,
+  mean: Mean.allow,
 });

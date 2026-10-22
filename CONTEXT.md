@@ -40,7 +40,7 @@ The gate checks roles at feature start and fails 403 when a closure permission i
 
 ## Ways and sockets
 
-A **way in** names a protocol, path, exposed features, Who, Mean and optional wording overrides. It lives in `ways-in/<name>/`. It imports values only from kits, `effect`, package contract doors, app features, composition and its own folder. Other package main entries and read-model doors allow types only. Ways never import each other.
+A **way in** names a protocol, path, exposed features, Who, Mean and optional wording overrides. It lives in `ways-in/<name>/`. It imports values only from kits, `effect`, package contract doors, app features, composition and its own folder. Other package main entries and read-model doors allow types only. Browser code under `ways-in/<name>/page/**` may also import third-party UI packages, never workspace mains, Node builtins or SQL/platform adapters. Ways never import each other.
 
 A **public feature** is a system-start feature listed in an HTTP way's `public` and `features`. Its requests skip Who, even with a token, and use only composition's system permissions. Other features still require Who. MCP refuses public features.
 

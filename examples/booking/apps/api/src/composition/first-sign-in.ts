@@ -1,4 +1,3 @@
-import { Identity } from "@house-rules/identity";
 import { Features } from "../features/index.ts";
 import { systemPermissions } from "./roles.ts";
 import {
@@ -12,13 +11,10 @@ import {
 } from "@house-rules/application";
 import { UnitOfWork } from "@house-rules/domain";
 import { FirstSignIn } from "@house-rules/identity";
-import { Config, Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer } from "effect";
 export const newLoginHook = Layer.effect(
   FirstSignIn,
   Effect.gen(function* () {
-    const issuer = yield* (yield* Identity).passwordIssuer();
-    const adminEmail = yield* Config.String("DEMO_ADMIN_EMAIL").pipe(Config.withDefault(""));
-    const nodeEnv = yield* Config.String("NODE_ENV").pipe(Config.withDefault("development"));
     const runtime = yield* Runtime;
     const trace = yield* StepTrace;
     const unit = yield* UnitOfWork;
@@ -38,11 +34,6 @@ export const newLoginHook = Layer.effect(
         subject: principal.subject,
         displayName:
           typeof principal.claims.name === "string" ? principal.claims.name : principal.subject,
-        admin:
-          nodeEnv !== "production" &&
-          adminEmail !== "" &&
-          principal.issuer === issuer?.issuer &&
-          principal.claims.email === adminEmail.trim().toLowerCase(),
       }).pipe(
         Effect.provideContext(Context.merge(context, permissions)),
         Effect.provide(Approval.allowAll),

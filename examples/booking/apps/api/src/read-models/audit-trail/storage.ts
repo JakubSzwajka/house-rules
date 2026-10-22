@@ -1,0 +1,10 @@
+import { Context, type Effect } from "effect";
+import type { AuditEntry, AuditUnavailable } from "./contract.ts";
+export class AuditTrail extends Context.Service<
+  AuditTrail,
+  {
+    readonly recent: (
+      personId: string,
+    ) => Effect.Effect<readonly (typeof AuditEntry.Type)[], AuditUnavailable>;
+  }
+>()("booking/AuditTrail") {}

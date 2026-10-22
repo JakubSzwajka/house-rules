@@ -11,6 +11,7 @@ import { newLoginHook } from "./first-sign-in.ts";
 import { Features } from "../features/index.ts";
 import { modulesLayer } from "./modules.ts";
 import { Catalogue } from "./catalogue.ts";
+import { AuditTrail, bindAuditTrail } from "../read-models/audit-trail/index.ts";
 export const linkModules = (ways: RuntimeOptions["ways"]) =>
   Layer.unwrap(
     Effect.gen(function* () {
@@ -20,8 +21,10 @@ export const linkModules = (ways: RuntimeOptions["ways"]) =>
       const party = yield* Party;
       const identity = yield* Identity;
       const catalogue = yield* Catalogue;
+      const audit = yield* AuditTrail;
       return Runtime.layer({
         bindings: [
+          ...bindAuditTrail(audit),
           ...bindBookings(bookings),
           ...bindBilling(billing),
           ...bindMyStuff(read),

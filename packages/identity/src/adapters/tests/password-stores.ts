@@ -4,7 +4,14 @@ import { sqlUnitOfWork } from "@house-rules/application";
 import { memoryUnitOfWork } from "@house-rules/domain";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { Layer } from "effect";
-import { type Account, AccountId, memoryAccountStore, postgresAccountStore } from "../../index.js";
+import {
+  type Account,
+  AccountId,
+  memoryAccountStore,
+  postgresAccountStore,
+  memoryBindingStore,
+  postgresBindingStore,
+} from "../../index.js";
 
 const migratedDatabase = Layer.effectDiscard(
   Migrations.run([
@@ -30,14 +37,14 @@ export const stores = [
   {
     name: "postgres",
     unitsRunSideBySide: true,
-    layer: Layer.merge(postgresAccountStore, sqlUnitOfWork).pipe(
+    layer: Layer.mergeAll(postgresAccountStore, postgresBindingStore, sqlUnitOfWork).pipe(
       Layer.provideMerge(migratedDatabase),
     ),
   },
   {
     name: "memory",
     unitsRunSideBySide: false,
-    layer: Layer.merge(memoryAccountStore(), memoryUnitOfWork),
+    layer: Layer.mergeAll(memoryAccountStore(), memoryBindingStore(), memoryUnitOfWork),
   },
 ] as const;
 

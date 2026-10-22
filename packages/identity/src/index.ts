@@ -55,6 +55,7 @@ export {
 } from "./passwords/accounts-issuer.js";
 export { PasswordIssuerConfigInvalid } from "./passwords/issuer-config-invalid.js";
 export { Account } from "./passwords/account.js";
+export { PasswordAccountNotFound } from "./passwords/account-lookup.js";
 export { PasswordHash, PasswordIterations } from "./passwords/password-hash.js";
 export { PasswordsUnavailable } from "./passwords/provider-unavailable.js";
 export type { IdentityOptions, OidcProvider, PasswordsProvider } from "./sign-in/providers.js";

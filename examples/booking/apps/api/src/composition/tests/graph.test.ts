@@ -25,6 +25,10 @@ it.effect("app features retain exact closures, starts, edges and lifted flags", 
       "billing:expire",
     ]);
     const expected: readonly unknown[] = [
+      ["my_profile", ["party:read"], [], true, false, false, false, ["show_me", "Party.myAccess"]],
+      ["list_permissions", ["party:read"], [], true, false, false, false, ["Party.myAccess"]],
+      ["recent_audit", ["audit:read"], [], true, false, false, false, ["AuditTrail.recent"]],
+      ["delete_role", ["party:admin"], [], false, true, true, true, ["Party.deleteRole"]],
       ["sign_up", [], ["identity:create"], false, true, false, false, ["Identity.signUp"]],
       ["sign_in", [], ["identity:sign-in"], false, true, false, false, ["Identity.signIn"]],
       ["sign_out", [], [], false, false, false, false, []],

@@ -2,6 +2,7 @@
 
 ## Permissions
 
+- audit:read
 - billing:charge
 - billing:expire
 - billing:refund
@@ -18,6 +19,11 @@
 - party:update
 
 ## Operations
+
+### AuditTrail.recent
+
+- Permission: audit:read
+- Called by: recent_audit
 
 ### Billing.expirePending
 
@@ -97,7 +103,7 @@
 ### Party.deleteRole
 
 - Permission: party:admin
-- Called by: none
+- Called by: delete_role
 
 ### Party.isRelated
 
@@ -108,6 +114,11 @@
 
 - Permission: party:read
 - Called by: list_roles
+
+### Party.myAccess
+
+- Permission: party:read
+- Called by: list_permissions, my_profile
 
 ### Party.relate
 
@@ -142,7 +153,7 @@
 ### show_me
 
 - Permission: party:read
-- Called by: none
+- Called by: my_profile
 
 ### show_person
 
@@ -150,6 +161,39 @@
 - Called by: none
 
 ## Features
+
+### my_profile
+
+- Starts as: person
+- Person closure: party:read
+- System closure: none
+- Exposed by: web (/api)
+- Calls: show_me (person, inherited system stays system)
+- Calls: Party.myAccess (person, inherited system stays system)
+
+### list_permissions
+
+- Starts as: person
+- Person closure: party:read
+- System closure: none
+- Exposed by: web (/api)
+- Calls: Party.myAccess (person, inherited system stays system)
+
+### recent_audit
+
+- Starts as: person
+- Person closure: audit:read
+- System closure: none
+- Exposed by: web (/api)
+- Calls: AuditTrail.recent (person, inherited system stays system)
+
+### delete_role
+
+- Starts as: person
+- Person closure: party:admin
+- System closure: none
+- Exposed by: web (/api)
+- Calls: Party.deleteRole (person, inherited system stays system)
 
 ### sign_up
 

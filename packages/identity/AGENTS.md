@@ -33,6 +33,10 @@ Binding methods are `resolve`, `bind`, `unbind`, `bindingsOf`, `unbindAll`. Pass
 
 `IdentityOperations.bindLogin`, declared with `defineOperation` and named `Identity.bindLogin`, takes `{ issuer, subject, personId }` and returns that ActorId after binding. Permission is `identity:bind`; flags are transactional true, all others false; edges are empty. A person caller gets forbidden `IdentityCallerDenied`. `bindIdentity` uses `bindOperation`. App features call this operation through declared edges. Only features are exposed.
 
+`identity.accountByEmail(email: string)` returns `Effect<{ accountId: string; actorId: ActorId; displayName: string }, PasswordAccountNotFound | AccountStoreUnavailable>` with no requirements. It trims and lowercases email like sign-in and resolves only the configured passwords issuer's binding. Invalid, unknown or unbound emails and mounts without passwords return not_found. This read-only facade method is for trusted tooling, not an operation exposed to features. It never links accounts by email.
+
+- Sign-in conceals account existence; sign-up does not. The v1 contract keeps conflict 409 `AccountEmailTaken` for a registered email. Apps that need protection against sign-up enumeration add email verification or rate limiting.
+- Password length is 10 to 200 Unicode code points after NFKC normalization.
 - Binding the same login to its current actor is a no-op. Binding it to another fails with conflict `BindingTaken`.
 - Empty issuer/subject fails with invalid `BindingInvalid` and never resolves. `unbind(actorId, login)` removes only that actor's binding.
 - `actor_id` is a plain column, not a cross-module foreign key. Deleting a binding never deletes another module's data.

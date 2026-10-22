@@ -25,7 +25,7 @@ Use the exact pnpm version in `package.json`. Do not replace it or add a second 
 | `pnpm --filter <package> add <dep>` | Add an exact dependency pin to one workspace, after approval |
 | `pnpm --filter @house-rules/site generate` | Regenerate the existing rules page |
 
-CI starts Postgres and runs frozen install, `pnpm check`, `pnpm test`, `pnpm run packed-consumer`, the booking API build and the site build. The booking example has real sign-in; its page is in progress.
+CI starts Postgres and runs frozen install, `pnpm check`, `pnpm test`, `pnpm run packed-consumer`, the booking API build and the site build. The booking example serves a Vite/React shadcn dashboard with real sign-in; its build writes the page to dist/web and bundles the API.
 
 Before calling work ready, `pnpm check` and `pnpm test` must both exit 0. Warnings fail Biome and ESLint; all Dependency Cruiser rules have severity error. The rules table in `packages/rules/README.md` is the checked-rule source. Do not duplicate it in the root README. Prose rules there still need review.
 
@@ -67,7 +67,7 @@ src/
 - `features/index.ts` exports only the Features object from named feature imports. Built-in roles and the system permission list live in composition. Feature re-exports and type exports are allowed; no calls, spreads, computed members or stray values. ESLint feature rules use literal features/, not custom layout areas.
 - Features may import other features, packages, kits and read-model doors. They never reach ways or composition. Feature-folder cycles fail even when no individual files form a cycle.
 - Read models import packages and kits, not other app areas. Their index.ts and optional contract.ts are the only outside doors.
-- Ways may import values only from the kits, effect, package ./contract doors, the app's features and composition, and their own way folder; other package main entries and read-model doors allow only type-only imports, and ways never import other ways.
+- Ways may import values only from the kits, effect, package ./contract doors, the app's features and composition, and their own way folder. Only ways-in/<name>/page/** may also import third-party npm values, never workspace mains, @house-rules mains outside the kits, Node builtins, SQL or platform adapters. Other package main entries and read-model doors allow only type-only imports. Ways never import other ways.
 - Composition may import features, read-model doors, packages and kits, never ways. main.ts joins root and ways by passing way values or a factory into the root. The root does not import ways to get that value.
 - No file or folder is named utils, helpers or misc. No import cycles or deep package imports.
 

@@ -12,7 +12,7 @@ const normalised = (password: string) =>
   password.normalize("NFKC");
 
 export const passwordFitsPolicy = (password: string) => {
-  const { length } = normalised(password);
+  const length = [...normalised(password)].length;
   return length >= PasswordLength.min && length <= PasswordLength.max;
 };
 

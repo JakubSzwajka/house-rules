@@ -87,8 +87,13 @@ function layout(options = {}) {
       // Check every way file, including barrels. Do not follow composition into its captured services.
       rule(
         "ways-in-import-contracts-only",
-        { path: p.waysInImporter, pathNot: p.testPath },
+        { path: p.waysInImporter, pathNot: [p.testPath, p.waysInPage] },
         { pathNot: p.waysInValues, dependencyTypesNot: ["type-only"] },
+      ),
+      rule(
+        "ways-in-import-contracts-only",
+        { path: p.waysInPage, pathNot: p.testPath },
+        { pathNot: [...p.waysInValues, p.waysInThirdParty], dependencyTypesNot: ["type-only"] },
       ),
       rule(
         "ways-in-do-not-import-other-ways",

@@ -1,13 +1,16 @@
 import { CallWatch, type RecordSocket } from "@house-rules/application";
-import { Effect, Layer } from "effect";
+import { DateTime, Effect, Layer } from "effect";
 import { postgresAuditStore } from "./adapters/postgres/postgres-audit-store.ts";
 import { readRows } from "./adapters/postgres/read-rows.ts";
 import { retentionLoop, runRetention } from "./retention/retention.ts";
 import { logLine, makeWatch, policyRecorder, storeRecorder } from "./watch/watch.ts";
 import { policy, presets } from "./policy/policy.ts";
+import { memoryAuditReader } from "./adapters/memory/reader.ts";
+import { postgresAuditReader } from "./adapters/postgres/reader.ts";
 import { AuditStore } from "./storage.ts";
 import type {
   AuditRecord,
+  AuditRow,
   CallAuditLayerOptions,
   CallAuditOptions,
   CallAuditTableOptions,
@@ -15,20 +18,25 @@ import type {
 
 export type MemoryAuditLog = Readonly<{
   entries: () => ReadonlyArray<AuditRecord>;
+  rows: () => ReadonlyArray<AuditRow>;
   clear: () => void;
   record: (entry: AuditRecord) => Effect.Effect<void>;
 }>;
 
 export const memoryAuditLog = (): MemoryAuditLog => {
   const recorded: Array<AuditRecord> = [];
+  const rows: Array<AuditRow> = [];
   return {
     entries: () => [...recorded],
+    rows: () => [...rows],
     clear: () => {
       recorded.length = 0;
+      rows.length = 0;
     },
     record: (entry) =>
-      Effect.sync(() => {
+      Effect.map(DateTime.now, (now) => {
         recorded.push(entry);
+        rows.push({ ...entry, recordedAt: DateTime.toDateUtc(now) });
       }),
   };
 };
@@ -75,6 +83,7 @@ const layerMemory = (log: MemoryAuditLog, options: CallAuditOptions = nobody) =>
   Layer.succeed(CallWatch, makeWatch(options.who, log.record));
 
 export const CallAudit = {
+  reader: { memory: memoryAuditReader, postgres: postgresAuditReader },
   record: {
     memory: (log: MemoryAuditLog, options?: CallAuditOptions): RecordSocket => ({
       layer: layerMemory(log, options),

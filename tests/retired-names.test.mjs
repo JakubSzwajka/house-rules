@@ -46,6 +46,11 @@ const retired = [
 ];
 const allowlist = [
   {
+    path: "examples/booking/apps/api/scripts/grant-admin.ts",
+    line: "  }).pipe(Effect.provide(modulesLayer()), NodePlatform.NodeRuntime.runMain);",
+    reason: "Third-party Effect platform runtime, not the retired house-rules API.",
+  },
+  {
     path: "scripts/packed-consumer.mjs",
     line: 'for (const name of ["implement", "defineContract", "Grant", "route", "toTool", "toMcpHandler", "mount", "problemView"])',
     reason: "Cold-consumer fixture asserts that these application exports are absent.",

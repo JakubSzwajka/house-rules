@@ -4,9 +4,11 @@ import { BillingOperations } from "@example/billing/contract";
 import { MyStuffOperations } from "../read-models/my-bookings/contract.ts";
 import { PartyOperations } from "@house-rules/party/contract";
 import { IdentityOperations } from "@house-rules/identity/contract";
+import { AuditTrailOperations } from "../read-models/audit-trail/contract.ts";
 import { Features } from "../features/index.ts";
 export const registryData = {
   operations: [
+    ...Object.values(AuditTrailOperations),
     ...Object.values(BookingsOperations),
     ...Object.values(BillingOperations),
     ...Object.values(MyStuffOperations),
@@ -19,6 +21,10 @@ export const registryData = {
       name: "web",
       path: "/api",
       features: [
+        Features.myProfile,
+        Features.listPermissions,
+        Features.recentAudit,
+        Features.deleteRole,
         Features.signUp,
         Features.signIn,
         Features.signOut,

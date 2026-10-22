@@ -6,9 +6,12 @@
   "scripts": {
     "typecheck": "tsc --project tsconfig.json",
     "test": "varlock run --path ../../../../ -- vitest run",
-    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --external:effect '--external:@effect/*' --outfile=dist/main.js",
+    "build": "pnpm run build:web && pnpm run build:api",
+    "build:api": "esbuild src/main.ts --bundle --platform=node --format=esm --external:effect '--external:@effect/*' --outfile=dist/main.js",
+    "build:web": "vite build",
     "start": "node dist/main.js",
     "registry": "node scripts/registry.mjs",
+    "grant-admin": "esbuild scripts/grant-admin.ts --bundle --platform=node --format=esm --external:effect '--external:@effect/*' --outfile=dist/grant-admin.js && varlock run --path ../../../../ -- node dist/grant-admin.js",
     "migrate": "esbuild scripts/migrate.ts --bundle --platform=node --format=esm --external:effect '--external:@effect/*' --outfile=dist/migrate.js && varlock run --path ../../../../ -- node dist/migrate.js"
   },
   "dependencies": {
@@ -28,6 +31,20 @@
     "@house-rules/node-host": "workspace:0.2.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "1.57.0",
+    "radix-ui": "1.8.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "tailwind-merge": "3.7.0",
+    "tailwindcss": "4.3.3",
+    "tw-animate-css": "1.4.0",
+    "vite": "8.3.0",
     "@effect/vitest": "4.0.3",
     "@types/node": "24.19.1",
     "typescript": "7.0.2",

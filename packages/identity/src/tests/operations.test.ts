@@ -27,7 +27,10 @@ import * as contract from "../contract.js";
 
 const { bindLogin } = IdentityOperations;
 
-expectTypeOf<Parameters<typeof bindIdentity>[0]>().toExtend<Identity["Service"]>();
+expectTypeOf<Parameters<typeof bindIdentity>[0]>().toExtend<
+  Omit<Identity["Service"], "accountByEmail">
+>();
+expectTypeOf<Parameters<typeof bindIdentity>[0]>().not.toHaveProperty("accountByEmail");
 expectTypeOf<Identity["Service"]>().toExtend<Parameters<typeof bindIdentity>[0]>();
 expectTypeOf<ReturnType<typeof Identity.who>>().toEqualTypeOf<
   WhoSocket<Authenticator | ActorResolver | FirstSignIn>

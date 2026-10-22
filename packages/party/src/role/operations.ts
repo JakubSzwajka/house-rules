@@ -129,7 +129,21 @@ const rolesOf = defineOperation("Party.rolesOf", {
   edges: [],
   readOnly: true,
 });
+const myAccess = defineOperation("Party.myAccess", {
+  description: "Read your own role assignments, effective permissions and the app catalogue.",
+  input: NoInput,
+  output: Schema.Struct({
+    roles: Schema.Array(Assignment),
+    permissions: Schema.Array(Schema.String),
+    catalogue: Schema.Array(Schema.String),
+  }),
+  failure,
+  permission: "party:read",
+  edges: [],
+  readOnly: true,
+});
 export const AccessOperations = {
+  myAccess,
   createOrganisation,
   showOrganisation,
   relate,

@@ -16,6 +16,7 @@ export const builtInRoles = {
     permissions: [
       "identity:update",
       "party:admin",
+      "audit:read",
       "party:read",
       "bookings:read",
       "bookings:write",

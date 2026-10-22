@@ -1,10 +1,11 @@
 import { expect, layer } from "@effect/vitest";
-import { UnitOfWork } from "@house-rules/domain";
+import { ActorId, UnitOfWork } from "@house-rules/domain";
 import { Clock, Deferred, Effect, Fiber, Layer, Result } from "effect";
 import { Base64 } from "effect/encoding";
 import {
   Identity,
   memoryBindingStore,
+  PasswordAccountNotFound,
   PasswordIssuer,
   AccountStore,
   InvalidCredentials,
@@ -49,6 +50,34 @@ for (const { name, unitsRunSideBySide, layer: world } of stores) {
   layer(world, { excludeTestServices: true, timeout: "30 seconds" })(
     `Identity on the ${name} store`,
     (it) => {
+      it.effect("accountByEmail returns only the configured passwords issuer's bound actor", () =>
+        Effect.gen(function* () {
+          const identity = yield* Identity;
+          const email = `lookup-${name}@example.test`;
+          const { accountId } = yield* UnitOfWork.atomic(
+            identity.signUp({ email, password: "correct horse", displayName: "Lookup" }),
+          );
+          const missing = (email: string) => Effect.flip(identity.accountByEmail(email));
+          expect(yield* missing(email)).toEqual(new PasswordAccountNotFound());
+          const actorId = ActorId.make(`lookup-actor-${name}`);
+          const foreign = { issuer: "https://foreign.example.test", subject: accountId };
+          yield* UnitOfWork.atomic(identity.bind(foreign, ActorId.make("foreign-actor")));
+          expect(yield* missing(email)).toEqual(new PasswordAccountNotFound());
+          const login = { issuer: "https://accounts.example.test", subject: accountId };
+          yield* UnitOfWork.atomic(identity.bind(login, actorId));
+          expect(yield* identity.accountByEmail(`  ${email.toUpperCase()}  `)).toEqual({
+            accountId,
+            actorId,
+            displayName: "Lookup",
+          });
+          expect(yield* missing(`unknown-${name}@example.test`)).toEqual(
+            new PasswordAccountNotFound(),
+          );
+          expect(yield* missing("not an email")).toEqual(new PasswordAccountNotFound());
+          yield* UnitOfWork.atomic(identity.unbind(actorId, login));
+          expect(yield* missing(email)).toEqual(new PasswordAccountNotFound());
+        }).pipe(Effect.provide(Identity.layer.pipe(Layer.provide(issuer)))),
+      );
       it.effect("Identity locks an account after repeated failures through this store", () =>
         Effect.gen(function* () {
           const accounts = yield* Identity;
