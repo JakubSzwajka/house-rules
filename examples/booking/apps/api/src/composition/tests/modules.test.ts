@@ -2,9 +2,9 @@ import { assert, it } from "@effect/vitest";
 import { ConfigProvider, Context, Effect, Layer } from "effect";
 import { MyStuff } from "../../read-models/my-bookings/index.ts";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
-import { StepTrace } from "@house-rules/application";
+import { CallWatch, StepTrace } from "@house-rules/application";
 import { memoryAuditLog } from "@house-rules/call-audit";
-import { AuditStorage } from "../audit-storage.ts";
+import { Features } from "../../features/index.ts";
 import { modulesLayer } from "../index.ts";
 
 for (const config of [{}, { STORAGE: "memory", DATABASE_URL: "not a database URL" }])
@@ -16,9 +16,9 @@ for (const config of [{}, { STORAGE: "memory", DATABASE_URL: "not a database URL
           Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(config))),
         ),
       );
-      const storage = Context.get(ctx, AuditStorage);
-      assert.strictEqual(storage.kind, "memory");
-      if (storage.kind === "memory") assert.strictEqual(storage.log, log);
+      yield* Context.get(ctx, CallWatch).around(Features.makeBooking, {}, Effect.void);
+      assert.strictEqual(log.entries().length, 1);
+      assert.strictEqual(log.entries()[0]?.target, Features.makeBooking.name);
       assert.isDefined(Context.get(ctx, UnitOfWork));
       assert.isDefined(Context.get(ctx, StepTrace));
       const failure = yield* Context.get(ctx, MyStuff)

@@ -14,16 +14,20 @@ import {
 } from "../read-models/my-bookings/index.ts";
 import { sqlUnitOfWork } from "@house-rules/application";
 import { memoryUnitOfWork } from "@house-rules/domain";
-import { memoryAuditLog, type MemoryAuditLog } from "@house-rules/call-audit";
+import { CallAudit, memoryAuditLog, type MemoryAuditLog } from "@house-rules/call-audit";
 import { Identity } from "@house-rules/identity";
 import { Party } from "@house-rules/party";
-import { StepTrace } from "@house-rules/application";
-import { Config, Effect, Layer, Schema } from "effect";
+import { CurrentActor, StepTrace } from "@house-rules/application";
+import { Config, Effect, Layer, Option, Schema } from "effect";
 import { PgClient } from "@effect/sql-pg";
-import { SqlClient } from "effect/sql/SqlClient";
-import { AuditStorage } from "./audit-storage.ts";
 import { builtInRoles } from "./roles.ts";
 import { Catalogue } from "./catalogue.ts";
+const auditOptions = {
+  who: Effect.serviceOption(CurrentActor).pipe(
+    Effect.map(Option.match({ onNone: () => null, onSome: (actor) => actor.id })),
+  ),
+  policy: CallAudit.presets.strict,
+};
 export const readUnavailablePort = Layer.succeed(MyBookingStore, {
   forPerson: () => Effect.fail(new ReadUnavailable({})),
 });
@@ -45,7 +49,7 @@ export const modulesLayer = (
           Party.layerMemory({ builtInRoles }).pipe(Layer.provideMerge(Catalogue.layer)),
           memoryUnitOfWork,
           StepTrace.layer(),
-          Layer.succeed(AuditStorage, { kind: "memory", log: options.log ?? memoryAuditLog() }),
+          CallAudit.record.memory(options.log ?? memoryAuditLog(), auditOptions).layer,
         );
       const url = yield* Config.schema(Schema.Redacted(Schema.NonEmptyString), "DATABASE_URL");
       return Layer.mergeAll(
@@ -56,10 +60,7 @@ export const modulesLayer = (
         Party.layerPostgres({ builtInRoles }).pipe(Layer.provideMerge(Catalogue.layer)),
         sqlUnitOfWork,
         StepTrace.layer(),
-        Layer.effect(
-          AuditStorage,
-          Effect.map(SqlClient, (client) => ({ kind: "postgres" as const, client })),
-        ),
+        CallAudit.record.postgres(auditOptions).layer,
       ).pipe(Layer.provide(PgClient.layer({ url })));
     }),
   );
