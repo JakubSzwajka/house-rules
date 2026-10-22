@@ -1,7 +1,12 @@
 import type { ActorId, NoOpenUnit } from "@house-rules/domain";
 import { Context, type Effect } from "effect";
 import type { Assignment } from "./assignment/assignment.js";
-import type { Organisation, PartyUnavailable } from "./organisation/organisation.js";
+import type {
+  Organisation,
+  OrganisationRelation,
+  OwnOrganisation,
+  PartyUnavailable,
+} from "./organisation/organisation.js";
 import type { Relationship } from "./relationship/relationship.js";
 import type { Role } from "./role/role.js";
 import type { StoredInvitation } from "./invitation/invitation.js";
@@ -14,7 +19,15 @@ export class PartyStore extends Context.Service<
   PartyStore,
   {
     readonly organisation: (id: string) => Read<Organisation | undefined>;
-    readonly organisationsFor: (personId: ActorId) => Read<readonly Organisation[]>;
+    readonly organisationsFor: (personId: ActorId) => Read<readonly OwnOrganisation[]>;
+    readonly relationsFor: (
+      personId: ActorId,
+      organisationIds: readonly string[] | null,
+    ) => Read<readonly OrganisationRelation[]>;
+    readonly scopedAssignments: (
+      personId: ActorId,
+      organisationIds: readonly string[] | null,
+    ) => Read<readonly Assignment[]>;
     readonly assignmentsInOrganisation: (organisationId: string) => Read<readonly Assignment[]>;
     readonly lockOrganisation: (organisationId: string) => Write<void>;
     readonly memberIds: (organisationIds: readonly string[]) => Read<readonly ActorId[]>;

@@ -11,6 +11,7 @@ const features = [
   Features.revokeInvitation,
   Features.removeMember,
   Features.listPeople,
+  Features.listMembers,
   Features.myActivity,
   Features.myProfile,
   Features.listPermissions,

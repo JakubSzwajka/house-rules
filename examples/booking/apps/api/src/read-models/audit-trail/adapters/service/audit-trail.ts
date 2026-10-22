@@ -10,6 +10,8 @@ export const auditTrailReader = Layer.effect(
       reader.readRows(viewerId === undefined ? { limit: 50 } : { viewerId, limit: 50 }).pipe(
         Effect.map((rows) =>
           rows.map((row) => ({
+            at: row.recordedAt.getTime(),
+            who: row.viewerId,
             feature: row.target,
             outcome: row.outcome,
             requestId: row.requestId ?? null,

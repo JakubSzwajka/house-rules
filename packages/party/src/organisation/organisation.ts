@@ -4,6 +4,16 @@ import { Effect, Schema } from "effect";
 export const OrganisationId = Schema.NonEmptyString;
 export const Organisation = Schema.Struct({ id: OrganisationId, name: Schema.NonEmptyString });
 export type Organisation = typeof Organisation.Type;
+export const OrganisationRelation = Schema.Struct({
+  ...Organisation.fields,
+  relation: Schema.String,
+});
+export type OrganisationRelation = typeof OrganisationRelation.Type;
+export const OwnOrganisation = Schema.Struct({
+  ...Organisation.fields,
+  relation: Schema.NullOr(Schema.String),
+});
+export type OwnOrganisation = typeof OwnOrganisation.Type;
 export class PartyNotFound extends Schema.TaggedError<PartyNotFound>()("PartyNotFound", {
   kind: errorKind("not_found"),
 }) {}

@@ -6,6 +6,7 @@ import {
   UnitOfWork,
 } from "@house-rules/domain";
 import { Effect } from "effect";
+import { makePeople } from "./people.js";
 import { makeInvitations } from "../invitation/invitations.js";
 import { type Assignment, validateAssignment } from "../assignment/assignment.js";
 import {
@@ -140,6 +141,8 @@ export const makeAccess = (
   const adminScopes = Effect.fn("Party.adminScopes")(function* (caller: Caller) {
     if (caller.kind !== "person") return yield* new PartyDenied();
     const scopes = new Set<string>();
+    if (catalogue && !(yield* catalogue.permissions()).includes("party:admin"))
+      return yield* new PartyDenied();
     for (const assignment of yield* store.assignments(caller.actor.id)) {
       const held = yield* role(assignment.roleKey);
       if (
@@ -168,14 +171,7 @@ export const makeAccess = (
   });
   return {
     ...makeInvitations(store, admin, checkInvitationRole),
-    listPeople: Effect.fn("Party.listPeople")(function* (caller: Caller) {
-      const scopes = yield* adminScopes(caller);
-      return yield* persons.list(scopes === null ? null : yield* store.memberIds(scopes));
-    }),
-    myOrganisations: Effect.fn("Party.myOrganisations")(function* (caller: Caller) {
-      if (caller.kind !== "person") return yield* new PartyDenied();
-      return yield* store.organisationsFor(caller.actor.id);
-    }),
+    ...makePeople(store, persons, role, adminScopes, organisationExists),
     permissionsOf,
     myAccess: Effect.fn("Party.myAccess")(function* (caller: Caller) {
       if (caller.kind !== "person") return yield* new PartyDenied();

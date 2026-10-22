@@ -44,6 +44,7 @@ Descriptors come from `@house-rules/party/contract`. Only app features are expos
 | createOrganisation | party:create-organisation | T |
 | myOrganisations | party:read | R |
 | listPeople | party:admin | R |
+| listMembers | party:read | R |
 | createInvitation | party:admin | T |
 | acceptInvitation | party:read | T |
 | listInvitations | party:admin | R |
@@ -71,7 +72,13 @@ Organisation creation takes `{ id, name }`. Relationships take `{ from: { kind, 
 
 `listInvitations(caller, organisationId)` shows only an administered org's invitations, without codes or hashes. `revokeInvitation(caller, id)` checks the invitation's org and needs approval.
 
-`myOrganisations(caller)` returns only the person's organisations, selected through staff relationships or scoped assignments. `listPeople(caller)` shows everyone to global admins, and only staff of administered organisations to org admins. Other callers are refused. Postgres filters both lists in SQL.
+`myOrganisations(caller)` returns `{ id, name, relation, roles: [{ roleKey, roleName, permissions }] }[]` for the caller's relationships or scoped assignments. It includes only that person's org-scoped roles, not global roles. An assignment without a relationship has `relation: null`. If several relations exist, `relation` is the first kind in lexical order.
+
+`listPeople(caller)` returns `{ id, displayName, createdAt, assignments, organisations }[]`. Assignments are `{ roleKey, roleName, organisationId, organisationName }`, with null organisation fields for global roles. Organisations are `{ id, name, relation }`. Global admins see everyone and all assignments and relations. Org admins see only staff of their administered orgs and only assignments and relations in those orgs. Global assignments are hidden from org admins, even for a visible person. Other callers get forbidden.
+
+`listMembers(caller, organisationId)` returns `{ id, displayName, createdAt, relation, roles: [{ roleKey, roleName }] }[]` for that org's staff. Roles include only assignments scoped to that org. The operation gate needs `party:read`; Party checks admin authority for the requested org. Members, admins of other orgs and unknown org ids all get `PartyNotFound`.
+
+Both adapters filter storage facts before returning them. Postgres filters people, assignments and relations in SQL; it never fetches another org's assignments for an org-admin list. These reads use the existing tables and need no new migration.
 
 `unrelate` on person-to-organisation staff also revokes that person's assignments scoped to that org. Global roles stay. It refuses removal of the last scoped org admin with `PartyLastAdmin`, kind conflict, and locks the organisation before checking on Postgres.
 

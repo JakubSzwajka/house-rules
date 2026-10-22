@@ -61,7 +61,9 @@ for (const store of stores) {
               (yield* party.listPeople(person).pipe(Effect.flip))._tag,
               "PartyDenied",
             );
-            assert.deepStrictEqual(yield* party.myOrganisations(person), [x]);
+            assert.deepStrictEqual(yield* party.myOrganisations(person), [
+              { ...x, relation: "staff", roles: [] },
+            ]);
             const noEscalation = yield* party.defineRole(admin, {
               key: `${x.id}-power`,
               name: "Power",

@@ -3,7 +3,12 @@ import { Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
 import { StoredInvitation } from "../../invitation/invitation.js";
 import { Assignment } from "../../assignment/assignment.js";
-import { Organisation, PartyUnavailable } from "../../organisation/organisation.js";
+import {
+  Organisation,
+  OrganisationRelation,
+  OwnOrganisation,
+  PartyUnavailable,
+} from "../../organisation/organisation.js";
 import type { Relationship } from "../../relationship/relationship.js";
 import { Role } from "../../role/role.js";
 import { PartyStore } from "../../storage.js";
@@ -41,8 +46,18 @@ export const postgresPartyStore = Layer.effect(
         ),
       organisationsFor: (id) =>
         read(
-          Organisation,
-          sql`select id, name from party_organisation o where exists (select 1 from party_relationship r where r.from_kind = 'person' and r.from_id = ${id} and r.to_kind = 'organisation' and r.to_id = o.id and r.kind = 'staff') or exists (select 1 from party_assignment a where a.person_id = ${id} and a.organisation_id = o.id) order by name, id`,
+          OwnOrganisation,
+          sql`select id, name, (select min(r.kind) from party_relationship r where r.from_kind = 'person' and r.from_id = ${id} and r.to_kind = 'organisation' and r.to_id = o.id) as relation from party_organisation o where exists (select 1 from party_relationship r where r.from_kind = 'person' and r.from_id = ${id} and r.to_kind = 'organisation' and r.to_id = o.id) or exists (select 1 from party_assignment a where a.person_id = ${id} and a.organisation_id = o.id) order by name, id`,
+        ),
+      relationsFor: (id, scopes) =>
+        read(
+          OrganisationRelation,
+          sql`select o.id, o.name, r.kind as relation from party_relationship r join party_organisation o on o.id = r.to_id where r.from_kind = 'person' and r.from_id = ${id} and r.to_kind = 'organisation' and ${scopes === null ? sql`true` : sql.in("o.id", scopes)} order by o.name, o.id, r.kind`,
+        ),
+      scopedAssignments: (id, scopes) =>
+        read(
+          Assignment,
+          sql`select person_id as "personId", role_key as "roleKey", organisation_id as "organisationId" from party_assignment where person_id = ${id} and ${scopes === null ? sql`true` : sql.in("organisation_id", scopes)} order by role_key, organisation_id nulls first`,
         ),
       assignmentsInOrganisation: (id) =>
         read(

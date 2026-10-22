@@ -1,6 +1,11 @@
 import { ActorId, defineOperation, NoInput } from "@house-rules/domain/contract";
 import { Schema } from "effect";
-import { PartyDenied, PartyUnavailable } from "../organisation/organisation.js";
+import {
+  OrganisationRelation,
+  PartyDenied,
+  PartyNotFound,
+  PartyUnavailable,
+} from "../organisation/organisation.js";
 import { AccessOperations } from "../role/operations.js";
 import { PartyPermissions } from "./permissions.js";
 import {
@@ -64,12 +69,40 @@ const listPeople = defineOperation("Party.listPeople", {
   description:
     "List everyone for global admins, or only your organisations' staff for scoped admins.",
   input: NoInput,
-  output: Schema.Array(Person),
+  output: Schema.Array(
+    Schema.Struct({
+      ...Person.fields,
+      assignments: Schema.Array(
+        Schema.Struct({
+          roleKey: Schema.String,
+          roleName: Schema.String,
+          organisationId: Schema.NullOr(Schema.String),
+          organisationName: Schema.NullOr(Schema.String),
+        }),
+      ),
+      organisations: Schema.Array(OrganisationRelation),
+    }),
+  ),
   failure: Schema.Union([PartyDenied, PartyUnavailable]),
   permission: "party:admin",
   readOnly: true,
 });
+const listMembers = defineOperation("Party.listMembers", {
+  description: "List an organisation's members and scoped roles only when you administer it.",
+  input: Schema.Struct({ organisationId: Schema.String }),
+  output: Schema.Array(
+    Schema.Struct({
+      ...Person.fields,
+      relation: Schema.NullOr(Schema.String),
+      roles: Schema.Array(Schema.Struct({ roleKey: Schema.String, roleName: Schema.String })),
+    }),
+  ),
+  failure: Schema.Union([PartyNotFound, PartyUnavailable]),
+  permission: "party:read",
+  readOnly: true,
+});
 export const PartyOperations = {
+  listMembers,
   listPeople,
   createPerson,
   showPerson,

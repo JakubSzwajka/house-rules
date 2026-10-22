@@ -131,6 +131,11 @@
 - Permission: party:admin
 - Called by: list_invitations
 
+### Party.listMembers
+
+- Permission: party:read
+- Called by: list_members
+
 ### Party.listPeople
 
 - Permission: party:admin
@@ -263,6 +268,14 @@
 - System closure: none
 - Exposed by: in-process only
 - Calls: Party.listPeople (person, inherited system stays system)
+
+### list_members
+
+- Starts as: person
+- Person closure: party:read
+- System closure: none
+- Exposed by: in-process only
+- Calls: Party.listMembers (person, inherited system stays system)
 
 ### my_activity
 

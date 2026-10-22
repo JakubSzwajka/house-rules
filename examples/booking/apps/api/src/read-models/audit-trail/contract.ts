@@ -6,6 +6,8 @@ export class AuditUnavailable extends Schema.TaggedError<AuditUnavailable>()("Au
   message: Schema.tag("Audit is unavailable."),
 }) {}
 export const AuditEntry = Schema.Struct({
+  at: Schema.Int,
+  who: Schema.NullOr(Schema.String),
   feature: Schema.String,
   outcome: Schema.String,
   requestId: Schema.NullOr(Schema.String),

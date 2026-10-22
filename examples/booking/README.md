@@ -41,11 +41,13 @@ Create the database first if it does not exist, for example with `docker exec ho
 STORAGE=postgres DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/booking_dev APP_ORIGIN=http://192.168.1.23:3000 NODE_ENV=development pnpm --filter @example/api grant-admin admin@example.test
 ```
 
-Refresh the profile to see the admin role. Unknown or unbound accounts fail with a message to sign in once first. Ordinary sign-up never grants admin based on email. The explicit development seed below creates a demo admin. The development signing key is ephemeral; restarting requires signing in again.
+Reload the page to see the admin role. Unknown or unbound accounts fail with a message to sign in once first. Ordinary sign-up never grants admin based on email. The explicit development seed below creates a demo admin. The development signing key is ephemeral; restarting requires signing in again.
 
-The sidebar has Account, Bookings, Organisations, People & roles, Audit, Framework and Call log. The catalogue picker lists operation permissions; role delegation still requires holding each permission in the target scope. Load people for the role and member pickers. A global admin sees everyone, an org admin sees only staff of their own organisations, and members get 403. These filters run in SQL.
+The dashboard has Overview, Bookings, Organisations, People, Roles, Audit and Framework screens, linked by URL hashes. Data loads when a screen opens and refreshes after mutations. New items use dialog forms; table row menus hold edits and removals. Destructive actions require an AlertDialog confirmation. Notifications include HTTP status, public code, message and a copyable request id. People and Audit appear only with the required permissions. A global admin sees everyone; an org admin sees only people and assignments in their own organisations. These filters run in SQL.
 
-The Audit page is global-admin-only and shows the latest 50 calls across people. The fixed bottom "Under the hood" dock merges this tab's calls with the signed-in person's own audit, linked by request id. Open it to refresh after calls, or refresh manually; enable "Include reads" for read-only calls. The tab log belongs to the signed-in person and clears on sign-in, sign-up, sign-out or a changed profile id. Signed-out attempts do not carry into another person's log. `my_activity` filters by actor in the reader's SQL, not in the page.
+Roles loads the catalogue automatically. Permission checkboxes are grouped by resource and disabled when the person lacks that permission in the chosen scope. Custom roles can be edited or deleted from their row menu; built-in roles cannot. The user menu holds password change and sign-out. The profile API does not expose email, so the menu shows the person's name and roles.
+
+The Audit page is global-admin-only and shows the latest 50 calls across people. The fixed bottom "Under the hood" dock merges this tab's calls with the signed-in person's own audit, linked by request id. It refreshes automatically while open; enable "Include reads" for read-only calls. Expand a row for detail, with JSON available only inside its nested Raw section. The tab log belongs to the signed-in person and clears on sign-in, sign-up, sign-out or a changed profile id. Signed-out attempts do not carry into another person's log. `my_activity` filters by actor in the reader's SQL, not in the page.
 
 ## Seed and organisations walkthrough
 
@@ -59,13 +61,13 @@ The Audit page is global-admin-only and shows the latest 50 calls across people.
 | dave | member, Acme staff |
 | admin | global admin |
 
-Quick sign-in buttons appear inside the normal sign-in card only when Vite builds with `NODE_ENV=development`, or serves its dev page. They prefill credentials and submit the existing `sign_in` form. A normal production build removes them. There is no new public path, runtime environment endpoint or seed-enabled feature. Setting only the server's NODE_ENV after a production page build cannot enable these buttons.
+The Demo accounts list appears inside the tabbed sign-in card only when Vite builds with `NODE_ENV=development`, or serves its dev page. They prefill credentials and submit the existing `sign_in` form. A normal production build removes them. There is no new public path, runtime environment endpoint or seed-enabled feature. Setting only the server's NODE_ENV after a production page build cannot enable these buttons.
 
-1. Sign in as Carol. Open Organisations, load your organisations and load members. Acme lists Carol and Dave, not Alice or Bob.
-2. Create an invitation for `acme`, leaving its role blank, or use `org-admin` to delegate Carol's own scoped powers. Copy the returned one-time code. Carol cannot attach `member`: that role includes booking permissions Carol does not hold.
+1. Sign in as Carol. Open Organisations, then Acme. The Members tab loads Carol and Dave, not Alice or Bob.
+2. Open Invitations and choose Invite. Select Staff, no role, or Organisation admin to delegate Carol's scoped powers. Copy the one-time code shown in the dialog. The picker excludes roles whose permissions Carol does not hold, including Member.
 3. Sign in as Alice and accept the code. Alice becomes Acme staff; an attached role is assigned through a system edge in the same transaction. A reused code fails with generic not_found. Codes expire after seven days; revocation needs confirmation.
 4. Alice can also create a separate organisation as a member. Its creator gets only `org-admin` in that org through the system edge with reason `creator of organisation`. Carol cannot invite into or list invitations in Alice's org.
-5. Remove a member with the picker and confirm. Their org-scoped assignments are revoked, but their global roles stay. Removing the last org admin fails with conflict.
+5. Choose Remove member from a member's row menu and confirm. Their org-scoped assignments are revoked, but their global roles stay. Removing the last org admin fails with conflict.
 
 Web uses Mean.allow only after the page's confirm dialog for lifted needsApproval features. The dialog is the person's approval, not a server-verifiable token. Direct authenticated HTTP callers can also invoke these features. Partner remains Mean.no and MCP remains Mean.elicitation. All role and object checks still run. APP_ORIGIN adds the exact LAN origin; localhost:3000 stays allowed. booking_session is HttpOnly/SameSite=Lax and is not Secure over plain HTTP. HTTPS adds Secure. Session writes retain exact-origin CSRF, including sign-up and sign-in.
 

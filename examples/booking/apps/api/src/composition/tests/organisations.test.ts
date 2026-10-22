@@ -49,14 +49,21 @@ for (const storage of ["memory", "postgres"] as const) {
             .map((a) => a.organisationId),
           [x.id],
         );
-        assert.deepStrictEqual(
-          yield* runFeature(Features.myOrganisations, {}).pipe(Effect.provideContext(as("a"))),
-          [x],
-        );
-        assert.deepStrictEqual(
-          yield* runFeature(Features.myOrganisations, {}).pipe(Effect.provideContext(as("b"))),
-          [y],
-        );
+        const adminRoles = [
+          {
+            roleKey: "org-admin",
+            roleName: "Organisation admin",
+            permissions: ["party:admin", "party:read"],
+          },
+        ];
+        for (const [id, org] of [
+          ["a", x],
+          ["b", y],
+        ] as const)
+          assert.deepStrictEqual(
+            yield* runFeature(Features.myOrganisations, {}).pipe(Effect.provideContext(as(id))),
+            [{ ...org, relation: "staff", roles: adminRoles }],
+          );
         for (const feature of [Features.createInvitation, Features.listInvitations] as const) {
           const input = { organisationId: y.id, roleKey: null };
           assert.strictEqual(
@@ -110,6 +117,37 @@ for (const storage of ["memory", "postgres"] as const) {
           ),
           ["b"],
         );
+        assert.deepStrictEqual(
+          list.flatMap((p) => p.assignments).map((a) => a.organisationId),
+          [x.id, x.id],
+        );
+        assert.deepStrictEqual(
+          list.flatMap((p) => p.organisations).map((o) => o.id),
+          [x.id, x.id],
+        );
+        assert.deepStrictEqual(
+          (yield* runFeature(Features.listMembers, { organisationId: x.id }).pipe(
+            Effect.provideContext(as("a")),
+          )).map((p) => ({ id: p.id, relation: p.relation, roles: p.roles })),
+          ["a", "joiner"].map((id) => ({
+            id: ActorId.make(id),
+            relation: "staff",
+            roles: [{ roleKey: "org-admin", roleName: "Organisation admin" }],
+          })),
+        );
+        for (const [id, organisationId] of [
+          ["a", y.id],
+          ["a", "unknown"],
+          ["member", x.id],
+          ["member", "unknown"],
+        ] as const)
+          assert.strictEqual(
+            (yield* runFeature(Features.listMembers, { organisationId }).pipe(
+              Effect.provideContext(as(id)),
+              Effect.flip,
+            ))._tag,
+            "PartyNotFound",
+          );
         assert.strictEqual(
           (yield* runFeature(Features.listPeople, {}).pipe(
             Effect.provideContext(as("member")),
@@ -236,7 +274,20 @@ for (const storage of ["memory", "postgres"] as const) {
             actor: Actor.make({ id: carol }),
             via: "test",
           }),
-          [{ id: "acme", name: "Acme" }],
+          [
+            {
+              id: "acme",
+              name: "Acme",
+              relation: "staff",
+              roles: [
+                {
+                  roleKey: "org-admin",
+                  roleName: "Organisation admin",
+                  permissions: ["party:admin", "party:read"],
+                },
+              ],
+            },
+          ],
         );
       }).pipe(Effect.scoped),
     30_000,

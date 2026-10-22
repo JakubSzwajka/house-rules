@@ -28,6 +28,8 @@ it.effect(
         ],
         [
           {
+            at: 1000,
+            who: "alice",
             feature: "create_organisation",
             requestId: "write-a",
             outcome: "success",
@@ -35,6 +37,8 @@ it.effect(
             kind: "write",
           },
           {
+            at: 2000,
+            who: "alice",
             feature: "accept_invitation",
             requestId: "other-tab",
             outcome: "success",

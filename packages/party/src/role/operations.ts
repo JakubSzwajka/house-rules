@@ -3,6 +3,7 @@ import { Schema } from "effect";
 import { Assignment } from "../assignment/assignment.js";
 import {
   Organisation,
+  OwnOrganisation,
   PartyLastAdmin,
   PartyConflict,
   PartyDenied,
@@ -182,7 +183,18 @@ const listInvitations = defineOperation("Party.listInvitations", {
 const myOrganisations = defineOperation("Party.myOrganisations", {
   description: "List organisations you belong to.",
   input: NoInput,
-  output: Schema.Array(Organisation),
+  output: Schema.Array(
+    Schema.Struct({
+      ...OwnOrganisation.fields,
+      roles: Schema.Array(
+        Schema.Struct({
+          roleKey: Schema.String,
+          roleName: Schema.String,
+          permissions: Schema.Array(Schema.String),
+        }),
+      ),
+    }),
+  ),
   failure,
   permission: "party:read",
   readOnly: true,

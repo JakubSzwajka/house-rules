@@ -25,6 +25,7 @@ import { listInvitations } from "./list-invitations/index.ts";
 import { revokeInvitation } from "./revoke-invitation/index.ts";
 import { removeMember } from "./remove-member/index.ts";
 import { listPeople } from "./list-people/index.ts";
+import { listMembers } from "./list-members/index.ts";
 import { myActivity } from "./my-activity/index.ts";
 export const Features = {
   createOrganisation,
@@ -35,6 +36,7 @@ export const Features = {
   revokeInvitation,
   removeMember,
   listPeople,
+  listMembers,
   myActivity,
   myProfile,
   listPermissions,

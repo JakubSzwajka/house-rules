@@ -1,435 +1,384 @@
-import { useRef, useState } from "react";
-import { Blocks, BookOpen, Fingerprint, ListChecks, ScrollText, Users } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CalendarDays, ChevronsUpDown, LogOut } from "lucide-react";
+import { menu, route } from "./navigation.ts";
 import { Schema } from "effect";
-import { HttpFailure } from "@house-rules/application/contract";
-import { FrameworkPanel } from "./framework-panel.tsx";
 import { api } from "../endpoints.ts";
-import { ActionForm, text } from "./action-form.tsx";
 import {
   approvalNeeded,
   clearsCallHistory,
   makeClient,
   type Action,
   type CallRow,
-  type Client,
 } from "./session.ts";
-import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert.tsx";
-import { Button } from "./components/ui/button.tsx";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "./components/ui/card.tsx";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "./components/ui/dialog.tsx";
-import { CallLog } from "./call-log.tsx";
-import { QuickSignIn } from "./quick-sign-in.tsx";
-import { AuditDock } from "./audit-dock.tsx";
+  DashboardContext,
+  roleOptions,
+  useResource,
+  type Notice,
+  type Profile,
+} from "./dashboard.tsx";
+import { failureDetail } from "./failure.ts";
+import { AuthPanel } from "./auth-panel.tsx";
+import { OverviewPanel } from "./overview-panel.tsx";
+import { BookingsPanel } from "./bookings-panel.tsx";
 import { OrganisationsPanel } from "./organisations-panel.tsx";
 import { PeoplePanel } from "./people-panel.tsx";
-
-const menu = [
-  { name: "Account", note: "@house-rules/identity · passwords", icon: Fingerprint },
-  { name: "Bookings", note: "@example/bookings + @example/billing", icon: BookOpen },
-  { name: "Organisations", note: "@house-rules/party · invitations + staff", icon: Users },
-  { name: "People & roles", note: "@house-rules/party", icon: Users },
-  { name: "Audit", note: "@house-rules/call-audit", icon: ScrollText },
-  { name: "Framework", note: "domain + application + auth-jwt + node-host", icon: Blocks },
-  { name: "Call log", note: "Calls made by this tab", icon: ListChecks },
-] as const;
-type Profile = Awaited<ReturnType<Client["myProfile"]>>;
-const email = { name: "email", label: "Email", type: "email" };
-const password = { name: "password", label: "Password", type: "password" };
-const id = { name: "id", label: "Booking id" };
-const print = (value: unknown) => JSON.stringify(value, null, 2);
-
+import { RolesPanel } from "./roles-panel.tsx";
+import { AuditPanel } from "./audit-panel.tsx";
+import { FrameworkPanel } from "./framework-panel.tsx";
+import { AuditDock } from "./audit-dock.tsx";
+import { ActionForm } from "./action-form.tsx";
+import { FormDialog, ScopeBadges } from "./screen-kit.tsx";
+import { Button } from "./components/ui/button.tsx";
+import { Avatar } from "./components/ui/avatar.tsx";
+import { Skeleton } from "./components/ui/skeleton.tsx";
+import { TooltipProvider } from "./components/ui/tooltip.tsx";
+import { ToastProvider, Toasts } from "./components/ui/toast.tsx";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./components/ui/dropdown-menu.tsx";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "./components/ui/alert-dialog.tsx";
 export function App() {
-  const [section, setSection] = useState<string>("Account");
+  const [section, setSection] = useState(route);
   const [rows, setRows] = useState<CallRow[]>([]);
-  const last = useRef<CallRow | undefined>(undefined);
+  const reports = useRef(new Map<string, CallRow>());
+  const lastFailure = useRef<CallRow | undefined>(undefined);
   const [client] = useState(() =>
     makeClient((row) => {
-      last.current = row;
-      setRows((previous) => [row, ...previous]);
+      reports.current.set(row.name, row);
+      if (row.status >= 400) lastFailure.current = row;
+      setRows((previous) => [row, ...previous].slice(0, 200));
     }),
   );
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [people, setPeople] = useState<Awaited<ReturnType<Client["listPeople"]>>>([]);
-  const [catalogue, setCatalogue] = useState<readonly string[]>([]);
-  const [result, setResult] = useState<unknown>(null);
-  const [problem, setProblem] = useState<CallRow | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<{ action: Action; send: () => Promise<unknown> } | null>(
-    null,
+  const [ready, setReady] = useState(false);
+  const [epoch, setEpoch] = useState(0);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const noticeId = useRef(0);
+  const [password, setPassword] = useState(false);
+  const [pending, setPending] = useState<{
+    action: Action;
+    send: () => Promise<unknown>;
+  } | null>(null);
+  const options = useResource(
+    () =>
+      profile
+        ? Promise.all([roleOptions(client), client.myOrganisations({})]).then(
+            ([access, organisations]) => ({
+              ...access,
+              organisations,
+              personId: profile.person.id,
+            }),
+          )
+        : Promise.resolve(null),
+    [client, profile?.person.id, epoch, section],
   );
-  const execute = (action: Action, send: () => Promise<unknown>) => {
-    setBusy(true);
-    setProblem(null);
-    if (clearsCallHistory(action)) setRows([]);
+  useEffect(() => {
+    const change = () => setSection(route());
+    window.addEventListener("hashchange", change);
+    return () => window.removeEventListener("hashchange", change);
+  }, []);
+  useEffect(() => {
+    let active = true;
+    void client
+      .myProfile({})
+      .then((me) => {
+        if (active) setProfile(me);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) {
+          setRows([]);
+          setReady(true);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [client]);
+  const notify = (row: CallRow) =>
+    setNotices((previous) => [...previous, { ...row, toastId: ++noticeId.current }].slice(-5));
+  const perform = <T,>(action: Action, send: () => Promise<T>): Promise<T> => {
+    const name = api.endpoints[action].feature.name;
     return send()
       .then((value) => {
-        setResult(value ?? { message: "Done" });
-        if (Schema.is(Schema.Struct({ _tag: Schema.Literal("InvalidCredentials") }))(value)) {
+        const report = reports.current.get(name);
+        if (Schema.is(Schema.TaggedStruct("InvalidCredentials", {}))(value)) {
           const row = {
-            ...last.current,
-            name: api.endpoints[action].feature.name,
+            ...report,
+            name,
             method: "POST" as const,
-            path: `/api/${api.endpoints[action].feature.name}`,
+            path: `/api/${name}`,
             status: 200,
-            ms: last.current?.ms ?? 0,
+            ms: report?.ms ?? 0,
             code: "InvalidCredentials",
-            message: "Invalid credentials.",
+            message: "The email or password is incorrect.",
           };
-          setProblem(row);
-          setRows((previous) => [row, ...previous.slice(1)]);
-        } else if (action === "signIn" || action === "signUp" || action === "myProfile") {
-          if (action !== "myProfile") {
-            // Authentication replaces the session. Signed-out attempts belong to neither person.
-            setRows([]);
-            setProfile(null);
-            setPeople([]);
-            setCatalogue([]);
-          }
-          return (
-            action === "myProfile" ? Promise.resolve(value as Profile) : client.myProfile({})
-          ).then((me) => {
-            if (clearsCallHistory(action, profile?.person.id, me.person.id)) {
-              setRows([]);
-              last.current = undefined;
-            }
-            setProfile(me);
-            setCatalogue(me.access.catalogue);
-          });
-        } else if (action === "signOut") {
-          setRows([]);
-          last.current = undefined;
-          setProfile(null);
-          setPeople([]);
-          setCatalogue([]);
-        } else if (action === "listPeople")
-          setPeople(value as Awaited<ReturnType<Client["listPeople"]>>);
-        else if (action === "listPermissions") setCatalogue(value as readonly string[]);
+          notify(row);
+          setRows((previous) => [
+            row,
+            ...previous.filter((item) => item.requestId !== row.requestId),
+          ]);
+          throw new Error(row.message);
+        }
+        const refresh =
+          action === "signOut"
+            ? Promise.resolve().then(() => {
+                setProfile(null);
+                setRows([]);
+                reports.current.clear();
+                setNotices([]);
+              })
+            : api.endpoints[action].feature.readOnly
+              ? Promise.resolve()
+              : client.myProfile({}).then((me) => {
+                  if (clearsCallHistory(action, profile?.person.id, me.person.id)) {
+                    setRows([]);
+                    reports.current.clear();
+                    setNotices([]);
+                  }
+                  setProfile(me);
+                  setEpoch((previous) => previous + 1);
+                  if (action === "signIn" || action === "signUp") window.location.hash = "overview";
+                });
+        return refresh.then(() => {
+          if (report) notify({ ...report, message: `${name.replaceAll("_", " ")} completed.` });
+          return value;
+        });
       })
       .catch((error: unknown) => {
-        const failure = Schema.is(HttpFailure)(error) ? error : undefined;
-        const payload = failure?.body;
-        const body = Schema.is(Schema.Struct({ error: Schema.Unknown }))(payload)
-          ? payload.error
-          : payload;
-        const message =
-          Schema.is(Schema.Struct({ message: Schema.String }))(body) && body.message.trim() !== ""
-            ? body.message
-            : "Request failed.";
-        const code = Schema.is(Schema.Struct({ code: Schema.String }))(body)
-          ? body.code
-          : (failure?.code ?? "Unknown");
-        const row: CallRow = {
-          ...last.current,
-          name: api.endpoints[action].feature.name,
-          method: "POST",
-          path: `/api/${api.endpoints[action].feature.name}`,
-          status: failure?.status ?? 0,
-          ms: last.current?.ms ?? 0,
-          code,
-          message,
+        if (error instanceof Error && error.message === "The email or password is incorrect.")
+          throw error;
+        const detail = failureDetail(error);
+        const report = reports.current.get(name);
+        const row = {
+          ...report,
+          name,
+          method: "POST" as const,
+          path: `/api/${name}`,
+          ms: report?.ms ?? 0,
+          ...detail,
         };
-        setProblem(row);
-        setRows((previous) => [row, ...previous.slice(1)]);
-      })
-      .finally(() => {
-        setBusy(false);
+        notify(row);
+        setRows((previous) => [
+          row,
+          ...previous.filter((item) => item.requestId !== row.requestId),
+        ]);
+        throw new Error(detail.message);
       });
   };
-  const run = (action: Action, send: () => Promise<unknown>) => {
+  const approve = (action: Action, send: () => Promise<unknown>) => {
     if (approvalNeeded(action)) setPending({ action, send });
-    else void execute(action, send);
+    else void perform(action, send).catch(() => undefined);
   };
-  const form = (
-    action: Action,
-    title: string,
-    fields: Parameters<typeof ActionForm>[0]["fields"],
-    send: (data: FormData) => Promise<unknown>,
-  ) => (
-    <ActionForm
-      title={title}
-      fields={fields}
-      disabled={busy}
-      submit={(data) => run(action, () => send(data))}
-    />
-  );
-  const button = (action: Action, label: string, send: () => Promise<unknown>) => (
-    <Button variant="outline" disabled={busy} onClick={() => run(action, send)}>
-      {label}
-    </Button>
-  );
-
+  const dismissConfirm = (approved: boolean) => {
+    if (approved && pending) void perform(pending.action, pending.send).catch(() => undefined);
+    setPending(null);
+  };
+  const can = (permission?: string) =>
+    !permission || profile?.access.permissions.includes(permission);
+  const allowed = menu.filter((item) => can(item.permission));
+  const current = allowed.find((item) => item.key === section)?.key ?? "overview";
+  const data = options.data?.personId === profile?.person.id ? options.data : null;
   return (
-    <div className="min-h-screen md:flex">
-      <aside
-        data-slot="sidebar"
-        className="border-b bg-sidebar p-4 md:fixed md:inset-y-0 md:w-72 md:border-r"
-      >
-        <div className="mb-8 flex items-center gap-3 px-2">
-          <Blocks className="size-7" />
-          <div>
-            <h1 className="font-semibold">Booking dashboard</h1>
-            <p className="text-xs text-muted-foreground">House rules reference app</p>
+    <TooltipProvider delayDuration={200}>
+      <ToastProvider>
+        {!ready ? (
+          <div className="mx-auto mt-24 max-w-sm space-y-4 p-6">
+            <Skeleton className="h-12 w-48" />
+            <Skeleton className="h-72 w-full" />
           </div>
-        </div>
-        <nav aria-label="Modules" className="grid gap-1">
-          {menu.map(({ name, note, icon: Icon }) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => setSection(name)}
-              aria-current={section === name ? "page" : undefined}
-              className={`flex items-start gap-3 rounded-md px-3 py-3 text-left text-sm hover:bg-sidebar-accent ${section === name ? "bg-sidebar-accent" : ""}`}
-            >
-              <Icon className="mt-1 size-4 shrink-0" />
-              <span>
-                <span className="block font-medium">{name}</span>
-                <span className="block text-xs text-muted-foreground">{note}</span>
-              </span>
-            </button>
-          ))}
-        </nav>
-        <p className="mt-8 break-all px-3 text-xs text-muted-foreground">
-          {profile ? profile.person.displayName : "Not signed in"}
-          <br />
-          {profile?.person.id}
-        </p>
-      </aside>
-      <main className="min-w-0 flex-1 p-5 pb-28 md:ml-72 md:p-10 md:pb-28">
-        <header className="mb-8 border-b pb-5">
-          <h2 className="text-2xl font-semibold tracking-tight">{section}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {menu.find((item) => item.name === section)?.note}
-          </p>
-        </header>
-        {problem && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertTitle>
-              {problem.name}: HTTP {problem.status} · {problem.code}
-            </AlertTitle>
-            <AlertDescription>
-              {problem.message}
-              <br />
-              Request id: {problem.requestId ?? "not returned"}
-            </AlertDescription>
-          </Alert>
-        )}
-        {section === "Account" && (
-          <>
-            <div className="grid gap-5 lg:grid-cols-2">
-              {form(
-                "signUp",
-                "Sign up",
-                [{ name: "displayName", label: "Display name" }, email, password],
-                (data) =>
-                  client.signUp({
-                    email: text(data, "email"),
-                    password: text(data, "password"),
-                    displayName: text(data, "displayName"),
-                  }),
-              )}
-              <ActionForm
-                title="Sign in"
-                fields={[email, password]}
-                disabled={busy}
-                submit={(data) =>
-                  run("signIn", () =>
-                    client.signIn({ email: text(data, "email"), password: text(data, "password") }),
-                  )
-                }
-              >
-                <QuickSignIn disabled={busy} />
-              </ActionForm>
-              {form(
-                "changePassword",
-                "Change password",
-                [
-                  { name: "current", label: "Current password", type: "password" },
-                  { name: "next", label: "New password", type: "password" },
-                ],
-                (data) =>
-                  client.changePassword({
-                    current: text(data, "current"),
-                    next: text(data, "next"),
-                  }),
-              )}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Who am I?</CardTitle>
-                  <CardDescription>
-                    Person, role assignments and effective permissions from Party.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4">
-                  <div className="flex flex-wrap gap-2">
-                    {button("myProfile", "Refresh profile", () => client.myProfile({}))}
-                    {button("signOut", "Sign out", () => client.signOut({}))}
+        ) : !profile ? (
+          <AuthPanel client={client} perform={perform} />
+        ) : (
+          <div className="min-h-screen bg-muted/20 md:flex">
+            <aside className="flex flex-col border-b bg-sidebar md:fixed md:inset-y-0 md:w-64 md:border-r">
+              <a href="#overview" className="flex h-20 items-center gap-3 px-6 font-semibold">
+                <span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground">
+                  <CalendarDays className="size-5" />
+                </span>
+                Booking
+                <span className="ml-auto text-xs font-normal text-muted-foreground">Workspace</span>
+              </a>
+              <div className="px-6 pb-3 pt-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Workspace
+              </div>
+              <nav aria-label="Main navigation" className="grid gap-1 px-3">
+                {allowed.map(({ key, name, icon: Icon }) => (
+                  <a
+                    key={key}
+                    href={`#${key}`}
+                    aria-current={current === key ? "page" : undefined}
+                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent ${current === key ? "bg-sidebar-accent font-medium text-foreground" : "text-muted-foreground"}`}
+                  >
+                    <Icon className="size-4" />
+                    {name}
+                  </a>
+                ))}
+              </nav>
+              <div className="mt-auto border-t p-3 md:mb-0">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-auto w-full justify-start gap-3 px-2 py-3">
+                      <Avatar name={profile.person.displayName} />
+                      <span className="min-w-0 flex-1 text-left">
+                        <span className="block truncate text-sm font-medium">
+                          {profile.person.displayName}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          Your account
+                        </span>
+                      </span>
+                      <ChevronsUpDown className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="top" align="start" className="w-64">
+                    <div className="grid gap-2 border-b p-3">
+                      <p className="text-sm font-medium">{profile.person.displayName}</p>
+                      <ScopeBadges items={profile.access.roles} />
+                    </div>
+                    {can("identity:update") && (
+                      <DropdownMenuItem onSelect={() => setPassword(true)}>
+                        Change password
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        void perform("signOut", () => client.signOut({})).catch(() => undefined);
+                      }}
+                    >
+                      <LogOut className="size-4" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </aside>
+            <main className="min-w-0 flex-1 px-5 py-8 pb-28 md:ml-64 md:px-10">
+              <div className="mx-auto max-w-7xl">
+                {options.error ? (
+                  <p role="alert" className="rounded-lg border p-6 text-destructive">
+                    Workspace data could not be retrieved. {options.error}
+                  </p>
+                ) : !data ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-12 w-64" />
+                    <Skeleton className="h-64 w-full" />
                   </div>
-                  <pre className="overflow-auto text-xs">{print(profile ?? "Sign in first.")}</pre>
-                </CardContent>
-              </Card>
-            </div>
-            <Card className="mt-5">
-              <CardHeader>
-                <CardTitle>Error demos</CardTitle>
-                <CardDescription>
-                  Use a member account for the define_role refusal. For a hidden booking, copy a
-                  real id from another account.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-3">
-                {button("defineRole", "Member: define role (403)", () =>
-                  client.defineRole({
-                    key: "demo-denied",
-                    name: "Demo",
-                    permissions: ["party:read"],
-                    organisationId: null,
-                  }),
+                ) : (
+                  <DashboardContext.Provider
+                    value={{
+                      client,
+                      profile,
+                      roles: data.roles,
+                      catalogue: data.catalogue,
+                      organisations: data.organisations,
+                      epoch,
+                      perform,
+                      approve,
+                      report: (error) => {
+                        const detail = failureDetail(error);
+                        notify({
+                          name: "request",
+                          method: "POST",
+                          path: "/api",
+                          ms: 0,
+                          ...lastFailure.current,
+                          ...detail,
+                        });
+                      },
+                    }}
+                  >
+                    {current === "overview" && <OverviewPanel />}
+                    {current === "bookings" && <BookingsPanel />}
+                    {current === "organisations" && <OrganisationsPanel />}
+                    {current === "people" && <PeoplePanel />}
+                    {current === "roles" && <RolesPanel />}
+                    {current === "audit" && <AuditPanel />}
+                    {current === "framework" && <FrameworkPanel />}
+                  </DashboardContext.Provider>
                 )}
-                {button("signUp", "Invalid input (400)", () =>
-                  client.signUp({ email: "not-an-email", password: "short", displayName: "" }),
-                )}
-                {button("signIn", "Wrong password", () =>
-                  client.signIn({
-                    email: "admin@example.test",
-                    password: "deliberately-wrong-password",
-                  }),
-                )}
-              </CardContent>
-            </Card>
-          </>
-        )}
-        {section === "Bookings" && (
-          <div className="grid gap-5 lg:grid-cols-2">
-            {form(
-              "makeBooking",
-              "Make booking",
-              [
-                id,
-                { name: "guestName", label: "Guest name" },
-                { name: "paymentId", label: "Payment id" },
-                { name: "amount", label: "Amount (integer)", type: "number", value: "100" },
-              ],
-              (data) =>
-                client.makeBooking({
-                  id: text(data, "id"),
-                  guestName: text(data, "guestName"),
-                  paymentId: text(data, "paymentId"),
-                  amount: Number(text(data, "amount")),
-                }),
-            )}
-            <Card>
-              <CardHeader>
-                <CardTitle>My bookings</CardTitle>
-                <CardDescription>
-                  Bookings and payment status, joined over published views.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {button("myBookings", "Load my bookings", () => client.myBookings({}))}
-              </CardContent>
-            </Card>
-            {form("showBooking", "Show booking / hidden-id demo", [id], (data) =>
-              client.showBooking({ id: text(data, "id") }),
-            )}
-            {form("cancelBooking", "Cancel booking and refund", [id], (data) =>
-              client.cancelBooking({ id: text(data, "id") }),
-            )}
+              </div>
+            </main>
           </div>
         )}
-        {section === "Organisations" && (
-          <OrganisationsPanel client={client} busy={busy} run={run} people={people} />
-        )}
-        {section === "People & roles" && (
-          <PeoplePanel
-            client={client}
-            busy={busy}
-            run={run}
-            people={people}
-            catalogue={catalogue}
-          />
-        )}
-        {section === "Audit" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent audit</CardTitle>
-              <CardDescription>
-                Global admin only. The latest 50 calls across all people, including refusals. Your
-                own activity is also available in the bottom dock.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {button("recentAudit", "Load audit", () => client.recentAudit({}))}
-            </CardContent>
-          </Card>
-        )}
-        {section === "Framework" && <FrameworkPanel />}
-        {section === "Call log" && <CallLog rows={rows} />}
-        {section !== "Framework" && section !== "Call log" && (
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Last response</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <pre aria-live="polite" className="max-h-96 overflow-auto text-xs">
-                {print(result ?? "No call yet.")}
-              </pre>
-            </CardContent>
-          </Card>
-        )}
-      </main>
-      <AuditDock
-        key={profile?.person.id ?? "signed-out"}
-        client={client}
-        personId={profile?.person.id}
-        calls={rows}
-      />
-      <Dialog
-        open={pending !== null}
-        onOpenChange={(open) => {
-          if (!open) setPending(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Approve {pending ? api.endpoints[pending.action].feature.name : "action"}?
-            </DialogTitle>
-            <DialogDescription>
-              This feature needs your approval. Confirming sends the request. Cancel sends nothing.
-              Permission and object checks still run on the server.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPending(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (pending) {
-                  const approved = pending;
-                  setPending(null);
-                  void execute(approved.action, approved.send);
-                }
+        <AuditDock
+          key={profile?.person.id ?? "signed-out"}
+          client={client}
+          personId={profile?.person.id}
+          calls={rows}
+        />
+        <FormDialog
+          title="Change password"
+          description="Enter your current password and choose a new one."
+          open={password}
+          onOpenChange={setPassword}
+        >
+          {password && (
+            <ActionForm
+              title="Update password"
+              fields={[
+                { name: "current", label: "Current password", type: "password" },
+                { name: "next", label: "New password", type: "password", minLength: 12 },
+              ]}
+              submit={(form) => {
+                return perform("changePassword", () =>
+                  client.changePassword({
+                    current: String(form.get("current") ?? ""),
+                    next: String(form.get("next") ?? ""),
+                  }),
+                ).then(() => setPassword(false));
               }}
-            >
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            />
+          )}
+        </FormDialog>
+        <AlertDialog
+          open={pending !== null}
+          onOpenChange={(open) => {
+            if (!open) dismissConfirm(false);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogTitle className="text-lg font-semibold">
+              Confirm{" "}
+              {pending ? api.endpoints[pending.action].feature.name.replaceAll("_", " ") : "action"}
+              ?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
+              This changes access or removes data. Confirm only if you intend to continue.
+              Cancelling sends nothing.
+            </AlertDialogDescription>
+            <div className="flex justify-end gap-2">
+              <AlertDialogCancel asChild>
+                <Button variant="outline" onClick={() => dismissConfirm(false)}>
+                  Keep unchanged
+                </Button>
+              </AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Button variant="destructive" onClick={() => dismissConfirm(true)}>
+                  Confirm
+                </Button>
+              </AlertDialogAction>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
+        <Toasts
+          rows={notices}
+          dismiss={(id) =>
+            setNotices((previous) => previous.filter((notice) => notice.toastId !== id))
+          }
+        />
+      </ToastProvider>
+    </TooltipProvider>
   );
 }

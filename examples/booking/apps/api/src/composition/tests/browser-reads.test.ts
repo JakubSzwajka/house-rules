@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { Approval, CurrentActor, May, runFeature, withRequestId } from "@house-rules/application";
 import { Actor, ActorId } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
-import { Context, Effect, Layer } from "effect";
+import { Clock, Context, Effect, Layer } from "effect";
 import { Features } from "../../features/index.ts";
 import { modulesLayer, plugSockets } from "../index.ts";
 import { systemPermissions } from "../roles.ts";
@@ -32,6 +32,7 @@ for (const storage of ["memory", "postgres"] as const) {
               via: "web",
             }),
           );
+        const startedAt = yield* Clock.currentTimeMillis;
         for (const id of ["alice", "bob"] as const) {
           const profile = yield* runFeature(Features.myProfile, {}).pipe(
             withRequestId(`profile-${id}`),
@@ -59,6 +60,11 @@ for (const storage of ["memory", "postgres"] as const) {
         );
         assert.isTrue(alice.some((row) => row.requestId === "profile-alice"));
         assert.isTrue(alice.some((row) => row.requestId === "profile-bob"));
+        const publicEntry = alice.find((row) => row.requestId === "profile-bob");
+        assert.isDefined(publicEntry);
+        assert.isTrue(publicEntry.at >= startedAt);
+        assert.isTrue(publicEntry.at <= (yield* Clock.currentTimeMillis));
+        assert.strictEqual(publicEntry.who, "bob");
         const carol = yield* runFeature(Features.recentAudit, {}).pipe(
           Effect.provideContext(as("carol")),
         );
@@ -68,6 +74,11 @@ for (const storage of ["memory", "postgres"] as const) {
         );
         assert.isTrue(mine.some((row) => row.requestId === "profile-bob"));
         assert.isFalse(mine.some((row) => row.requestId === "profile-alice"));
+        assert.isTrue(mine.every((row) => row.who === "bob"));
+        assert.deepStrictEqual(
+          mine.find((row) => row.requestId === "profile-bob"),
+          publicEntry,
+        );
         yield* runFeature(Features.defineRole, {
           key: "temporary",
           name: "Temporary",

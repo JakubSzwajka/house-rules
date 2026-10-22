@@ -46,20 +46,74 @@ export const memoryPartyStore = (): Layer.Layer<PartyStore> =>
       organisationsFor: (id) =>
         Effect.sync(() =>
           copy(
-            [...organisations.values()].filter(
-              (org) =>
-                [...relationships.values()].some(
-                  (r) =>
-                    r.from.kind === "person" &&
-                    r.from.id === id &&
-                    r.to.kind === "organisation" &&
-                    r.to.id === org.id &&
-                    r.kind === "staff",
-                ) ||
-                [...assignments.values()].some(
-                  (a) => a.personId === id && a.organisationId === org.id,
-                ),
-            ),
+            [...organisations.values()]
+              .filter(
+                (org) =>
+                  [...relationships.values()].some(
+                    (r) =>
+                      r.from.kind === "person" &&
+                      r.from.id === id &&
+                      r.to.kind === "organisation" &&
+                      r.to.id === org.id,
+                  ) ||
+                  [...assignments.values()].some(
+                    (a) => a.personId === id && a.organisationId === org.id,
+                  ),
+              )
+              .map((org) => ({
+                ...org,
+                relation:
+                  [...relationships.values()]
+                    .filter(
+                      (r) =>
+                        r.from.kind === "person" &&
+                        r.from.id === id &&
+                        r.to.kind === "organisation" &&
+                        r.to.id === org.id,
+                    )
+                    .map((r) => r.kind)
+                    .sort()[0] ?? null,
+              }))
+              .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)),
+          ),
+        ),
+      relationsFor: (id, scopes) =>
+        Effect.sync(() =>
+          copy(
+            [...relationships.values()]
+              .flatMap((r) => {
+                const org = organisations.get(r.to.id);
+                return r.from.kind === "person" &&
+                  r.from.id === id &&
+                  r.to.kind === "organisation" &&
+                  org &&
+                  (scopes === null || scopes.includes(org.id))
+                  ? [{ ...org, relation: r.kind }]
+                  : [];
+              })
+              .sort(
+                (a, b) =>
+                  a.name.localeCompare(b.name) ||
+                  a.id.localeCompare(b.id) ||
+                  a.relation.localeCompare(b.relation),
+              ),
+          ),
+        ),
+      scopedAssignments: (id, scopes) =>
+        Effect.sync(() =>
+          copy(
+            [...assignments.values()]
+              .filter(
+                (a) =>
+                  a.personId === id &&
+                  (scopes === null ||
+                    (a.organisationId !== null && scopes.includes(a.organisationId))),
+              )
+              .sort(
+                (a, b) =>
+                  a.roleKey.localeCompare(b.roleKey) ||
+                  (a.organisationId ?? "").localeCompare(b.organisationId ?? ""),
+              ),
           ),
         ),
       assignmentsInOrganisation: (id) =>

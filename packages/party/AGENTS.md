@@ -27,7 +27,7 @@ Use `PartyOperations` from the browser-safe contract door. Bind all descriptors 
 | relate, defineRole, assignRole, createInvitation | party:admin | transactional |
 | acceptInvitation | party:read | transactional |
 | listInvitations, listPeople | party:admin | readOnly |
-| myOrganisations | party:read | readOnly |
+| myOrganisations, listMembers | party:read | readOnly |
 | revokeInvitation | party:admin | transactional, destructive, needsApproval |
 | unrelate, revokeRole, deleteRole | party:admin | transactional, destructive, needsApproval |
 | showOrganisation, isRelated, listRoles, rolesOf, myAccess | party:read | readOnly |
@@ -43,7 +43,9 @@ Use `PartyOperations` from the browser-safe contract door. Bind all descriptors 
 - System callers may assign roles for first sign-in. They cannot revoke roles, define roles or bypass other management checks. Ordinary person callers cannot use the system assignment path.
 - May unions every held role across contexts. It drops missing roles and permissions absent from the current catalogue. Revocation takes effect on the next call. MCP and HTTP get the same answer for the same Actor.
 - Invitations take `{ organisationId, roleKey: string | null }`. Creation checks the caller administers that org and holds every attached role permission there. It returns `{ invitation, code }` once. Codes use 256 random bits, SHA-256 storage and a seven-day expiry. Lists never return codes or hashes. Acceptance atomically consumes a pending unexpired code, relates the person as staff and returns `{ personId, organisationId, roleKey }`; an app feature assigns the optional role through a system edge in the same unit. Acceptance rechecks the inviter's current delegation authority. Unknown, used, revoked and expired codes are generic not_found. Revocation needs approval.
-- `myOrganisations` filters by the caller's staff relations or scoped assignments. `listPeople` refuses non-admins, shows all people to global admins and only staff in administered orgs to scoped admins. Both adapters filter before returning; Postgres filters in SQL.
+- `myOrganisations` returns the caller's relationships or scoped assignments as `{ id, name, relation, roles: [{ roleKey, roleName, permissions }] }[]`. Roles are own org-scoped assignments only. Assignment-only membership has null relation; multiple relations use the first kind in lexical order.
+- `listPeople` returns `{ id, displayName, createdAt, assignments: [{ roleKey, roleName, organisationId, organisationName }], organisations: [{ id, name, relation }] }[]`. Global admins see all people and assignments. Scoped admins see only staff in administered orgs and only assignments and relations there, never global or other-org assignments. Non-admins get forbidden. Both adapters filter facts before returning; Postgres filters people, assignments and relations in SQL.
+- `listMembers({ organisationId })` needs `party:read` at the gate and admin authority in that org inside Party. It returns `{ id, displayName, createdAt, relation, roles: [{ roleKey, roleName }] }[]` for staff, with only org-scoped roles. Members, admins of other orgs and unknown ids get the same not_found. It needs no migration.
 - Removing a person's staff relation revokes all assignments scoped to that org in the same unit. Global assignments stay. Removing the last scoped org admin fails with conflict, with a clear message. Postgres locks the organisation before checking, so concurrent removals cannot remove both admins.
 - Relationships are directional facts. Management checks every organisation endpoint. Other modules ask `isRelated` through an operation edge; they never query Party tables.
 - Domain checks run inside the write unit. All writes require `UnitOfWork.required`. Memory registers undo before mutation; Postgres joins the transaction. Modules never open units.

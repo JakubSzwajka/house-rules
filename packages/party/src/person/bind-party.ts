@@ -23,6 +23,9 @@ export const bindParty = (service: Service): readonly Binding[] => [
   bindOperation(PartyOperations.myOrganisations, (_input, { caller }) =>
     service.myOrganisations(caller),
   ),
+  bindOperation(PartyOperations.listMembers, ({ organisationId }, { caller }) =>
+    service.listMembers(caller, organisationId),
+  ),
   bindOperation(PartyOperations.listPeople, (_input, { caller }) => service.listPeople(caller)),
   bindOperation(PartyOperations.myAccess, (_input, { caller }) => service.myAccess(caller)),
   bindOperation(PartyOperations.createOrganisation, (input, { caller }) =>

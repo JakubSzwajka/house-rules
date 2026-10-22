@@ -11,6 +11,7 @@ export const api = defineApi(
     revokeInvitation: endpoint(Features.revokeInvitation),
     removeMember: endpoint(Features.removeMember),
     listPeople: endpoint(Features.listPeople),
+    listMembers: endpoint(Features.listMembers),
     myActivity: endpoint(Features.myActivity),
     myProfile: endpoint(Features.myProfile),
     listPermissions: endpoint(Features.listPermissions),
