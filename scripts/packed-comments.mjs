@@ -61,9 +61,7 @@ const add = defineFeature("packed_add", { description: "Add a comment.", input: 
 const list = defineFeature("packed_list", { description: "List comments.", input: contract.CommentsOperations.listComments.input, output: contract.CommentsOperations.listComments.output, failure: contract.CommentsOperations.listComments.failure, permission: null, flags: { readOnly: true }, edges: [contract.CommentsOperations.listComments], handler: (input, { call }) => call(contract.CommentsOperations.listComments, input) });
 const features = [add, list];
 const runtime = Layer.unwrap(Effect.gen(function* () {
-  return Runtime.layer({ features, ways: [], bindings: [
-    ...bindComments(yield* Comments),
-  ] });
+  return Runtime.layer({ features, ways: [], mounts: [{ service: Comments, operations: Object.values(contract.CommentsOperations), bind: bindComments }] });
 })).pipe(Layer.provide(comments));
 const world = Layer.mergeAll(runtime, Probe.layer, memoryUnitOfWork, StepTrace.layer(), NodeServices.layer);
 const as = (viewer) => Layer.merge(Layer.succeed(CurrentActor, viewer), Layer.succeedContext(May.context(May.fixed(Object.values(contract.CommentPermissions)), { features, system: [], via: "packed" })));

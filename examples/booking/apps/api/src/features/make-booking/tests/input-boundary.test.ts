@@ -3,7 +3,7 @@ import { call, toFetchHandler, StepTrace } from "@house-rules/application";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { CallAudit, memoryAuditLog } from "@house-rules/call-audit";
 import { Context, Effect, Layer, Schema } from "effect";
-import { createApp, Features, modulesLayer } from "../../../composition/index.ts";
+import { createApp, Features, modulePlan } from "../../../composition/index.ts";
 import { seedRoleTesting } from "../../../composition/tests/roles-testing.ts";
 import { databaseTesting } from "../../../composition/tests/database.ts";
 import { makeFakePaymentProvider, NewPayment } from "@example/billing";
@@ -33,11 +33,11 @@ for (const backend of ["memory", "postgres"] as const)
         const provider = makeFakePaymentProvider();
         const log = memoryAuditLog();
         const database = backend === "postgres" ? yield* Layer.build(databaseTesting) : undefined;
-        const configured = modulesLayer({ provider: provider.layer, log });
-        const modules =
+        const plan = modulePlan({ provider: provider.layer, log });
+        const infrastructure =
           database === undefined
-            ? configured
-            : configured.pipe(Layer.provide(Layer.succeedContext(database)));
+            ? plan.layer
+            : plan.layer.pipe(Layer.provideMerge(Layer.succeedContext(database)));
         let transactions = 0;
         const counted = Layer.effect(
           UnitOfWork,
@@ -50,10 +50,10 @@ for (const backend of ["memory", "postgres"] as const)
                 }).pipe(Effect.andThen(unit.atomic(work))),
             };
           }),
-        ).pipe(Layer.provide(modules));
+        ).pipe(Layer.provideMerge(infrastructure));
         const way = { ...webWay, who: { resolve: () => Effect.succeed(alice) } };
         const app = yield* Effect.acquireRelease(
-          Effect.sync(() => createApp([way], { modules: Layer.merge(modules, counted) })),
+          Effect.sync(() => createApp([way], { modules: { ...plan, layer: counted } })),
           (app) => Effect.promise(() => app.dispose()),
         );
         const router = yield* Effect.acquireRelease(

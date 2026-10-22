@@ -8,6 +8,14 @@ export {
   bindOperation,
 } from "./runtime/binding.ts";
 export { Runtime, type RuntimeOptions } from "./runtime/runtime.ts";
+export {
+  planLayer,
+  type MountDefinition,
+  type ModuleMount,
+  type Mounts,
+  type ModulePlan,
+} from "./runtime/mount.ts";
+export { PermissionCatalogue } from "./registry/catalogue.ts";
 export { CallInvalid } from "./runtime/call-invalid.ts";
 export { GraphInvalid } from "./runtime/graph-invalid.ts";
 export {
@@ -41,7 +49,11 @@ export {
   type ClosureRefusal,
   type TraceSnapshot,
 } from "./trace/step-trace.ts";
-export { renderRegistry } from "./registry/registry.ts";
+export {
+  renderRegistry,
+  type RegistrySnapshot,
+  type RegistryWay,
+} from "./registry/registry.ts";
 export { Approval, type ApprovalService } from "./gates/approval.ts";
 export {
   ApprovalForm,
@@ -102,6 +114,7 @@ export { call, type CallOptions } from "./ways-in/call.ts";
 export { type Incoming, Refused } from "./ways-in/caller.ts";
 export { type Composition, composition, once } from "./ways-in/composition.ts";
 export { CompositionClosed } from "./ways-in/composition-closed.ts";
+export { registry } from "./ways-in/registry.ts";
 export { type CorsOptions, defaultCorsMaxAge } from "./ways-in/cors.ts";
 export { defaultMaxBodyBytes, toFetchHandler } from "./ways-in/fetch-handler.ts";
 export type { FetchHandler } from "./ways-in/mount-check.ts";

@@ -58,10 +58,10 @@ const mcp = defineWay({
   tools: [{ feature: showBooking, title: "Show a booking", idempotent: true, openWorld: false }],
 });
 const app = composition({
-  layer: fixtureLayer(features).pipe(Layer.provideMerge(modules)),
+  modules: { mounts: [], layer: fixtureLayer(features).pipe(Layer.provideMerge(modules)) },
   features: features,
   ways: [http, mcp],
-  may: May.fixed(["bookings:read"]),
+  may: Effect.succeed(May.fixed(["bookings:read"])),
   system: [],
 });
 const router = toFetchHandler(app);

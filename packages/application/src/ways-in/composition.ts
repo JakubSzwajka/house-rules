@@ -8,6 +8,16 @@ import { type MaySocket, normalizeMay } from "../socket/may.ts";
 import type { MayUnavailable } from "../socket/may-unavailable.ts";
 import type { Approval } from "../gates/approval.ts";
 import { Runtime, validateExposures } from "../runtime/runtime.ts";
+import {
+  type Mounts,
+  type ModulePlan,
+  type MissingMountServices,
+  type CheckedMounts,
+  planLayer,
+  validateMounts,
+} from "../runtime/mount.ts";
+import { PermissionCatalogue } from "../registry/catalogue.ts";
+import { ResolvedMay } from "../socket/resolved-may.ts";
 import { GraphInvalid } from "../runtime/graph-invalid.ts";
 import { featureAndRecheck, type GatePolicy } from "../socket/permission-lists.ts";
 import type { ServicesCheck } from "./mount-check.ts";
@@ -18,7 +28,7 @@ export type Composition<A, E = never> = Readonly<{
   runtime: ManagedRuntime.ManagedRuntime<A, E>;
   features: readonly AnyFeature[];
   ways: readonly AnyWay<A>[];
-  may: MaySocket<MayUnavailable>;
+  may: Effect.Effect<MaySocket<MayUnavailable>, never, A>;
   system: readonly Permission[];
   gatePolicy: GatePolicy;
   dispose: () => Promise<void>;
@@ -37,28 +47,81 @@ type Lifecycle = Readonly<{
 
 const lifecycles = new WeakMap<object, Lifecycle>();
 
+type Outputs<M extends Mounts, A> = A | Layer.Success<M[number]["layer"]>;
+type Errors<M extends Mounts, E> = E | Layer.Error<M[number]["layer"]> | GraphInvalid;
+
 export const composition = <
+  const M extends Mounts,
   A,
   E,
   R,
   MayError,
   const Features extends readonly AnyFeature[],
   const Ways extends readonly AnyWay<R>[],
+  After = never,
+  AfterE = never,
 >(
   options: Readonly<{
-    layer: Layer.Layer<A, E>;
+    modules: ModulePlan<M, A, E, PermissionCatalogue> & { readonly mounts: CheckedMounts<M> };
     features: Features;
     ways: Ways;
-    may: MaySocket<MayError>;
+    may: Effect.Effect<MaySocket<MayError>, never, NoInfer<Outputs<M, A>>>;
     system: readonly Permission[];
     gatePolicy?: GatePolicy;
+    afterRuntime?: Layer.Layer<After, AfterE, NoInfer<Outputs<M, A> | Runtime>>;
   }> &
     ServicesCheck<
-      | Runtime
-      | Exclude<FeatureRequirements<Features[number]>, CurrentActor | CallPermissions | Approval>
+      | Exclude<
+          FeatureRequirements<Features[number]>,
+          CurrentActor | CallPermissions | Approval | Runtime
+        >
       | Effect.Services<ReturnType<Ways[number]["who"]["resolve"]>>,
-      A
-    >,
+      Outputs<M, A> | After
+    > &
+    ServicesCheck<Exclude<Layer.Services<M[number]["layer"]>, PermissionCatalogue>, A> &
+    ([MissingMountServices<M>] extends [never]
+      ? unknown
+      : { readonly mountLayerMissingServices: MissingMountServices<M> }),
+): Composition<Outputs<M, A> | After | Runtime | ResolvedMay, Errors<M, E> | AfterE> => {
+  const modules = planLayer<M, A, E, PermissionCatalogue>(options.modules);
+  const linked = Runtime.layer<M>({
+    mounts: options.modules.mounts,
+    features: options.features,
+    ways: options.ways,
+  }).pipe(Layer.provideMerge(modules));
+  const validated = linked.pipe(
+    Layer.tap(() =>
+      Effect.gen(function* () {
+        const invalid =
+          validateMounts(options.modules.mounts) ?? validateWays(options.features, options.ways);
+        if (invalid !== undefined) return yield* new GraphInvalid({ reason: invalid });
+      }),
+    ),
+  );
+  const withMay = Layer.effect(ResolvedMay, options.may.pipe(Effect.map(normalizeMay))).pipe(
+    Layer.provideMerge(validated),
+  );
+  const layer = (options.afterRuntime === undefined
+    ? withMay
+    : options.afterRuntime.pipe(Layer.provideMerge(withMay))) as unknown as Layer.Layer<
+    Outputs<M, A> | After | Runtime | ResolvedMay,
+    Errors<M, E> | AfterE
+  >;
+  const app = compositionFromLayer({ ...options, layer });
+  resolvedMounts.set(app, options.modules.mounts);
+  return app;
+};
+
+export const resolvedMounts = new WeakMap<object, Mounts>();
+
+const compositionFromLayer = <A, E>(
+  options: Readonly<{
+    layer: Layer.Layer<A, E>;
+    features: readonly AnyFeature[];
+    ways: readonly AnyWay<any>[];
+    system: readonly Permission[];
+    gatePolicy?: GatePolicy;
+  }>,
 ): Composition<A, E | GraphInvalid> => {
   let closed = false;
   let generation = 0;
@@ -118,7 +181,7 @@ export const composition = <
     },
     features: options.features,
     ways: options.ways as unknown as readonly AnyWay<A>[],
-    may: normalizeMay(options.may),
+    may: ResolvedMay as unknown as Effect.Effect<MaySocket<MayUnavailable>, never, A>,
     system: options.system,
     gatePolicy: options.gatePolicy ?? featureAndRecheck,
     dispose,

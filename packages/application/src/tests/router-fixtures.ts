@@ -60,12 +60,13 @@ export const httpFixture = <
   );
   const layer = extra === undefined ? runtime : Layer.merge(runtime, extra);
   const app = composition({
-    layer,
-    features: features,
+    modules: { mounts: [], layer },
+    features,
     ways: [way],
-    may:
+    may: Effect.succeed(
       options.may ??
-      May.fixed(options.person ?? features.flatMap((feature) => feature.closures.person)),
+        May.fixed(options.person ?? features.flatMap((feature) => feature.closures.person)),
+    ),
     system: [],
   });
   const handler = toFetchHandler(app);
@@ -118,7 +119,13 @@ export const bothFixture = <
     memoryUnitOfWork,
   );
   const layer = options.extra === undefined ? runtime : Layer.merge(runtime, options.extra);
-  const app = composition({ layer, features: features, ways: [http, mcp], may, system: [] });
+  const app = composition({
+    modules: { mounts: [], layer },
+    features,
+    ways: [http, mcp],
+    may: Effect.succeed(may),
+    system: [],
+  });
   const handler = toFetchHandler(app);
   return { app, handler, dispose: () => handler.dispose().then(() => app.dispose()) };
 };
@@ -160,12 +167,13 @@ export const mcpFixture = <const Features extends readonly Fixture<AnyFeature, n
   );
   const layer = extra === undefined ? runtime : Layer.merge(runtime, extra);
   const app = composition({
-    layer,
-    features: features,
+    modules: { mounts: [], layer },
+    features,
     ways: [way],
-    may:
+    may: Effect.succeed(
       options.may ??
-      May.fixed(options.person ?? features.flatMap((feature) => feature.closures.person)),
+        May.fixed(options.person ?? features.flatMap((feature) => feature.closures.person)),
+    ),
     system: [],
   });
   const handler = toFetchHandler(app);

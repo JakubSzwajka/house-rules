@@ -2,17 +2,17 @@ import { assert, it } from "@effect/vitest";
 import { ConfigProvider, Context, Effect, Layer } from "effect";
 import { MyStuff } from "../../read-models/my-bookings/index.ts";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
-import { CallWatch, StepTrace } from "@house-rules/application";
+import { CallWatch, StepTrace, planLayer } from "@house-rules/application";
 import { memoryAuditLog } from "@house-rules/call-audit";
 import { Features } from "../../features/index.ts";
-import { modulesLayer } from "../index.ts";
+import { modulePlan } from "../index.ts";
 
 for (const config of [{}, { STORAGE: "memory", DATABASE_URL: "not a database URL" }])
   it.effect(`memory modules ignore DATABASE_URL with config ${JSON.stringify(config)}`, () =>
     Effect.gen(function* () {
       const log = memoryAuditLog();
       const ctx = yield* Layer.build(
-        modulesLayer({ log }).pipe(
+        planLayer(modulePlan({ log })).pipe(
           Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(config))),
         ),
       );
@@ -36,7 +36,7 @@ for (const config of [
   it.effect(`invalid storage config fails closed: ${JSON.stringify(config)}`, () =>
     Effect.gen(function* () {
       const failure = yield* Layer.build(
-        modulesLayer().pipe(
+        planLayer(modulePlan()).pipe(
           Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(config))),
         ),
       ).pipe(Effect.flip);

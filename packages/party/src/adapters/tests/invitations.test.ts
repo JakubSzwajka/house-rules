@@ -1,7 +1,8 @@
 import { assert, it } from "@effect/vitest";
 import { UnitOfWork } from "@house-rules/domain";
 import { Clock, Effect, Layer } from "effect";
-import { Party, PartyStore, PermissionCatalogue } from "../../index.js";
+import { Party, PartyStore } from "../../index.js";
+import { PermissionCatalogue } from "@house-rules/application";
 import { fixtureTesting, partyOptionsTesting } from "./party-access-testing.js";
 import { stores } from "./stores.js";
 

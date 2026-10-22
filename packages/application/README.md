@@ -69,18 +69,21 @@ Export the app's features as one `Features` object in `features/index.ts`. Decla
 `bindOperation(operation, handler)` makes a `Binding`. Capture module services during layer acquisition. A bound handler may require only `CallerContext`. Its `CallScope<C>` contains a caller and `ScopedCall<C>` restricted to declared targets. Features already contain their handler and need no binding.
 
 ```ts
-const bindings = [bindOperation(readTitle, ({ id }) => Effect.succeed(`Title of ${id}`))];
-const features = [showTitle] as const;
-const layer = Layer.mergeAll(
-  Runtime.layer({ bindings, features, ways: [way] }),
-  StepTrace.layer(),
-);
-const app = composition({ layer, features, ways: [way], may: May.fixed(["items:read"]), system: [] });
+const modules = {
+  mounts: [{ ...ItemsMount, layer: itemsLayer }],
+  layer: Layer.merge(memoryUnitOfWork, StepTrace.layer()),
+};
+const app = composition({ modules, features: [showTitle], ways: [way],
+  may: Effect.succeed(May.fixed(["items:read"])), system: [] });
 ```
 
-The wiring sketch uses names from the main application door and `Layer` from Effect. Acquire modules, storage, unit, trace and record first. Capture module services and bind operations next. Acquire `Runtime`, then hooks that capture it. The root accepts ways from `main.ts`; it never imports the ways folder.
+A package main exports a plain `<Module>Mount` value satisfying `MountDefinition<I, S>`: `{ service: Context.Key<I, S>, operations, bind: (service: S) => readonly Binding[] }`. Read models export theirs from index. Only modules.ts chooses a mount's layer. `ModuleMount` adds that layer; `ModulePlan` pairs the mount tuple with shared infrastructure. Each layer must provide its mount's service. The kit checks each binder parameter against its service shape.
 
-`Runtime.make/layer` returns typed `GraphInvalid` on cycles, duplicate names or bindings, missing operation bindings, invalid system reasons and duplicate or unregistered exposures. Only `defineFeature` creates a branded feature. Runtime refuses structural forgeries, including spread copies, and recomputes permission closures and lifted flags from the declared graph at acquisition. Feature starts and closure lists are immutable. Composition repeats validation for its actual features and ways against the acquired bindings. Dispatch uses descriptor identity, not name equality.
+`planLayer(plan)` builds raw services from the same plan used by composition. It merges the mount layers, provides shared infrastructure and supplies PermissionCatalogue from the mount descriptors before either builds. Its Layer retains the plan's outputs, errors and uncovered inputs. Use it for service-level tests and tooling, not a second app assembly path. It never calls binders or installs way plugs.
+
+Composition supplies the kit-owned PermissionCatalogue before building modules, then acquires mount services and infrastructure in one memoization scope. It calls each binder once, acquires Runtime, resolves the effectful May and acquires post-Runtime slots. The optional `afterRuntime` layer is temporary, replaced by hook ways (decision 48 step 2). Do not use it for anything else. Standalone `Runtime.layer({ mounts, features, ways })` requires the services but does not build mount layers. The root accepts ways from `main.ts`; it never imports the ways folder.
+
+`Runtime.layer` returns typed `GraphInvalid` on duplicate service keys, operation identities or names, missing/extra/duplicate binder descriptors, cycles, invalid system reasons and duplicate or unregistered exposures. Only `defineFeature` creates a branded feature. Runtime refuses structural forgeries, including spread copies, and recomputes permission closures and lifted flags from the declared graph at acquisition. Feature starts and closure lists are immutable. Composition repeats validation for its actual features and ways against the acquired bindings. Dispatch uses descriptor identity, not name equality.
 
 ## Run a feature
 
@@ -98,7 +101,7 @@ Only this runtime opens a production unit. Writes join it through domain's `Unit
 
 `defineWay({ name, path, features, who, mean, ...protocol })` accepts only features in `features`. Ways carry no permissions. Holding permissions never exposes another way's feature.
 
-Plug May once with `composition({ layer, features, ways, may, system, gatePolicy? })`. `MaySocket<E = never>` has `permissionsOf(caller: PersonCaller): Effect<readonly Permission[], E>`. Capture its long-lived services during mounting. `May.fixed(permissions)` gives every person the same list. A failed lookup is logged and becomes `MayUnavailable`, with fixed public 503 text.
+Plug May once with `composition({ modules: ModulePlan, features, ways, may, system, gatePolicy? })`. Pass an Effect such as Party.may(); composition resolves it after modules build, with no mutable cell. `MaySocket<E = never>` has `permissionsOf(caller: PersonCaller): Effect<readonly Permission[], E>`. Capture its long-lived services during mounting. `May.fixed(permissions)` gives every person the same list. A failed lookup is logged and becomes `MayUnavailable`, with fixed public 503 text.
 
 The gate checks the caller's roles through the feature's permission closure. A module checks relations on its loaded object in the same unit as a write. HTTP and MCP share the app May plug. MCP stays read-only by exposing only read features, not by using a separate agent permission list.
 
@@ -126,7 +129,7 @@ Every expected failure has a domain kind. Statuses are fixed: not_found 404, con
 
 `StepTrace.make/layer({ maxRequests? })` defaults to 1000 request buckets. Bounds must be positive safe integers. Eviction is oldest-created first; reads do not allocate or refresh buckets, and finishes do not revive them. Steps retain feature name, target, caller, reason, order and outcome. `CallWatch` writes once per feature start, refusals included. Inner calls never add audit rows.
 
-`Runtime.permissions` is a frozen, sorted list of every unique permission declared by registered operations, including unused bound operations. It excludes null and feature-only permissions. `renderRegistry({ operations, features, ways })` is pure Markdown rendering. It lists the permission catalogue, operations, features, reverse callers, system reasons, closures and exposures. Freshness tests compare without writing.
+`Runtime.permissions` is a frozen, sorted list of every unique permission declared by registered operations, including unused bound operations. It excludes null and feature-only permissions. The kit-owned PermissionCatalogue has `{ permissions: () => Effect<readonly Permission[]> }` and exposes that same array before modules build. `registry(app): Effect<RegistrySnapshot, E | CompositionClosed>` acquires the validated app and snapshots its mounts, registered features and actual ways. `renderRegistry(snapshot)` is pure Markdown rendering. It lists the permission catalogue, operations, features, reverse callers, system reasons, closures and exposures. Freshness tests compare without writing.
 
 The contract door exports browser-safe feature builders and types, endpoint/API definitions, clients, session types and schema-only errors. Main adds runtime, bindings, sockets, ways, composition, trace, registry and lower slots. Neither kit owns tables or needs a migration registration. [AGENTS.md](AGENTS.md) lists the mounting rules.
 

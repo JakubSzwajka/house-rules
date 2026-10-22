@@ -90,19 +90,17 @@ import { Actor, ActorId, memoryUnitOfWork } from "@house-rules/domain";
 import { Effect, Layer } from "effect";
 import { ownerOf } from "@consumer/ownership";
 import { OwnershipOperations } from "@consumer/ownership/contract";
+import { CommentsOperations } from "@house-rules/comments/contract";
 export const who = { resolve: () => Effect.succeed(Actor.make({ id: ActorId.make("owner") })) };
 const targets = Layer.succeed(CommentTargets, CommentTargets.of({ relation: () => Effect.succeed("owner" as const) }));
 const modules = Layer.merge(Catalogue.layer, Comments.layerMemory({ ...Comments.presets.default, targets: ["item"] }).pipe(Layer.provide(targets)));
 export const createApp = <const Entries extends readonly AnyFeature[]>(features: Entries, ways: readonly WayOptions<never, Entries>[]) => {
-  const runtime = Layer.unwrap(Effect.gen(function* () {
-    yield* Catalogue;
-    const comments = yield* Comments;
-    return Runtime.layer({ bindings: [...bindComments(comments),
-      bindOperation(OwnershipOperations.ownerOf, (_input, { caller }) =>
-        caller.kind === "person" ? ownerOf(caller.actor) : Effect.succeed("system")),
-    ], features, ways });
-  })).pipe(Layer.provide(modules));
-  return composition({ layer: Layer.mergeAll(runtime, memoryUnitOfWork, StepTrace.layer()), features, ways, may: May.fixed([]), system: [] });
+  return composition({ modules: { mounts: [
+    { service: Comments, operations: Object.values(CommentsOperations), bind: bindComments,
+      layer: Comments.layerMemory({ ...Comments.presets.default, targets: ["item"] }).pipe(Layer.provide(targets)) },
+    { service: Catalogue, operations: Object.values(OwnershipOperations), bind: () => [bindOperation(OwnershipOperations.ownerOf, (_input, { caller }) =>
+        caller.kind === "person" ? ownerOf(caller.actor) : Effect.succeed("system"))], layer: Catalogue.layer },
+  ], layer: Layer.merge(memoryUnitOfWork, StepTrace.layer()) }, features, ways, may: Effect.succeed(May.fixed([])), system: [] });
 };
 `,
   "apps/web/src/main.ts": `import { NodeServices } from "@effect/platform-node";

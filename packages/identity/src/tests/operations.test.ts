@@ -21,6 +21,7 @@ import {
   BindingTaken,
   FirstSignIn,
   Identity,
+  IdentityMount,
   IdentityCallerDenied,
 } from "../index.js";
 import * as contract from "../contract.js";
@@ -87,9 +88,8 @@ const caller = Layer.merge(
 const createdAccounts = new Set<ActorId>();
 const world = Layer.unwrap(
   Effect.gen(function* () {
-    const identity = yield* Identity;
     return Runtime.layer({
-      bindings: bindIdentity(identity),
+      mounts: [IdentityMount],
       features,
       ways: [],
     });

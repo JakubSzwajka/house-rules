@@ -1,6 +1,26 @@
 import { type AnyCallable, buildGraph, targetOf } from "@house-rules/domain/contract";
 import { type AnyFeature, isFeature } from "../feature/feature.ts";
 import { permissionCatalogue } from "./permission-catalogue.ts";
+type Operation = AnyCallable & { readonly kind: "operation" };
+
+export type RegistryWay = Readonly<{ name: string; features: readonly AnyFeature[] }> &
+  (
+    | Readonly<{ protocol: "http" | "mcp"; path: string }>
+    | Readonly<{ protocol: "hook"; slot: string }>
+    | Readonly<{ protocol: "schedule"; clock: Readonly<{ cron: string; timeZone: string }> }>
+  );
+export interface RegistrySnapshot {
+  readonly mounts: readonly Readonly<{ service: string; operations: readonly Operation[] }>[];
+  readonly features: readonly AnyFeature[];
+  readonly ways: readonly RegistryWay[];
+}
+
+const address = (way: RegistryWay): string =>
+  way.protocol === "hook"
+    ? `hook: ${way.slot}`
+    : way.protocol === "schedule"
+      ? `schedule: ${way.clock.cron} ${way.clock.timeZone}`
+      : `${way.protocol}: ${way.path}`;
 
 const calls = (callable: AnyCallable): string[] =>
   callable.edges.map((edge) =>
@@ -9,20 +29,42 @@ const calls = (callable: AnyCallable): string[] =>
       : `- Calls: ${edge.name} (person, inherited system stays system)`,
   );
 
-export const renderRegistry = (
-  data: Readonly<{
-    operations: readonly AnyCallable[];
-    features: readonly AnyFeature[];
-    ways: readonly Readonly<{ name: string; path: string; features: readonly AnyFeature[] }>[];
-  }>,
-): string => {
-  const roots = [...data.operations, ...data.features];
+export const renderRegistry = (data: RegistrySnapshot): string => {
+  const roots = [...data.mounts.flatMap((mount) => mount.operations), ...data.features];
   const result = buildGraph(roots);
   const callables = result._tag === "Valid" ? result.graph.callables : roots;
   const lines = [
     "# Registry",
     "",
     ...(result._tag === "Invalid" ? [`Invalid graph: ${result.reason}`, ""] : []),
+    "## Mounts",
+    "",
+    ...[...data.mounts]
+      .sort((a, b) => a.service.localeCompare(b.service))
+      .map(
+        (mount) =>
+          `- ${mount.service}: ${
+            mount.operations
+              .map((operation) => operation.name)
+              .sort()
+              .join(", ") || "none"
+          }`,
+      ),
+    "",
+    "## Ways",
+    "",
+    ...[...data.ways]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(
+        (way) =>
+          `- ${way.name} (${address(way)}): ${
+            way.features
+              .map((feature) => feature.name)
+              .sort()
+              .join(", ") || "none"
+          }`,
+      ),
+    "",
     "## Permissions",
     "",
     ...permissionCatalogue(callables).map((permission) => `- ${permission}`),
@@ -47,10 +89,11 @@ export const renderRegistry = (
     lines.push("");
   }
   lines.push("## Features", "");
-  for (const feature of data.features) {
+  for (const feature of [...data.features].sort((a, b) => a.name.localeCompare(b.name))) {
     const ways = data.ways
       .filter((way) => way.features.includes(feature))
-      .map((way) => `${way.name} (${way.path})`);
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((way) => `${way.name} (${address(way)})`);
     lines.push(
       `### ${feature.name}`,
       "",

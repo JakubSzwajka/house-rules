@@ -25,7 +25,7 @@ import {
 } from "../relationship/relationship.js";
 import type { PartyStore, PersonStore } from "../storage.js";
 import { removeStaffAssignments } from "../relationship/removal.js";
-import type { PermissionCatalogue } from "./permission-catalogue.js";
+import type { RoleCatalogue } from "./permission-catalogue.js";
 import { type PartyOptions, type Role, validateRole } from "./role.js";
 
 export const makeAccess = (
@@ -40,7 +40,7 @@ export const makeAccess = (
     >;
   },
   options: PartyOptions,
-  catalogue: PermissionCatalogue["Service"] | undefined,
+  catalogue: RoleCatalogue | undefined,
 ) => {
   const builtIns: readonly Role[] = Object.entries(options.builtInRoles).map(([key, role]) => ({
     key,

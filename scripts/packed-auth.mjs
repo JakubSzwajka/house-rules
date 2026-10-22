@@ -7,7 +7,7 @@ import { Actor, ActorId, memoryUnitOfWork, UnitOfWork } from "@house-rules/domai
 import { CurrentActor, defineFeature, May, Runtime, runFeature, StepTrace } from "@house-rules/application";
 import { AuthJwt, AuthJwtTesting } from "@house-rules/auth-jwt";
 import { Identity } from "@house-rules/identity";
-import { Party, bindParty } from "@house-rules/party";
+import { Party, PartyMount } from "@house-rules/party";
 import * as contract from "@house-rules/party/contract";
 import { NodeRuntime as NodePlatform } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
@@ -32,9 +32,7 @@ NodePlatform.runMain(Effect.gen(function* () {
   }
   const party = yield* Party;
   yield* UnitOfWork.atomic(party.createPerson({ id: actor.id, displayName: " Packed " }));
-  const runtime = Runtime.layer({ features, ways: [], bindings: [
-    ...bindParty(party),
-  ] });
+  const runtime = Runtime.layer({ features, ways: [], mounts: [PartyMount] }).pipe(Layer.provide(Layer.succeed(Party, party)));
   const may = Layer.succeedContext(May.context(May.fixed(Object.values(contract.PartyPermissions)), { features, system: [], via: "packed" }));
   const as = (viewer) => Layer.mergeAll(runtime, StepTrace.layer(), may, Layer.succeed(CurrentActor, viewer));
   const person = yield* runFeature(show, { id: actor.id }).pipe(Effect.provide(as(actor)));

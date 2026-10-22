@@ -239,10 +239,10 @@ export const makeApp = (options: HttpFixtureOptions = {}) => {
   });
   const layer = fixtureLayer(features).pipe(Layer.provideMerge(modules));
   const app = composition({
-    layer,
+    modules: { mounts: [], layer },
     features: features,
     ways: [apiWay, webWay, readWay, mcpWay],
-    may: May.fixed(permissions),
+    may: Effect.succeed(May.fixed(permissions)),
     system: [],
   });
   const router = toFetchHandler(app);

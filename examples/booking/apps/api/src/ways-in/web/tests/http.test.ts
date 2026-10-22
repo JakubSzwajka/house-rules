@@ -12,7 +12,7 @@ import { Identity } from "@house-rules/identity";
 import { Party } from "@house-rules/party";
 import { memoryAuditLog } from "@house-rules/call-audit";
 import { Context, Effect } from "effect";
-import { createApp, DemoIssuers, modulesLayer, Features } from "../../../composition/index.ts";
+import { createApp, DemoIssuers, modulePlan, Features } from "../../../composition/index.ts";
 import { makeFakePaymentProvider } from "@example/billing";
 import { Bookings, BookingNotFound } from "@example/bookings";
 import { webWay } from "../way.ts";
@@ -49,7 +49,7 @@ it.live(
         Effect.sync(() =>
           createApp([limited, partnerWay, mcpWay], {
             may: May.fixed(["bookings:write", "party:read"]),
-            modules: modulesLayer({ provider: provider.layer, log }),
+            modules: modulePlan({ provider: provider.layer, log }),
           }),
         ),
         (app) => Effect.promise(() => app.dispose()),

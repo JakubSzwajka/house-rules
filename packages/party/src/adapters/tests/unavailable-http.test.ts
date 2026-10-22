@@ -6,7 +6,6 @@ import {
   endpoint,
   May,
   Mean,
-  Runtime,
   StepTrace,
   toFetchHandler,
 } from "@house-rules/application";
@@ -14,7 +13,7 @@ import { Actor, ActorId } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
 import { SqlError } from "effect/sql/SqlError";
-import { bindParty, Party, PartyOperations, PersonStoreUnavailable } from "../../index.js";
+import { PartyMount, Party, PartyOperations, PersonStoreUnavailable } from "../../index.js";
 
 const { showMe } = PartyOperations;
 import { stores } from "./stores.js";
@@ -52,14 +51,15 @@ layer(stores[0].layer, { timeout: "30 seconds" })("Party unavailable disclosure"
         who: { resolve: () => Effect.succeed(Actor.make({ id: ActorId.make("viewer") })) },
         mean: Mean.no,
       });
+      const modules = {
+        mounts: [{ ...PartyMount, layer: Layer.succeed(Party, party) }] as const,
+        layer: StepTrace.layer(),
+      };
       const app = composition({
-        layer: Layer.merge(
-          Runtime.layer({ bindings: bindParty(party), features, ways: [way] }),
-          StepTrace.layer(),
-        ),
+        modules,
         features,
         ways: [way],
-        may: May.fixed(["party:read"]),
+        may: Effect.succeed(May.fixed(["party:read"])),
         system: [],
       });
       const handler = toFetchHandler(app);

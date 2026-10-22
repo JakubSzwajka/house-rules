@@ -1,4 +1,4 @@
-import { runFeature } from "@house-rules/application";
+import { runFeature, planLayer } from "@house-rules/application";
 import { assert, it } from "@effect/vitest";
 import { Features } from "../../features/index.ts";
 import { builtInRoles, systemPermissions } from "../roles.ts";
@@ -10,22 +10,29 @@ import { Approval, CurrentActor, withRequestId } from "@house-rules/application"
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { CallAudit } from "@house-rules/call-audit";
 import { Context, Effect, Layer } from "effect";
-import { modulesLayer, plugSockets } from "../index.ts";
+import { modulePlan, createApp } from "../index.ts";
 import { databaseTesting } from "./database.ts";
 
-it.effect(
+it.live(
   "real PG refund failure rolls back cancel across modules and produces one failed entry record",
   () =>
     Effect.gen(function* () {
+      // it.live keeps feature timestamps on createApp's live retention clock, not the test epoch.
       const provider = makeFakePaymentProvider();
       const database = yield* Layer.build(databaseTesting);
-      const ctx = yield* Layer.build(
-        plugSockets(
-          modulesLayer({ provider: provider.layer }).pipe(
-            Layer.provide(Layer.succeedContext(database)),
-          ),
+      const plan = modulePlan({ provider: provider.layer });
+      const app = yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          createApp([], {
+            modules: {
+              ...plan,
+              layer: plan.layer.pipe(Layer.provideMerge(Layer.succeedContext(database))),
+            },
+          }),
         ),
+        (app) => Effect.promise(() => app.dispose()),
       );
+      const ctx = yield* app.runtime.contextEffect;
       const alice = Actor.make({ id: ActorId.make("alice") });
       const trace = Context.get(ctx, StepTrace);
       const request = Context.merge(
@@ -105,9 +112,7 @@ it.effect(
   "MyStuff filters A/B ownership in SQL including mismatched payment owners",
   () =>
     Effect.gen(function* () {
-      const ctx = yield* Layer.build(
-        plugSockets(modulesLayer().pipe(Layer.provide(databaseTesting))),
-      );
+      const ctx = yield* Layer.build(planLayer(modulePlan()).pipe(Layer.provide(databaseTesting)));
       const bookings = Context.get(ctx, Bookings);
       const billing = Context.get(ctx, Billing);
       const read = Context.get(ctx, MyStuff);

@@ -34,6 +34,8 @@ const record = CallAudit.record.postgres({ who, policy: CallAudit.presets.strict
 const watch = record.layer.pipe(Layer.provide(database));
 ```
 
+All Record layers await recording in `Effect.onExit` before `runFeature` returns, on success and failure. No flush is needed before reading rows. Policy filters and swallowed storage failures can still leave no row; recording never changes the feature's exit.
+
 Provide this watch once in the root, then capture it in hooks too. Strict keeps refusals. The socket does not expose AuditStore; mount `postgresAuditStore` separately for read/erase/retention scripts, or use the lower `layerPostgres` when both outputs are wanted.
 
 ## The policy layer
@@ -79,7 +81,7 @@ A call's class is `failure` when its outcome is not `success`, whatever its kind
 
 The layer forks one fiber in its scope. It runs retention when the layer starts, then once per interval. A run deletes each class's rows older than its window, oldest first, in batches. On Postgres the run reserves one connection and takes the session advisory lock `pg_try_advisory_lock(hashtext('@house-rules/call-audit/retention'))`. When another replica holds it, the run skips. A failed run logs a warning and waits for the next tick. `CallAudit.runRetention(policy, { batchSize })` runs it once, for a script or a test, and returns `{ ran, deleted: { read, write, failure } }`.
 
-Retention cutoffs and `recorded_at` both come from the app's `Clock`, never from the database's `now()`. Replicas must keep synchronized clocks: skew between them shortens or extends the window by the skew. Rows written before migration `0002` were stamped by the database clock, so their `recorded_at` can differ from the app clock by that offset.
+Retention cutoffs and `recorded_at` both come from the app's `Clock`, never from the database's `now()`. Replicas must keep synchronized clocks: skew between them shortens or extends the window by the skew. Tests must use the same clock for calls and retention. When an app builds its own live-clock runtime, use `it.live` for direct calls too; epoch timestamps from `it.effect` can be deleted by live-clock startup retention. Rows written before migration `0002` were stamped by the database clock, so their `recorded_at` can differ from the app clock by that offset.
 
 `CallAudit.erase(viewerId)` deletes every row of one viewer and returns the count. It needs `AuditStore`. The app calls it where it deletes a user.
 

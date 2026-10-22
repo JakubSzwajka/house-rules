@@ -5,7 +5,7 @@ import { Party } from "@house-rules/party";
 import { Context, Effect, Layer } from "effect";
 import { Features } from "../../features/index.ts";
 import { MyStuff } from "../../read-models/my-bookings/index.ts";
-import { modulesLayer, plugSockets } from "../index.ts";
+import { modulePlan, createApp } from "../index.ts";
 import { systemPermissions } from "../roles.ts";
 import { seedRoleTesting } from "./roles-testing.ts";
 import { databaseTesting } from "./database.ts";
@@ -15,11 +15,22 @@ for (const storage of ["memory", "postgres"] as const) {
     `${storage}: org bookings check live relations and scoped admin in the module`,
     () =>
       Effect.gen(function* () {
-        const modules =
-          storage === "postgres"
-            ? modulesLayer().pipe(Layer.provide(databaseTesting))
-            : modulesLayer();
-        const context = yield* Layer.build(plugSockets(modules));
+        const plan = modulePlan();
+        const app = yield* Effect.acquireRelease(
+          Effect.sync(() =>
+            createApp([], {
+              modules: {
+                ...plan,
+                layer:
+                  storage === "postgres"
+                    ? plan.layer.pipe(Layer.provideMerge(databaseTesting))
+                    : plan.layer,
+              },
+            }),
+          ),
+          (app) => Effect.promise(() => app.dispose()),
+        );
+        const context = yield* app.runtime.contextEffect;
         for (const id of ["owner", "staff", "beta", "outsider", "acme-admin", "beta-admin"])
           yield* seedRoleTesting(id).pipe(Effect.provideContext(context));
         yield* seedRoleTesting("global", "admin").pipe(Effect.provideContext(context));

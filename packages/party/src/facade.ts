@@ -8,7 +8,7 @@ import { postgresPartyStore } from "./adapters/postgres/party.js";
 import { PartyUnavailable } from "./organisation/organisation.js";
 import { makeParty } from "./person/party.js";
 import { makeAccess } from "./role/access.js";
-import { PermissionCatalogue } from "./role/permission-catalogue.js";
+import { PermissionCatalogue } from "@house-rules/application";
 import type { PartyOptions } from "./role/role.js";
 import { PartyStore, PersonStore } from "./storage.js";
 

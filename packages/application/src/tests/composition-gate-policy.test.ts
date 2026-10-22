@@ -57,8 +57,8 @@ it.effect("composition passes its default and explicit gate policy into every wa
         );
         let ran = 0;
         const app = composition({
-          layer: Layer.mergeAll(
-            RuntimeFixture.layer({
+          modules: {
+            mounts: RuntimeFixture.mounts({
               bindings: [
                 bindOperation(parent, (_input, scope) =>
                   Effect.sync(() => {
@@ -74,11 +74,11 @@ it.effect("composition passes its default and explicit gate policy into every wa
               features: [current],
               ways,
             }),
-            StepTrace.layer(),
-          ),
+            layer: StepTrace.layer(),
+          },
           features: [current],
           ways,
-          may: May.fixed(held),
+          may: Effect.succeed(May.fixed(held)),
           system: held,
           ...(gatePolicy === undefined ? {} : { gatePolicy }),
         });

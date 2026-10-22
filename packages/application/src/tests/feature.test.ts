@@ -154,17 +154,17 @@ it.effect(
         mean: Mean.no,
       });
       const app = composition({
-        layer: Layer.merge(
-          RuntimeFixture.layer({
+        modules: {
+          mounts: RuntimeFixture.mounts({
             bindings: [bindOperation(bound, () => Effect.void)],
             features: [initial],
             ways: [],
           }),
-          StepTrace.layer(),
-        ),
+          layer: StepTrace.layer(),
+        },
         features: [actual],
         ways: [way],
-        may: May.fixed([]),
+        may: Effect.succeed(May.fixed([])),
         system: [],
       });
       const result = yield* Effect.promise(() =>

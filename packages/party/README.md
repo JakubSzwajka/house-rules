@@ -23,15 +23,15 @@ Use `Party.layerMemory(options)` for memory storage. Raw `Party.layer(options)` 
 
 `PartyOperations.canAdminOrganisation({ organisationId })` needs party:read and returns whether the current person holds party:admin globally or in that scope. It uses live assignments and the catalogue. System callers and unrelated scoped admins get false.
 
-Acquire Party, pass the service to `bindParty(service)`, then acquire Runtime with those bindings. Plug `yield* Party.may()` into composition's app-level `may`. It captures Party and returns a MaySocket with no per-call requirements.
+Import PartyMount from main and add `{ ...PartyMount, layer: chosenPartyLayer }` to the app's module plan. Composition captures Party and calls bindParty once. Pass `may: Party.may()`; composition resolves it after modules build. It captures Party and returns a MaySocket with no per-call requirements.
 
-`PermissionCatalogue` is a port with this shape:
+`PermissionCatalogue` belongs to application, not Party. Its service shape is:
 
 ```ts
-{ permissions: () => Effect<readonly Permission[], PartyUnavailable> }
+{ permissions: () => Effect<readonly Permission[]> }
 ```
 
-Mount its layer before acquiring Party. Its callback reads `Runtime.permissions` lazily, after Runtime acquisition. Do not acquire Runtime inside Party's layer. A callback backed by a reference can fail with `PartyUnavailable` until Runtime is ready. No callback runs during Party acquisition. Custom-role writes fail closed if the port is absent. Without a catalogue, May returns all held permissions. With it, May intersects them with the current catalogue on every call.
+Composition derives the catalogue from mount descriptors before acquiring Party. Its callback and Runtime.permissions expose the same array. Do not acquire Runtime inside Party's layer. There is no installation callback or mutable reference. Custom-role writes fail closed if the port is absent. Without a catalogue, May returns all held permissions. With it, May intersects them with the current catalogue on every call.
 
 ## Operations
 

@@ -1,3 +1,12 @@
+import { Identity } from "./facade.js";
+import { IdentityOperations } from "./contract.js";
+import { bindIdentity } from "./binding/bind-identity.js";
+import type { MountDefinition } from "@house-rules/application";
+export const IdentityMount = {
+  service: Identity,
+  operations: Object.values(IdentityOperations),
+  bind: bindIdentity,
+} satisfies MountDefinition<Identity, Identity["Service"]>;
 export { Identity, type Login } from "./facade.js";
 export { BindingStore } from "./storage.js";
 export {

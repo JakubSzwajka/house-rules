@@ -8,7 +8,6 @@ import {
   PartyInputInvalid,
   PartyOperations,
   PartyStore,
-  PermissionCatalogue,
 } from "../../index.js";
 import {
   fixtureTesting,
@@ -16,6 +15,7 @@ import {
   systemTesting as system,
 } from "./party-access-testing.js";
 import { stores } from "./stores.js";
+import { PermissionCatalogue } from "@house-rules/application";
 
 for (const { name, layer: storeLayer } of stores) {
   let permissions: readonly Permission[] = ["party:admin", "party:read"];

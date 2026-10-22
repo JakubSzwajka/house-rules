@@ -3,7 +3,7 @@ import { Approval, call, CurrentActor, May, runFeature } from "@house-rules/appl
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
 import { Context, Effect, Layer } from "effect";
-import { createApp, Features, modulesLayer, resourceOf } from "../composition/index.ts";
+import { createApp, Features, modulePlan, resourceOf } from "../composition/index.ts";
 import { databaseTesting } from "../composition/tests/database.ts";
 import { seedRoleTesting } from "../composition/tests/roles-testing.ts";
 import { webWay } from "../ways-in/web/way.ts";
@@ -21,6 +21,7 @@ for (const backend of ["memory", "postgres"] as const)
           resolve: (incoming: { headers: Headers }) =>
             Effect.succeed(actor(incoming.headers.get("actor") ?? "reader")),
         };
+        const plan = modulePlan();
         const app = yield* Effect.acquireRelease(
           Effect.sync(() =>
             createApp(
@@ -33,10 +34,13 @@ for (const backend of ["memory", "postgres"] as const)
                 },
               ],
               {
-                modules:
-                  backend === "memory"
-                    ? modulesLayer()
-                    : modulesLayer().pipe(Layer.provide(databaseTesting)),
+                modules: {
+                  ...plan,
+                  layer:
+                    backend === "memory"
+                      ? plan.layer
+                      : plan.layer.pipe(Layer.provideMerge(databaseTesting)),
+                },
               },
             ),
           ),
@@ -97,7 +101,7 @@ for (const backend of ["memory", "postgres"] as const)
         yield* runFeature(Features.revokeRole, assignment).pipe(
           Effect.provideContext(context),
           Effect.provideContext(
-            May.context(app.may, {
+            May.context(yield* app.may.pipe(Effect.provideContext(context)), {
               features: [Features.revokeRole],
               system: [],
               via: "test",

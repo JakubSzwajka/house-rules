@@ -4,7 +4,7 @@ import { Actor, ActorId } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
 import { Clock, Context, Effect, Layer } from "effect";
 import { Features } from "../../features/index.ts";
-import { modulesLayer, plugSockets } from "../index.ts";
+import { modulePlan, createApp } from "../index.ts";
 import { systemPermissions } from "../roles.ts";
 import { seedRoleTesting } from "./roles-testing.ts";
 import { databaseTesting } from "./database.ts";
@@ -13,11 +13,22 @@ for (const storage of ["memory", "postgres"] as const) {
     `${storage}: profile, catalogue and audit reads preserve A/B privacy and admin gates`,
     () =>
       Effect.gen(function* () {
-        const modules =
-          storage === "postgres"
-            ? modulesLayer().pipe(Layer.provide(databaseTesting))
-            : modulesLayer();
-        const context = yield* Layer.build(plugSockets(modules));
+        const plan = modulePlan();
+        const app = yield* Effect.acquireRelease(
+          Effect.sync(() =>
+            createApp([], {
+              modules: {
+                ...plan,
+                layer:
+                  storage === "postgres"
+                    ? plan.layer.pipe(Layer.provideMerge(databaseTesting))
+                    : plan.layer,
+              },
+            }),
+          ),
+          (app) => Effect.promise(() => app.dispose()),
+        );
+        const context = yield* app.runtime.contextEffect;
         yield* seedRoleTesting("alice", "admin").pipe(Effect.provideContext(context));
         yield* seedRoleTesting("bob").pipe(Effect.provideContext(context));
         yield* seedRoleTesting("carol", "admin").pipe(Effect.provideContext(context));

@@ -29,10 +29,10 @@ const way = defineWay({
   mean: Mean.no,
 });
 const app = composition({
-  layer,
-  features: features,
+  modules: { mounts: [], layer },
+  features,
   ways: [way],
-  may: May.fixed(["bookings:read"]),
+  may: Effect.succeed(May.fixed(["bookings:read"])),
   system: [],
 });
 const handlers = [toFetchHandler(app)];
@@ -52,18 +52,18 @@ it("composition retains unmet Who requirements rather than erasing R", () => {
   const invalid = () => {
     // @ts-expect-error The layer supplies runtime and stores, but not WhoPort.
     return composition({
-      layer,
-      features: features,
+      modules: { mounts: [], layer },
+      features,
       ways: [dependent],
-      may: May.fixed(["bookings:read"]),
+      may: Effect.succeed(May.fixed(["bookings:read"])),
       system: [],
     });
   };
   const provided = composition({
-    layer: Layer.merge(layer, Layer.succeed(WhoPort, actor)),
-    features: features,
+    modules: { mounts: [], layer: Layer.merge(layer, Layer.succeed(WhoPort, actor)) },
+    features,
     ways: [dependent],
-    may: May.fixed(["bookings:read"]),
+    may: Effect.succeed(May.fixed(["bookings:read"])),
     system: [],
   });
   expect(typeof invalid).toBe("function");
@@ -74,10 +74,10 @@ it("composition requires the runtime and trace supplied at the root", () => {
   const invalid = () => {
     // @ts-expect-error No Runtime or StepTrace was supplied.
     return composition({
-      layer: Layer.empty,
+      modules: { mounts: [], layer: Layer.empty },
       features: features,
       ways: [way],
-      may: May.fixed([]),
+      may: Effect.succeed(May.fixed([])),
       system: [],
     });
   };

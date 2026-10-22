@@ -1,7 +1,8 @@
 import { assert, layer } from "@effect/vitest";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer } from "effect";
-import { Party, PermissionCatalogue } from "../../index.js";
+import { Party } from "../../index.js";
+import { PermissionCatalogue } from "@house-rules/application";
 import { stores } from "./stores.js";
 for (const store of stores) {
   const world = Party.layer({

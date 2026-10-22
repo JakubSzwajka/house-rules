@@ -11,7 +11,7 @@ import {
   StepTrace,
   type RecordSocket,
 } from "@house-rules/application";
-import { Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 import type { SqlClient } from "effect/sql/SqlClient";
 import { AuditReadFailed, AuditStoreUnavailable, CallAudit, memoryAuditLog } from "../../index.ts";
 import { migratedDatabase } from "./stores.ts";
@@ -45,13 +45,19 @@ let ran = 0;
 const runtime = Runtime.layer({
   features: [entry],
   ways: [],
-  bindings: [
-    bindOperation(child, () =>
-      Effect.sync(() => {
-        ran++;
-        return "ok";
-      }),
-    ),
+  mounts: [
+    {
+      service: Context.Reference("test/record", { defaultValue: () => ({}) }),
+      operations: [child],
+      bind: () => [
+        bindOperation(child, () =>
+          Effect.sync(() => {
+            ran++;
+            return "ok";
+          }),
+        ),
+      ],
+    },
   ],
 });
 const execution = Layer.merge(runtime, StepTrace.layer());

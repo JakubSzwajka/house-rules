@@ -3,7 +3,8 @@ import { Identity } from "@house-rules/identity";
 import { Party } from "@house-rules/party";
 import { UnitOfWork } from "@house-rules/domain";
 import { Config, Effect, Schema } from "effect";
-import { modulesLayer } from "../src/composition/modules.ts";
+import { planLayer } from "@house-rules/application";
+import { modulePlan } from "../src/composition/modules.ts";
 
 class GrantAdminRefused extends Schema.TaggedError<GrantAdminRefused>()("GrantAdminRefused", {
   message: Schema.String,
@@ -56,5 +57,5 @@ if (process.argv[1]?.endsWith("/grant-admin.js")) {
       yesProduction: process.argv.includes("--yes-production"),
     });
     yield* Effect.log(`Granted admin to person ${id}.`);
-  }).pipe(Effect.provide(modulesLayer()), NodePlatform.NodeRuntime.runMain);
+  }).pipe(Effect.provide(planLayer(modulePlan())), NodePlatform.NodeRuntime.runMain);
 }

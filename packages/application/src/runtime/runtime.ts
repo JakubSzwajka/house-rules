@@ -7,7 +7,8 @@ import {
   permissionClosures,
   targetOf,
 } from "@house-rules/domain";
-import { Context, Effect, Exit, Layer } from "effect";
+import { Context, Effect, Exit, Layer, Option } from "effect";
+import { PermissionCatalogue } from "../registry/catalogue.ts";
 import { CurrentActor } from "../actor/current-actor.ts";
 import { CallRequestId } from "../call/call-facts.ts";
 import { CallerContext } from "../caller/caller-context.ts";
@@ -19,8 +20,22 @@ import type { Binding, InnerFailure, ScopedCall } from "./binding.ts";
 import { GraphInvalid } from "./graph-invalid.ts";
 import { CallInvalid } from "./call-invalid.ts";
 import { permissionCatalogue } from "../registry/permission-catalogue.ts";
+import {
+  type CheckedMounts,
+  type MountDefinition,
+  type Services,
+  validateMounts,
+} from "./mount.ts";
 
-export type RuntimeOptions = Readonly<{
+export type RuntimeOptions<
+  M extends readonly MountDefinition<any, any>[] = readonly MountDefinition<any, any>[],
+> = Readonly<{
+  mounts: M & CheckedMounts<M>;
+  features: readonly AnyFeature[];
+  ways: BindingOptions["ways"];
+}>;
+
+type BindingOptions = Readonly<{
   bindings: readonly Binding[];
   features: readonly AnyFeature[];
   ways: readonly Readonly<{
@@ -31,7 +46,7 @@ export type RuntimeOptions = Readonly<{
   }>[];
 }>;
 
-export const validateRuntime = (options: RuntimeOptions): string | undefined => {
+export const validateRuntime = (options: BindingOptions): string | undefined => {
   const graph = buildGraph([
     ...options.bindings.map((binding) => binding.callable),
     ...options.features,
@@ -119,7 +134,7 @@ export class Runtime extends Context.Service<
   }
 >()("@house-rules/application/Runtime") {
   static readonly make = (
-    options: RuntimeOptions,
+    options: BindingOptions,
   ): Effect.Effect<Runtime["Service"], GraphInvalid> =>
     Effect.gen(function* () {
       const invalid = validateRuntime(options);
@@ -213,15 +228,53 @@ export class Runtime extends Context.Service<
       runtimeOptions.set(service, options);
       return service;
     });
-  static readonly layer = (options: RuntimeOptions): Layer.Layer<Runtime, GraphInvalid> =>
-    Layer.effect(Runtime, Runtime.make(options));
+  static readonly layer = <const M extends readonly MountDefinition<any, any>[]>(
+    options: RuntimeOptions<M>,
+  ): Layer.Layer<Runtime, GraphInvalid, Services<M>> =>
+    Layer.effect(
+      Runtime,
+      Effect.gen(function* () {
+        const invalid = validateMounts(options.mounts);
+        if (invalid !== undefined) return yield* new GraphInvalid({ reason: invalid });
+        const bindings: Binding[] = [];
+        for (const mount of options.mounts) {
+          const service = yield* Effect.serviceOption(
+            mount.service as Context.Key<Services<M>, unknown>,
+          );
+          if (Option.isNone(service))
+            return yield* new GraphInvalid({
+              reason: `Mount service was not provided: ${mount.service.key}`,
+            });
+          const own = mount.bind(service.value);
+          const bound = new Set(own.map((binding) => binding.callable));
+          if (
+            bound.size !== own.length ||
+            bound.size !== mount.operations.length ||
+            own.some((binding) => !mount.operations.includes(binding.callable)) ||
+            mount.operations.some((operation) => !bound.has(operation))
+          )
+            return yield* new GraphInvalid({
+              reason: `Binder must bind exactly the descriptors of ${mount.service.key}`,
+            });
+          bindings.push(...own);
+        }
+        const runtime = yield* Runtime.make({ ...options, bindings });
+        const catalogue = yield* Effect.serviceOption(PermissionCatalogue);
+        if (Option.isSome(catalogue)) {
+          const service = { ...runtime, permissions: yield* catalogue.value.permissions() };
+          runtimeOptions.set(service, { ...options, bindings });
+          return service;
+        }
+        return runtime;
+      }),
+    ) as Layer.Layer<Runtime, GraphInvalid, Services<M>>;
 }
 
-const runtimeOptions = new WeakMap<Runtime["Service"], RuntimeOptions>();
+const runtimeOptions = new WeakMap<Runtime["Service"], BindingOptions>();
 export const validateExposures = (
   runtime: Runtime["Service"],
   features: readonly AnyFeature[],
-  ways: RuntimeOptions["ways"],
+  ways: BindingOptions["ways"],
 ): string | undefined => {
   const options = runtimeOptions.get(runtime);
   return options === undefined

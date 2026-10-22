@@ -1,4 +1,13 @@
-export { Bookings } from "./facade.ts";
+import { Bookings } from "./facade.ts";
+import { BookingsOperations } from "./booking/operations.ts";
+import { bindBookings } from "./booking/bind-bookings.ts";
+import type { MountDefinition } from "@house-rules/application";
+export const BookingsMount = {
+  service: Bookings,
+  operations: Object.values(BookingsOperations),
+  bind: bindBookings,
+} satisfies MountDefinition<Bookings, Bookings["Service"]>;
+export { Bookings };
 export { bindBookings } from "./booking/bind-bookings.ts";
 export { BookingsOperations } from "./booking/operations.ts";
 export {

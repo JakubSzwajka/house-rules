@@ -1,6 +1,7 @@
 import { expect, layer } from "@effect/vitest";
 import {
   Approval,
+  PermissionCatalogue,
   CurrentActor,
   defineFeature,
   May,
@@ -10,13 +11,7 @@ import {
 } from "@house-rules/application";
 import { type Permission, UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer } from "effect";
-import {
-  bindParty,
-  Party,
-  PartyDenied,
-  PartyOperations,
-  PermissionCatalogue,
-} from "../../index.js";
+import { PartyMount, Party, PartyDenied, PartyOperations } from "../../index.js";
 import {
   fixtureTesting,
   partyOptionsTesting,
@@ -78,7 +73,7 @@ for (const { name, layer: storage } of stores) {
   );
   const world = Layer.unwrap(
     Effect.gen(function* () {
-      return Runtime.layer({ bindings: bindParty(yield* Party), features, ways: [] });
+      return Runtime.layer({ mounts: [PartyMount], features, ways: [] });
     }),
   ).pipe(Layer.provideMerge(partyLayer), Layer.provideMerge(StepTrace.layer()));
   const fixture = fixtureTesting();

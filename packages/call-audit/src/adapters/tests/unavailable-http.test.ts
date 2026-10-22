@@ -7,7 +7,6 @@ import {
   endpoint,
   May,
   Mean,
-  Runtime,
   StepTrace,
   toFetchHandler,
 } from "@house-rules/application";
@@ -54,13 +53,12 @@ layer(migratedDatabase("audit_http"), { timeout: "30 seconds" })(
         Effect.gen(function* () {
           const sql = yield* SqlClient;
           const seen: Array<AuditReadFailed | AuditStoreUnavailable> = [];
-          const runtime = Layer.unwrap(
-            Effect.gen(function* () {
-              const store = yield* AuditStore;
-              return Runtime.layer({
-                features,
-                ways: [{ name: "web", features }],
-                bindings: [
+          const modules = {
+            mounts: [
+              {
+                service: AuditStore,
+                operations: [node],
+                bind: (store: AuditStore["Service"]) => [
                   bindOperation(node, ({ read }) => {
                     const work: Effect.Effect<unknown, AuditReadFailed | AuditStoreUnavailable> =
                       read ? store.read({}) : store.erase("viewer");
@@ -70,11 +68,11 @@ layer(migratedDatabase("audit_http"), { timeout: "30 seconds" })(
                     );
                   }),
                 ],
-              });
-            }),
-          ).pipe(
-            Layer.provide(postgresAuditStore.pipe(Layer.provide(Layer.succeed(SqlClient, sql)))),
-          );
+                layer: postgresAuditStore.pipe(Layer.provide(Layer.succeed(SqlClient, sql))),
+              },
+            ] as const,
+            layer: StepTrace.layer(),
+          };
           const way = defineWay({
             name: "web",
             path: "/",
@@ -85,10 +83,10 @@ layer(migratedDatabase("audit_http"), { timeout: "30 seconds" })(
             mean: Mean.no,
           });
           const app = composition({
-            layer: Layer.merge(runtime, StepTrace.layer()),
+            modules,
             features,
             ways: [way],
-            may: May.fixed([]),
+            may: Effect.succeed(May.fixed([])),
             system: [],
           });
           const handler = toFetchHandler(app);

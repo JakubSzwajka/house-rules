@@ -37,7 +37,7 @@ const greeting = (
     handler,
   });
   const runtime = Runtime.layer({
-    bindings: [],
+    mounts: [],
     features: [entry],
     ways: [],
   });

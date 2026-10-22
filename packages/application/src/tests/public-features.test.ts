@@ -72,15 +72,13 @@ const make = (system: readonly Permission[]) => {
       })) satisfies Around,
   });
   const app = composition({
-    layer: Layer.mergeAll(
-      Runtime.layer({ bindings: [], features, ways: [way] }),
-      watch,
-      StepTrace.layer(),
-      Layer.succeed(CurrentActor, testActor),
-    ),
+    modules: {
+      mounts: [],
+      layer: Layer.mergeAll(watch, StepTrace.layer(), Layer.succeed(CurrentActor, testActor)),
+    },
     features,
     ways: [way],
-    may: May.fixed(["sessions:issue"]),
+    may: Effect.succeed(May.fixed(["sessions:issue"])),
     system,
   });
   const handler = toFetchHandler(app);

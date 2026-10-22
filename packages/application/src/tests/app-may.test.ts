@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
 import { defineOperation, NoInput, type PersonCaller } from "@house-rules/domain";
-import { Effect, Layer, Logger, Schema } from "effect";
+import { Context, Effect, Layer, Logger, Schema } from "effect";
 import {
   bindOperation,
   call,
@@ -74,24 +74,22 @@ const ways = ["web", "partner"].map((name) =>
     mean: Mean.no,
   }),
 );
-const makeApp = <E>(may: MaySocket<E>, logs: unknown[] = []) =>
-  composition({
-    layer: Layer.mergeAll(
-      Runtime.layer({
-        features,
-        ways,
-        bindings: operations.map((operation) =>
-          bindOperation(operation, () => Effect.succeed("item")),
-        ),
-      }),
+class Items extends Context.Service<Items, { readonly value: string }>()("test/items") {}
+const itemsMount = {
+  service: Items,
+  operations,
+  bind: () => operations.map((operation) => bindOperation(operation, () => Effect.succeed("item"))),
+};
+const makeApp = <E>(may: MaySocket<E>, logs: unknown[] = []) => {
+  const modules = {
+    mounts: [{ ...itemsMount, layer: Layer.succeed(Items, { value: "item" }) }] as const,
+    layer: Layer.merge(
       StepTrace.layer(),
       Logger.layer([Logger.make(({ message }) => logs.push(message))]),
     ),
-    features,
-    ways,
-    may,
-    system: ["items:read"],
-  });
+  };
+  return composition({ modules, features, ways, may: Effect.succeed(may), system: ["items:read"] });
+};
 
 it.effect("one app-level May serves several ways and receives each resolved caller once", () =>
   Effect.gen(function* () {
@@ -198,7 +196,11 @@ it.effect("a system start uses composition permissions and ignores the person Ma
       const result = yield* runFeature(job, {}).pipe(
         Effect.provideContext(context),
         Effect.provideContext(
-          May.context(app.may, { features: [job], system: app.system, via: "schedule" }),
+          May.context(yield* app.may.pipe(Effect.provideContext(context)), {
+            features: [job],
+            system: app.system,
+            via: "schedule",
+          }),
         ),
       );
       expect(result).toBe("system");
@@ -231,7 +233,7 @@ it.effect("the catalogue contains exactly the registered operations' unique perm
     });
     expect(runtime.permissions).toEqual(["items:other", "items:read"]);
     expect(Object.isFrozen(runtime.permissions)).toBe(true);
-    const registry = renderRegistry({ operations, features, ways });
+    const registry = renderRegistry({ mounts: [{ service: "items", operations }], features, ways });
     expect(registry).toContain("## Permissions\n\n- items:other\n- items:read\n\n## Operations");
   }),
 );

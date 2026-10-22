@@ -1,4 +1,13 @@
-export { Billing } from "./facade.ts";
+import { Billing } from "./facade.ts";
+import { BillingOperations } from "./payment/operations.ts";
+import { bindBilling } from "./payment/bind-billing.ts";
+import type { MountDefinition } from "@house-rules/application";
+export const BillingMount = {
+  service: Billing,
+  operations: Object.values(BillingOperations),
+  bind: bindBilling,
+} satisfies MountDefinition<Billing, Billing["Service"]>;
+export { Billing };
 export { bindBilling } from "./payment/bind-billing.ts";
 export { BillingOperations } from "./payment/operations.ts";
 export {

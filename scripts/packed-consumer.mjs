@@ -142,7 +142,7 @@ import * as contract from "@house-rules/application/contract";
 import * as migrations from "@house-rules/migrations";
 import * as callAudit from "@house-rules/call-audit";
 import { NodeRuntime as NodePlatform, NodeServices } from "@effect/platform-node";
-import { Effect, FileSystem, Layer, Schema } from "effect";
+import { Context, Effect, FileSystem, Layer, Schema } from "effect";
 assert.equal(typeof domain.defineOperation, "function");
 assert.equal(typeof domain.errorKind, "function");
 assert.equal(typeof application.bindOperation, "function");
@@ -183,15 +183,18 @@ const watch = Layer.succeed(application.CallWatch, application.CallWatch.of({ ar
   state.channel = yield* application.CallChannel;
   return yield* work;
 }) }));
-const layer = Layer.mergeAll(application.Runtime.layer({ bindings: [binding], features, ways }),
-  application.StepTrace.layer(), domain.memoryUnitOfWork, lifecycle, watch);
-const app = application.composition({ layer, features, ways, may: application.May.fixed([]), system: [] });
+const Probe = Context.Reference("cold/Probe", { defaultValue: () => ({}) });
+const probeLayer = Layer.succeed(Probe, {});
+const modules = { mounts: [{ service: Probe, operations: [write], bind: () => [binding], layer: probeLayer }],
+  layer: Layer.mergeAll(application.StepTrace.layer(), domain.memoryUnitOfWork, lifecycle, watch) };
+const layer = application.Runtime.layer({ mounts: modules.mounts, features, ways }).pipe(Layer.provideMerge(Layer.merge(probeLayer, modules.layer)));
+const app = application.composition({ modules, features, ways, may: Effect.succeed(application.May.fixed([])), system: [] });
 const router = application.toFetchHandler(app);
 const incoming = { headers: new Headers(), url: "http://packed.test/" };
 assert.equal(state.builds, 0);
 try {
   const deniedWay = application.defineWay({ ...way, name: "denied", who: { resolve: () => Effect.fail(new application.Refused({ status: 401, code: "missing", message: "Sign in." })) } });
-  const denied = application.composition({ layer, features, ways: [deniedWay], may: application.May.fixed([]), system: [] });
+  const denied = application.composition({ modules, features, ways: [deniedWay], may: Effect.succeed(application.May.fixed([])), system: [] });
   try { assert.equal((await application.admit(denied, incoming, { way: "denied" })).ok, false); }
   finally { await denied.dispose(); }
   const admitted = await application.admit(app, incoming, { way: "web", channel: "api" });

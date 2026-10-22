@@ -1,17 +1,31 @@
 import { assert, it } from "@effect/vitest";
 import { Identity, FirstSignIn } from "@house-rules/identity";
+import { planLayer } from "@house-rules/application";
 import { Actor, UnitOfWork } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
 import { ConfigProvider, Context, Effect, Layer } from "effect";
-import { modulesLayer, plugSockets } from "../index.ts";
+import { modulePlan, createApp } from "../index.ts";
 import { grantAdmin } from "../../../scripts/grant-admin.ts";
 
 it.live("sign-up using the former admin email gets only member; shell grant-admin adds admin", () =>
   Effect.gen(function* () {
-    const modules = modulesLayer().pipe(
-      Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({ STORAGE: "memory" }))),
+    const plan = modulePlan();
+    const app = yield* Effect.acquireRelease(
+      Effect.sync(() =>
+        createApp([], {
+          modules: {
+            ...plan,
+            layer: plan.layer.pipe(
+              Layer.provideMerge(
+                ConfigProvider.layer(ConfigProvider.fromUnknown({ STORAGE: "memory" })),
+              ),
+            ),
+          },
+        }),
+      ),
+      (app) => Effect.promise(() => app.dispose()),
     );
-    const ctx = yield* Layer.build(plugSockets(modules));
+    const ctx = yield* app.runtime.contextEffect;
     const identity = Context.get(ctx, Identity);
     const issuer = yield* identity.passwordIssuer();
     assert.isDefined(issuer);
@@ -54,7 +68,7 @@ it.live(
   "grant-admin fails clearly for unknown emails and production without explicit approval",
   () =>
     Effect.gen(function* () {
-      const ctx = yield* Layer.build(modulesLayer());
+      const ctx = yield* Layer.build(planLayer(modulePlan()));
       const unknown = yield* grantAdmin("unknown@example.test", {
         nodeEnv: "development",
         yesProduction: false,

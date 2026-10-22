@@ -85,10 +85,10 @@ const way = defineWay({
   mean: Mean.no,
 });
 const app = composition({
-  layer: fixtureLayer(features),
+  modules: { mounts: [], layer: fixtureLayer(features) },
   features: features,
   ways: [way],
-  may: May.fixed([]),
+  may: Effect.succeed(May.fixed([])),
   system: [],
 });
 const http = toFetchHandler(app);

@@ -153,11 +153,14 @@ it.effect("runs feature-to-feature edges and bound operations without feature bi
       handler: (input, { call }) => call(child, input),
     });
     const layer = Layer.merge(
-      Runtime.layer({
-        features: [root],
-        bindings: [bindOperation(leaf, () => Effect.void)],
-        ways: [],
-      }),
+      Layer.effect(
+        Runtime,
+        Runtime.make({
+          features: [root],
+          bindings: [bindOperation(leaf, () => Effect.void)],
+          ways: [],
+        }),
+      ),
       StepTrace.layer(),
     );
     yield* runFeature(root, {}).pipe(
@@ -170,10 +173,7 @@ it.effect("runs feature-to-feature edges and bound operations without feature bi
     expect(seen).toEqual(["system"]);
     yield* runFeature(system, {}).pipe(
       Effect.provide(
-        Layer.merge(
-          Runtime.layer({ features: [system], bindings: [], ways: [] }),
-          StepTrace.layer(),
-        ),
+        Layer.merge(Runtime.layer({ features: [system], mounts: [], ways: [] }), StepTrace.layer()),
       ),
       Effect.provideContext(May.system([system], { system: [], via: "hook" })),
     );

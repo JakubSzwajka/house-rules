@@ -1,6 +1,6 @@
 # Bookings module
 
-Mount `Bookings.layer` with `BookingStore` and the app's shared unit. Composition alone chooses `memoryBookingStore()` or `postgresBookingStore`. Acquire the service and register `bindBookings(service)` with the runtime. Bind Party too: the booking operations declare `Party.isRelated` and `Party.canAdminOrganisation` edges.
+Mount `Bookings.layer` with `BookingStore` and the app's shared unit. Composition alone chooses `memoryBookingStore()` or `postgresBookingStore`. Exported BookingsMount carries the service key, all operation descriptors and bindBookings. Add its chosen layer to composition/modules.ts; the runtime captures the service and invokes the binder once. Mount Party too: the booking operations declare `Party.isRelated` and `Party.canAdminOrganisation` edges.
 
 `NewBooking.organisationId` is optional and nullable. Omission means personal; stored and returned bookings always carry string or null. The booking belongs to its creator even when it also belongs to an organisation.
 

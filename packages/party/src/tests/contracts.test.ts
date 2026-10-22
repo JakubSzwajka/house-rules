@@ -96,7 +96,11 @@ const systemRename = defineFeature("test_systemRename", {
 const features = [show, mine, rename, create, systemCreate, systemShow, systemMe, systemRename];
 const runtime = Layer.unwrap(
   Effect.gen(function* () {
-    return Runtime.layer({ bindings: bindParty(yield* Party), features, ways: [] });
+    return Runtime.layer({
+      mounts: [{ service: Party, operations: Object.values(PartyOperations), bind: bindParty }],
+      features,
+      ways: [],
+    });
   }),
 );
 const world = runtime.pipe(

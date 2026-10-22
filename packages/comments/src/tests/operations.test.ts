@@ -104,7 +104,13 @@ const module = Comments.layerMemory({
 }).pipe(Layer.provide(targets));
 const world = Layer.unwrap(
   Effect.gen(function* () {
-    return Runtime.layer({ bindings: bindComments(yield* Comments), features, ways: [] });
+    return Runtime.layer({
+      mounts: [
+        { service: Comments, operations: Object.values(CommentsOperations), bind: bindComments },
+      ],
+      features,
+      ways: [],
+    });
   }),
 ).pipe(
   Layer.provideMerge(module),

@@ -73,10 +73,13 @@ const mcp = defineWay({
   tools: [{ feature: approved, title: "Approved", idempotent: false, openWorld: false }],
 });
 const yesMan = composition({
-  layer: fixtureLayer(features).pipe(Layer.provideMerge(Approval.allowAll)),
+  modules: {
+    mounts: [],
+    layer: fixtureLayer(features).pipe(Layer.provideMerge(Approval.allowAll)),
+  },
   features: features,
   ways: [http, trusted, mcp],
-  may: May.fixed([]),
+  may: Effect.succeed(May.fixed([])),
   system: [],
 });
 const yesManRouter = toFetchHandler(yesMan);

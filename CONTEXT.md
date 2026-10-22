@@ -30,7 +30,7 @@ Use direct named builder imports from the owning kit. Import renames are allowed
 
 ## Access
 
-A **permission** is the `resource:action` an operation declares in code. The **permission catalogue**, `Runtime.permissions`, contains every operation permission in the app.
+A **permission** is the `resource:action` an operation declares in code. Application's **PermissionCatalogue** service is available before modules build. Its permissions callback and `Runtime.permissions` expose the same frozen array, derived from every mounted operation, including unused operations.
 
 **Person** and **Organisation** are the parties an app knows. A **relationship** links two parties, such as staff of or partner of. Party owns these facts.
 
@@ -57,7 +57,7 @@ A **socket** is a question the app answers. A **plug** bundles an answer. The in
 
 A **slot** or **port** is a service tag owned by its caller. Authenticator, Approval and CallWatch stay separate lower slots. A **cartridge** is a removable plug. Removing it and its `Layer.provide` line must leave the rest building and passing.
 
-The **composition root** mounts modules and read models, links ports, plugs sockets, opens ways and schedules features. It owns `composition({ layer, features, ways, may, system, gatePolicy? })`. Acquire services and bindings, then Runtime, then hooks that capture it. The root receives ways from `main.ts`; it never imports them. Hooks use `runFeature`, never a second runtime or Who call.
+The **composition root** mounts modules and read models, links ports, plugs sockets, opens ways and schedules features. It owns `composition({ modules: ModulePlan, features, ways, may, system, gatePolicy? })`. A **mount** is a package-owned plain value containing a service key, operation descriptors and binder. The package main or read-model index exports it; modules.ts adds the chosen layer. A **module plan** pairs that single mount list with shared infrastructure. Composition supplies PermissionCatalogue, acquires modules, calls each binder once, acquires Runtime and resolves the effectful May, then acquires hooks that capture Runtime. The root receives ways from `main.ts`; it never imports them. Hooks use `runFeature`, never a second runtime or Who call.
 
 The **router**, `toFetchHandler`, builds dispatch, HTTP routes, MCP tools and metadata paths from ways. A **Host** runs that fetch handler. Dispose the router before the composition. Composition builds lazily, shares a successful build, retries failures and makes disposal final. Next already has a Host.
 
@@ -89,7 +89,7 @@ The checker does not prove ownership inside PL/pgSQL, DO bodies or dynamic EXECU
 
 An **expected error** is a `Schema.TaggedError` with a kind: `not_found`, `conflict`, `forbidden`, `unavailable` or `invalid`. Application maps these to 404, 409, 403, 503 and 400. User-facing module messages stay intact. Unavailable and plumbing messages are fixed public text. Causes, permissions and reasons stay internal. A way's **wording override** changes only the message. Defects answer generic 500 `internal_error`.
 
-The **step trace** is bounded FIFO memory keyed by request id, default 1000 requests. Inner steps name feature, target, caller, reason, order and outcome. Reads allocate nothing; finishes do not revive evicted buckets. The **registry** is pure rendered Markdown with callers, system edges, reasons, feature closures and way exposures. A script writes `REGISTRY.md`; its freshness test only compares.
+The **step trace** is bounded FIFO memory keyed by request id, default 1000 requests. Inner steps name feature, target, caller, reason, order and outcome. Reads allocate nothing; finishes do not revive evicted buckets. The **registry** is a validated snapshot from `registry(app)`, using the app's real mounts, features and ways. Pure `renderRegistry(snapshot)` produces Markdown with callers, system edges, reasons, feature closures and way exposures. A script writes `REGISTRY.md`; its freshness test only compares.
 
 The **layout preset** accepts feature, read-model, way and composition areas. Its option keys are `features`, `readModels`, `waysIn` and `composition`. ESLint feature rules use literal `features/`, even with custom layout areas. Browser roots include feature indexes, the feature registry, contracts and way endpoints. Next uses `waysInLayer` for its app folder and keeps its host-owned files.
 

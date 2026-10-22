@@ -119,7 +119,7 @@ export const invoke = <A>(
           : execution.pipe(Effect.provideService(CurrentActor, actor))
       ).pipe(
         Effect.provideContext(
-          May.context(app.may, {
+          May.context(yield* app.may, {
             features: options.way.features,
             system: app.system,
             via: options.way.name,

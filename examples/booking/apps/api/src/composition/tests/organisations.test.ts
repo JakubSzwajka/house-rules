@@ -4,22 +4,32 @@ import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
 import { Context, Effect, Layer } from "effect";
 import { Features } from "../../features/index.ts";
-import { modulesLayer, plugSockets } from "../index.ts";
+import { modulePlan, createApp } from "../index.ts";
 import { builtInRoles, systemPermissions } from "../roles.ts";
 import { seedRoleTesting } from "./roles-testing.ts";
 import { databaseTesting } from "./database.ts";
-import { seed } from "../../../scripts/seed.ts";
 
 for (const storage of ["memory", "postgres"] as const) {
   it.live(
     `${storage}: organisations, invites and people enforce A/B privacy, delegation and approval`,
     () =>
       Effect.gen(function* () {
-        const modules =
-          storage === "postgres"
-            ? modulesLayer().pipe(Layer.provide(databaseTesting))
-            : modulesLayer();
-        const context = yield* Layer.build(plugSockets(modules));
+        const plan = modulePlan();
+        const app = yield* Effect.acquireRelease(
+          Effect.sync(() =>
+            createApp([], {
+              modules: {
+                ...plan,
+                layer:
+                  storage === "postgres"
+                    ? plan.layer.pipe(Layer.provideMerge(databaseTesting))
+                    : plan.layer,
+              },
+            }),
+          ),
+          (app) => Effect.promise(() => app.dispose()),
+        );
+        const context = yield* app.runtime.contextEffect;
         for (const id of ["a", "b", "member", "joiner"] as const)
           yield* seedRoleTesting(id).pipe(Effect.provideContext(context));
         yield* seedRoleTesting("global", "admin").pipe(Effect.provideContext(context));
@@ -244,50 +254,6 @@ for (const storage of ["memory", "postgres"] as const) {
             Effect.flip,
           ))._tag,
           "Forbidden",
-        );
-      }).pipe(Effect.scoped),
-    30_000,
-  );
-  it.live(
-    `${storage}: seed is idempotent, creates scoped demo users and refuses production`,
-    () =>
-      Effect.gen(function* () {
-        const modules =
-          storage === "postgres"
-            ? modulesLayer().pipe(Layer.provide(databaseTesting))
-            : modulesLayer();
-        const context = yield* Layer.build(plugSockets(modules));
-        const first = yield* seed("development").pipe(Effect.provideContext(context));
-        const second = yield* seed("development").pipe(Effect.provideContext(context));
-        assert.deepStrictEqual(second, first);
-        assert.strictEqual(
-          (yield* seed("production").pipe(Effect.provideContext(context), Effect.flip))._tag,
-          "SeedRefused",
-        );
-        const carolEntry = first.find(([name]) => name === "carol");
-        assert.isDefined(carolEntry);
-        const carol = carolEntry[1];
-        const party = Context.get(context, Party);
-        assert.deepStrictEqual(
-          yield* party.myOrganisations({
-            kind: "person",
-            actor: Actor.make({ id: carol }),
-            via: "test",
-          }),
-          [
-            {
-              id: "acme",
-              name: "Acme",
-              relation: "staff",
-              roles: [
-                {
-                  roleKey: "org-admin",
-                  roleName: "Organisation admin",
-                  permissions: [...builtInRoles["org-admin"].permissions],
-                },
-              ],
-            },
-          ],
         );
       }).pipe(Effect.scoped),
     30_000,

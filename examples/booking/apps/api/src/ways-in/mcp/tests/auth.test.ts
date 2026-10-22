@@ -4,7 +4,7 @@ import { AuthJwt, AuthJwtTesting } from "@house-rules/auth-jwt";
 import { Actor, ActorId } from "@house-rules/domain";
 import { Identity } from "@house-rules/identity";
 import { Effect, Layer } from "effect";
-import { createApp, Features, modulesLayer, resourceOf } from "../../../composition/index.ts";
+import { createApp, Features, modulePlan, resourceOf } from "../../../composition/index.ts";
 import { seedRoleTesting } from "../../../composition/tests/roles-testing.ts";
 import { databaseTesting } from "../../../composition/tests/database.ts";
 import { webWay } from "../../web/way.ts";
@@ -131,6 +131,7 @@ it.live(
       const fake = (id: string) => ({ resolve: () => Effect.succeed(actor(id)) });
       const resource = resourceOf("https://booking.example", "https://outside.invalid");
       assert.strictEqual(mcpWay.mean, Mean.elicitation);
+      const plan = modulePlan();
       const app = yield* Effect.acquireRelease(
         Effect.sync(() =>
           createApp(
@@ -147,7 +148,7 @@ it.live(
                 },
               },
             ],
-            { modules: modulesLayer().pipe(Layer.provide(databaseTesting)) },
+            { modules: { ...plan, layer: plan.layer.pipe(Layer.provideMerge(databaseTesting)) } },
           ),
         ),
         (app) => Effect.promise(() => app.dispose()),

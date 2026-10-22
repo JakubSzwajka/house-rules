@@ -1,12 +1,12 @@
 import { assert, it } from "@effect/vitest";
-import { runFeature, May, Approval, StepTrace } from "@house-rules/application";
+import { runFeature, May, Approval, StepTrace, composition } from "@house-rules/application";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { Identity } from "@house-rules/identity";
 import { Party, PersonNotFound } from "@house-rules/party";
 import { ConfigProvider, Context, Effect, Layer, Option } from "effect";
 import { Features } from "../../features/index.ts";
 import { systemPermissions } from "../roles.ts";
-import { modulesLayer, plugSockets } from "../index.ts";
+import { modulePlan } from "../index.ts";
 import { databaseTesting } from "./database.ts";
 
 for (const backend of ["memory", "postgres"] as const)
@@ -14,14 +14,9 @@ for (const backend of ["memory", "postgres"] as const)
     `${backend}: first sign-in person and login binding share one entry unit`,
     () =>
       Effect.gen(function* () {
-        const modules = modulesLayer().pipe(
-          Layer.provide(
-            backend === "memory"
-              ? ConfigProvider.layer(ConfigProvider.fromUnknown({ STORAGE: "memory" }))
-              : databaseTesting,
-          ),
-        );
+        const plan = modulePlan();
         const created: ActorId[] = [];
+        const partyMount = plan.mounts[3];
         const observed = Layer.effect(
           Party,
           Effect.gen(function* () {
@@ -38,8 +33,32 @@ for (const backend of ["memory", "postgres"] as const)
                 ),
             };
           }),
-        ).pipe(Layer.provide(modules));
-        const ctx = yield* Layer.build(plugSockets(Layer.merge(modules, observed)));
+        ).pipe(Layer.provide(partyMount.layer));
+        const app = yield* Effect.acquireRelease(
+          Effect.sync(() =>
+            composition({
+              modules: {
+                ...plan,
+                mounts: plan.mounts.map((mount) =>
+                  mount === partyMount ? { ...partyMount, layer: observed } : mount,
+                ),
+                layer: plan.layer.pipe(
+                  Layer.provideMerge(
+                    backend === "memory"
+                      ? ConfigProvider.layer(ConfigProvider.fromUnknown({ STORAGE: "memory" }))
+                      : databaseTesting,
+                  ),
+                ),
+              },
+              features: Object.values(Features),
+              ways: [],
+              may: Party.may(),
+              system: systemPermissions,
+            }),
+          ),
+          (app) => Effect.promise(() => app.dispose()),
+        );
+        const ctx = yield* app.runtime.contextEffect;
         const identity = Context.get(ctx, Identity);
         const party = Context.get(ctx, Party);
         const original = ActorId.make("original");

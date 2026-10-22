@@ -62,13 +62,10 @@ it.effect("union sessions issue only on a token member, omit tokens, and still e
       mean: Mean.no,
     });
     const app = composition({
-      layer: Layer.merge(
-        Runtime.layer({ bindings: [], features: [signIn], ways: [way] }),
-        StepTrace.layer(),
-      ),
+      modules: { mounts: [], layer: StepTrace.layer() },
       features: [signIn],
       ways: [way],
-      may: May.fixed([]),
+      may: Effect.succeed(May.fixed([])),
       system: [],
     });
     const handler = toFetchHandler(app);

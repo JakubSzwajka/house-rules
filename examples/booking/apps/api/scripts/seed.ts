@@ -5,8 +5,8 @@ import { Identity } from "@house-rules/identity";
 import { Party } from "@house-rules/party";
 import { Actor, type ActorId, UnitOfWork } from "@house-rules/domain";
 import { Config, Effect, Schema } from "effect";
-import { modulesLayer } from "../src/composition/modules.ts";
-import { plugSockets } from "../src/composition/app-layer.ts";
+import { planLayer } from "@house-rules/application";
+import { modulePlan } from "../src/composition/modules.ts";
 
 class SeedRefused extends Schema.TaggedError<SeedRefused>()("SeedRefused", {
   message: Schema.String,
@@ -134,5 +134,5 @@ if (process.argv[1]?.endsWith("/seed.js")) {
     const nodeEnv = yield* Config.String("NODE_ENV").pipe(Config.withDefault("development"));
     yield* seed(nodeEnv);
     yield* Effect.log("Demo accounts ready: alice, bob, carol, dave, admin at @example.test.");
-  }).pipe(Effect.provide(plugSockets(modulesLayer())), NodePlatform.NodeRuntime.runMain);
+  }).pipe(Effect.provide(planLayer(modulePlan())), NodePlatform.NodeRuntime.runMain);
 }

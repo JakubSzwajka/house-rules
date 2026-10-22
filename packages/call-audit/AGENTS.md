@@ -40,9 +40,9 @@ Lower layers remain `layer(options)` over `AuditStore`, `layerPostgres(options)`
 
 - Never store input values or error messages. Ids, names and error tags only. Feature targets never depend on input text.
 - Module user-facing errors keep their messages; unavailable and plumbing errors use fixed public text, with diagnostic details kept in separate fields or causes.
-- Capture caller identity before execution. A broken who becomes null. Recording runs after the exit and never changes it, even if a recorder, logger or insert fails.
+- Capture caller identity before execution. A broken who becomes null. Recording runs after the exit and completes before runFeature returns, with no background insert or flush. It never changes the exit, even if a recorder, logger or insert fails.
 - Only policy decides retention. A throwing keep function keeps the row. Strict retains refusals.
 - One retention run at a time; Postgres uses a session advisory lock. Retention/erasure SQL stays in this package.
-- `recorded_at` and retention cutoffs use the app Clock. Replicas need synchronized clocks. Pre-0002 rows used the database clock.
+- `recorded_at` and retention cutoffs use the app Clock. Replicas need synchronized clocks. Tests calling a live-clock app runtime must use `it.live`, not epoch-clock `it.effect`, for feature calls and audit reads. Pre-0002 rows used the database clock.
 
 Run package `typecheck`, `test` and `build`. Store and target-upgrade suites use real Postgres as well as memory.

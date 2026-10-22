@@ -53,10 +53,10 @@ it.effect("nested way prefixes do not hide another way's concrete endpoint", () 
       mean: Mean.no,
     });
     const app = composition({
-      layer: fixtureLayer(features),
+      modules: { mounts: [], layer: fixtureLayer(features) },
       features: features,
       ways: [first, second],
-      may: May.fixed([]),
+      may: Effect.succeed(May.fixed([])),
       system: [],
     });
     const handler = toFetchHandler(app);

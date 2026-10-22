@@ -1,11 +1,10 @@
 import type { AnyCallable, SystemCaller } from "@house-rules/domain/contract";
-import { Effect, Layer } from "effect";
+import { Context, Effect, Layer } from "effect";
 import {
   type AnyFeature,
   type Binding,
   type CallScope,
   type Feature,
-  type RuntimeOptions,
   CallerContext,
   defineFeature,
   Runtime,
@@ -50,7 +49,8 @@ export const installFixture = (feature: AnyFeature, run: Binding["run"]): void =
   handlers.set(owners.get(feature.handler) ?? feature, run);
 };
 
-const prepare = (options: RuntimeOptions): RuntimeOptions => {
+type BindingOptions = Parameters<typeof Runtime.make>[0];
+const prepare = (options: BindingOptions): BindingOptions => {
   const bindings = options.bindings.filter((binding) => {
     const features = options.features.filter(
       (feature) => sources.get(owners.get(feature.handler) ?? feature) === binding.callable,
@@ -60,7 +60,21 @@ const prepare = (options: RuntimeOptions): RuntimeOptions => {
   });
   return { ...options, bindings };
 };
+const bindingService = Context.Reference<undefined>("test/fixtureBindings", {
+  defaultValue: () => undefined,
+});
 export const RuntimeFixture = {
-  make: (options: RuntimeOptions) => Runtime.make(prepare(options)),
-  layer: (options: RuntimeOptions) => Layer.effect(Runtime, Runtime.make(prepare(options))),
+  mounts: (options: BindingOptions) => {
+    const bindings = prepare(options).bindings;
+    return [
+      {
+        service: bindingService,
+        operations: bindings.map((binding) => binding.callable),
+        bind: () => bindings,
+        layer: Layer.empty,
+      },
+    ] as const;
+  },
+  make: (options: BindingOptions) => Runtime.make(prepare(options)),
+  layer: (options: BindingOptions) => Layer.effect(Runtime, Runtime.make(prepare(options))),
 };

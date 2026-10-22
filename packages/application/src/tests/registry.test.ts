@@ -17,9 +17,9 @@ it("renders reverse callers, reasons, closures and way exposure without running 
   const second = defineOperation("second", { ...base, edges: [child] });
   const feature = featureFixture(root);
   const data = {
-    operations: [second],
+    mounts: [{ service: "test", operations: [second] }],
     features: [feature],
-    ways: [{ name: "web", path: "/api", features: [feature] }],
+    ways: [{ name: "web", protocol: "http" as const, path: "/api", features: [feature] }],
   };
   const rendered = renderRegistry(data);
   expect(rendered).toBe(renderRegistry(data));
@@ -27,7 +27,7 @@ it("renders reverse callers, reasons, closures and way exposure without running 
   expect(rendered).toContain("⚙ child (system: background read)");
   expect(rendered).toContain("Person closure: none");
   expect(rendered).toContain("System closure: items:read");
-  expect(rendered).toContain("Exposed by: web (/api)");
+  expect(rendered).toContain("Exposed by: web (http: /api)");
   expect(rendered).not.toContain("Defined by");
   expect(rendered).toContain("## Features");
   expect(rendered).toContain("## Operations");

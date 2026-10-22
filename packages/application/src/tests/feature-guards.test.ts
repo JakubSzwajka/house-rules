@@ -122,13 +122,10 @@ it.effect("composition revalidates its actual features against the acquired grap
     const real = defineFeature("secret", { ...options, handler: () => Effect.void });
     const forged = { ...real, closures: { person: [], system: [] } };
     const app = composition({
-      layer: Layer.merge(
-        Runtime.layer({ features: [real], bindings: [], ways: [] }),
-        StepTrace.layer(),
-      ),
+      modules: { mounts: [], layer: StepTrace.layer() },
       features: [forged],
       ways: [],
-      may: May.fixed([]),
+      may: Effect.succeed(May.fixed([])),
       system: [],
     });
     const error = yield* Effect.flip(app.runtime.contextEffect);

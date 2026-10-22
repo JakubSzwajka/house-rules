@@ -1,7 +1,15 @@
 export { bindParty } from "./person/bind-party.js";
 export { Party, type PartyFailure } from "./facade.js";
 export { PartyStore, PersonStore } from "./storage.js";
-export { PermissionCatalogue } from "./role/permission-catalogue.js";
+import { Party } from "./facade.js";
+import { PartyOperations } from "./contract.js";
+import { bindParty } from "./person/bind-party.js";
+import type { MountDefinition } from "@house-rules/application";
+export const PartyMount = {
+  service: Party,
+  operations: Object.values(PartyOperations),
+  bind: bindParty,
+} satisfies MountDefinition<Party, Party["Service"]>;
 export { memoryPartyStore } from "./adapters/memory/party.js";
 export { postgresPartyStore } from "./adapters/postgres/party.js";
 export {

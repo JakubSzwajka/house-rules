@@ -8,12 +8,14 @@ import {
   type MaySocket,
 } from "@house-rules/application";
 import { type ActorResolver, type FirstSignIn } from "@house-rules/identity";
-import { Config, Context, Effect, Layer } from "effect";
-import { Party, PartyUnavailable } from "@house-rules/party";
+import { Config, Effect, Layer } from "effect";
+import { Party } from "@house-rules/party";
 import { Features } from "../features/index.ts";
 import { systemPermissions } from "./roles.ts";
-import { plugSockets } from "./app-layer.ts";
-import { modulesLayer } from "./modules.ts";
+import { modulePlan } from "./modules.ts";
+import { newLoginHook } from "./first-sign-in.ts";
+import { DemoIssuers as DemoIssuerService } from "./demo-issuers.ts";
+import { McpAuthenticator as McpAuthenticatorService } from "./mcp-authenticator.ts";
 import type { DemoIssuers } from "./demo-issuers.ts";
 import type { McpAuthenticator } from "./mcp-authenticator.ts";
 export const resourceOf = (appOrigin: string, issuer: string) =>
@@ -34,50 +36,30 @@ type AppWay =
   | Omit<Extract<WayOptions<WhoServices>, { protocol: "http" }>, "overrides">
   | Omit<Extract<WayOptions<WhoServices>, { protocol: "mcp" }>, "overrides">;
 export type OpenWays = readonly AppWay[];
-export const createApp = <E = never>(
+export const createApp = (
   ways: OpenWays,
   options: {
-    modules?: Parameters<typeof plugSockets<E>>[0];
+    modules?: ReturnType<typeof modulePlan>;
     nodeEnv?: string;
     issuer?: string;
     gatePolicy?: GatePolicy;
     may?: MaySocket;
   } = {},
 ) => {
-  let plug: Effect.Success<ReturnType<typeof Party.may>> | undefined;
-  const may = {
-    permissionsOf: (caller: Parameters<NonNullable<typeof plug>["permissionsOf"]>[0]) =>
-      Effect.suspend(() =>
-        plug === undefined
-          ? Effect.fail(new PartyUnavailable({ cause: "Party May not acquired" }))
-          : plug.permissionsOf(caller),
-      ),
-  };
-  const layer = plugSockets<E | Layer.Error<ReturnType<typeof modulesLayer>>>(
-    options.modules ?? modulesLayer(),
-    ways,
-    options.nodeEnv,
-    options.issuer,
-  ).pipe(
-    Layer.tap((context) =>
-      Party.may().pipe(
-        Effect.provideContext(Context.make(Party, Context.get(context, Party))),
-        Effect.tap((value) =>
-          Effect.sync(() => {
-            plug = value;
-          }),
-        ),
-      ),
-    ),
+  const plugs = Layer.merge(
+    DemoIssuerService.layer(options.nodeEnv ?? "development"),
+    McpAuthenticatorService.layer(options.issuer ?? ""),
   );
-  return composition({
-    layer,
+  const open = {
+    afterRuntime: newLoginHook,
     features: Object.values(Features),
     ways,
-    may: options.may ?? may,
+    may: options.may === undefined ? Party.may() : Effect.succeed(options.may),
     system: systemPermissions,
     ...(options.gatePolicy === undefined ? {} : { gatePolicy: options.gatePolicy }),
-  });
+  };
+  const plan = options.modules ?? modulePlan();
+  return composition({ ...open, modules: { ...plan, layer: Layer.merge(plan.layer, plugs) } });
 };
 export const appConfig = Config.all({
   mcpIssuer: Config.String("MCP_AUTH_ISSUER").pipe(Config.withDefault("")),
@@ -85,8 +67,7 @@ export const appConfig = Config.all({
   port: Config.Int("PORT").pipe(Config.withDefault(3000)),
   appOrigin: Config.String("APP_ORIGIN").pipe(Config.withDefault("http://localhost:3000")),
 });
-export { modulesLayer, readUnavailablePort } from "./modules.ts";
-export { plugSockets } from "./app-layer.ts";
+export { modulePlan } from "./modules.ts";
 export { DemoIssuers, DemoForbidden } from "./demo-issuers.ts";
 export { McpAuthenticator } from "./mcp-authenticator.ts";
 export { Features } from "../features/index.ts";
