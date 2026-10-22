@@ -6,6 +6,7 @@ import { builtInRoles, systemPermissions } from "../roles.ts";
 it.effect("app features retain exact closures, starts, edges and lifted flags", () =>
   Effect.sync(() => {
     assert.deepStrictEqual(builtInRoles.member.permissions, [
+      "identity:update",
       "bookings:read",
       "bookings:write",
       "bookings:cancel",
@@ -15,6 +16,8 @@ it.effect("app features retain exact closures, starts, edges and lifted flags", 
     assert.deepStrictEqual(builtInRoles.partner.permissions, ["bookings:write"]);
     assert.deepStrictEqual(Object.keys(builtInRoles), ["member", "partner", "admin"]);
     assert.deepStrictEqual(systemPermissions, [
+      "identity:create",
+      "identity:sign-in",
       "party:create",
       "party:admin",
       "identity:bind",
@@ -22,6 +25,19 @@ it.effect("app features retain exact closures, starts, edges and lifted flags", 
       "billing:expire",
     ]);
     const expected: readonly unknown[] = [
+      ["sign_up", [], ["identity:create"], false, true, false, false, ["Identity.signUp"]],
+      ["sign_in", [], ["identity:sign-in"], false, true, false, false, ["Identity.signIn"]],
+      ["sign_out", [], [], false, false, false, false, []],
+      [
+        "change_password",
+        ["identity:update"],
+        [],
+        false,
+        true,
+        false,
+        false,
+        ["Identity.changePassword"],
+      ],
       [
         "make_booking",
         ["bookings:write", "billing:charge"],

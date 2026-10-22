@@ -8,7 +8,8 @@
     "test": "varlock run --path ../../../../ -- vitest run",
     "build": "esbuild src/main.ts --bundle --platform=node --format=esm --external:effect '--external:@effect/*' --outfile=dist/main.js",
     "start": "node dist/main.js",
-    "registry": "node scripts/registry.mjs"
+    "registry": "node scripts/registry.mjs",
+    "migrate": "esbuild scripts/migrate.ts --bundle --platform=node --format=esm --external:effect '--external:@effect/*' --outfile=dist/migrate.js && varlock run --path ../../../../ -- node dist/migrate.js"
   },
   "dependencies": {
     "@example/bookings": "workspace:0.0.0",

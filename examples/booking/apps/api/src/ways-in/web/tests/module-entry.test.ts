@@ -18,6 +18,7 @@ it.effect("composition refuses a way exposing a forged Bookings.get module entry
       ...webWay,
       protocol: "http",
       features: [forged],
+      public: [],
       endpoints: [endpoint(forged)],
     });
     const app = yield* Effect.acquireRelease(

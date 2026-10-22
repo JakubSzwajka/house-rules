@@ -6,8 +6,7 @@ import { importOf, staticPropertyName, unwrapExpression } from "./import-binding
 import { sourceGraph } from "./source-provenance.mjs";
 import { featureOrigin } from "./feature-origin.mjs";
 import { ruleDocsUrl } from "./rule-docs.mjs";
-const application = (source) =>
-  source === "@house-rules/application" || source === "@house-rules/application/contract";
+const application = (source) => /^@house-rules\/application(?:\/contract)?$/u.test(source);
 const builders = new Set([
   "defineOperation",
   "bindOperation",
@@ -29,7 +28,7 @@ export const featureBuildersRule = {
     docs: {
       url: ruleDocsUrl("feature-builders"),
       description:
-        "Require direct named kit builders, inline builder options, one-file feature origins for ways, May.context, May.system and starts, and operation builders outside features.",
+        "Require direct named kit builders, inline builder options, one-file feature origins for way features/public, May.context, May.system and starts, and operation builders outside features.",
     },
     schema: [
       {
@@ -94,13 +93,14 @@ export const featureBuildersRule = {
       if (!featureOrigin(graph, app, filename, expression, list))
         context.report({ node, messageId: "exposure" });
     };
-    const optionFeatures = (node, expression, hasFeatures = true) => {
+    const optionFeatures = (node, expression, hasFeatures = true, hasPublic = false) => {
       const options = builderOptions(expression, hasFeatures);
       if (!options) {
         context.report({ node, messageId: "options" });
         return;
       }
       if (hasFeatures) exposure(node, options.features, true);
+      if (hasPublic && options.public !== undefined) exposure(node, options.public, true);
     };
     return {
       Program(program) {
@@ -285,7 +285,7 @@ export const featureBuildersRule = {
         if (!inPackage && name === "endpoint" && approved(binding))
           exposure(node, node.arguments[0]);
         if (!inPackage && name === "defineWay" && approved(binding))
-          optionFeatures(node, node.arguments[0]);
+          optionFeatures(node, node.arguments[0], true, true);
         if (!approved(binding)) return;
         if (inPackage && ["defineFeature", "endpoint", "defineWay"].includes(name)) {
           named(node, name);

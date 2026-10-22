@@ -140,6 +140,10 @@ it.live(
       assert.strictEqual(mcpWay.features[0], Features.showBooking);
       assert.strictEqual(mcpWay.features[1], Features.myBookings);
       assert.deepStrictEqual(webWay.features, [
+        Features.signUp,
+        Features.signIn,
+        Features.signOut,
+        Features.changePassword,
         Features.makeBooking,
         Features.showBooking,
         Features.myBookings,
@@ -166,7 +170,9 @@ it.live("web denies cancel, in-process allows it, and missing database reads are
       (router) => Effect.promise(() => router.dispose()),
     );
     const ctx = yield* app.runtime.contextEffect;
-    const token = yield* Context.get(ctx, DemoIssuers).web.issue({ sub: "alice" });
+    const issuer = yield* Context.get(ctx, Identity).passwordIssuer();
+    assert.isDefined(issuer);
+    const { token } = yield* issuer.sign("alice");
     const headers = new Headers({ authorization: `Bearer ${token}` });
     const incoming = { headers, url: "https://booking.example/api" };
     const post = (name: string, body: unknown) =>

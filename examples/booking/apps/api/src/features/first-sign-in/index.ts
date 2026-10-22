@@ -12,6 +12,7 @@ export const firstSignIn = defineFeature("first_sign_in", {
     issuer: IdentityOperations.bindLogin.input.fields.issuer,
     subject: IdentityOperations.bindLogin.input.fields.subject,
     displayName: PartyOperations.createPerson.input.fields.displayName,
+    admin: Schema.optional(Schema.Boolean),
   }),
   output: IdentityOperations.bindLogin.output,
   failure: Schema.Union([
@@ -35,6 +36,12 @@ export const firstSignIn = defineFeature("first_sign_in", {
         roleKey: input.issuer === "https://partner.invalid" ? "partner" : "member",
         organisationId: null,
       });
+      if (input.admin === true)
+        yield* call(PartyOperations.assignRole, {
+          personId: person.id,
+          roleKey: "admin",
+          organisationId: null,
+        });
       return yield* call(IdentityOperations.bindLogin, {
         issuer: input.issuer,
         subject: input.subject,

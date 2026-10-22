@@ -81,6 +81,11 @@ const allowlist = [
     reason: "Third-party Effect platform runtime, not the retired house-rules API.",
   },
   {
+    path: "examples/booking/apps/api/scripts/migrate.ts",
+    line: "  NodePlatform.NodeRuntime.runMain,",
+    reason: "Third-party Effect platform runtime, not the retired house-rules API.",
+  },
+  {
     path: "packages/migrations/README.md",
     line: 'import { NodeRuntime, NodeServices } from "@effect/platform-node";',
     reason: "Third-party Effect platform runtime, not the retired house-rules API.",

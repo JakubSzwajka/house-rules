@@ -29,6 +29,7 @@ export type WayOptions<
     | Readonly<{
         protocol: "http";
         endpoints: readonly Endpoint[];
+        public?: readonly AnyFeature[];
         origins?: readonly string[];
         cors?: CorsOptions;
         session?: SessionOptions;
@@ -36,6 +37,7 @@ export type WayOptions<
       }>
     | Readonly<{
         protocol: "mcp";
+        public?: never;
         allowedOrigins?: readonly string[];
         server: { name: string; version: string };
         tools: readonly Readonly<{

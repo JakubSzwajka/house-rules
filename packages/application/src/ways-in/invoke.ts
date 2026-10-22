@@ -1,6 +1,6 @@
 import type { Actor, KindedError } from "@house-rules/domain";
 import type { CallPermissions } from "../socket/permission-lists.ts";
-import { Cause, type Context, Effect, Exit, type Layer, Option, Schema } from "effect";
+import { Cause, Context, Effect, Exit, type Layer, Option, Schema } from "effect";
 import { CurrentActor } from "../actor/current-actor.ts";
 import { CallChannel } from "../call/call-facts.ts";
 import { newRequestId, requestIdOf, withRequestId } from "../call/request-id.ts";
@@ -85,10 +85,14 @@ export const invoke = <A>(
     const execute = runFeature as unknown as (
       feature: AnyFeature,
       input: unknown,
-    ) => Effect.Effect<unknown, KindedError, A | CurrentActor | CallPermissions | Approval>;
+    ) => Effect.Effect<unknown, KindedError, A | CallPermissions | Approval>;
     let invokingFeature = false;
     const program = Effect.gen(function* () {
-      const actor = options.resolved ?? (yield* options.way.who.resolve(options.incoming));
+      const publicFeature =
+        options.way.protocol === "http" && options.way.public?.includes(feature) === true;
+      const actor = publicFeature
+        ? undefined
+        : (options.resolved ?? (yield* options.way.who.resolve(options.incoming)));
       const raw = yield* options.input.pipe(
         Effect.mapError((error) =>
           error._tag === "InputFault" ? invalidFor(feature.name)(error) : error,
@@ -101,8 +105,19 @@ export const invoke = <A>(
             ? yield* decodeValue(feature, raw.value)
             : yield* decodeInput(feature, raw.value, raw.source);
       invokingFeature = true;
-      return yield* execute(feature, input).pipe(
-        Effect.provideService(CurrentActor, actor),
+      const execution = execute(feature, input);
+      return yield* (
+        actor === undefined
+          ? execution.pipe(
+              Effect.updateContext<A | CallPermissions | Approval, A | CallPermissions | Approval>(
+                (context) =>
+                  Context.omit(CurrentActor)(context) as Context.Context<
+                    A | CallPermissions | Approval
+                  >,
+              ),
+            )
+          : execution.pipe(Effect.provideService(CurrentActor, actor))
+      ).pipe(
         Effect.provideContext(
           May.context(app.may, {
             features: options.way.features,

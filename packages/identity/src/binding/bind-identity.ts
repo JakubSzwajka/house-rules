@@ -9,9 +9,15 @@ import {
   type IdentityStoreUnavailable,
 } from "./binding.js";
 import { IdentityOperations } from "./operations.js";
+import type { PasswordMethods } from "../passwords/accounts.js";
+import type { PasswordIssuerService } from "../passwords/accounts-issuer.js";
+import { bindPasswords } from "../passwords/bindings.js";
+import { AccountId } from "../passwords/account.js";
+import { AccountStoreUnavailable } from "../passwords/store-unavailable.js";
 
 type Login = Readonly<{ issuer: string; subject: string }>;
-type Service = {
+type Service = PasswordMethods & {
+  readonly passwordIssuer: () => Effect.Effect<PasswordIssuerService | undefined>;
   readonly resolve: (
     login: Login,
   ) => Effect.Effect<Option.Option<ActorId>, IdentityStoreUnavailable>;
@@ -32,6 +38,14 @@ type Service = {
 };
 
 export const bindIdentity = (service: Service): readonly Binding[] => [
+  ...bindPasswords(service, (actorId) =>
+    Effect.gen(function* () {
+      const issuer = yield* service.passwordIssuer();
+      const bindings = yield* service.bindingsOf(actorId);
+      const login = bindings.find((binding) => binding.issuer === issuer?.issuer);
+      return login === undefined ? undefined : AccountId.make(login.subject);
+    }).pipe(Effect.mapError((cause) => new AccountStoreUnavailable({ cause }))),
+  ),
   bindOperation(IdentityOperations.bindLogin, ({ issuer, subject, personId }, { caller }) =>
     caller.kind === "system"
       ? service.bind({ issuer, subject }, personId).pipe(Effect.as(personId))

@@ -94,13 +94,17 @@ const adversarial: ReadonlyArray<readonly [string, unknown]> = [
   ["inherited known keys", Object.create({ kind: "raw", value: 1 })],
 ];
 for (const [name, raw] of adversarial) {
-  it.effect(`served JSON decoding matches the real Union: ${name}`, () =>
-    Effect.gen(function* () {
-      const wire = wireValue(raw);
-      const expected = yield* outcome(Schema.decodeUnknownEffect(AnyValue, strict)(wire));
-      expect(yield* outcome(anyValue.decode(raw))).toEqual(expected);
-      expect(anyValue.calls).toEqual(expected.accepts ? [expected.value] : []);
-    }),
+  it.effect(
+    `served JSON decoding matches the real Union: ${name}`,
+    () =>
+      Effect.gen(function* () {
+        // 100k-key and 1MB cases are size probes, not speed tests; 5s flakes under the parallel root run.
+        const wire = wireValue(raw);
+        const expected = yield* outcome(Schema.decodeUnknownEffect(AnyValue, strict)(wire));
+        expect(yield* outcome(anyValue.decode(raw))).toEqual(expected);
+        expect(anyValue.calls).toEqual(expected.accepts ? [expected.value] : []);
+      }),
+    30_000,
   );
 }
 for (const key of ["0", "Symbol(value)"]) {
@@ -199,13 +203,19 @@ it.effect("the MCP server lists a closed object with resolving local refs", () =
     }
   }),
 );
-it.effect("the MCP server runs the handler exactly for objects the wire Union accepts", () =>
-  Effect.gen(function* () {
-    for (const [name, raw] of adversarial) {
-      if (typeof raw !== "object" || raw === null || Array.isArray(raw)) continue;
-      const expected = yield* outcome(Schema.decodeUnknownEffect(AnyValue, strict)(wireValue(raw)));
-      expect(yield* outcome(anyValue.decode(raw)), name).toEqual(expected);
-      expect(anyValue.calls, name).toEqual(expected.accepts ? [expected.value] : []);
-    }
-  }),
+it.effect(
+  "the MCP server runs the handler exactly for objects the wire Union accepts",
+  () =>
+    Effect.gen(function* () {
+      // 100k-key and 1MB cases are size probes, not speed tests; 5s flakes under the parallel root run.
+      for (const [name, raw] of adversarial) {
+        if (typeof raw !== "object" || raw === null || Array.isArray(raw)) continue;
+        const expected = yield* outcome(
+          Schema.decodeUnknownEffect(AnyValue, strict)(wireValue(raw)),
+        );
+        expect(yield* outcome(anyValue.decode(raw)), name).toEqual(expected);
+        expect(anyValue.calls, name).toEqual(expected.accepts ? [expected.value] : []);
+      }
+    }),
+  30_000,
 );

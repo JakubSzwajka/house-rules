@@ -32,6 +32,7 @@ export type OpenApiOptions = Readonly<{
   prefix?: `/${string}`;
   servers?: ReadonlyArray<Readonly<{ url: string; description?: string }>>;
   security?: OpenApiSecurity;
+  public?: readonly AnyFeature[] | undefined;
 }>;
 
 type Json = Record<string, unknown>;
@@ -195,6 +196,7 @@ export const toOpenApi = <const Endpoints extends readonly Endpoint[]>(
       output: converted.schemas[index * 2 + 1] ?? {},
       definitions: converted.definitions,
     });
+    if (options.public?.includes(shape.feature) === true) item[method].security = [];
     paths[at] = item;
   });
   const { security } = options;

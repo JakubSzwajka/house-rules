@@ -9,6 +9,9 @@
 - bookings:read
 - bookings:write
 - identity:bind
+- identity:create
+- identity:sign-in
+- identity:update
 - party:admin
 - party:create
 - party:read
@@ -50,6 +53,21 @@
 
 - Permission: identity:bind
 - Called by: first_sign_in
+
+### Identity.changePassword
+
+- Permission: identity:update
+- Called by: change_password
+
+### Identity.signIn
+
+- Permission: identity:sign-in
+- Called by: sign_in
+
+### Identity.signUp
+
+- Permission: identity:create
+- Called by: sign_up
 
 ### MyStuff.myBookings
 
@@ -132,6 +150,37 @@
 - Called by: none
 
 ## Features
+
+### sign_up
+
+- Starts as: system: public sign_up; public sign_up
+- Person closure: none
+- System closure: identity:create
+- Exposed by: web (/api)
+- Calls: Identity.signUp (person, inherited system stays system)
+
+### sign_in
+
+- Starts as: system: public sign_in; public sign_in
+- Person closure: none
+- System closure: identity:sign-in
+- Exposed by: web (/api)
+- Calls: Identity.signIn (person, inherited system stays system)
+
+### sign_out
+
+- Starts as: person
+- Person closure: none
+- System closure: none
+- Exposed by: web (/api)
+
+### change_password
+
+- Starts as: person
+- Person closure: identity:update
+- System closure: none
+- Exposed by: web (/api)
+- Calls: Identity.changePassword (person, inherited system stays system)
 
 ### make_booking
 

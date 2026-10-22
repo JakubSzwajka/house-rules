@@ -8,7 +8,7 @@ The **kits** are domain and application. Domain owns operation descriptors, edge
 
 **Wiring** runs or checks the app. Migrations runs module SQL. Node Host serves a plain fetch handler without Effect. Rules owns the shared presets and checks. Consumer configs stay thin.
 
-**Additions** are reusable modules such as Party, Identity and Comments, or plugs such as auth-jwt and call-audit. Each framework package an app mounts ships an `AGENTS.md` guide. The nine TypeScript packages publish built JavaScript and declarations in `dist/`; workspace imports read `src/`. Rules ships plain JavaScript.
+**Additions** are reusable modules such as Party, Identity and Comments, or plugs such as auth-jwt and call-audit. Identity is one configurable concept with passwords and OIDC providers. It owns login bindings and local password records; each configured issuer gets its matching auth-jwt verifier. Party owns roles. Auth-jwt stays a separate pure token-checking plug, including for MCP. Each framework package an app mounts ships an `AGENTS.md` guide. The nine TypeScript packages publish built JavaScript and declarations in `dist/`; workspace imports read `src/`. Rules ships plain JavaScript.
 
 ## Features, operations and graphs
 
@@ -42,11 +42,13 @@ The gate checks roles at feature start and fails 403 when a closure permission i
 
 A **way in** names a protocol, path, exposed features, Who, Mean and optional wording overrides. It lives in `ways-in/<name>/`. It imports values only from kits, `effect`, package contract doors, app features, composition and its own folder. Other package main entries and read-model doors allow types only. Ways never import each other.
 
+A **public feature** is a system-start feature listed in an HTTP way's `public` and `features`. Its requests skip Who, even with a token, and use only composition's system permissions. Other features still require Who. MCP refuses public features.
+
 A **socket** is a question the app answers. A **plug** bundles an answer. The interfaces are `WhoSocket`, `MaySocket`, `MeanSocket` and `RecordSocket`. There is no export named Record.
 
 | Question | Answer |
 | --- | --- |
-| Who is this? | `Identity.who` joins token source, Authenticator, ActorResolver and FirstSignIn. JWT verifies the token; Identity maps issuer/subject to ActorId. It never links by email. |
+| Who is this? | `Identity.who` joins token source, Authenticator, ActorResolver and FirstSignIn. Identity's configured passwords or OIDC provider verifies through auth-jwt; Identity maps issuer/subject to ActorId. It never links by email. |
 | What may they do? | One app-level `Party.may()` plug resolves the caller's held roles on every feature start. Ways narrow exposure only. `May.context` supplies that plug and features for in-process calls; `May.system` supplies system permissions only. |
 | Do they mean it? | `Mean.no` denies approval, `Mean.elicitation` asks the human, `Mean.allow` allows in-process calls. Consent is not permission. |
 | What happened? | `CallAudit.record.memory/postgres` fills RecordSocket over CallWatch. It records one row per feature start, including refusals. |

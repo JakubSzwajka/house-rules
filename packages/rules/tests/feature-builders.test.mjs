@@ -69,6 +69,7 @@ it("traces every exposure and start through imports, barrels and the Features re
     const doors = [
       (value) => `at(${value});`,
       (value) => `way({features:[${value}]});`,
+      (value) => `way({features:[Features.show], public:[${value}]});`,
       (value) => `Access.context(Access.fixed([]), {features:[${value}], system:[], via:"test"});`,
       (value) => `Access.system([${value}], {system:[], via:"test"});`,
       (value) => `run(${value}, {});`,
@@ -111,6 +112,8 @@ it("traces every exposure and start through imports, barrels and the Features re
         "{features:[Features.show], get via(){return 'test'}}",
         "{get features(){return [Features.show]}}",
         "{features(){return [Features.show]}}",
+        "{features:[Features.show], public:[], public:[{}]}",
+        "{features:[Features.show], get public(){return [{}]}}",
         "unknown",
         "options",
       ]) {

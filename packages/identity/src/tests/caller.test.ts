@@ -71,7 +71,7 @@ const seedKnown = Effect.gen(function* () {
   );
 });
 
-const inviteOnly = Layer.mergeAll(Identity.layerMemory, Identity.refuse, fakeAuthenticator).pipe(
+const inviteOnly = Layer.mergeAll(Identity.layerMemory(), Identity.refuse, fakeAuthenticator).pipe(
   Layer.provideMerge(memoryUnitOfWork),
 );
 
@@ -97,7 +97,7 @@ const createOnFirstSignIn = Layer.effect(
   }),
 );
 const openSignUp = createOnFirstSignIn.pipe(
-  Layer.provideMerge(Layer.merge(Identity.layerMemory, fakeAuthenticator)),
+  Layer.provideMerge(Layer.merge(Identity.layerMemory(), fakeAuthenticator)),
   Layer.provideMerge(memoryUnitOfWork),
 );
 

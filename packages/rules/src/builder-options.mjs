@@ -18,5 +18,9 @@ export function builderOptions(expression, hasFeatures) {
     (property) => (property.key.name ?? property.key.value) === "features",
   );
   if (hasFeatures && features.length !== 1) return undefined;
-  return { features: features[0]?.value };
+  const publicFeatures = properties.filter(
+    (property) => (property.key.name ?? property.key.value) === "public",
+  );
+  if (publicFeatures.length > 1) return undefined;
+  return { features: features[0]?.value, public: publicFeatures[0]?.value };
 }

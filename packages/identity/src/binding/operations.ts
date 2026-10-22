@@ -1,5 +1,6 @@
 import { ActorId, defineOperation } from "@house-rules/domain/contract";
 import { Schema } from "effect";
+import { PasswordOperations } from "../passwords/operations.js";
 import {
   BindingInvalid,
   BindingTaken,
@@ -22,4 +23,4 @@ const bindLogin = defineOperation("Identity.bindLogin", {
   transactional: true,
 });
 
-export const IdentityOperations = { bindLogin } as const;
+export const IdentityOperations = { bindLogin, ...PasswordOperations } as const;

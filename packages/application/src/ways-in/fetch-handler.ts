@@ -108,7 +108,12 @@ const makeHttpHandler = <A, E>(
           const issued = yield* issueSession(session, route, web.success, outcome.value);
           return issued === undefined
             ? respond(internalErrorView.status, internalErrorView.body, requestId)
-            : respond(route.status, issued.body, requestId, { "set-cookie": issued.setCookie });
+            : respond(
+                route.status,
+                issued.body,
+                requestId,
+                issued.setCookie === undefined ? {} : { "set-cookie": issued.setCookie },
+              );
         });
         // One boundary for the whole request: a defect anywhere is the fixed 500 with this request id.
         return yield* answer.pipe(

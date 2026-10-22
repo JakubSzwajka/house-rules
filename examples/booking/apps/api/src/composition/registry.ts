@@ -19,6 +19,10 @@ export const registryData = {
       name: "web",
       path: "/api",
       features: [
+        Features.signUp,
+        Features.signIn,
+        Features.signOut,
+        Features.changePassword,
         Features.makeBooking,
         Features.showBooking,
         Features.myBookings,

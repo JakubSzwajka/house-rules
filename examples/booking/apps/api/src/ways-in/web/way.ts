@@ -1,8 +1,12 @@
 import { Features } from "../../features/index.ts";
-import { localWho } from "../../composition/callers.ts";
+import { webWho } from "../../composition/callers.ts";
 import { defineWay, Mean } from "@house-rules/application";
 import { endpoints } from "./endpoints.ts";
 const features = [
+  Features.signUp,
+  Features.signIn,
+  Features.signOut,
+  Features.changePassword,
   Features.makeBooking,
   Features.showBooking,
   Features.myBookings,
@@ -18,6 +22,9 @@ export const webWay = defineWay({
   protocol: "http",
   features,
   endpoints,
-  who: localWho("web"),
+  who: webWho,
+  public: [Features.signUp, Features.signIn],
+  session: { cookie: "booking_session" },
+  origins: ["http://localhost:3000", "https://booking.example"],
   mean: Mean.no,
 });

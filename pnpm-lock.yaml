@@ -468,6 +468,13 @@ importers:
         version: 5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/identity:
+    dependencies:
+      '@house-rules/auth-jwt':
+        specifier: workspace:0.1.0
+        version: link:../auth-jwt
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
     devDependencies:
       '@effect/platform-node':
         specifier: 4.0.3

@@ -19,3 +19,42 @@ export { IdentityOperations } from "./contract.js";
 export { bindIdentity } from "./binding/bind-identity.js";
 export { memoryBindingStore } from "./adapters/memory/binding.js";
 export { postgresBindingStore } from "./adapters/postgres/binding.js";
+export {
+  AccountId,
+  AccountInputInvalid,
+  DisplayName,
+  ChangePasswordInput,
+  type ChangePasswordOutcome,
+  type AccountPermission,
+  AccountPermissions,
+  InvalidCredentials,
+  SignInInput,
+  SignInAnswer,
+  type SignInOutcome,
+  AccountEmailTaken,
+  SignedUp,
+  SignUpInput,
+  AccountStoreUnavailable,
+  SignedIn,
+  SignedOut,
+} from "./contract.js";
+export { memoryAccountStore } from "./adapters/memory/passwords.js";
+export { postgresAccountStore } from "./adapters/postgres/passwords.js";
+export { type ChangePassword, Lockout } from "./passwords/accounts.js";
+export {
+  type AdmitCheck,
+  AccountStore,
+  type FailureCount,
+  type FailureLimit,
+} from "./passwords/account-store.js";
+export {
+  PasswordIssuer,
+  type PasswordIssuerKeyOptions,
+  type PasswordIssuerOptions,
+  type PasswordIssuerService,
+} from "./passwords/accounts-issuer.js";
+export { PasswordIssuerConfigInvalid } from "./passwords/issuer-config-invalid.js";
+export { Account } from "./passwords/account.js";
+export { PasswordHash, PasswordIterations } from "./passwords/password-hash.js";
+export { PasswordsUnavailable } from "./passwords/provider-unavailable.js";
+export type { IdentityOptions, OidcProvider, PasswordsProvider } from "./sign-in/providers.js";

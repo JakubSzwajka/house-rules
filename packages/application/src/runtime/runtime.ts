@@ -23,7 +23,12 @@ import { permissionCatalogue } from "../registry/permission-catalogue.ts";
 export type RuntimeOptions = Readonly<{
   bindings: readonly Binding[];
   features: readonly AnyFeature[];
-  ways: readonly Readonly<{ name: string; features: readonly AnyFeature[] }>[];
+  ways: readonly Readonly<{
+    name: string;
+    features: readonly AnyFeature[];
+    protocol?: "http" | "mcp";
+    public?: readonly AnyFeature[];
+  }>[];
 }>;
 
 export const validateRuntime = (options: RuntimeOptions): string | undefined => {
@@ -40,8 +45,11 @@ export const validateRuntime = (options: RuntimeOptions): string | undefined => 
     if (!isFeature(callable) && !bound.has(callable))
       return `Operation has no binding: ${callable.name}`;
     if (!isFeature(callable)) continue;
-    if (callable.start !== "person" && callable.start.reason.trim() === "")
-      return `Blank system feature reason at ${callable.name}`;
+    if (
+      callable.start !== "person" &&
+      (callable.start.reason.trim() === "" || callable.start.startedBy.trim() === "")
+    )
+      return `Blank system feature reason or startedBy at ${callable.name}`;
     const closures = permissionClosures(
       callable,
       callable.start === "person" ? "person" : "system",
@@ -77,6 +85,12 @@ export const validateRuntime = (options: RuntimeOptions): string | undefined => 
     if (!isFeature(feature)) return `Feature was not created by defineFeature: ${name}`;
   }
   for (const way of options.ways) {
+    if (way.protocol === "mcp" && way.public !== undefined)
+      return "MCP ways cannot expose public features";
+    for (const feature of way.public ?? []) {
+      if (!way.features.includes(feature)) return "Public features must be exposed by the way";
+      if (feature.start === "person") return "Public features must declare a system start";
+    }
     if (
       new Set(way.features).size !== way.features.length ||
       new Set(way.features.map((feature) => feature)).size !== way.features.length

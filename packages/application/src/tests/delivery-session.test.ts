@@ -233,7 +233,7 @@ describe("mount-time checks", () => {
     expect(typeof secondSource).toBe("function");
     // @ts-expect-error: a session issue route needs a token and expiresAt in its output
     expect(() => endpoint(signOut, "POST /sign-out", { session: "issue" })).toThrow(
-      /needs a Struct output with token and expiresAt/u,
+      /needs a Struct or Union of Structs with token and expiresAt/u,
     );
   });
 });

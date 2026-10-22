@@ -2,15 +2,15 @@
 
 ## What it does
 
-Identity maps a verified login, its `(issuer, subject)` pair, to an `ActorId`. It owns `identity_binding`. One actor may have many bindings. It never links by email or stores claims. An `Authenticator` verifies tokens; `Identity.who` resolves the Actor for a way. Version 0.1.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published packages load built `dist/`; the workspace loads source.
+Identity owns login providers and maps each verified `(issuer, subject)` pair to an `ActorId`. It owns `identity_binding` and `identity_password_account`. Choose passwords for local email/password sessions, OIDC for an outside issuer, or both. Each provider pairs its issuer with an auth-jwt verifier. One actor may have many bindings. Identity never links by email or learns roles. `Identity.who` resolves the Actor for a way. Version 0.1.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published packages load built `dist/`; the workspace loads source.
 
 ## Mount and bind
 
-1. [ ] Pick an actor resolver. `Identity.layerPostgres` needs the shared SQL client; `layerMemory` is for tests. Both provide `Identity` and `ActorResolver`. Raw `Identity.layer` needs `BindingStore`. For one issuer with no table, `Identity.subject({ issuer })` treats its subject as the ActorId. A foreign issuer is refused before the new-login hook.
+1. [ ] Mount `Identity.layerPostgres({ providers })` with the shared SQL client, or `Identity.layerMemory({ providers })` in tests. Both provide `Identity`, `ActorResolver` and `Authenticator`. Use `Identity.passwords({ issuer, signingKey })` with a Redacted private P-256 JWK and/or `Identity.oidc({ issuer, jwks?, jwksUrl?, audience? })`. Provider issuers must be unique; only one passwords provider is allowed. No passwords provider means password methods fail with typed `PasswordsUnavailable`. Raw `Identity.layer` needs `BindingStore` and optionally captures `AccountStore` and `PasswordIssuer` for adapter tests. For one issuer with no table, `Identity.subject({ issuer })` treats its subject as the ActorId. A foreign issuer is refused before the new-login hook.
 2. [ ] With bindings, register `{ "package": "@house-rules/identity" }` in `migrations.json`, or `{ "workspace": "packages/identity" }` in this repo.
 3. [ ] Acquire `Identity` once and call `bindIdentity(service)`. Add its binding to the app's `Runtime`. The browser-safe `./contract` door exports binding schemas/errors and `IdentityOperations`; main adds services, ports, adapters and the binder.
 4. [ ] Fill `FirstSignIn`. `Identity.refuse` answers 403 `not_invited`. For open signup, capture the app's runtime, trace, watch and unit after runtime acquisition. The hook runs the app's system-start first-sign-in feature with `May.system`, system permissions and approval. That feature calls the shared creation/binding operations as system. Return its ActorId and map hook failures to `Refused`.
-5. [ ] Provide an `Authenticator` and the resolver/hook in the final root layer. Fill a way's Who with `Identity.who({ token: "bearer", audience?, challenge? })`. Cookie sources and ordered token sources work too. Composition plugs one Party.may() for roles. Identity knows no roles, and ways carry no permissions.
+5. [ ] Keep the configured provider `Authenticator` and the resolver/hook in the final root layer. A binding-only mount can instead receive a separate Authenticator. Fill a way's Who with `Identity.who({ token: "bearer", audience?, challenge? })`. Cookie sources and ordered token sources work too. Composition plugs one Party.may() for roles. Identity knows no roles, and ways carry no permissions.
 6. [ ] Call `identity.unbindAll(actorId)` in the account-deletion unit.
 
 ## Who contract
@@ -29,7 +29,7 @@ Identity maps a verified login, its `(issuer, subject)` pair, to an `ActorId`. I
 
 ## Service and fixed rules
 
-Methods stay `resolve`, `bind`, `unbind`, `bindingsOf`, `unbindAll`. They return Effects with no requirements. Writes join an open unit and fail `NoOpenUnit` outside one; the module never opens a unit.
+Binding methods are `resolve`, `bind`, `unbind`, `bindingsOf`, `unbindAll`. Password methods are `signUp`, `signIn`, `changePassword`; `passwordIssuer()` returns the configured signer/JWKS or undefined. They return Effects with no requirements. Writes join an open unit and fail `NoOpenUnit` outside one; the module never opens a unit.
 
 `IdentityOperations.bindLogin`, declared with `defineOperation` and named `Identity.bindLogin`, takes `{ issuer, subject, personId }` and returns that ActorId after binding. Permission is `identity:bind`; flags are transactional true, all others false; edges are empty. A person caller gets forbidden `IdentityCallerDenied`. `bindIdentity` uses `bindOperation`. App features call this operation through declared edges. Only features are exposed.
 
@@ -38,5 +38,9 @@ Methods stay `resolve`, `bind`, `unbind`, `bindingsOf`, `unbindAll`. They return
 - `actor_id` is a plain column, not a cross-module foreign key. Deleting a binding never deletes another module's data.
 - Storage failures have unavailable kind; `ForeignIssuer` has forbidden kind but Who preserves its 401 auth translation.
 - Module user-facing errors keep their messages; unavailable and plumbing errors use fixed public text, with diagnostic details kept in separate fields or causes.
+
+`IdentityOperations.signUp`, `.signIn` and `.changePassword` require `identity:create`, `identity:sign-in` and `identity:update`. All are transactional. `bindIdentity` includes their bindings and resolves password changes through the caller's own login binding. Refused sign-in and password changes return generic data so lock counts commit. Sign-out clears the way's cookie and needs no module operation; copied bearer tokens remain valid until expiry.
+
+The passwords subject uses PBKDF2-SHA256 with 600,000 iterations, random salts, dummy work for unknown emails and constant-time comparison. Five failures lock for 15 minutes. Conditional admission rechecks lock and hash after hashing. Writes join the caller's unit. Migration 0002 adds the passwords table even for OIDC-only apps; 0001 stays unchanged. `Identity.passwords({ issuer, ephemeral: true })` warns and loses sessions on restart; it refuses production. Generate a stable Redacted JWK with `PasswordIssuer.newSigningKey`. Never log keys, passwords or tokens.
 
 Run package `typecheck`, `test` and `build`. The store suite covers memory and real Postgres; Who tests cover token security, hook behavior and rollback.

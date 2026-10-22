@@ -55,7 +55,7 @@ const setCookie = (
 export const clearedCookie = (cookie: SessionCookie, request: Request): string =>
   setCookie(cookie, request, "", 0);
 
-type Issued = Readonly<{ body: unknown; setCookie: string }>;
+type Issued = Readonly<{ body: unknown; setCookie?: string }>;
 
 const grantOf = (value: unknown): Readonly<{ token: string; expiresAt: number }> | undefined => {
   if (typeof value !== "object" || value === null) return undefined;
@@ -75,8 +75,16 @@ export const issueSession = (
   value: unknown,
 ): Effect.Effect<Issued | undefined> =>
   Effect.gen(function* issue() {
+    const checked = yield* Effect.exit(
+      Schema.encodeUnknownEffect(Schema.toCodecJson(route.feature.output))(value),
+    );
+    if (Exit.isFailure(checked)) {
+      yield* Effect.logError("Session output did not encode");
+      return undefined;
+    }
+    const hasToken = typeof value === "object" && value !== null && "token" in value;
     const grant = grantOf(value);
-    if (grant === undefined) {
+    if (hasToken && grant === undefined) {
       // Never the value itself: it carries the token.
       yield* Effect.logError("Session output has no cookie-safe token and numeric expiresAt");
       return undefined;
@@ -88,6 +96,7 @@ export const issueSession = (
       yield* Effect.logError("Session output did not encode");
       return undefined;
     }
+    if (grant === undefined) return { body: encoded.value };
     const now = yield* Clock.currentTimeMillis;
     // expiresAt is epoch milliseconds, as Date.now(); the cookie dies with the token.
     const maxAge = Math.max(0, Math.floor((grant.expiresAt - now) / 1000));

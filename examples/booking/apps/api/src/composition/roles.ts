@@ -2,6 +2,7 @@ export const builtInRoles = {
   member: {
     name: "Member",
     permissions: [
+      "identity:update",
       "bookings:read",
       "bookings:write",
       "bookings:cancel",
@@ -13,6 +14,7 @@ export const builtInRoles = {
   admin: {
     name: "Admin",
     permissions: [
+      "identity:update",
       "party:admin",
       "party:read",
       "bookings:read",
@@ -23,6 +25,8 @@ export const builtInRoles = {
   },
 } as const;
 export const systemPermissions = [
+  "identity:create",
+  "identity:sign-in",
   "party:create",
   "party:admin",
   "identity:bind",

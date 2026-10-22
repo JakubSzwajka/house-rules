@@ -1,5 +1,12 @@
 import { type ActorId, defineModule, type NoOpenUnit } from "@house-rules/domain";
-import { Effect, Layer, type Option } from "effect";
+import { Effect, Layer, Option } from "effect";
+import { AccountStore } from "./passwords/account-store.js";
+import { makeAccounts, type PasswordMethods } from "./passwords/accounts.js";
+import { PasswordIssuer } from "./passwords/accounts-issuer.js";
+import { PasswordsUnavailable } from "./passwords/provider-unavailable.js";
+import { memoryAccountStore } from "./adapters/memory/passwords.js";
+import { postgresAccountStore } from "./adapters/postgres/passwords.js";
+import { type IdentityOptions, oidc, passwords, providersLayer } from "./sign-in/providers.js";
 import { memoryBindingStore } from "./adapters/memory/binding.js";
 import { postgresBindingStore } from "./adapters/postgres/binding.js";
 import type {
@@ -18,7 +25,8 @@ export type Login = Readonly<{ issuer: string; subject: string }>;
 
 export class Identity extends defineModule<
   Identity,
-  {
+  PasswordMethods & {
+    readonly passwordIssuer: () => Effect.Effect<PasswordIssuer["Service"] | undefined>;
     readonly resolve: (
       login: Login,
     ) => Effect.Effect<Option.Option<ActorId>, IdentityStoreUnavailable>;
@@ -40,7 +48,21 @@ export class Identity extends defineModule<
 >()("identity", {
   make: Effect.gen(function* identityLayer() {
     const store = yield* BindingStore;
-    return makeIdentity(store);
+    const issuer = yield* Effect.serviceOption(PasswordIssuer);
+    const accounts = yield* Effect.serviceOption(AccountStore);
+    const passwordMethods =
+      Option.isSome(issuer) && Option.isSome(accounts)
+        ? makeAccounts(accounts.value, issuer.value)
+        : {
+            signUp: () => Effect.fail(new PasswordsUnavailable()),
+            signIn: () => Effect.fail(new PasswordsUnavailable()),
+            changePassword: () => Effect.fail(new PasswordsUnavailable()),
+          };
+    return {
+      ...makeIdentity(store),
+      ...passwordMethods,
+      passwordIssuer: () => Effect.succeed(Option.getOrUndefined(issuer)),
+    };
   }),
 }) {
   // Fills ActorResolver from the bindings this module owns.
@@ -52,14 +74,20 @@ export class Identity extends defineModule<
     }),
   );
 
-  static readonly layerMemory: Layer.Layer<Identity | ActorResolver> = Layer.provideMerge(
-    this.resolver,
-    this.layer,
-  ).pipe(Layer.provide(memoryBindingStore()));
+  static readonly layerMemory = (options: IdentityOptions = { providers: [] }) =>
+    Layer.provideMerge(this.resolver, this.layer).pipe(
+      Layer.provide(Layer.merge(memoryBindingStore(), memoryAccountStore())),
+      Layer.provideMerge(providersLayer(options)),
+    );
 
-  static readonly layerPostgres = Layer.provideMerge(this.resolver, this.layer).pipe(
-    Layer.provide(postgresBindingStore),
-  );
+  static readonly layerPostgres = (options: IdentityOptions = { providers: [] }) =>
+    Layer.provideMerge(this.resolver, this.layer).pipe(
+      Layer.provide(Layer.merge(postgresBindingStore, postgresAccountStore)),
+      Layer.provideMerge(providersLayer(options)),
+    );
+
+  static readonly passwords = passwords;
+  static readonly oidc = oidc;
 
   static readonly subject = ActorResolver.subject;
 

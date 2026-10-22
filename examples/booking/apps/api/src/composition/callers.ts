@@ -8,6 +8,7 @@ import { Identity } from "@house-rules/identity";
 import { Effect } from "effect";
 import { DemoIssuers } from "./demo-issuers.ts";
 import { McpAuthenticator } from "./mcp-authenticator.ts";
+export const webWho = Identity.who({ token: ["bearer", { cookie: "booking_session" }] });
 export const localWho = (way: "web" | "partner") =>
   ({
     resolve: (incoming) =>

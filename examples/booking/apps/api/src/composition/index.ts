@@ -1,4 +1,5 @@
 import {
+  type Authenticator,
   composition,
   protectedResource,
   type WayOptions,
@@ -23,7 +24,7 @@ export const resourceOf = (appOrigin: string, issuer: string) =>
         authorizationServers: [issuer],
         resourceName: "Booking",
       });
-type WhoServices = DemoIssuers | McpAuthenticator | ActorResolver | FirstSignIn;
+type WhoServices = Authenticator | DemoIssuers | McpAuthenticator | ActorResolver | FirstSignIn;
 export type WayPlugs = {
   web: WhoSocket<WhoServices>;
   partner: WhoSocket<WhoServices>;

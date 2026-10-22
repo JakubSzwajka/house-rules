@@ -92,7 +92,7 @@ const world = Layer.unwrap(
     });
   }),
 ).pipe(
-  Layer.provideMerge(Identity.layerMemory),
+  Layer.provideMerge(Identity.layerMemory()),
   Layer.provideMerge(memoryUnitOfWork),
   Layer.provideMerge(StepTrace.layer()),
 );

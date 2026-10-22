@@ -26,6 +26,14 @@ export const validateWays = <R>(
     if (names.has(way.name)) return `Duplicate way name ${way.name}`;
     if (paths.has(way.path.toLowerCase())) return `Duplicate way path ${way.path}`;
     if (way.path !== "/" && !isPlainPrefix(way.path)) return `Invalid way path ${way.path}`;
+    if (way.protocol === "mcp" && way.public !== undefined)
+      return "MCP ways cannot expose public features";
+    if (way.protocol === "http") {
+      for (const feature of way.public ?? []) {
+        if (!way.features.includes(feature)) return "Public features must be exposed by the way";
+        if (feature.start === "person") return "Public features must declare a system start";
+      }
+    }
     names.add(way.name);
     paths.add(way.path.toLowerCase());
     if (
