@@ -4,7 +4,7 @@ import { Features } from "../../features/index.ts";
 import { builtInRoles, systemPermissions } from "../access.ts";
 import { Billing, makeFakePaymentProvider } from "@example/billing";
 import { Bookings } from "@example/bookings";
-import { MyStuff } from "../../read-models/my-bookings/index.ts";
+import { MyBookings } from "../../read-models/my-bookings/index.ts";
 import { May, StepTrace } from "@house-rules/application";
 import { Approval, CurrentActor, withRequestId } from "@house-rules/application";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
@@ -85,7 +85,7 @@ it.live(
         "active",
       );
       assert.deepStrictEqual(
-        (yield* Context.get(ctx, MyStuff).myBookings(alice)).map((r) => [
+        (yield* Context.get(ctx, MyBookings).myBookings(alice)).map((r) => [
           r.status,
           r.paymentStatus,
         ]),
@@ -109,13 +109,13 @@ it.live(
 );
 
 it.effect(
-  "MyStuff filters A/B ownership in SQL including mismatched payment owners",
+  "MyBookings filters A/B ownership in SQL including mismatched payment owners",
   () =>
     Effect.gen(function* () {
       const ctx = yield* Layer.build(planLayer(modulePlan()).pipe(Layer.provide(databaseTesting)));
       const bookings = Context.get(ctx, Bookings);
       const billing = Context.get(ctx, Billing);
-      const read = Context.get(ctx, MyStuff);
+      const read = Context.get(ctx, MyBookings);
       const a = Actor.make({ id: ActorId.make("A") });
       const b = Actor.make({ id: ActorId.make("B") });
       yield* UnitOfWork.atomic(

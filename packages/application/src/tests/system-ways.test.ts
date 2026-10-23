@@ -21,8 +21,7 @@ import {
   GraphInvalid,
   May,
   Mean,
-  registry,
-  renderRegistry,
+  appMap,
   StepTrace,
   systemStart,
 } from "../index.ts";
@@ -167,11 +166,11 @@ it.effect("hook installs a slot, uses fresh system requests and maps failures", 
       expect(state).toEqual([1, 2]);
       expect(actors).toEqual([false, false, false]);
       expect(new Set(requests).size).toBe(3);
-      expect(renderRegistry(yield* registry(app))).toContain("hook: test/system/Slot");
+      expect((yield* appMap(app)).ways[0]?.slot).toBe("test/system/Slot");
     } finally {
       yield* Effect.promise(() => app.dispose());
     }
-    expect((yield* registry(app).pipe(Effect.flip))._tag).toBe("CompositionClosed");
+    expect((yield* appMap(app).pipe(Effect.flip))._tag).toBe("CompositionClosed");
   }),
 );
 it.effect("waits until the tick, rolls back failed items and stops on disposal", () =>
@@ -187,7 +186,10 @@ it.effect("waits until the tick, rolls back failed items and stops on disposal",
       yield* TestClock.adjust("1 second");
       yield* Deferred.await(done);
       expect(state).toEqual([1, 2]);
-      expect(renderRegistry(yield* registry(app))).toContain("schedule: 0 3 * * * UTC");
+      expect((yield* appMap(app)).ways[0]?.clock).toEqual({
+        cron: "0 3 * * *",
+        timeZone: "UTC",
+      });
     } finally {
       yield* Effect.promise(() => app.dispose());
     }
@@ -212,7 +214,6 @@ it.effect("impossible calendar crons fail acquisition with typed GraphInvalid", 
     }
   }),
 );
-
 it.effect("disposal interrupts and rolls back an in-flight schedule item without later work", () =>
   Effect.gen(function* () {
     yield* TestClock.setTime(1767236340000);

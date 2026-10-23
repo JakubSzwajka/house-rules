@@ -13,8 +13,8 @@ import {
   postgresPaymentStore,
 } from "@example/billing";
 import {
-  MyStuff,
-  MyStuffMount,
+  MyBookings,
+  MyBookingsMount,
   MyBookingStore,
   postgresMyBookingStore,
   ReadUnavailable,
@@ -96,8 +96,10 @@ export const modulePlan = (options: {
       layer: choose(Party.layerMemory({ builtInRoles }), Party.layerPostgres({ builtInRoles })),
     },
     {
-      ...MyStuffMount,
-      layer: MyStuff.layer.pipe(Layer.provide(choose(readUnavailablePort, postgresMyBookingStore))),
+      ...MyBookingsMount,
+      layer: MyBookings.layer.pipe(
+        Layer.provide(choose(readUnavailablePort, postgresMyBookingStore)),
+      ),
     },
     {
       ...AuditTrailMount,

@@ -12,7 +12,7 @@ The binder supplies per-call callbacks backed by declared Party edges. The modul
 
 ## Data and proof
 
-Register this workspace in root migrations.json. Migrations 001 and 002 are immutable. Append-only 003 adds organisation_id and republishes booking_read. Foreign organisation ids have no cross-module FK. Other modules never read booking tables. The app's MyStuff list selects booking_read, payment_read and party_staff_read, filtering owner or live staff with EXISTS in SQL. No memory list adapter is required.
+Register this workspace in root migrations.json. Migrations 001 and 002 are immutable. Append-only 003 adds organisation_id and republishes booking_read. Foreign organisation ids have no cross-module FK. Other modules never read booking tables. The app's MyBookings list selects booking_read, payment_read and party_staff_read, filtering owner or live staff with EXISTS in SQL. No memory list adapter is required.
 
 Writes require UnitOfWork.required; only the runtime opens production units. Memory registers undo before mutation. Postgres joins the shared transaction. Cancellation still compares the loaded owner and active status in storage, including when an org admin initiates it.
 

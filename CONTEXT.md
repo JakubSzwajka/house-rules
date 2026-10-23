@@ -4,7 +4,7 @@ House-rules holds a TypeScript workspace template and ten public packages. [AGEN
 
 ## Kits and wiring
 
-The **kits** are domain and application. Domain owns operation descriptors, edges, caller data, error kinds, pure graph checks, closures, modules, policy and units of work. It imports no house-rules package, even for types. Application owns features, operation bindings, execution, sockets, ways, the router, clients, trace and registry.
+The **kits** are domain and application. Domain owns operation descriptors, edges, caller data, error kinds, pure graph checks, closures, modules, policy and units of work. It imports no house-rules package, even for types. Application owns features, operation bindings, execution, sockets, ways, the router, clients, trace and app map.
 
 **Wiring** runs or checks the app. Migrations runs module SQL. Node Host serves a plain fetch handler without Effect. Rules owns the shared presets and checks. Consumer configs stay thin.
 
@@ -91,9 +91,9 @@ The checker does not prove ownership inside PL/pgSQL, DO bodies or dynamic EXECU
 
 An **expected error** is a `Schema.TaggedError` with a kind: `not_found`, `conflict`, `forbidden`, `unavailable` or `invalid`. Application maps these to 404, 409, 403, 503 and 400. User-facing module messages stay intact. Unavailable and plumbing messages are fixed public text. Causes, permissions and reasons stay internal. A way's **wording override** changes only the message. Defects answer generic 500 `internal_error`.
 
-The **step trace** is bounded FIFO memory keyed by request id, default 1000 requests. Inner steps name feature, target, caller, reason, order and outcome. Reads allocate nothing; finishes do not revive evicted buckets. The **registry** is a validated snapshot from `registry(app)`, using the app's real mounts, features and ways. Pure `renderRegistry(snapshot)` produces Markdown with callers, system edges, reasons, feature closures and way exposures. A script writes `REGISTRY.md`; its freshness test only compares.
+The **step trace** is bounded FIFO memory keyed by request id, default 1000 requests. Inner steps name feature, target, caller, reason, order and outcome. Reads allocate nothing; finishes do not revive evicted buckets.
 
-The **app map** is a plain serialisable projection of that registry from `appMap(app)`. Pure `renderMap(snapshot, format)` emits sorted text, JSON or Mermaid with operation owners, feature closures, system reasons and way exposures. Tooling adds literal source paths from registry imports, builder calls and package manifests. It fails on missing or ambiguous ownership. The booking script uses memory storage and a frozen clock and writes `MAP.md`; its freshness test only compares. Its layers header is fixed, not extracted from layout rules.
+The **app map** is a plain serialisable snapshot from `appMap(app)`, using the app's validated mounts, features and actual ways. Pure `renderMap(snapshot, format)` emits sorted text, JSON or Mermaid with operation owners, feature closures, system reasons and way exposures. Tooling adds literal source paths from registry imports, builder calls and package manifests. It fails on missing or ambiguous ownership. The booking script uses memory storage and a frozen clock and writes `MAP.md`; its freshness test only compares. Its layers header is fixed, not extracted from layout rules.
 
 The **layout preset** accepts feature, read-model, way and composition areas. Its option keys are `features`, `readModels`, `waysIn` and `composition`. ESLint feature rules use literal `features/`, even with custom layout areas. Browser roots include feature indexes, the feature registry, contracts and way endpoints. Next uses `waysInLayer` for its app folder and keeps its host-owned files.
 

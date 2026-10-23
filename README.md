@@ -125,7 +125,7 @@ Lefthook runs check then test before every commit. Pi's interceptor and `scripts
 
 Checks do not replace review. Review module boundaries, explicit Actor arguments, object policy, fixed public error messages and SQL ownership inside procedural bodies. A plug must pass the pull-out test: removing it and its `Layer.provide` line leaves the rest building and passing. Test each exposed agent tool for A/B access under fake actors. MCP stays read-only unless the owner approves writes.
 
-The reference [booking app](examples/booking/README.md) shows booking and payment writes in one feature, a system refund edge, shared Party/Identity operations and a private read model. [TESTS.md](examples/booking/TESTS.md) names its proof and remaining gaps. Its registry and [app map](examples/booking/apps/api/MAP.md) are generated; freshness tests never write them. Run `pnpm --filter @example/api map` for the app map, with `--json`, `--mermaid` or `--write` to select output or refresh MAP.md.
+The reference [booking app](examples/booking/README.md) shows booking and payment writes in one feature, a system refund edge, shared Party/Identity operations and a private read model. [TESTS.md](examples/booking/TESTS.md) names its proof and remaining gaps. Its [app map](examples/booking/apps/api/MAP.md) is generated; the freshness test never writes it. Run `pnpm --filter @example/api map` for the app map, with `--json`, `--mermaid` or `--write` to select output or refresh MAP.md.
 
 ## Change the template
 

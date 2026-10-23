@@ -2,6 +2,7 @@ import { expect, it } from "@effect/vitest";
 import { defineOperation, NoInput, type PersonCaller } from "@house-rules/domain";
 import { Context, Effect, Layer, Logger, Schema } from "effect";
 import {
+  appMap,
   bindOperation,
   call,
   composition,
@@ -11,7 +12,6 @@ import {
   May,
   type MaySocket,
   Mean,
-  renderRegistry,
   Runtime,
   runFeature,
   StepTrace,
@@ -233,7 +233,13 @@ it.effect("the catalogue contains exactly the registered operations' unique perm
     });
     expect(runtime.permissions).toEqual(["items:other", "items:read"]);
     expect(Object.isFrozen(runtime.permissions)).toBe(true);
-    const registry = renderRegistry({ mounts: [{ service: "items", operations }], features, ways });
-    expect(registry).toContain("## Permissions\n\n- items:other\n- items:read\n\n## Operations");
+    const app = makeApp(May.fixed([]));
+    try {
+      expect((yield* appMap(app)).permissions.map((permission) => permission.name)).toEqual(
+        runtime.permissions,
+      );
+    } finally {
+      yield* Effect.promise(app.dispose);
+    }
   }),
 );

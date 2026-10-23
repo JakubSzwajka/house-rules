@@ -3,7 +3,7 @@ import { NoInput } from "@house-rules/domain/contract";
 import { Schema } from "effect";
 import { MyBooking, ReadUnavailable, ReadCallerDenied } from "./my-bookings.ts";
 
-export const myBookingsNode = defineOperation("MyStuff.myBookings", {
+export const myBookingsNode = defineOperation("MyBookings.myBookings", {
   description: "List the calling person’s bookings with their payment status.",
   input: NoInput,
   output: Schema.Array(MyBooking),
@@ -12,4 +12,4 @@ export const myBookingsNode = defineOperation("MyStuff.myBookings", {
 
   readOnly: true,
 });
-export const MyStuffOperations = { myBookings: myBookingsNode } as const;
+export const MyBookingsOperations = { myBookings: myBookingsNode } as const;

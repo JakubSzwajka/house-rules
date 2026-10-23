@@ -4,7 +4,7 @@ import { assert, it } from "@effect/vitest";
 import { Actor, ActorId } from "@house-rules/domain";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { Effect, FileSystem, Layer } from "effect";
-import { MyStuff, postgresMyBookingStore } from "../../index.ts";
+import { MyBookings, postgresMyBookingStore } from "../../index.ts";
 
 const database = Layer.effectDiscard(
   Migrations.run([
@@ -32,7 +32,7 @@ const database = Layer.effectDiscard(
     ),
   ),
 );
-const world = MyStuff.layer.pipe(
+const world = MyBookings.layer.pipe(
   Layer.provide(postgresMyBookingStore),
   Layer.provideMerge(database),
 );
@@ -40,7 +40,7 @@ const world = MyStuff.layer.pipe(
 it.layer(world, { timeout: 30_000 })("published views", (it) => {
   it.effect("runs the Postgres adapter against both migrated views", () =>
     Effect.gen(function* () {
-      const read = yield* MyStuff;
+      const read = yield* MyBookings;
       assert.deepStrictEqual(yield* read.myBookings(Actor.make({ id: ActorId.make("A") })), []);
       assert.deepStrictEqual(yield* read.myBookings(Actor.make({ id: ActorId.make("B") })), []);
     }),

@@ -4,7 +4,7 @@ import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
 import { Context, Effect, Layer } from "effect";
 import { Features } from "../../features/index.ts";
-import { MyStuff } from "../../read-models/my-bookings/index.ts";
+import { MyBookings } from "../../read-models/my-bookings/index.ts";
 import { modulePlan, createApp } from "../app.ts";
 import { systemPermissions } from "../access.ts";
 import { seedRoleTesting } from "./roles-testing.ts";
@@ -119,7 +119,7 @@ for (const storage of ["memory", "postgres"] as const) {
           );
         if (storage === "postgres") {
           // Call the read service directly: no feature handler can filter these rows afterwards.
-          const read = Context.get(context, MyStuff);
+          const read = Context.get(context, MyBookings);
           for (const id of ["staff", "acme-admin", "beta", "outsider"])
             assert.deepStrictEqual(
               (yield* read.myBookings(Actor.make({ id: ActorId.make(id) }))).map((b) => b.id),
@@ -143,7 +143,7 @@ for (const storage of ["memory", "postgres"] as const) {
         );
         if (storage === "postgres")
           assert.deepStrictEqual(
-            yield* Context.get(context, MyStuff).myBookings(
+            yield* Context.get(context, MyBookings).myBookings(
               Actor.make({ id: ActorId.make("staff") }),
             ),
             [],

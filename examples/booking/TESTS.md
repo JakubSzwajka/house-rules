@@ -17,7 +17,7 @@ Paths start at the repository root unless stated otherwise. Evidence keys below 
 
 ## Organisation bookings
 
-`apps/api/src/composition/tests/org-bookings.test.ts` runs `org bookings check live relations and scoped admin in the module` on memory and Postgres. It proves Acme staff access, Beta/non-member refusal, forbidden creation outside your org, scoped admin cancellation and immediate removal. The Postgres branch calls MyStuff directly and asserts owner-or-staff A/B privacy, including removal. No feature/page filter can hide leaked rows from this assertion. The SELECT uses EXISTS over party_staff_read and a left payment join matching booking owners.
+`apps/api/src/composition/tests/org-bookings.test.ts` runs `org bookings check live relations and scoped admin in the module` on memory and Postgres. It proves Acme staff access, Beta/non-member refusal, forbidden creation outside your org, scoped admin cancellation and immediate removal. The Postgres branch calls MyBookings directly and asserts owner-or-staff A/B privacy, including removal. No feature/page filter can hide leaked rows from this assertion. The SELECT uses EXISTS over party_staff_read and a left payment join matching booking owners.
 
 `packages/bookings/src/adapters/tests/booking-store.test.ts` runs both stores and checks rollback, owner/status compare-and-set and the republished booking view. `apps/api/src/composition/tests/postgres.test.ts` checks mismatched payments stay null rather than leaking another owner's payment. The read-adapter suite migrates all three view owners. The seed test runs twice on both stores; org booking ids and payment ids are stable.
 
@@ -99,13 +99,13 @@ In this table, app-relative paths start at `examples/booking/apps/api/`.
 | X | app-relative `src/ways-in/web/tests/module-entry.test.ts` | `composition refuses a way exposing a forged Bookings.get module entry` |
 | N | app-relative `src/ways-in/web/tests/mean-plugs.test.ts` | `ways select browser-confirmed Mean.allow for web and Mean.elicitation for mcp` |
 | O | `packages/rules/tests/feature-builders.test.mjs` | `defines features only in their own feature index` |
-| R | app-relative `src/composition/tests/registry.test.ts` | `REGISTRY.md matches pure output without rewriting` |
-| RR | `packages/application/src/tests/registry.test.ts` | `renders reverse callers, reasons, closures and way exposure without running anything` |
+| R | app-relative `src/tests/map.test.ts` | `MAP.md matches the app map without rewriting`; `app map snapshots every actual way exposure and feature closure` |
+| RR | `packages/application/src/tests/registry.test.ts` | `maps callers, reasons, closures and exposure without executing handlers` |
 | H | app-relative `src/ways-in/web/tests/http.test.ts` | `shared features, one authenticated hook, HTTP closure refusal and approval` |
 | E | app-relative `src/composition/tests/entries.test.ts` | `checks closures before work, asks once, transacts once, traces only two inner steps, and audits features` |
 | W | app-relative `src/ways-in/web/tests/http.test.ts` | `web confirms cancel through Mean.allow, in-process allows it, and missing database reads are unavailable` |
 | P | app-relative `src/composition/tests/postgres.test.ts` | `real PG refund failure rolls back cancel across modules and produces one failed entry record` |
-| B | app-relative `src/composition/tests/postgres.test.ts` | `MyStuff filters A/B ownership in SQL including mismatched payment owners` |
+| B | app-relative `src/composition/tests/postgres.test.ts` | `MyBookings filters A/B ownership in SQL including mismatched payment owners` |
 | V | app-relative `src/read-models/my-bookings/adapters/tests/my-bookings.test.ts` | `runs the Postgres adapter against both migrated views` (suite `published views`) |
 | S | app-relative `src/read-models/my-bookings/adapters/tests/my-bookings.test.ts` | `guards every adapter SQL template against private tables and writes` |
 | T | app-relative `src/composition/tests/entries.test.ts` | `runs the schedule once using Effect Clock, expires only pending older than 24h` |

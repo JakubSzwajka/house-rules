@@ -18,7 +18,7 @@ export default [
 
 ## App map source facts
 
-`appMapSources(snapshot, { appDirectory, rootDirectory, packageRoots })` from `@house-rules/rules/app-map` adds paths and owners to an application app map. Use it in tooling only. It reads direct named feature registry imports, literal defineFeature/defineOperation/defineWay names and package manifests. Import renames are supported. Missing, computed or ambiguous facts fail instead of producing a guessed path. Pass workspace package roots relative to rootDirectory; output paths are app-relative for app code and repo-relative for packages. This helper does not extract layout directions.
+`appMapSources(snapshot, { appDirectory, rootDirectory, packageRoots })` from `@house-rules/rules/app-map` adds paths and owners to an application app map. Use it in tooling only. It reads direct named feature registry imports, literal defineFeature/defineOperation/defineWay names and package manifests. Import renames are supported. Missing, computed or ambiguous facts fail instead of producing a guessed path. Pass workspace package roots relative to rootDirectory; output paths are app-relative for app code and repo-relative for packages. This helper does not extract layout directions. Pair it with application's `appMap` and pure `renderMap` in the app map script to write `MAP.md`. The freshness test compares without writing.
 
 ## Rules and checks
 

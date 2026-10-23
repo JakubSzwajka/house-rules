@@ -43,11 +43,6 @@ export {
   type ClosureRefusal,
   type TraceSnapshot,
 } from "./trace/step-trace.ts";
-export {
-  renderRegistry,
-  type RegistrySnapshot,
-  type RegistryWay,
-} from "./registry/registry.ts";
 export { Approval, type ApprovalService } from "./gates/approval.ts";
 export {
   ApprovalForm,
@@ -108,7 +103,7 @@ export { call, type CallOptions } from "./ways-in/call.ts";
 export { type Incoming, Refused } from "./ways-in/caller.ts";
 export { type Composition, composition, once } from "./ways-in/composition.ts";
 export { CompositionClosed } from "./ways-in/composition-closed.ts";
-export { registry, appMap } from "./ways-in/registry.ts";
+export { appMap } from "./ways-in/registry.ts";
 export {
   renderMap,
   type AppMapSnapshot,

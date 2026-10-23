@@ -146,7 +146,7 @@ it.effect("app features retain exact closures, starts, edges and lifted flags", 
         false,
         ["Bookings.get"],
       ],
-      ["my_bookings", ["bookings:read"], [], true, false, false, false, ["MyStuff.myBookings"]],
+      ["my_bookings", ["bookings:read"], [], true, false, false, false, ["MyBookings.myBookings"]],
       [
         "first_sign_in",
         [],

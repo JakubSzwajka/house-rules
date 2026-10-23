@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import { ConfigProvider, Context, Effect, Layer } from "effect";
-import { MyStuff } from "../../read-models/my-bookings/index.ts";
+import { MyBookings } from "../../read-models/my-bookings/index.ts";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { CallWatch, StepTrace, planLayer } from "@house-rules/application";
 import { memoryAuditLog } from "@house-rules/call-audit";
@@ -24,7 +24,7 @@ for (const config of [
       assert.strictEqual(log.entries()[0]?.target, Features.makeBooking.name);
       assert.isDefined(Context.get(ctx, UnitOfWork));
       assert.isDefined(Context.get(ctx, StepTrace));
-      const failure = yield* Context.get(ctx, MyStuff)
+      const failure = yield* Context.get(ctx, MyBookings)
         .myBookings(Actor.make({ id: ActorId.make("alice") }))
         .pipe(Effect.flip);
       assert.strictEqual(failure._tag, "ReadUnavailable");

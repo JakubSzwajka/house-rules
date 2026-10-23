@@ -23,6 +23,7 @@ In an app, guides live at `node_modules/@house-rules/<pkg>/AGENTS.md`. In this r
 | Sign users in | Auth-jwt guide for token checks, then Identity guide for `Identity.who`, ActorResolver and FirstSignIn |
 | Add a browser client | Application README, "Shared endpoints and clients". Use contract doors and shared endpoint descriptors. |
 | Serve a page | Node Host guide for `staticFiles`; application guide for CORS on a separate origin. Cookie writes still need CSRF. |
+| Generate an app map | Application guide for appMap/renderMap, then rules README for literal source facts. The map script writes MAP.md; its freshness test compares without writing. |
 | Fix a check | Rules README table, then the row's Docs link. Fix the code, not the rule. |
 
 The kits are domain and application. Migrations, Node Host and rules are wiring. Comments, Party and Identity are modules; auth-jwt and call-audit supply plugs. A plug must pass the pull-out test. Removing it and its `Layer.provide` line leaves the rest building and passing.

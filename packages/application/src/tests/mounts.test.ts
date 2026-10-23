@@ -10,7 +10,6 @@ import {
   May,
   PermissionCatalogue,
   planLayer,
-  registry,
   Runtime,
   StepTrace,
   type MountDefinition,
@@ -137,20 +136,26 @@ it.effect("supplies the catalogue before building modules and resolves May once"
     });
     try {
       const context = yield* app.runtime.contextEffect;
-      const snapshot = yield* registry(app);
-      yield* registry(app);
       const map = yield* appMap(app);
-      expect(map.modules[0]?.operations[0]).toEqual({
-        name: "mount_read",
-        permission: "items:read",
-        readOnly: true,
-        destructive: false,
-        edges: [],
-      });
+      yield* appMap(app);
+      const mappedMount = map.modules.find((module) => module.service === mount.service.key);
+      expect(mappedMount).toBeDefined();
+      expect(mappedMount?.operations.map((operation) => operation.name).sort()).toEqual(
+        mount.operations.map((operation) => operation.name).sort(),
+      );
+      for (const operation of mount.operations) {
+        expect(mappedMount?.operations.find((entry) => entry.name === operation.name)).toEqual({
+          name: operation.name,
+          permission: operation.permission,
+          readOnly: operation.readOnly,
+          destructive: operation.destructive,
+          edges: [],
+        });
+      }
       expect(JSON.parse(renderMap(map, "json"))).toEqual(map);
       expect(Context.get(context, Runtime).permissions).toBe(catalogue);
       expect(catalogue).toEqual(["items:read"]);
-      expect(snapshot.mounts[0]?.operations[0]).toBe(read);
+      expect(map.modules[0]?.service).toBe(Store.key);
       expect([builds, binds, mays]).toEqual([1, 1, 1]);
     } finally {
       yield* Effect.promise(() => app.dispose());

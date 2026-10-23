@@ -1,9 +1,53 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import { Effect, FileSystem } from "effect";
-import { renderMap } from "@house-rules/application";
+import { appMap, renderMap } from "@house-rules/application";
+import { Features } from "../features/index.ts";
+import { webWay } from "../ways-in/web/way.ts";
+import { mcpWay } from "../ways-in/mcp/way.ts";
+import { firstSignInWay } from "../ways-in/hooks/first-sign-in.ts";
+import { nightlyCleanupWay } from "../ways-in/schedules/nightly-cleanup.ts";
+import { snapshotApp } from "../../scripts/snapshot-app.ts";
 import { mapSnapshot } from "../../scripts/map.ts";
 import { mapSources } from "../../scripts/map-sources.ts";
+
+it.effect("app map snapshots every actual way exposure and feature closure", () =>
+  Effect.gen(function* () {
+    const app = snapshotApp();
+    try {
+      const snapshot = yield* appMap(app);
+      assert.deepStrictEqual(
+        snapshot.features.map((feature) => feature.name).sort(),
+        Object.values(Features)
+          .map((feature) => feature.name)
+          .sort(),
+      );
+      const ways = [webWay, mcpWay, firstSignInWay, nightlyCleanupWay];
+      assert.strictEqual(snapshot.ways.length, ways.length);
+      for (const way of ways) {
+        const actual = snapshot.ways.find((entry) => entry.name === way.name);
+        assert.isDefined(actual);
+        assert.strictEqual(actual.protocol, way.protocol);
+        assert.deepStrictEqual(
+          [...actual.features].sort(),
+          way.features.map((feature) => feature.name).sort(),
+        );
+        for (const feature of way.features) {
+          assert.isTrue(app.features.includes(feature));
+          const mapped = snapshot.features.find((entry) => entry.name === feature.name);
+          assert.isDefined(mapped);
+          assert.deepStrictEqual(mapped.closures, {
+            person: [...feature.closures.person].sort(),
+            system: [...feature.closures.system].sort(),
+          });
+          assert.include(mapped.ways, way.name);
+        }
+      }
+    } finally {
+      yield* Effect.promise(app.dispose);
+    }
+  }),
+);
 
 it.effect("app map renders twice byte-identically and ignores input order", () =>
   Effect.gen(function* () {
@@ -61,7 +105,7 @@ it.effect("app map renders twice byte-identically and ignores input order", () =
     assert.notInclude(text, "inherited system");
     assert.include(text, "  └─ show_booking");
     assert.include(text, "      └─ Bookings.get");
-    assert.include(text, "  │   └─ MyStuff.myBookings");
+    assert.include(text, "  │   └─ MyBookings.myBookings");
     assert.isTrue(text.split("\n").every((line) => line.length <= 100));
     assert.match(text, /\n {7}Party\./);
     assert.match(text, /\n {13}\w/);

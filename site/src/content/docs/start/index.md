@@ -27,7 +27,7 @@ Use `--public` instead of `--private` for a public repo. Install sets up the pre
 
 ## Read the example
 
-The [booking guide](../../../../../examples/booking/README.md) gives a reading order. The app joins booking and payment operations into features. It includes a system refund edge, Party and Identity operations, and a read model over published views. Its Vite/React dashboard uses the web API at `/api`; read-only MCP is at `/mcp`. Every new login gets the member role. The payment provider is a fake.
+The [booking guide](../../../../../examples/booking/README.md) gives a reading order. The app joins booking and payment operations into features. It includes a system refund edge, Party and Identity operations, and a read model over published views. Its Vite/React dashboard uses the web API at `/api`; read-only MCP is at `/mcp`. Every new login gets the member role. The payment provider is a fake. Its [MAP.md](../../../../../examples/booking/apps/api/MAP.md) shows actual ways, feature closures and operation owners. Run `pnpm --filter @example/api map --write` to regenerate it; the freshness test compares without writing.
 
 Production requires ACCOUNTS_SIGNING_KEY, a private P-256 JWK. Set APP_ORIGIN to the public HTTPS origin for Secure cookies. Optional MCP_AUTH_ISSUER adds the real OIDC MCP provider; unset MCP stays closed. The devLocal test issuer is mounted only in development/test.
 

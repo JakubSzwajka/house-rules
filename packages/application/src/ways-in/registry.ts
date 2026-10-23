@@ -7,7 +7,7 @@ import { CompositionClosed } from "./composition-closed.ts";
 
 export const appMap = <A, E>(app: Composition<A, E>) => registry(app).pipe(Effect.map(mapRegistry));
 
-export const registry = <A, E>(
+const registry = <A, E>(
   app: Composition<A, E>,
 ): Effect.Effect<RegistrySnapshot, E | CompositionClosed> =>
   serveIn<A, Exit.Exit<RegistrySnapshot, E | CompositionClosed>>(app, {
