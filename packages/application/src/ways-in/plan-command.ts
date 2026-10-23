@@ -56,7 +56,7 @@ const load = (read: PlanCommandRead, path: string, allowMap: boolean) =>
       return (yield* decodeMap(json, { errors: "all" }).pipe(
         Effect.mapError((error) =>
           invalid(
-            `${path}: not a valid app map; regenerate it with the app's map script`,
+            `${path}: not a valid app map. It was read as an app map because it has both "layers" and "permissions". Regenerate a snapshot with the app's map script; a plan must not have those keys`,
             error.message.split("\n"),
           ),
         ),

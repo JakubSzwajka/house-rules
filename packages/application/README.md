@@ -168,7 +168,7 @@ plugs: [
 ],
 ```
 
-Declared plugs are review facts. No runtime code reads them and the runtime does not prove them; review and the pull-out test catch a wrong name. appMap fails with GraphInvalid when a declared plug has a blank or duplicate name, fills an unknown socket or slot, names an unknown or repeated way, puts Who on a hook or schedule way, omits ways for Who, Mean or a hook slot, names ways for May or Record, differs from a derived plug of the same name, uses the reserved `hook:` prefix without matching a hook way, or fills a socket or slot twice on one way or app. Every one of these issues is reported together. A declared plug identical to a derived one merges into it.
+Declared plugs are review facts. No runtime code reads them and the runtime does not prove them; review and the pull-out test catch a wrong name. appMap fails with GraphInvalid when a declared plug has a blank or duplicate name, fills an unknown socket or slot, names an unknown or repeated way, puts Who on a hook or schedule way, omits ways for Who, Mean or a hook slot, names ways for May or Record, differs from a derived plug of the same name, uses the reserved `hook:` prefix without matching a hook way, or fills a socket or slot twice on one way or app. appMap reports only the first plug issue it finds; `validatePlan` reports every plug issue together. A declared plug identical to a derived one merges into it.
 
 Socket fills and hook slot fills are separate, so a hook whose Context key is `Mean` never collides with the Mean socket. In a valid map only a `hook:<way>` plug fills a slot; every other plug fills the socket named by `fills`. A declared plug that is not a derived twin fills the socket when `fills` names one.
 

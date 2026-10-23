@@ -120,11 +120,16 @@ it.effect("only diff explicitly detects snapshots by both layers and permissions
     const malformed = yield* run(["diff", "bad-map.json", "plan.json"]);
     expect(malformed.exitCode).toBe(1);
     expect(malformed.stderr).toContain("not a valid app map");
+    // A plan author who pasted both snapshot keys must learn why it was not read as a plan.
+    expect(malformed.stderr).toContain(
+      'read as an app map because it has both "layers" and "permissions"',
+    );
+    expect(malformed.stderr).toContain("a plan must not have those keys");
     const legacy = yield* run(["diff", "plan.json", "legacy-map.json"]);
     expect(legacy.exitCode).toBe(1);
     expect(legacy.stderr).toContain('["modules"][0]["operations"][0]["transactional"]');
     expect(legacy.stderr).toContain('["modules"][0]["operations"][0]["needsApproval"]');
-    expect(legacy.stderr).toContain("regenerate it with the app's map script");
+    expect(legacy.stderr).toContain("Regenerate a snapshot with the app's map script");
   }),
 );
 

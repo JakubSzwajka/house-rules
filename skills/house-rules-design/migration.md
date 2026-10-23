@@ -48,12 +48,13 @@ The plan cannot document all compatibility constraints. Record old and proposed 
 
 In `INDEX.md`, compare only axes with consequences: module cuts, screen reads, identity/roles and credentials, job drivers, deployable boundaries, migration cost and rollback floor. Label estimates as estimates. State a recommendation and what evidence would change it. List each law exception or dependency/release decision separately for owner approval.
 
-From the target repo root, render and compare candidate paths:
+From the target repo root, validate, render and compare candidate paths. Outside the house-rules repo, use `node scripts/plan.mjs` from the [CLI adapter](reference.md#consumer-cli-before-a-bin-exists) in place of `pnpm --silent plan`:
 
 ```sh
-pnpm plan view migration-design/options/A-close-fit/plan.json -o /tmp/option-a.html
-pnpm plan view migration-design/options/B-shared-additions/plan.json -o /tmp/option-b.html
-pnpm plan diff migration-design/options/A-close-fit/plan.json migration-design/options/B-shared-additions/plan.json --text
+pnpm --silent plan validate migration-design/options/A-close-fit/plan.json
+pnpm --silent plan view migration-design/options/A-close-fit/plan.json -o /tmp/option-a.html
+pnpm --silent plan view migration-design/options/B-shared-additions/plan.json -o /tmp/option-b.html
+pnpm --silent plan diff migration-design/options/A-close-fit/plan.json migration-design/options/B-shared-additions/plan.json --text
 ```
 
 Run equivalent commands for C when it is a real option. A plan-vs-plan diff compares designs; it is not evidence that the old non-house-rules app has that shape.
@@ -66,7 +67,7 @@ Write each slice with prerequisites, exact commands for this app, expected outpu
 2. Prepare package contract doors, operation descriptors, binders and mounts. Test browser safety and graph closures. Keep migrations append-only and record adoption/history constraints before any schema change.
 3. Move domain rules above fact-only storage ports. Require the same store suite against memory and real Postgres, no-unit failures and rollback tests. Test a failed second module write leaves the first unchanged.
 4. Assemble features and ways, then Who/May/Mean/Record. Gate on actual admission, public exposure, MCP A/B access, session/CSRF behavior and refusal audit tests. Verify that the declared plugs match wiring and pass the pull-out test.
-5. Install hooks and schedules with explicit Mean. Test fresh system context, idempotent items, failure continuation and scoped shutdown. Do not promise a startup tick, catch-up, external-effect rollback or distributed scheduling lease.
+5. Install hooks and schedules with explicit Mean: `Mean.allow` for trusted provisioning and nightly maintenance, `Mean.no` for the rest unless the owner approves otherwise. Test fresh system context, idempotent items, failure continuation and scoped shutdown. Do not promise a startup tick, catch-up, external-effect rollback or distributed scheduling lease.
 6. Run the approved plan against the built map. Require an empty diff, `pnpm check` and `pnpm test`, then any app-specific integration/build gates. An image rollback is not a database rollback; describe the earliest compatible image after each migration.
 
 Return to the main skill's flow A for approval before implementation. Reopen approval when a slice changes the agreed shape or compatibility contract.
