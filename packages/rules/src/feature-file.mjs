@@ -24,17 +24,6 @@ const featureImport = (filename, source, root) => {
 };
 const typeDeclaration = (node) =>
   ["TSTypeAliasDeclaration", "TSInterfaceDeclaration"].includes(node?.type);
-const permissionList = (node) =>
-  node?.type === "TSAsExpression" &&
-  node.typeAnnotation.type === "TSTypeReference" &&
-  node.typeAnnotation.typeName.name === "const" &&
-  node.expression.type === "ArrayExpression" &&
-  node.expression.elements.every(
-    (item) =>
-      item?.type === "Literal" &&
-      typeof item.value === "string" &&
-      /^[^\s:]+:[^\s:]+$/u.test(item.value),
-  );
 
 export const featureFileRule = {
   meta: {
@@ -42,7 +31,7 @@ export const featureFileRule = {
     docs: {
       url: ruleDocsUrl("feature-file"),
       description:
-        "Require exactly one defineFeature call per feature index, directly exported, only index.ts and tests/ in each feature folder, and a feature-only registry with literal permission lists.",
+        "Require exactly one defineFeature call per feature index, directly exported, only index.ts and tests/ in each feature folder, and a registry limited to Features and feature/type re-exports.",
     },
     schema: [
       {
@@ -58,7 +47,7 @@ export const featureFileRule = {
       import:
         "A feature imports only effect, kit contract doors, package ./contract doors, read-model contract doors and other feature indexes.",
       registry:
-        "The feature registry only re-exports features, builds a Features object from named feature imports, and declares as const permission-string arrays.",
+        "The feature registry only builds a Features object from named feature imports and permits feature re-exports and type exports; permission lists belong in composition/access.ts.",
     },
   },
   create(context) {
@@ -178,8 +167,8 @@ export const featureFileRule = {
                 if (
                   !(
                     value.id.type === "Identifier" &&
-                    (permissionList(value.init) ||
-                      (value.id.name === "Features" && featureObject(value.init)))
+                    value.id.name === "Features" &&
+                    featureObject(value.init)
                   )
                 )
                   report(value, "registry");

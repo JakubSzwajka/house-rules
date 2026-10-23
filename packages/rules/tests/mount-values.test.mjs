@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { it } from "node:test";
@@ -28,6 +28,17 @@ it("accepts plain package mounts and their re-export as finished values", () => 
   assert.deepEqual(
     lint(
       'import { Mount } from "@acme/items"; export const mounts = [{ ...Mount, layer }];',
+      "apps/api/src/composition/modules.ts",
+    ),
+    [],
+  );
+});
+it("accepts the CommentsMount public door and its module-plan entry", () => {
+  const comments = readFileSync(new URL("../../comments/src/index.ts", import.meta.url), "utf8");
+  assert.deepEqual(lint(comments, "packages/comments/src/index.ts"), []);
+  assert.deepEqual(
+    lint(
+      'import { CommentsMount } from "@house-rules/comments"; export const mounts = [{ ...CommentsMount, layer }];',
       "apps/api/src/composition/modules.ts",
     ),
     [],

@@ -47,7 +47,7 @@ export const commentsConsumerFiles = {
 import path from "node:path";
 import { Actor, ActorId, defineModule, memoryUnitOfWork } from "@house-rules/domain";
 import { CurrentActor, defineFeature, May, Runtime, runFeature, StepTrace } from "@house-rules/application";
-import { Comments, bindComments, CommentTargets, CommentTargetNotFound } from "@house-rules/comments";
+import { Comments, CommentsMount, CommentTargets, CommentTargetNotFound } from "@house-rules/comments";
 import * as contract from "@house-rules/comments/contract";
 import { Migrations } from "@house-rules/migrations";
 import { NodeRuntime as NodePlatform, NodeServices } from "@effect/platform-node";
@@ -61,7 +61,7 @@ const add = defineFeature("packed_add", { description: "Add a comment.", input: 
 const list = defineFeature("packed_list", { description: "List comments.", input: contract.CommentsOperations.listComments.input, output: contract.CommentsOperations.listComments.output, failure: contract.CommentsOperations.listComments.failure, permission: null, flags: { readOnly: true }, edges: [contract.CommentsOperations.listComments], handler: (input, { call }) => call(contract.CommentsOperations.listComments, input) });
 const features = [add, list];
 const runtime = Layer.unwrap(Effect.gen(function* () {
-  return Runtime.layer({ features, ways: [], mounts: [{ service: Comments, operations: Object.values(contract.CommentsOperations), bind: bindComments }] });
+  return Runtime.layer({ features, ways: [], mounts: [CommentsMount] });
 })).pipe(Layer.provide(comments));
 const world = Layer.mergeAll(runtime, Probe.layer, memoryUnitOfWork, StepTrace.layer(), NodeServices.layer);
 const as = (viewer) => Layer.merge(Layer.succeed(CurrentActor, viewer), Layer.succeedContext(May.context(May.fixed(Object.values(contract.CommentPermissions)), { features, system: [], via: "packed" })));
@@ -88,7 +88,7 @@ NodePlatform.runMain(Effect.gen(function* () {
 `,
   "comments.ts": `import { Actor, ActorId, defineModule } from "@house-rules/domain";
 import { CurrentActor } from "@house-rules/application";
-import { Comments, bindComments, type CommentFailure, CommentTargets, type CommentRelation, CommentsOptions } from "@house-rules/comments";
+import { Comments, CommentsMount, bindComments, type CommentFailure, CommentTargets, type CommentRelation, CommentsOptions } from "@house-rules/comments";
 import { CommentsOperations, type Comment, type CommentTarget, type CommentPage, type CommentCursor, type CommentList, type CommentPermission, CommentPermissions } from "@house-rules/comments/contract";
 import { Effect } from "effect";
 export class Probe extends defineModule<Probe, { echo: (actor: Actor) => Effect.Effect<ActorId> }>()("cold_probe", { make: Effect.succeed({ echo: (actor: Actor) => Effect.succeed(actor.id) }) }) {}
@@ -104,6 +104,7 @@ export const body = (comment: Comment): string => comment.body;
 export const items = (list: CommentList): ReadonlyArray<Comment> => list.items;
 export const bindings = (service: Comments["Service"]) => bindComments(service);
 export const operations = Object.values(CommentsOperations);
+export const mount = CommentsMount;
 export const captures = () => defineModule<Probe, { echo: (actor: Actor) => Effect.Effect<ActorId> }>()("cold_captures", {
   // @ts-expect-error defineModule refuses a make that requires CurrentActor
   make: Effect.map(CurrentActor, (current) => ({ echo: (_actor: Actor) => Effect.succeed(current.id) })),

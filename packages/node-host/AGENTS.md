@@ -6,7 +6,7 @@ It is a Host for a Web fetch handler on Node 24.21.0 or later. It exports `serve
 
 ## How an app mounts it
 
-In `src/main.ts`, call `serve(api, { port, onClose: () => api.dispose().then(() => app.dispose()), handleSignals: true })`, where `api` is the function returned by `toFetchHandler` and `app` is the composition. Dispose the fetch handler before the app. The booking API reads PORT through Effect Config, defaulting to 3000. Its APP_ORIGIN configures the MCP resource URL, not HTTP origins. Tests use port 0 and close the returned Host.
+In `src/main.ts`, call `serve(api, { port, onClose: () => api.dispose().then(() => app.dispose()), handleSignals: true })`, where `api` is the function returned by `toFetchHandler` and `app` is the composition. Dispose the fetch handler before the app. The booking API reads PORT through Effect Config, defaulting to 3000. Its APP_ORIGIN configures the MCP resource URL and web origins. Main uses `http://localhost:${PORT}` when it is unset, and also keeps `http://localhost:3000` in the allowed origins. Tests use port 0 and close the returned Host.
 
 Behind a TLS proxy, cookie writes get 403 `cross_origin` unless the HTTP way sets its public origin. Configure the way before passing it to the composition:
 
@@ -18,7 +18,6 @@ const webWay = defineWay({
   features,
   endpoints,
   who,
-  may,
   mean,
   origins: ["https://public.example"],
 });
@@ -27,9 +26,9 @@ const app = createApp([webWay]);
 const api = toFetchHandler(app);
 ```
 
-`defineWay` and `toFetchHandler` come from `@house-rules/application`; features, endpoints, sockets and `createApp` are app-owned wiring. Build endpoints with `endpoint(feature)`. Ways expose features, never module operations. `toFetchHandler` takes only the app. HTTP `origins`, `cors`, `session` and `maxBodyBytes` belong to `defineWay({ protocol: "http", ... })`. The booking example's web way currently leaves those options unset.
+`defineWay` and `toFetchHandler` come from `@house-rules/application`; features, endpoints, sockets and `createApp` are app-owned wiring. Build endpoints with `endpoint(feature)`. Ways expose features, never module operations. `toFetchHandler` takes only the app. HTTP `origins`, `cors`, `session` and `maxBodyBytes` belong to `defineWay({ protocol: "http", ... })`. The booking web way sets a session cookie and allowed origins; main sets its runtime origins. Composition supplies one app-level May. Ways carry no permission lists.
 
-Set explicit HTTP-way `origins` for local and internal apps too, and restrict Host at their proxy or listener to guard against DNS rebinding. See the [application kit's session and CSRF options](../application/README.md#shared-endpoints-and-clients).
+Set explicit HTTP-way `origins` for local and internal apps too, and restrict Host at their proxy or listener to guard against DNS rebinding. See the [application kit's session and CSRF options](../application/README.md#endpoints-clients-and-failures).
 
 To serve the built page from the same origin, the default for a web app, put `staticFiles` before the API handler:
 

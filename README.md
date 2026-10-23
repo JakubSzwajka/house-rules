@@ -31,10 +31,10 @@ packages/
   auth-jwt/                  token verification plug
   call-audit/                feature audit plug
   comments/                  comments module
-  identity/                  login bindings and Who plug
+  identity/                  login bindings, passwords, OIDC and Who plug
   migrations/                module migration runner
   node-host/                 plain fetch handler on a Node socket
-  party/                     people module
+  party/                     people, organisations, relationships and roles
   rules/                     shared checks and presets
 site/                        private Astro docs site
 skills/house-rules/           agent guide router
@@ -47,7 +47,7 @@ App source has these areas:
 src/
   features/<name>/           index.ts with one feature and handler, tests/
   read-models/<name>/        screen query over published views
-  ways-in/<name>/            HTTP or MCP way and client endpoints
+  ways-in/<name>/            HTTP/MCP endpoints, hooks or UTC schedules
   composition/              mount, link, plug, open ways, schedule
   main.ts                   join the root and ways, start the Host
 ```
@@ -107,7 +107,7 @@ pnpm test  -> root Node tests -> workspace tests
 
 Warnings fail Biome and ESLint. All Dependency Cruiser rules have error severity. See the [rules table](packages/rules/README.md#rules-and-checks) for the checked rules and their limits. Tests of retired names scan live code and docs, with exact exceptions for intentional absence proofs and the old rule anchor.
 
-CI starts Postgres, installs the frozen lockfile, then runs check, test, packed-consumer, the booking API build and the site build. The example has no web page. Its API build bundles `src/main.ts` for Node.
+CI starts Postgres, installs the frozen lockfile, then runs check, test, packed-consumer, the booking API build and the site build. The booking example serves a Vite/React shadcn dashboard with real sign-in. Its build writes the page to `dist/web`, then bundles `src/main.ts` for Node.
 
 `pnpm run packed-consumer` builds and packs all ten public packages, installs them in a cold npm consumer, and checks Node, TypeScript, browser contracts, layout and migration behavior. It needs the registry. `pnpm acceptance` clones committed HEAD into a temp folder and runs frozen install, check and test. It cannot see uncommitted work.
 
@@ -131,7 +131,7 @@ The reference [booking app](examples/booking/README.md) shows booking and paymen
 
 Keep thin configs, CI, hooks, environment checks and wiring tests when you adapt the stack. Match roots in `pnpm-workspace.yaml`, `layout()` and `featuresConfig()`. A Next app uses `host: "next"` and the Next preset; it already has a Host.
 
-For a browser client, export endpoint descriptors from `ways-in/<name>/endpoints.ts`. Both the router and client read those descriptors. Bindings and storage never enter a contract dependency tree. See [clients and endpoints](packages/application/README.md#shared-endpoints-and-clients).
+For a browser client, export endpoint descriptors from `ways-in/<name>/endpoints.ts`. Both the router and client read those descriptors. Bindings and storage never enter a contract dependency tree. See [clients and endpoints](packages/application/README.md#endpoints-clients-and-failures).
 
 The site has a home page, a handwritten start page and a generated rules page. Ask before adding a page. Change rule docs and the rules README first, then run `pnpm --filter @house-rules/site generate`. Never edit generated rules by hand.
 

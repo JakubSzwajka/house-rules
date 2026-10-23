@@ -12,6 +12,7 @@ import { Actor, ActorId, memoryUnitOfWork } from "@house-rules/domain";
 import { Effect, Layer } from "effect";
 import {
   CommentsOperations,
+  CommentsMount,
   bindComments,
   Comments,
   CommentTargetNotFound,
@@ -105,9 +106,7 @@ const module = Comments.layerMemory({
 const world = Layer.unwrap(
   Effect.gen(function* () {
     return Runtime.layer({
-      mounts: [
-        { service: Comments, operations: Object.values(CommentsOperations), bind: bindComments },
-      ],
+      mounts: [CommentsMount],
       features,
       ways: [],
     });
@@ -126,6 +125,19 @@ const as = (actor: Actor, allowed: readonly (typeof permissions)[number][] = per
   );
 
 it.layer(world)("Comments nodes", (test) => {
+  test.effect("CommentsMount binds listComments through Runtime.layer", () =>
+    Effect.gen(function* () {
+      expect(CommentsMount.service).toBe(Comments);
+      expect(CommentsMount.operations).toEqual(Object.values(CommentsOperations));
+      expect(CommentsMount.bind).toBe(bindComments);
+      expect(
+        yield* runFeature(list, {
+          target: { kind: "test", id: "mount" },
+          page: { size: 10 },
+        }).pipe(Effect.provide(as(owner))),
+      ).toEqual({ items: [] });
+    }),
+  );
   test.effect("contract door exports descriptors only, with literal flags and no approval", () =>
     Effect.sync(() => {
       expect(Object.keys(contract)).not.toContain("bindComments");

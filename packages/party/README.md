@@ -42,6 +42,7 @@ Descriptors come from `@house-rules/party/contract`. Only app features are expos
 | createPerson | party:create | T |
 | showPerson | party:read | R |
 | showMe | party:read | R |
+| myAccess | party:read | R |
 | renamePerson | party:update | T |
 | createOrganisation | party:create-organisation | T |
 | myOrganisations | party:read | R |
@@ -52,6 +53,7 @@ Descriptors come from `@house-rules/party/contract`. Only app features are expos
 | listInvitations | party:admin | R |
 | revokeInvitation | party:admin | T D A |
 | showOrganisation | party:read | R |
+| canAdminOrganisation | party:read | R |
 | relate | party:admin | T |
 | unrelate | party:admin | T D A |
 | isRelated | party:read | R |

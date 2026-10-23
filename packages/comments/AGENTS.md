@@ -7,13 +7,13 @@ Comments owns flat, plain-text comments on the app's targets. `Comments` capture
 ## Mount and bind
 
 1. [ ] Fill `CommentTargets` in composition with a layer that calls the host module's relation method. Map host failures to `CommentTargetsUnavailable`. There is no default host port.
-2. [ ] Mount `Comments.layerPostgres({ ...Comments.presets.default, targets: ["your-kind"] })` with that layer and the shared SQL client. Tests use `layerMemory(options)`; raw `layer(options)` also needs `CommentStore`.
+2. [ ] In `composition/modules.ts`, import `CommentsMount` from the package main and add `{ ...CommentsMount, layer: chosenCommentsLayer }` to the module plan. Choose `Comments.layerPostgres({ ...Comments.presets.default, targets: ["your-kind"] })` with the host-port layer and shared SQL client. Tests use `layerMemory(options)`; raw `layer(options)` also needs `CommentStore`.
 3. [ ] Register `{ "package": "@house-rules/comments" }` in `migrations.json`, or `{ "workspace": "packages/comments" }` in this repo.
-4. [ ] Acquire `Comments` once, call `bindComments(service)` and add its bindings to the app's `Runtime`. App features declare edges to `CommentsOperations`. Only features are exposed.
+4. [ ] Let composition acquire `Comments` and call the mount's `bindComments` binder once to build `Runtime`. App features declare edges to `CommentsOperations`. Only features are exposed.
 5. [ ] Share the app's unit adapter. Call `comments.removeTarget(ref)` in the target-deletion unit and `comments.erase(authorId)` in the account-deletion unit.
 6. [ ] Test allowed and denied actors. Do not expose a write or destructive MCP tool without the owner's approval.
 
-The browser-safe `./contract` door exports schemas, errors, permissions and `CommentsOperations`, never bindings or application values. `defineOperation` declares each operation; `bindComments` uses `bindOperation`. Main adds the service, binder, host port, storage and policy.
+The browser-safe `./contract` door exports schemas, errors, permissions and `CommentsOperations`, never bindings or application values. `defineOperation` declares each operation; `bindComments` uses `bindOperation`. `CommentsMount` is a plain value with `service`, `operations` and `bind`. Composition chooses its layer, host port, storage and policy.
 
 | CommentsOperations member / name | Permission | Flags |
 | --- | --- | --- |

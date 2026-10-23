@@ -24,13 +24,11 @@ Value and type imports are limited to `effect`, kit contract doors, package `./c
 
 ## Feature registry
 
-`features/index.ts` may import and re-export features, build a `Features` object from direct named feature imports, and declare permission lists. Lists are const arrays asserted `as const`; every element is a literal `resource:action` string. Empty lists are allowed. No calls, stray values, spreads or computed registry members are allowed. Type declarations and exports are allowed.
+`features/index.ts` may import and re-export features and build a `Features` object from direct named feature imports. Type declarations and exports are allowed. No calls, stray values, spreads or computed registry members are allowed. Permission lists, including empty lists and unexported lists, are rejected. Declare built-in roles and system permissions in `composition/access.ts`.
 
 ```ts
 import { ping } from "./ping/index.ts";
 export const Features = { ping } as const;
-export const member = ["status:read"] as const;
-export const system = [] as const;
 ```
 
 Enable `configs.features` or `featuresConfig({ appsDir, packagesDir })` with the same roots as `layout()`. These ESLint rules use literal `features/`, not custom layout areas. The browser graph separately follows every feature index and the registry, including type-only paths.

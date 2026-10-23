@@ -2,9 +2,9 @@
 
 Comments owns flat, plain-text comments on an app's objects. It exposes `list`, `add`, `edit`, `remove`, `removeTarget` and `erase`. User methods take an explicit Actor. Writes join an open unit of work; they never open one.
 
-Mount `Comments.layerPostgres(options)` or `Comments.layerMemory(options)` in composition and fill the required `CommentTargets` host port. Options name allowed target kinds and cap body length and page size. `Comments.presets.default` supplies limits of 4000 UTF-16 code units and 100 items, but never chooses target kinds. Register the package in `migrations.json`.
+Import `CommentsMount` from the package main and add `{ ...CommentsMount, layer: chosenCommentsLayer }` to the app's module plan in `composition/modules.ts`. Choose `Comments.layerPostgres(options)` or `Comments.layerMemory(options)` there and fill the required `CommentTargets` host port. Options name allowed target kinds and cap body length and page size. `Comments.presets.default` supplies limits of 4000 UTF-16 code units and 100 items, but never chooses target kinds. Register the package in `migrations.json`.
 
-Acquire the service once and pass it to `bindComments(service)` when building the app's `Runtime`. App features call `CommentsOperations` through declared edges. `defineOperation` declares each operation; `bindComments` uses `bindOperation`:
+`CommentsMount` holds the service key, operation descriptors and `bindComments` binder. Composition acquires the service and calls the binder once when building `Runtime`. App features call `CommentsOperations` through declared edges. `defineOperation` declares each operation; `bindComments` uses `bindOperation`:
 
 ```text
 listComments   comments:read    readOnly

@@ -26,7 +26,7 @@ Open work, not alternate law. Decisions 25 to 29 keep all domain modules in pack
 - [ ] Design explicit login linking. Identity never merges people by email. Provider redirect/callback flows, account recovery, email checks and token revocation need their own design.
 - [ ] Pick one authority for organisations and memberships. Membership must not grant object access by itself; module policy still decides.
 - [ ] Add modules only from real needs: invites, tags, quotas, usage, files, preferences or entitlements. Provider adapters ship apart from domain packages.
-- [ ] Prove browser session renewal and revocation before a real app relies on them. A cleared cookie does not revoke a copied token. The booking reference has no web page or account UI.
+- [ ] Prove browser session renewal and revocation before a real app relies on them. A cleared cookie does not revoke a copied token. The booking reference has a web page and account UI.
 - [ ] Follow [the booking proof map](examples/booking/TESTS.md) for current gaps. Do not carry forward the removed example's web-page claims.
 - [ ] Rebuild `staticFiles` after replacing build output. It lists files once at construction; a running handler does not serve new or replaced files. Improve dev tooling if an app needs live rebuilds.
 

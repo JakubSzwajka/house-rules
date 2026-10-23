@@ -106,7 +106,7 @@ policy.allows("shared", "items:write"); // false
 policy.table();
 ```
 
-`withStates({ active: [...], frozen: [...] })` adds object state. A permission must be present in the relation list and the state list. `table()` is pure and covers relation, state and permission. A plan or app role belongs in the app's fixed permission lists; a quota needs the module's own data.
+`withStates({ active: [...], frozen: [...] })` adds object state. A permission must be present in the relation list and the state list. `table()` is pure and covers relation, state and permission. Composition declares built-in roles; Party stores custom roles and assignments. The app-level `Party.may()` plug resolves their permissions. A plan or quota check needs the module's own data.
 
 ## Units of work
 

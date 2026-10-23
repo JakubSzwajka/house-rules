@@ -36,7 +36,6 @@ const webWay = defineWay({
   features,
   endpoints,
   who,
-  may,
   mean,
   origins: ["https://public.example"],
   maxBodyBytes: 1024 * 1024,
@@ -46,7 +45,7 @@ const app = createApp([webWay]);
 const api = toFetchHandler(app);
 ```
 
-Import `defineWay` and `toFetchHandler` from `@house-rules/application`. Build client endpoints with `endpoint(feature)`; module operations cannot be exposed. `createApp` is app-owned, as in the booking example. That example's web way leaves these HTTP options unset; its main passes the ways to `createApp` and calls `toFetchHandler(app)`. A Next app already has a Host, so it does not need this package. The reference API reads `PORT` through Effect Config, with a default of 3000.
+Import `defineWay` and `toFetchHandler` from `@house-rules/application`. Build client endpoints with `endpoint(feature)`; module operations cannot be exposed. `createApp` is app-owned, as in the booking example. That example's web way sets a session cookie and allowed origins. Its main sets the runtime origins, passes the ways to `createApp` and calls `toFetchHandler(app)`. Composition supplies one app-level May; ways carry no permission lists. A Next app already has a Host, so it does not need this package. The reference API reads `PORT` through Effect Config, with a default of 3000.
 
 ## Socket behaviour
 
@@ -54,9 +53,9 @@ Import `defineWay` and `toFetchHandler` from `@house-rules/application`. Build c
 
 The request URL uses HTTP and the incoming Host header. Forwarded headers do not change it. Missing, empty or malformed Host headers and invalid targets answer plain 400 `Bad Request`, without details. Only origin-form targets are accepted, including IPv6 authorities such as `[::1]:3000`. Absolute-form targets answer 400, even when they match Host. `OPTIONS *`, TRACE and CONNECT answer 501 `Not Implemented` before the handler runs.
 
-Behind a TLS proxy, cookie writes get 403 `cross_origin` unless the HTTP way sets `origins` to its public origin, such as `https://public.example`. The booking API reads `APP_ORIGIN` through Effect Config for the MCP resource URL; it does not pass that value to HTTP `origins`.
+Behind a TLS proxy, cookie writes get 403 `cross_origin` unless the HTTP way sets `origins` to its public origin, such as `https://public.example`. The booking API reads `APP_ORIGIN` through Effect Config for the MCP resource URL and the web way's allowed origins. Without it, main uses `http://localhost:${PORT}`. It also keeps `http://localhost:3000` in the origin list.
 
-See [the application kit's session and CSRF options](../application/README.md#shared-endpoints-and-clients).
+See [the application kit's session and CSRF options](../application/README.md#endpoints-clients-and-failures).
 
 The Host has no allowed-host guard against DNS rebinding; local and internal apps must restrict Host at their proxy or listener and set explicit `origins` for cookie writes.
 
@@ -66,7 +65,7 @@ A thrown handler or a body stream failure before the response headers are flushe
 
 ## Static files
 
-`staticFiles` serves a built single-page app from the same Node service as the API, so the page and `/api` share one origin and the client needs no `baseUrl` and no CORS. That is the default way to ship a web page. A page on another origin is the alternative; see [the HTTP way's CORS option](../application/README.md#http-and-mcp-behavior).
+`staticFiles` serves a built single-page app from the same Node service as the API, so the page and `/api` share one origin and the client needs no `baseUrl` and no CORS. That is the default way to ship a web page. A page on another origin is the alternative; see [the HTTP way's CORS option](../application/README.md#open-ways-and-plug-sockets).
 
 ```ts
 import { serve, staticFiles } from "@house-rules/node-host";

@@ -152,7 +152,7 @@ const latest = CallAudit.readRows({ limit: 50, viewerId: "user_ana" });
 | `limit` | rows to return. Default 100, at most 1000. A value below 1 gives 1. |
 | `viewerId` | only the rows of this caller |
 
-Rows come back newest first, decoded with a `Schema`. An `AuditRow` has required `target`, `capability`, `permission`, `viewerId` (`string | null`), `outcome`, `ms`, `kind`, `targetId`, `channel`, `requestId` (each `null` on rows from before `0002`) and `recordedAt` (a `Date`). The four optional fact fields may still be omitted in literals; target must be present. A row read back always carries the facts. It needs the `SqlClient` the app already provides, and fails with the unavailable-kind `AuditReadFailed` when the SQL fails. Use it in tests and in a future audit screen.
+Rows come back newest first, decoded with a `Schema`. An `AuditRow` has required `target`, `capability`, `permission`, `viewerId` (`string | null`), `outcome`, `ms`, `kind`, `targetId`, `channel`, `requestId` (each `null` on rows from before `0002`) and `recordedAt` (a `Date`). The four optional fact fields may still be omitted in literals; target must be present. A row read back always carries the facts. It needs the `SqlClient` the app already provides, and fails with the unavailable-kind `AuditReadFailed` when the SQL fails. Use it for direct audit reads and tests. The booking app's `audit-trail` read model reads through `AuditReader` and supplies its web Audit screen.
 
 ## The `who` option
 

@@ -159,7 +159,7 @@ it("rejects extra files and folders, including files ESLint does not parse", () 
     }
   }
 });
-it("accepts a registry and rejects stray values and non-permission arrays", () => {
+it("accepts a feature-only registry and rejects stray values and permission arrays", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "feature-registry-"));
   try {
     const folder = path.join(root, "apps/api/src/features/show");
@@ -170,14 +170,19 @@ it("accepts a registry and rejects stray values and non-permission arrays", () =
         filename: path.join(root, "apps/api/src/features/index.ts"),
       });
     for (const code of [
-      'export {show} from "./show/index.ts"; export const member = ["book:read"] as const;',
-      'import {show} from "./show/index.ts"; export const Features = {show} as const; export const system = [] as const; export type X = string;',
+      'export {show} from "./show/index.ts";',
+      'import {show} from "./show/index.ts"; export const Features = {show} as const; export type X = string;',
+      'import {show} from "./show/index.ts"; export {show}; export type {X} from "./show/index.ts";',
       'export * as Features from "./show/index.ts";',
     ])
       assert.deepEqual(run(code), [], code);
     for (const code of [
       "export const stray = 1;",
       "const stray = 1;",
+      'export {show} from "./show/index.ts"; export const member = ["x:y"] as const;',
+      'import {show} from "./show/index.ts"; export const Features = {show} as const; export const system = [] as const; export type X = string;',
+      'const member = ["x:y"] as const;',
+      "const system = [] as const;",
       'export const member = ["book:read"];',
       'export const member = ["not-a-permission"] as const;',
       "export const member = [permission] as const;",
