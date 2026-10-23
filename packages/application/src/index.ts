@@ -114,6 +114,22 @@ export {
 } from "./registry/app-map.ts";
 export { Plan, PlanInvalid, type PlanIssue } from "./registry/plan.ts";
 export { validatePlan } from "./ways-in/validate-plan.ts";
+export {
+  diffMaps,
+  type MapChanged,
+  type MapDiff,
+  type MapDiffKind,
+  type MapDiffSection,
+  type MapFieldChange,
+} from "./registry/map-diff.ts";
+export { renderMapDiff } from "./registry/map-diff-render.ts";
+export {
+  planCommand,
+  planUsage,
+  runPlanCommand,
+  type PlanCommandRead,
+  type PlanCommandResult,
+} from "./ways-in/plan-command.ts";
 export { type CorsOptions, defaultCorsMaxAge } from "./ways-in/cors.ts";
 export { defaultMaxBodyBytes, toFetchHandler } from "./ways-in/fetch-handler.ts";
 export type { FetchHandler } from "./ways-in/mount-check.ts";

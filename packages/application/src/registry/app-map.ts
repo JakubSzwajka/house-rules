@@ -3,6 +3,8 @@ import { isFeature } from "../feature/feature.ts";
 import type { RegistrySnapshot } from "./registry.ts";
 import { mergePlugs } from "./plugs.ts";
 import { mermaid } from "./app-map-mermaid.ts";
+import { canonical, compare, named, strings } from "./app-map-order.ts";
+import { appMapHtml } from "./app-map-html.ts";
 
 import type { AppMapSnapshot, MapEdge } from "./app-map-snapshot.ts";
 
@@ -16,10 +18,6 @@ export type {
 
 const meanNames = { allow: "allow", no: "deny approval", elicitation: "ask the human" } as const;
 
-const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-const named = <A extends { readonly name: string }>(values: readonly A[]): A[] =>
-  [...values].sort((a, b) => compare(a.name, b.name));
-const strings = (values: readonly string[]): string[] => [...values].sort(compare);
 const edges = (callable: AnyCallable): MapEdge[] =>
   callable.edges
     .map(
@@ -118,45 +116,6 @@ export const mapRegistry = (data: RegistrySnapshot): AppMapSnapshot => {
   };
 };
 
-const canonical = (data: AppMapSnapshot): AppMapSnapshot => ({
-  layers: data.layers,
-  modules: named(data.modules).map((module) => ({
-    ...module,
-    operations: named(module.operations).map((operation) => ({
-      ...operation,
-      edges: sortEdges(operation.edges),
-    })),
-  })),
-  features: named(data.features).map((feature) => ({
-    ...feature,
-    closures: {
-      person: strings(feature.closures.person),
-      system: strings(feature.closures.system),
-    },
-    edges: sortEdges(feature.edges),
-    ways: strings(feature.ways),
-  })),
-  ways: named(data.ways).map((way) => ({
-    ...way,
-    features: strings(way.features),
-    public: strings(way.public),
-  })),
-  permissions: named(data.permissions).map((permission) => ({
-    ...permission,
-    operations: strings(permission.operations),
-  })),
-  ...(data.plugs === undefined
-    ? {}
-    : {
-        plugs: named(data.plugs).map((plug) =>
-          plug.ways === undefined ? plug : { ...plug, ways: strings(plug.ways) },
-        ),
-      }),
-});
-const sortEdges = (values: readonly MapEdge[]): MapEdge[] =>
-  [...values].sort(
-    (a, b) => compare(a.target, b.target) || compare(a.reason ?? "", b.reason ?? ""),
-  );
 const edgeText = (edge: MapEdge): string =>
   `${edge.reason === undefined ? "" : "⚙ "}${edge.target}${edge.reason === undefined ? "" : ` (${edge.reason})`}`;
 
@@ -270,9 +229,10 @@ const text = (data: AppMapSnapshot): string => {
 
 export const renderMap = (
   snapshot: AppMapSnapshot,
-  format: "text" | "json" | "mermaid",
+  format: "text" | "json" | "mermaid" | "html",
 ): string => {
   const data = canonical(snapshot);
+  if (format === "html") return appMapHtml(data);
   return format === "json"
     ? `${JSON.stringify(data, null, 2)}\n`
     : format === "mermaid"

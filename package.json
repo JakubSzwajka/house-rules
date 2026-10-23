@@ -25,6 +25,7 @@
     "test": "node --test \"tests/**/*.test.mjs\" && TURBO_TELEMETRY_DISABLED=1 turbo run test",
     "build": "TURBO_TELEMETRY_DISABLED=1 turbo run build --filter=./packages/*",
     "packed-consumer": "node scripts/packed-consumer.mjs",
+    "plan": "node scripts/plan.mjs",
     "acceptance": "bash scripts/acceptance-cold-clone.sh",
     "prepare": "effect-tsgo patch && lefthook install",
     "vendor:agent-sources": "bash scripts/vendor-agent-sources.sh"
