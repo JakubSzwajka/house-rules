@@ -39,7 +39,8 @@ No `migrations.json` line.
 - `layer` is a `Layer<Authenticator>` on the same verify code as `AuthJwt.layer`, with the local key set injected.
 - `AuthJwtLocal.layer(options)` provides both `Authenticator` and the `AuthJwtLocalIssuer` service, whose `issue` a test or demo sign-in binding can yield.
 - Defaults: issuer `https://dev-issuer.invalid`, no audience, `ttlSeconds` 3600. A bad issuer or a `ttlSeconds` that is not a positive whole number fails with `AuthJwtConfigInvalid`.
-- The app keeps it behind an explicit switch, such as `DEMO_ISSUER=1`, and refuses to start with it when `NODE_ENV=production`.
+- `make` and `layer` refuse outside development/test themselves with unavailable `AuthJwtConfigInvalid`, option `NODE_ENV`. Effect Config reads NODE_ENV; after trimming and lowercasing, only development or test passes. Missing and blank values refuse. A host NODE_ENV, when present, must pass too.
+- The public `requireDevelopmentSigning(refused)` helper implements this guard and raises the caller's typed `refused()` error. Identity reuses it for devLocal and ephemeral passwords signing.
 
 ## Fixed rules
 

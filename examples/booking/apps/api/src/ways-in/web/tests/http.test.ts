@@ -217,7 +217,7 @@ it.live(
     }).pipe(Effect.scoped),
 );
 
-it.live("refuses production demo JWT configuration", () =>
+it.live("refuses production password signing without ACCOUNTS_SIGNING_KEY", () =>
   Effect.gen(function* () {
     const app = yield* Effect.acquireRelease(
       Effect.sync(() => createApp([webWay], { nodeEnv: "production" })),

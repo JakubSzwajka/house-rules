@@ -10,7 +10,7 @@ Paths start at the repository root unless stated otherwise. Evidence keys below 
 - `packages/party/src/adapters/tests/my-access.test.ts`: both stores return only the caller's assignments and refuse system reads.
 - `packages/call-audit/src/adapters/tests/reader.test.ts`: captured readers on memory/Postgres filter A/B rows before limiting and need no per-call SQL service.
 - `apps/api/src/read-models/audit-trail/adapters/service/tests/audit-trail.test.ts`: maps stored recordedAt to epoch-ms `at` and viewerId to nullable `who` for audit entries, with own-actor filtering unchanged. The browser-reads memory/Postgres case checks timestamp bounds, actor ids and equal profile entries through `recent_audit` and `my_activity`.
-- `apps/api/src/tests/node-host.test.ts` runs `scripts/host-smoke.mjs`: builds the page, serves GET / as HTML, preserves POST /api/my_profile as 401 JSON, checks unset MCP and production refusal, and closes children.
+- `apps/api/src/tests/node-host.test.ts` runs `scripts/host-smoke.mjs`: builds the page, serves GET / as HTML, preserves POST /api/my_profile as 401 JSON, checks unset MCP, missing production key refusal and successful production GET / plus sign_up with a temporary key, and closes children.
 - `apps/api/src/ways-in/web/page/tests/approval.test.ts`: lifted needsApproval selects cancellation, role revoke and deletion for browser confirmation.
 - `packages/rules/tests/dependency-cruiser-ways.test.mjs`: browser UI dependencies work only under a way's page folder, with workspace main, builtin and SQL fences intact.
 - Browser layout and dialog interaction still need a manual browser check. The host and HTTP proofs do not verify pixels or focus.
@@ -34,6 +34,9 @@ Paths start at the repository root unless stated otherwise. Evidence keys below 
 - Quick sign-in buttons use the build-time Vite development flag, not a new public feature. Browser interaction and production-bundle omission need build/browser checks in addition to unit tests.
 
 ## Identity passwords provider
+
+- `apps/api/src/composition/tests/production.test.ts`: `production starts with a stable key, signs up and in, and rejects the devLocal issuer`; `production without ACCOUNTS_SIGNING_KEY refuses startup with IdentityProviderInvalid`. Production uses passwords and optional MCP OIDC only. Deploy with ACCOUNTS_SIGNING_KEY and APP_ORIGIN over HTTPS for Secure cookies; MCP_AUTH_ISSUER is optional.
+- Root `packages/auth-jwt/src/tests/development-signing.test.ts` checks both make/layer: production, Production, missing, blank and staging refuse; normalized development/test pass; a test ConfigProvider cannot conceal a production host.
 
 - `apps/api/src/ways-in/web/tests/accounts.test.ts`: "real account cookies, CSRF, generic refusals, password change and A/B booking privacy" covers public issuance with exact-origin CSRF, token omission, generic 200 refusals without cookies, password change, booking access, Alice/Bob isolation and session clearing.
 - `apps/api/src/composition/tests/admin-seed.test.ts`: former admin email sign-up gets only member; the shell grant adds admin. Unknown account and unapproved production grants fail clearly.
@@ -129,6 +132,6 @@ Composition is reviewed as four files: modules.ts owns the single mount list and
 
 The reference rows do not exhaust the current suite. First-sign-in atomicity is proved by `memory: first sign-in person and login binding share one entry unit` and `postgres: first sign-in person and login binding share one entry unit` in app-relative `src/composition/tests/first-sign-in.test.ts`.
 
-App-relative `src/tests/node-host.test.ts` runs `built Node Host fails MCP closed, shuts down, and refuses production demo JWT`. It builds and starts real child processes and waits for shutdown. The fake provider never contacts a bank; rollback tests assert database state, not compensation of external effects.
+App-relative `src/tests/node-host.test.ts` runs `built Node Host fails MCP closed, requires a production key and serves production sign-up`. It builds and starts real child processes and waits for shutdown. The fake provider never contacts a bank; rollback tests assert database state, not compensation of external effects.
 
 The example-owned feature and operation descriptors have concrete descriptions. MCP exposes two titled read tools, `Show your booking` and `List your bookings and payments`, in app-relative `src/ways-in/mcp/way.ts`. This metadata was inspected, not asserted by a dedicated metadata test.

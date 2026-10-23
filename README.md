@@ -107,7 +107,7 @@ pnpm test  -> root Node tests -> workspace tests
 
 Warnings fail Biome and ESLint. All Dependency Cruiser rules have error severity. See the [rules table](packages/rules/README.md#rules-and-checks) for the checked rules and their limits. Tests of retired names scan live code and docs, with exact exceptions for intentional absence proofs and the old rule anchor.
 
-CI starts Postgres, installs the frozen lockfile, then runs check, test, packed-consumer, the booking API build and the site build. The booking example serves a Vite/React shadcn dashboard with real sign-in through `/api` and read-only MCP at `/mcp`. Every new login gets the member role. Its build writes the page to `dist/web`, then bundles `src/main.ts` for Node.
+CI starts Postgres, installs the frozen lockfile, then runs check, test, packed-consumer, the booking API build and the site build. The booking example serves a Vite/React shadcn dashboard with real sign-in through `/api` and read-only MCP at `/mcp`. Every new login gets the member role. Its build writes the page to `dist/web`, then bundles `src/main.ts` for Node. Production requires ACCOUNTS_SIGNING_KEY, a private P-256 JWK, and APP_ORIGIN over HTTPS for Secure cookies. Optional MCP_AUTH_ISSUER adds the real OIDC MCP provider; without it MCP stays closed. The devLocal test issuer is mounted only in development/test.
 
 `pnpm run packed-consumer` builds and packs all ten public packages, installs them in a cold npm consumer, and checks Node, TypeScript, browser contracts, layout and migration behavior. It needs the registry. `pnpm acceptance` clones committed HEAD into a temp folder and runs frozen install, check and test. It cannot see uncommitted work.
 

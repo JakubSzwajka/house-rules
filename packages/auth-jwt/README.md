@@ -26,7 +26,9 @@ const token = yield* local.issue({ sub: "ada", name: "Ada" }); // Effect<string>
 const dev = AuthJwtLocal.layer({ audience: "http://localhost:3000/api" });
 ```
 
-Whoever can call `issue` can sign in as anyone, so an app mounts it only behind an explicit switch and refuses it in production.
+Whoever can call `issue` can sign in as anyone. `AuthJwtLocal.make` and `.layer` refuse outside development/test themselves with unavailable `AuthJwtConfigInvalid`. They read NODE_ENV through Effect Config, trim and lowercase it, and accept only `development` or `test`. A host NODE_ENV, when present, must also pass. Missing and blank values refuse.
+
+The public `requireDevelopmentSigning(refused)` helper applies that same guard and returns the caller's typed error from `refused()`. Identity reuses it for devLocal and ephemeral passwords signing.
 
 `issue` drops the reserved claims `iss`, `aud`, `exp`, `iat`, `nbf` and `jti` from the claims you pass. The issuer sets `iss`, `iat` and `exp`, and sets `aud` only when you configured an audience; otherwise the token has no `aud`.
 

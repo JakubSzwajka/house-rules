@@ -31,10 +31,12 @@ export const identityOptions = (settings: {
 }) =>
   Effect.gen(function* () {
     const { issuer, signingKey, mcpIssuer } = settings.signIn;
-    if (settings.nodeEnv === "production")
+    const nodeEnv = settings.nodeEnv.trim().toLowerCase();
+    const missingKey = Redacted.value(signingKey).trim() === "";
+    if (nodeEnv === "production" && missingKey)
       return yield* new IdentityProviderInvalid({
-        option: "devLocal",
-        message: "Development signing is forbidden in production.",
+        option: "signingKey",
+        message: "ACCOUNTS_SIGNING_KEY is required in production.",
       });
     const passwordOptions = {
       issuer: issuer || settings.appOrigin || `http://localhost:${settings.port}`,
@@ -42,11 +44,11 @@ export const identityOptions = (settings: {
     return {
       providers: [
         Identity.passwords(
-          Redacted.value(signingKey).trim() === ""
-            ? { ...passwordOptions, ephemeral: true }
-            : { ...passwordOptions, signingKey },
+          missingKey ? { ...passwordOptions, ephemeral: true } : { ...passwordOptions, signingKey },
         ),
-        Identity.devLocal({ issuer: local.web }),
+        ...(nodeEnv === "development" || nodeEnv === "test"
+          ? [Identity.devLocal({ issuer: local.web })]
+          : []),
         ...(mcpIssuer === "" ? [] : [Identity.oidc({ issuer: mcpIssuer })]),
       ],
     };

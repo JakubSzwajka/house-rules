@@ -7,8 +7,8 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 for (const storage of ["memory", "postgres"] as const)
   it.live(
     storage === "memory"
-      ? "built Node Host fails MCP closed, shuts down, and refuses production demo JWT"
-      : "postgres: built Node Host fails MCP closed, shuts down, and refuses production demo JWT",
+      ? "built Node Host fails MCP closed, requires a production key and serves production sign-up"
+      : "postgres: built Node Host fails MCP closed, requires a production key and serves production sign-up",
     () =>
       Effect.gen(function* () {
         const url =

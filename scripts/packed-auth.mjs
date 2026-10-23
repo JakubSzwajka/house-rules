@@ -4,8 +4,8 @@ const audience = "https://api.packed.test";
 export const authConsumerFiles = {
   "auth.mjs": `import assert from "node:assert/strict";
 import { Actor, ActorId, memoryUnitOfWork, UnitOfWork } from "@house-rules/domain";
-import { CurrentActor, defineFeature, May, Runtime, runFeature, StepTrace } from "@house-rules/application";
-import { AuthJwt, AuthJwtTesting } from "@house-rules/auth-jwt";
+import { Authenticator, CurrentActor, defineFeature, May, Runtime, runFeature, StepTrace } from "@house-rules/application";
+import { AuthJwt, AuthJwtLocal, AuthJwtTesting } from "@house-rules/auth-jwt";
 import { Identity } from "@house-rules/identity";
 import { Party, PartyMount } from "@house-rules/party";
 import * as contract from "@house-rules/party/contract";
@@ -19,6 +19,10 @@ const features = [show, rename];
 const who = Identity.who({ token: "bearer", audience });
 const incoming = (token) => ({ headers: new Headers({ authorization: \`Bearer \${token}\` }), url: \`\${audience}/\` });
 NodePlatform.runMain(Effect.gen(function* () {
+  const local = yield* AuthJwtLocal.make();
+  const localToken = yield* local.issue({ sub: "packed-local" });
+  const localPrincipal = yield* Effect.gen(function* () { return yield* (yield* Authenticator).verify(localToken); }).pipe(Effect.provide(local.layer));
+  assert.equal(localPrincipal.subject, "packed-local");
   const keys = yield* AuthJwtTesting.keys;
   const signIn = Layer.mergeAll(AuthJwt.layer({ issuer, jwks: keys.jwks }), Identity.subject({ issuer }), Identity.refuse);
   const token = yield* keys.sign({ iss: issuer, sub: "packed-user", aud: audience });
@@ -75,5 +79,7 @@ export const anonymous = Effect.gen(function* () { return yield* (yield* Party).
 };
 
 export function assertPackedAuth(app, { run }) {
-  run(process.execPath, ["--no-experimental-strip-types", "auth.mjs"], app);
+  run(process.execPath, ["--no-experimental-strip-types", "auth.mjs"], app, {
+    env: { NODE_ENV: "test" },
+  });
 }

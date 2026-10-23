@@ -4,6 +4,7 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, type JWTPayload, SignJWT
 import { authenticator, issuerUrl } from "../jwt/auth-jwt.ts";
 import { AuthJwtConfigInvalid } from "../jwt/config-invalid.ts";
 import { AuthJwtLocalIssuer, type LocalIssuerService } from "./local-issuer.ts";
+import { requireDevelopmentSigning } from "./development-signing.ts";
 
 const algorithm = "ES256";
 const kid = "house-rules-local";
@@ -28,6 +29,13 @@ const ttlOf = (value: number | undefined) =>
       );
 
 const make = Effect.fnUntraced(function* (options: AuthJwtLocalOptions = {}) {
+  yield* requireDevelopmentSigning(
+    () =>
+      new AuthJwtConfigInvalid({
+        option: "NODE_ENV",
+        message: "Development signing requires NODE_ENV development or test.",
+      }),
+  );
   const issuer = options.issuer ?? "https://dev-issuer.invalid";
   yield* issuerUrl(issuer);
   const ttl = yield* ttlOf(options.ttlSeconds);
