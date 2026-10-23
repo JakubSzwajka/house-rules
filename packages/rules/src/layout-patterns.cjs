@@ -76,6 +76,9 @@ const TRUSTED_CONTRACT_PACKAGES = Object.freeze([
 // http (unstable/http on RCs). Their installed import graphs are unseen here; trust is explicit.
 const EFFECT_BROWSER_MODULES =
   "(?:index|[A-Z][A-Za-z0-9]*|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js";
+// Effect's SQL modules, under any build folder: effect/sql and effect/sql/* in 4.x, effect/unstable/sql on RCs.
+// Ways never import them, even when a project's adapterImports leaves them out.
+const EFFECT_SQL = "(?:^|/)node_modules/effect/(?:[^/]+/|)(?:unstable/|)sql(?:[/.]|$)";
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u;
 
 function trustedContractPackagesOption(names) {
@@ -203,6 +206,14 @@ function patterns(options) {
     waysInThirdParty:
       "(?:^|/)node_modules/(?![.]pnpm/|@house-rules/|@effect/sql-|@effect/platform-|effect/)[^/]+/",
     waysInImporter: `^(${apps}/[^/]+/src)/${layers.waysIn}(?:/|$)`,
+    // Refused from every way file, type-only imports included. The value allowlist below admits all of
+    // effect, so these are carved out of it and reported by their own rule. Workspace adapter packages
+    // count the same as installed ones, or their contract door and main types would stay open.
+    waysInAdapterImports: unique([
+      EFFECT_SQL,
+      ...adapterImports.installed,
+      ...adapterImports.workspace.map(({ path }) => path),
+    ]),
     waysInValues: [
       `^$1/(?:${layers.features}|${layers.composition}|${layers.waysIn})/`,
       `^${packages}/[^/]+/${CONTRACT_ENTRY}$`,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { it } from "node:test";
 import { layout } from "../src/dependency-cruiser.cjs";
-import { violatedRules } from "./dependency-cruiser-helpers.mjs";
+import { fromPaths, violatedRules } from "./dependency-cruiser-helpers.mjs";
 
 const base = JSON.parse(
   readFileSync(new URL("./fixtures/dependency-cruiser/v2-app/tree.json", import.meta.url), "utf8"),
@@ -153,3 +153,146 @@ it("workspace kits retain their value doors", async () => {
     assert.deepEqual(await violatedRules(kit, layout({ scope: "@acme/" })), []);
   }
 });
+
+// Effect's SQL modules sit inside the allowed `effect` package, so ways get their own refusal.
+const effectStore = "node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/";
+const sqlImports = [
+  ["effect/sql", "import {sql} from 'effect/sql'; export {sql};", "sql/index.js"],
+  [
+    "effect/sql/SqlClient",
+    "import {SqlClient} from 'effect/sql/SqlClient'; export {SqlClient};",
+    "sql/SqlClient.js",
+  ],
+  [
+    "a type from effect/sql/SqlError",
+    "import type {SqlError} from 'effect/sql/SqlError'; export type Failure = SqlError;",
+    "sql/SqlError.js",
+  ],
+  [
+    "effect/unstable/sql/SqlClient",
+    "import {SqlClient} from 'effect/unstable/sql/SqlClient'; export {SqlClient};",
+    "unstable/sql/SqlClient.js",
+  ],
+];
+const nextTree = { "apps/web/package.json": JSON.stringify({ name: "@acme/web" }) };
+const hosts = [
+  ["a plain host", { scope: "@acme/" }, tree, `${root}ways-in/web/way.ts`],
+  ["a plain host page", { scope: "@acme/" }, tree, `${root}ways-in/web/page/panel.tsx`],
+  ["host next", { scope: "@acme/", host: "next" }, nextTree, "apps/web/src/app/page.tsx"],
+  ["host next route", { scope: "@acme/", host: "next" }, nextTree, "apps/web/src/app/api/route.ts"],
+];
+for (const [host, options, files, file] of hosts) {
+  for (const [name, source, target] of sqlImports) {
+    it(`ways under ${host} reject ${name}`, async () => {
+      const violations = await violatedRules({ ...files, [file]: source }, layout(options));
+      assert.deepEqual(fromPaths(violations), [`${rule}: ${file} -> ${effectStore}${target}`]);
+    });
+  }
+  it(`ways under ${host} allow effect, effect/Schema and http`, async () => {
+    const source = [
+      "import {Effect} from 'effect';",
+      "import {Schema} from 'effect/Schema';",
+      "import {HttpClient} from 'effect/unstable/http/HttpClient';",
+      "export const way = {Effect, Schema, HttpClient};",
+    ].join("\n");
+    assert.deepEqual(await violatedRules({ ...files, [file]: source }, layout(options)), []);
+  });
+}
+it("ways reject effect SQL even when adapterImports leaves it out", async () => {
+  const file = `${root}ways-in/web/sql.ts`;
+  const violations = await violatedRules(
+    { ...tree, [file]: sqlImports[1][1] },
+    layout({ scope: "@acme/", adapterImports: ["@effect/sql-*"] }),
+  );
+  assert.deepEqual(fromPaths(violations), [`${rule}: ${file} -> ${effectStore}sql/SqlClient.js`]);
+});
+// A scoped adapterImports entry names both an installed package and a workspace one. Ways refuse
+// both the same way: main types and contract values alike.
+const driverPackages = {
+  "packages/driver/package.json": JSON.stringify({
+    name: "@acme/driver",
+    exports: { ".": "./src/index.ts", "./contract": "./src/contract.ts" },
+  }),
+  "packages/driver/src/index.ts": "export const Driver = {};",
+  "packages/driver/src/contract.ts": "export const Driver = {};",
+  "packages/driver-tools/package.json": JSON.stringify({
+    name: "@acme/driver-tools",
+    exports: { ".": "./src/index.ts", "./contract": "./src/contract.ts" },
+  }),
+  "packages/driver-tools/src/index.ts": "export const Driver = {};",
+  "packages/driver-tools/src/contract.ts": "export const Driver = {};",
+};
+const adapterImports = ["@effect/sql-*", "@acme/installed", "@acme/driver"];
+const adapterDoors = [
+  ["main type", "", "import type", "src/index.ts"],
+  ["contract value", "/contract", "import", "src/contract.ts"],
+  ["contract type", "/contract", "import type", "src/contract.ts"],
+];
+for (const [host, options, files, file] of hosts) {
+  for (const [kind, name, folder] of [
+    ["installed", "@acme/installed", "node_modules/@acme/installed/"],
+    ["workspace", "@acme/driver", "packages/driver/"],
+  ]) {
+    for (const [door, subpath, keyword, target] of adapterDoors) {
+      it(`ways under ${host} reject the ${kind} adapter package ${door}`, async () => {
+        const source = `${keyword} {Driver} from '${name}${subpath}'; export {Driver};`;
+        const violations = await violatedRules(
+          { ...files, ...driverPackages, [file]: source },
+          layout({ ...options, adapterImports }),
+        );
+        assert.deepEqual(fromPaths(violations), [`${rule}: ${file} -> ${folder}${target}`]);
+      });
+    }
+  }
+  it(`ways under ${host} keep non-adapter workspace contracts beside adapter packages`, async () => {
+    const source = [
+      "import {Driver} from '@acme/driver-tools/contract';",
+      "import type {Driver as Main} from '@acme/driver-tools';",
+      "export const way = {Driver}; export type Way = Main;",
+    ].join("\n");
+    assert.deepEqual(
+      await violatedRules(
+        { ...files, ...driverPackages, [file]: source },
+        layout({ ...options, adapterImports }),
+      ),
+      [],
+    );
+  });
+}
+it("way tests and read-model adapters keep effect SQL", async () => {
+  const fixture = {
+    ...tree,
+    [`${root}ways-in/web/tests/way.test.ts`]: sqlImports[1][1],
+    [`${root}read-models/report/adapters/postgres/rows.ts`]: sqlImports[1][1],
+    [`${root}read-models/report/adapters/postgres/statement.ts`]: sqlImports[0][1],
+  };
+  assert.deepEqual(await violatedRules(fixture, layout({ scope: "@acme/" })), []);
+  assert.deepEqual(
+    await violatedRules(fixture, layout({ scope: "@acme/", host: "next" })).then((found) =>
+      found.filter(({ rule: name }) => name !== "app-folders"),
+    ),
+    [],
+  );
+});
+// Features and read-model contract doors were already closed; these pin the rules that close them.
+for (const [door, file, expected] of [
+  ["feature index", `${root}features/show/index.ts`, "contract-entry-is-browser-safe"],
+  [
+    "read-model contract",
+    `${root}read-models/report/contract.ts`,
+    "adapter-imports-only-in-adapters",
+  ],
+]) {
+  for (const [name, source] of [sqlImports[1], sqlImports[2]]) {
+    it(`a ${door} importing ${name} fails ${expected}`, async () => {
+      const violations = await violatedRules(
+        { ...tree, [file]: `${source}\nexport const show = {}; export const report = {};` },
+        layout({ scope: "@acme/" }),
+      );
+      assert.ok(
+        violations.some((v) => v.rule === expected && v.from === file),
+        JSON.stringify(violations),
+      );
+    });
+  }
+}

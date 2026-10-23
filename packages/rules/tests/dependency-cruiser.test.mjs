@@ -54,6 +54,7 @@ test("layout snapshot pins every rule and error severity", async () => {
       "ways-in-do-not-import-read-model-values",
       "ways-in-import-contracts-only",
       "ways-in-import-contracts-only",
+      "ways-in-import-contracts-only",
       "ways-in-do-not-import-other-ways",
       "composition-does-not-import-ways-in",
       "read-models-public-entry-only",

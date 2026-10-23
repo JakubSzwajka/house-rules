@@ -46,6 +46,7 @@ test("Next changes host-owned paths only and keeps every severity", () => {
       "ways-in-do-not-import-read-model-values",
       "ways-in-import-contracts-only",
       "ways-in-import-contracts-only",
+      "ways-in-import-contracts-only",
       "ways-in-do-not-import-other-ways",
       "composition-does-not-import-ways-in",
       "no-unresolved-imports",

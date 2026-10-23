@@ -158,7 +158,12 @@
           "^packages/(?:application|domain)/src/index[.]ts$",
           "(?:^|/)node_modules/(?:@[^/]+/|)[^/]+/(?:src/contract[.]ts|dist/contract[.](?:js|d[.]ts))$",
           "(?:^|/)node_modules/@house-rules/(?:application|domain)/(?:src/index[.]ts|dist/index[.](?:js|d[.]ts))$",
-          "(?:^|/)node_modules/effect/"
+          "(?:^|/)node_modules/effect/",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)(?:unstable/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)unstable/sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/@effect/sql-[^/]*/",
+          "(?:^|/)node_modules/@effect/platform-[^/]*/"
         ],
         "dependencyTypesNot": [
           "type-only"
@@ -181,10 +186,33 @@
           "(?:^|/)node_modules/(?:@[^/]+/|)[^/]+/(?:src/contract[.]ts|dist/contract[.](?:js|d[.]ts))$",
           "(?:^|/)node_modules/@house-rules/(?:application|domain)/(?:src/index[.]ts|dist/index[.](?:js|d[.]ts))$",
           "(?:^|/)node_modules/effect/",
-          "(?:^|/)node_modules/(?![.]pnpm/|@house-rules/|@effect/sql-|@effect/platform-|effect/)[^/]+/"
+          "(?:^|/)node_modules/(?![.]pnpm/|@house-rules/|@effect/sql-|@effect/platform-|effect/)[^/]+/",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)(?:unstable/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)unstable/sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/@effect/sql-[^/]*/",
+          "(?:^|/)node_modules/@effect/platform-[^/]*/"
         ],
         "dependencyTypesNot": [
           "type-only"
+        ]
+      }
+    },
+    {
+      "name": "ways-in-import-contracts-only",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#ways-in-import-contracts-only",
+      "from": {
+        "path": "^(apps/[^/]+/src)/ways-in(?:/|$)",
+        "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+      },
+      "to": {
+        "path": [
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)(?:unstable/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)unstable/sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/@effect/sql-[^/]*/",
+          "(?:^|/)node_modules/@effect/platform-[^/]*/"
         ]
       }
     },

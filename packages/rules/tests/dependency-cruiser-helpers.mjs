@@ -57,6 +57,8 @@ export async function cruiseFixture(fixture, config, inspect) {
         name: "effect",
         exports: {
           ".": "./dist/index.js",
+          // effect 4.0.3 ships SQL as ./sql, with modules under ./*; RCs used ./unstable/sql.
+          "./sql": "./dist/sql/index.js",
           "./unstable/sql": "./dist/unstable/sql/index.js",
           "./unstable/http": "./dist/unstable/http/index.js",
           "./unstable/process": "./dist/unstable/process/index.js",
@@ -68,6 +70,9 @@ export async function cruiseFixture(fixture, config, inspect) {
         "dist/Schema.js": "export const Schema = {};\n",
         "dist/unstable/http/index.js": "export const HttpClient = {};\n",
         "dist/unstable/http/HttpClient.js": "export const HttpClient = {};\n",
+        "dist/sql/index.js": "export const sql = {};\n",
+        "dist/sql/SqlClient.js": "export const SqlClient = {};\n",
+        "dist/sql/SqlError.js": "export class SqlError {}\n",
         "dist/unstable/sql/index.js": "export const sql = {};\n",
         "dist/unstable/sql/SqlClient.js": "export const SqlClient = {};\n",
         // The real module imports SqlClient; node_modules is not followed, so the rule never sees that.

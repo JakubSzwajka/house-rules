@@ -85,15 +85,27 @@ function layout(options = {}) {
         { path: p.readModelsRoot, dependencyTypesNot: ["type-only"] },
       ),
       // Check every way file, including barrels. Do not follow composition into its captured services.
+      // SQL and adapter imports are skipped here and refused by the third rule, so each reports once.
       rule(
         "ways-in-import-contracts-only",
         { path: p.waysInImporter, pathNot: [p.testPath, p.waysInPage] },
-        { pathNot: p.waysInValues, dependencyTypesNot: ["type-only"] },
+        {
+          pathNot: [...p.waysInValues, ...p.waysInAdapterImports],
+          dependencyTypesNot: ["type-only"],
+        },
       ),
       rule(
         "ways-in-import-contracts-only",
         { path: p.waysInPage, pathNot: p.testPath },
-        { pathNot: [...p.waysInValues, p.waysInThirdParty], dependencyTypesNot: ["type-only"] },
+        {
+          pathNot: [...p.waysInValues, p.waysInThirdParty, ...p.waysInAdapterImports],
+          dependencyTypesNot: ["type-only"],
+        },
+      ),
+      rule(
+        "ways-in-import-contracts-only",
+        { path: p.waysInImporter, pathNot: p.testPath },
+        { path: p.waysInAdapterImports },
       ),
       rule(
         "ways-in-do-not-import-other-ways",
