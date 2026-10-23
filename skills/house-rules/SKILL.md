@@ -15,6 +15,7 @@ In an app, guides live at `node_modules/@house-rules/<pkg>/AGENTS.md`. In this r
 
 | Job | Read |
 | --- | --- |
+| Design or change an app's shape | [house-rules-design](../house-rules-design/SKILL.md) for a plan, approval view and built-map proof |
 | Start an app | The checklist below, then application and node-host guides |
 | Add a domain module | Domain guide, root law's "Inside a module" and "Modules own data; read models consume views", then migrations guide |
 | Add a feature | Application guide for `defineFeature` and tests. Keep one feature and handler in features/<name>/index.ts. Handlers call declared edges, never services. Set flags.transactional on writes, or inherit it from operations. Only the feature runtime opens a production unit; handlers and modules never call `UnitOfWork.atomic`. Keep object policy in the module. |

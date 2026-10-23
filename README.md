@@ -95,6 +95,8 @@ These are workspace versions, not a claim that the changed APIs are already on n
 
 Each framework package an app mounts ships `AGENTS.md`. Load the [house-rules skill](skills/house-rules/SKILL.md) to find the right guide.
 
+Use [house-rules-design](skills/house-rules-design/SKILL.md) to turn a brief or app change into an approval view. Write `plan.json`, validate and render it with `pnpm plan view plan.json -o design.html`, or compare designs with `pnpm plan diff plan.json plan.next.json -o change.html`. After approval, build and require an empty built-map diff plus passing check/test. Keep the approved plan alongside the code; the [booking example](examples/booking/apps/api/README.md) shows the map commands.
+
 The nine TypeScript packages publish JavaScript and declarations in `dist/`. Workspace imports still read `src/`. Plain Node and TypeScript consumers need no source loader or Next transpile setting. Rules is plain JavaScript with no build step. Consumer configs extend presets and set project values; they never copy a preset.
 
 ## Checks and CI
