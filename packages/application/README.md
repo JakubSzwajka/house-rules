@@ -159,3 +159,27 @@ Every expected failure has a domain kind. Statuses are fixed: not_found 404, con
 The contract door exports browser-safe feature builders and types, endpoint/API definitions, clients, session types and schema-only errors. Main adds runtime, bindings, sockets, ways, composition, trace, app map and lower slots. Neither kit owns tables or needs a migration registration. [AGENTS.md](AGENTS.md) lists the mounting rules.
 
 Run package-local `pnpm exec tsc --project tsconfig.json --noEmit` and `pnpm exec varlock run --path ../../ -- vitest run`. Tests use `@effect/vitest`. Unit suites cover memory and real Postgres.
+
+## Validate a plan
+
+A plan is the app's design as data, before any code exists. `Plan` is an Effect Schema, so decode JSON with it first:
+
+```ts
+const plan = yield* Schema.decodeUnknownEffect(Plan)(JSON.parse(text));
+const snapshot = yield* validatePlan(plan); // Effect<AppMapSnapshot, PlanInvalid>
+console.log(renderMap(snapshot, "text"));
+```
+
+The plan holds modules `{ name, service, kind, package?, path?, operations }`, operations and features with permission, the four optional flags and edges, and ways `{ name, protocol, path | slot | clock, mean?, source?, features, public? }`. A feature adds `start?: "person" | { reason, startedBy }`. An edge is a callable name or `{ target, reason }` for a system edge. Flags, edges and start default as the builders do. `path` and `source` are pass-through facts.
+
+`validatePlan` builds real descriptors with stub schemas and handlers, runs the runtime and way checks, and maps the result through the same code as `appMap`. Closures and lifted flags are derived, never authored. A valid plan renders the same map as the built app.
+
+`PlanInvalid` has kind invalid, a `reason` summary and `issues: { path, reason }[]`. A path such as `features[2].edges[0]` points into the plan. The first pass reports every cheap issue at once, duplicates included: duplicate callable, service and way names, unresolved edges and way features, blank system reasons, and public feature errors. After that, a cycle or a runtime or way check failure is one issue; runtime and way failures use path `plan`.
+
+A plan cannot express everything, so a valid plan is not a working app. Stub endpoints sit at distinct paths and add no route constraints. The real build and `pnpm check` still catch:
+
+- bindings, mount layers, schemas and handlers;
+- endpoint methods, paths, route collisions, API prefixes, status, session and CSRF placement;
+- MCP tool hints and metadata paths, CORS, origins and body limits;
+- hook slot providers and cron parsing;
+- layout, browser-safe contracts, SQL ownership and every other lint rule.

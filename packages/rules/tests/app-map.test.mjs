@@ -77,3 +77,20 @@ test("app map source facts reject ambiguous package ownership", async () => {
     /exactly one source for items, found 2/,
   );
 });
+test("app map source facts skip kit packages but not module packages", async () => {
+  const { options, put } = await fixture();
+  const dynamic =
+    'import { defineOperation } from "@house-rules/domain/contract"; export const make = (name) => defineOperation(name, {});';
+  for (const name of ["domain", "application"]) {
+    await put(`packages/${name}/package.json`, JSON.stringify({ name: `@house-rules/${name}` }));
+    await put(`packages/${name}/src/plan.ts`, dynamic);
+  }
+  const result = await appMapSources(snapshot, { ...options, packageRoots: ["packages"] });
+  assert.equal(result.features[0].path, "src/features/read/index.ts");
+  await put("packages/items/package.json", JSON.stringify({ name: "@test/items" }));
+  await put("packages/items/src/item/operations.ts", dynamic);
+  await assert.rejects(
+    appMapSources(snapshot, { ...options, packageRoots: ["packages"] }),
+    /literal source fact/,
+  );
+});

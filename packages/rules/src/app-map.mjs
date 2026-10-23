@@ -2,6 +2,11 @@ import { readdir, readFile } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { parseForESLint } from "@typescript-eslint/parser";
 
+const kitPackages = new Set([
+  "@house-rules/rules",
+  "@house-rules/domain",
+  "@house-rules/application",
+]);
 const parse = async (path) =>
   parseForESLint(await readFile(path, "utf8"), { filePath: path, sourceType: "module" }).ast;
 const literal = (node) => {
@@ -81,7 +86,8 @@ export const appMapSources = async (snapshot, { appDirectory, rootDirectory, pac
       if (!entry.isDirectory()) continue;
       const directory = resolve(rootDirectory, base, entry.name);
       const manifest = JSON.parse(await readFile(resolve(directory, "package.json"), "utf8"));
-      if (manifest.name === "@house-rules/rules") continue;
+      // Kits build descriptors from data (plans, tests) and never own mounted operations.
+      if (kitPackages.has(manifest.name)) continue;
       packageDirectories.push({ directory, path: relative(rootDirectory, directory) });
     }
   }
