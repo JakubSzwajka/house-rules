@@ -1,10 +1,20 @@
 import { type AnyCallable, targetOf } from "@house-rules/domain/contract";
 import { isFeature } from "../feature/feature.ts";
 import type { RegistrySnapshot } from "./registry.ts";
+import { mergePlugs } from "./plugs.ts";
+import { mermaid } from "./app-map-mermaid.ts";
 
 import type { AppMapSnapshot, MapEdge } from "./app-map-snapshot.ts";
 
-export type { AppMapSnapshot, MapEdge, MapOperation, MapModule } from "./app-map-snapshot.ts";
+export type {
+  AppMapSnapshot,
+  MapEdge,
+  MapOperation,
+  MapModule,
+  MapPlug,
+} from "./app-map-snapshot.ts";
+
+const meanNames = { allow: "allow", no: "deny approval", elicitation: "ask the human" } as const;
 
 const compare = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 const named = <A extends { readonly name: string }>(values: readonly A[]): A[] =>
@@ -79,7 +89,7 @@ export const mapRegistry = (data: RegistrySnapshot): AppMapSnapshot => {
       data.ways.map((way) => ({
         name: way.name,
         protocol: way.protocol,
-        ...(way.meanName === undefined ? {} : { mean: way.meanName }),
+        ...(way.mean === undefined ? {} : { mean: meanNames[way.mean] }),
         ...(way.protocol === "hook"
           ? { slot: way.slot }
           : way.protocol === "schedule"
@@ -103,6 +113,8 @@ export const mapRegistry = (data: RegistrySnapshot): AppMapSnapshot => {
           .map((operation) => operation.name),
       ),
     })),
+    // Issues were checked first: appMap fails on them and validatePlan reports them.
+    plugs: mergePlugs(data.ways, data.plugs ?? []).plugs,
   };
 };
 
@@ -133,6 +145,13 @@ const canonical = (data: AppMapSnapshot): AppMapSnapshot => ({
     ...permission,
     operations: strings(permission.operations),
   })),
+  ...(data.plugs === undefined
+    ? {}
+    : {
+        plugs: named(data.plugs).map((plug) =>
+          plug.ways === undefined ? plug : { ...plug, ways: strings(plug.ways) },
+        ),
+      }),
 });
 const sortEdges = (values: readonly MapEdge[]): MapEdge[] =>
   [...values].sort(
@@ -231,46 +250,21 @@ const text = (data: AppMapSnapshot): string => {
       );
     }
   }
+  if (data.plugs !== undefined && data.plugs.length > 0) {
+    lines.push("", "PLUGS");
+    for (const plug of data.plugs)
+      lines.push(
+        ...wrap(
+          " ",
+          `${plug.name}  fills ${plug.fills}${plug.ways === undefined || plug.ways.length === 0 ? "" : ` on ${plug.ways.join(", ")}`}${plug.package === undefined ? "" : `  ${plug.package}`}`,
+        ),
+      );
+  }
   lines.push("", "PERMISSIONS");
   for (const permission of data.permissions)
     lines.push(
       ...wrap(` ${permission.name} ← `, permission.operations.join(", ") || "feature only"),
     );
-  return `${lines.join("\n")}\n`;
-};
-
-const mermaid = (data: AppMapSnapshot): string => {
-  const lines = ["flowchart LR"];
-  const nodes = [
-    ...data.ways.map((way) => `way:${way.name}`),
-    ...data.features.map((feature) => feature.name),
-    ...data.modules.flatMap((module) => module.operations.map((operation) => operation.name)),
-  ];
-  const id = (name: string): string => `n${nodes.indexOf(name)}`;
-  const escape = (value: string): string =>
-    value
-      .replaceAll("&", "&amp;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll("\n", " ");
-  for (const name of nodes.filter(
-    (name) => name.startsWith("way:") || data.features.some((feature) => feature.name === name),
-  ))
-    lines.push(`  ${id(name)}["${escape(name)}"]`);
-  for (const [index, module] of data.modules.entries()) {
-    lines.push(`  subgraph m${index}["${escape(`${module.name} (${module.kind})`)}"]`);
-    for (const operation of module.operations)
-      lines.push(`    ${id(operation.name)}["${escape(operation.name)}"]`);
-    lines.push("  end");
-  }
-  for (const way of data.ways)
-    for (const feature of way.features) lines.push(`  ${id(`way:${way.name}`)} --> ${id(feature)}`);
-  for (const callable of [...data.features, ...data.modules.flatMap((module) => module.operations)])
-    for (const edge of callable.edges)
-      lines.push(
-        `  ${id(callable.name)} -->${edge.reason === undefined ? "" : `|"⚙ ${escape(edge.reason)}"|`} ${id(edge.target)}`,
-      );
   return `${lines.join("\n")}\n`;
 };
 

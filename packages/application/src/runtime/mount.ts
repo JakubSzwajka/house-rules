@@ -1,6 +1,7 @@
 import type { AnyCallable } from "@house-rules/domain";
 import { type Context, Effect, Layer } from "effect";
 import type { MountMap } from "../registry/registry.ts";
+import type { MapPlug } from "../registry/app-map-snapshot.ts";
 import { PermissionCatalogue } from "../registry/catalogue.ts";
 import { permissionCatalogue } from "../registry/permission-catalogue.ts";
 import { GraphInvalid } from "./graph-invalid.ts";
@@ -28,6 +29,7 @@ export type Services<M extends readonly MountDefinition<any, any>[]> = ServiceOf
 export type ModulePlan<M extends Mounts, A, E = never, R = never> = Readonly<{
   mounts: M;
   layer: Layer.Layer<A, E, R>;
+  plugs?: readonly MapPlug[];
 }>;
 export type MissingMountServices<M extends Mounts> = {
   [K in keyof M]: Exclude<

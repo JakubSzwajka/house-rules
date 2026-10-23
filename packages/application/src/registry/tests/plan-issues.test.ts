@@ -218,3 +218,54 @@ it.effect("module source paths follow the unique service, not the display name",
     ]);
   }),
 );
+
+it.effect("plug issues name unknown ways, slots, sockets and double fills", () =>
+  Effect.gen(function* () {
+    const job = { name: "job", permission: null, start: { reason: "r", startedBy: "r" } } as const;
+    const error = yield* issuesOf({
+      modules: [],
+      features: [job],
+      ways: [
+        { name: "web", protocol: "http", path: "/api", mean: "allow", features: ["job"] },
+        { name: "h", protocol: "hook", slot: "test/Slot", features: ["job"] },
+      ],
+      plugs: [
+        { name: "a.who", fills: "Who", ways: ["web", "missing", "web"] },
+        { name: "a.who", fills: "May" },
+        { name: "b.may", fills: "May", ways: ["web"] },
+        { name: "c", fills: "Gravity" },
+        { name: "d", fills: "test/Slot", ways: ["web"] },
+        { name: "e", fills: "Who" },
+        { name: "Mean.allow", fills: "Mean", ways: ["web", "h"] },
+      ],
+    });
+    expect(error).toEqual([
+      { path: "plugs[0].ways[1]", reason: "a.who names unknown way missing" },
+      { path: "plugs[0].ways[2]", reason: "a.who names way web twice" },
+      { path: "plugs[1].name", reason: "Duplicate plug name a.who (also plugs[0])" },
+      { path: "plugs[2].ways", reason: "b.may fills app-level May and must not name ways" },
+      {
+        path: "plugs[3].fills",
+        reason: "c fills Gravity, which is no socket, port or hook way slot",
+      },
+      { path: "plugs[4].ways[0]", reason: "d fills test/Slot, which web does not hook" },
+      { path: "plugs[5].ways", reason: "e fills Who and must name its ways" },
+      { path: "plugs[6]", reason: "Mean.allow differs from the plug the app derives" },
+    ]);
+    expect(
+      yield* issuesOf({
+        modules: [],
+        features: [job],
+        ways: [{ name: "web", protocol: "http", path: "/api", mean: "allow", features: ["job"] }],
+        plugs: [
+          { name: "my.mean", fills: "Mean", ways: ["web"] },
+          { name: "p.may", fills: "May" },
+          { name: "q.may", fills: "May" },
+        ],
+      }),
+    ).toEqual([
+      { path: "plugs[0]", reason: "Mean.allow and my.mean both fill Mean on web" },
+      { path: "plugs[2]", reason: "p.may and q.may both fill May" },
+    ]);
+  }),
+);

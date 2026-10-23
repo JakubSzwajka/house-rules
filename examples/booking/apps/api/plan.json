@@ -564,5 +564,40 @@
       ],
       "public": ["sign_in", "sign_up"]
     }
+  ],
+  "plugs": [
+    {
+      "name": "CallAudit.record",
+      "package": "@house-rules/call-audit",
+      "fills": "Record"
+    },
+    {
+      "name": "Identity.who",
+      "package": "@house-rules/identity",
+      "fills": "Who",
+      "ways": ["mcp", "web"]
+    },
+    {
+      "name": "Mean.allow",
+      "package": "@house-rules/application",
+      "fills": "Mean",
+      "ways": ["new-login", "nightly-cleanup", "web"]
+    },
+    {
+      "name": "Mean.elicitation",
+      "package": "@house-rules/application",
+      "fills": "Mean",
+      "ways": ["mcp"]
+    },
+    {
+      "name": "Party.may",
+      "package": "@house-rules/party",
+      "fills": "May"
+    },
+    {
+      "name": "hook:new-login",
+      "fills": "@house-rules/identity/FirstSignIn",
+      "ways": ["new-login"]
+    }
   ]
 }

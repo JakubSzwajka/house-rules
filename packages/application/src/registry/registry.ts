@@ -1,14 +1,16 @@
 import type { AnyCallable } from "@house-rules/domain/contract";
 import type { AnyFeature } from "../feature/feature.ts";
+import type { MapPlug } from "./app-map-snapshot.ts";
 
 type Operation = AnyCallable & { readonly kind: "operation" };
 export type MountMap = Readonly<{ name: string; kind: "package" | "read-model"; package?: string }>;
 
+export type MeanKey = "allow" | "no" | "elicitation";
 export type RegistryWay = Readonly<{
   name: string;
   features: readonly AnyFeature[];
   public?: readonly AnyFeature[];
-  meanName?: string;
+  mean?: MeanKey;
 }> &
   (
     | Readonly<{ protocol: "http" | "mcp"; path: string }>
@@ -23,4 +25,5 @@ export interface RegistrySnapshot {
   }>[];
   readonly features: readonly AnyFeature[];
   readonly ways: readonly RegistryWay[];
+  readonly plugs?: readonly MapPlug[];
 }

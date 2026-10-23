@@ -121,6 +121,14 @@ READ MODELS
   ops: MyBookings.myBookings
   called by: my_bookings
 
+PLUGS
+ CallAudit.record  fills Record  @house-rules/call-audit
+ Identity.who  fills Who on mcp, web  @house-rules/identity
+ Mean.allow  fills Mean on new-login, nightly-cleanup, web  @house-rules/application
+ Mean.elicitation  fills Mean on mcp  @house-rules/application
+ Party.may  fills May  @house-rules/party
+ hook:new-login  fills @house-rules/identity/FirstSignIn on new-login
+
 PERMISSIONS
  audit:read ← AuditTrail.recent
  billing:charge ← Billing.initPayment

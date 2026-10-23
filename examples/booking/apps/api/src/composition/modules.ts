@@ -124,5 +124,11 @@ export const modulePlan = (options: {
       CallAudit.record.postgres(auditOptions).layer,
     ),
   );
-  return { mounts, layer: infrastructure };
+  const plugs = [
+    { name: "CallAudit.record", package: "@house-rules/call-audit", fills: "Record" },
+    // mcpWho wraps Identity.who with the unset-auth 503 guard.
+    { name: "Identity.who", package: "@house-rules/identity", fills: "Who", ways: ["mcp", "web"] },
+    { name: "Party.may", package: "@house-rules/party", fills: "May" },
+  ];
+  return { mounts, layer: infrastructure, plugs };
 };

@@ -110,6 +110,7 @@ export {
   type MapModule,
   type MapOperation,
   type MapEdge,
+  type MapPlug,
 } from "./registry/app-map.ts";
 export { Plan, PlanInvalid, type PlanIssue } from "./registry/plan.ts";
 export { validatePlan } from "./ways-in/validate-plan.ts";

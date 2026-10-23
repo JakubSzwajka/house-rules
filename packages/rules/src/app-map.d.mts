@@ -6,6 +6,7 @@ export declare function appMapSources<
     }[];
     readonly features: readonly { readonly name: string }[];
     readonly ways: readonly { readonly name: string }[];
+    readonly plugs?: readonly { readonly name: string; readonly fills: string }[];
   },
 >(
   snapshot: A,

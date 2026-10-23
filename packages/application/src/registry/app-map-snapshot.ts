@@ -18,6 +18,12 @@ export interface MapModule {
   readonly path?: string;
   readonly operations: readonly MapOperation[];
 }
+export interface MapPlug {
+  readonly name: string;
+  readonly package?: string;
+  readonly fills: string;
+  readonly ways?: readonly string[];
+}
 export interface AppMapSnapshot {
   readonly layers: string;
   readonly modules: readonly MapModule[];
@@ -48,4 +54,5 @@ export interface AppMapSnapshot {
     public: readonly string[];
   }>[];
   readonly permissions: readonly Readonly<{ name: string; operations: readonly string[] }>[];
+  readonly plugs?: readonly MapPlug[];
 }

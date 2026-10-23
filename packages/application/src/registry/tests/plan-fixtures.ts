@@ -119,7 +119,7 @@ const features = [
   hidden,
 ];
 const who = { resolve: () => Effect.succeed(Actor.make({ id: ActorId.make("tester") })) };
-const ways = [
+export const ways = [
   defineWay({
     protocol: "http",
     name: "web",
@@ -159,7 +159,7 @@ const ways = [
     input: {},
   }),
 ] as const;
-const modules = {
+export const modules = {
   mounts: [
     {
       map: { name: "store", kind: "package", package: "@test/store" },
@@ -181,6 +181,10 @@ const modules = {
     },
   ] as const,
   layer: Layer.merge(StepTrace.layer(), memoryUnitOfWork),
+  plugs: [
+    { name: "test.who", fills: "Who", ways: ["web", "mcp"] },
+    { name: "May.fixed", package: "@house-rules/application", fills: "May" },
+  ],
 };
 export const app = () =>
   composition({
@@ -277,5 +281,11 @@ export const plan: Plan = {
       mean: "allow",
       features: ["nightly_select", "nightly_item"],
     },
+  ],
+  plugs: [
+    { name: "May.fixed", package: "@house-rules/application", fills: "May" },
+    { name: "test.who", fills: "Who", ways: ["mcp", "web"] },
+    { name: "Mean.no", package: "@house-rules/application", fills: "Mean", ways: ["web"] },
+    { name: "hook:changed", fills: "test/plan/Slot", ways: ["changed"] },
   ],
 };

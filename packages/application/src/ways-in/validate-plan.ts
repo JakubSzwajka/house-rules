@@ -81,8 +81,6 @@ const build = (
   return { built };
 };
 
-const meanNames = { allow: "allow", no: "deny approval", elicitation: "ask the human" } as const;
-
 type Derived =
   | Readonly<{ _tag: "Invalid"; issues: readonly PlanIssue[] }>
   | Readonly<{ _tag: "Valid"; snapshot: AppMapSnapshot }>;
@@ -100,8 +98,7 @@ const derive = (plan: Plan): Derived => {
   const ways = plan.ways.map(
     (way): RegistryWay => ({
       name: way.name,
-      // Same names as ways-in/registry.ts; the plan round-trip test fails if they drift.
-      ...(way.mean === undefined ? {} : { meanName: meanNames[way.mean] }),
+      ...(way.mean === undefined ? {} : { mean: way.mean }),
       ...(way.protocol === "hook"
         ? { protocol: way.protocol, slot: way.slot }
         : way.protocol === "schedule"
@@ -134,6 +131,7 @@ const derive = (plan: Plan): Derived => {
     })),
     features,
     ways,
+    ...(plan.plugs === undefined ? {} : { plugs: plan.plugs }),
   });
   // Modules match by unique service: two mounts may share a display name.
   const source = <A, P extends Partial<Record<K, string>>, K extends string>(

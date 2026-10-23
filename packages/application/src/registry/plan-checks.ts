@@ -1,4 +1,5 @@
 import type { Plan, PlanEdge, PlanFeature, PlanIssue, PlanOperation } from "./plan.ts";
+import { mergePlugs } from "./plugs.ts";
 
 type PlanEdgeValue = typeof PlanEdge.Type;
 export type Entry =
@@ -91,5 +92,6 @@ export const planIssues = (
         });
     }
   }
+  issues.push(...mergePlugs(plan.ways, plan.plugs ?? []).issues);
   return { issues, entries };
 };

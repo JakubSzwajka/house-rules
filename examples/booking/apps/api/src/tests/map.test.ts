@@ -78,6 +78,11 @@ it.effect("app map renders twice byte-identically and ignores input order", () =
       permissions: [...snapshot.permissions]
         .reverse()
         .map((permission) => ({ ...permission, operations: [...permission.operations].reverse() })),
+      plugs: [...(snapshot.plugs ?? [])]
+        .reverse()
+        .map((plug) =>
+          plug.ways === undefined ? plug : { ...plug, ways: [...plug.ways].reverse() },
+        ),
     };
     for (const format of ["text", "json", "mermaid"] as const) {
       assert.strictEqual(renderMap(snapshot, format), renderMap(again, format));
@@ -107,6 +112,12 @@ it.effect("app map renders twice byte-identically and ignores input order", () =
     assert.include(text, "      └─ Bookings.get");
     assert.include(text, "  │   └─ MyBookings.myBookings");
     assert.isTrue(text.split("\n").every((line) => line.length <= 100));
+    assert.include(
+      text,
+      "PLUGS\n CallAudit.record  fills Record  @house-rules/call-audit\n" +
+        " Identity.who  fills Who on mcp, web  @house-rules/identity\n",
+    );
+    assert.include(text, " hook:new-login  fills @house-rules/identity/FirstSignIn on new-login\n");
     assert.match(text, /\n {7}Party\./);
     assert.match(text, /\n {13}\w/);
     assert.match(text, /\n {14}Party\./);

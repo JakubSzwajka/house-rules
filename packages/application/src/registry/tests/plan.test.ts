@@ -1,7 +1,7 @@
 import { expect, it } from "@effect/vitest";
 import { Effect, Schema } from "effect";
-import { appMap, Plan, renderMap, validatePlan } from "../../index.ts";
-import { app, plan } from "./plan-fixtures.ts";
+import { appMap, composition, May, Plan, renderMap, validatePlan } from "../../index.ts";
+import { app, modules, plan, ways } from "./plan-fixtures.ts";
 
 it.effect("a plan derives the same map as the built app", () =>
   Effect.gen(function* () {
@@ -26,6 +26,21 @@ it.effect("a plan derives the same map as the built app", () =>
         "mcp",
         "web",
       ]);
+      expect(planned.plugs?.map((plug) => [plug.name, plug.fills, plug.ways ?? []])).toEqual([
+        ["May.fixed", "May", []],
+        ["Mean.allow", "Mean", ["changed", "nightly"]],
+        ["Mean.elicitation", "Mean", ["mcp"]],
+        ["Mean.no", "Mean", ["web"]],
+        ["hook:changed", "test/plan/Slot", ["changed"]],
+        ["test.who", "Who", ["mcp", "web"]],
+      ]);
+      expect(renderMap(actual, "text")).toContain(
+        "\nPLUGS\n May.fixed  fills May  @house-rules/application\n" +
+          " Mean.allow  fills Mean on changed, nightly  @house-rules/application\n",
+      );
+      expect(renderMap(actual, "text")).toContain(
+        " hook:changed  fills test/plan/Slot on changed\n test.who  fills Who on mcp, web\n",
+      );
     } finally {
       yield* Effect.promise(built.dispose);
     }
@@ -61,5 +76,26 @@ it.effect("a JSON plan decodes with the Plan schema and keeps source facts", () 
       ways: [{ name: "x", protocol: "ftp", features: [] }],
     }).pipe(Effect.flip);
     expect(String(bad)).toContain("ways");
+  }),
+);
+
+it.effect("appMap fails closed on a declared plug that names no real way or slot", () =>
+  Effect.gen(function* () {
+    const built = composition({
+      modules: { ...modules, plugs: [{ name: "x.who", fills: "Who", ways: ["nightly"] }] },
+      features: app().features,
+      ways,
+      may: Effect.succeed(May.fixed([])),
+      system: ["audit:write", "items:read", "items:remove", "items:write"],
+    });
+    try {
+      const error = yield* appMap(built).pipe(Effect.flip);
+      expect(error._tag).toBe("GraphInvalid");
+      expect(error.message).toContain(
+        "plugs[0].ways[0]: x.who fills Who on nightly, which is not an HTTP or MCP way",
+      );
+    } finally {
+      yield* Effect.promise(built.dispose);
+    }
   }),
 );

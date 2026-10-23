@@ -77,7 +77,7 @@ const app = composition({ modules, features: [showTitle], ways: [way],
   may: Effect.succeed(May.fixed(["items:read"])), system: [] });
 ```
 
-A package main exports a plain `<Module>Mount` value satisfying `MountDefinition<I, S>`: `{ service: Context.Key<I, S>, operations, bind: (service: S) => readonly Binding[] }`. Read models export theirs from index. Only modules.ts chooses a mount's layer. `ModuleMount` adds that layer; `ModulePlan` pairs the mount tuple with shared infrastructure. Each layer must provide its mount's service. The kit checks each binder parameter against its service shape.
+A package main exports a plain `<Module>Mount` value satisfying `MountDefinition<I, S>`: `{ service: Context.Key<I, S>, operations, bind: (service: S) => readonly Binding[] }`. Read models export theirs from index. Only modules.ts chooses a mount's layer. `ModuleMount` adds that layer; `ModulePlan` pairs the mount tuple with shared infrastructure and optional map-only `plugs`. Each layer must provide its mount's service. The kit checks each binder parameter against its service shape.
 
 `planLayer(plan)` builds raw services from the same plan used by composition. It merges the mount layers, provides shared infrastructure and supplies PermissionCatalogue from the mount descriptors before either builds. Its Layer retains the plan's outputs, errors and uncovered inputs. Use it for service-level tests and tooling, not a second app assembly path. It never calls binders or installs way plugs.
 
@@ -154,7 +154,23 @@ Every expected failure has a domain kind. Statuses are fixed: not_found 404, con
 
 `Runtime.permissions` is a frozen, sorted list of every unique permission declared by registered operations, including unused bound operations. It excludes null and permissions declared only by features. The kit-owned PermissionCatalogue has `{ permissions: () => Effect<readonly Permission[]> }` and exposes that same array before modules build.
 
-`appMap(app): Effect<AppMapSnapshot, E | CompositionClosed>` acquires the validated app and snapshots its mounts, registered features and actual ways as plain serialisable data. `renderMap(snapshot, "text" | "json" | "mermaid")` is pure and sorts each collection using code-point order. It includes mounted operations, feature flags and closures, declared edges, exposures, public features and permission owners. Known Mean values are named by identity; unknown plugs and Who are omitted. It neither runs features nor reads files. Mounts can declare `map: { name, kind: "package" | "read-model", package? }`; without metadata, the fallback name is the service key's last segment and the kind defaults to package. Resolve source ownership before publishing that fallback. Tooling can attach source paths with `appMapSources` from `@house-rules/rules/app-map`, which matches literal builder names to registry imports and package/read-model sources and rejects missing or ambiguous facts. The layers header is fixed and labels that limit. Use memory adapters and a frozen clock for reproducible acquisition. Install a fixed ConfigProvider inside the module plan with `Layer.provideMerge`, so infrastructure and mounted layers use it. Wrapping the caller alone does not configure the composition's separate ManagedRuntime. Text output marks final children with `└─` and wraps lists at 100 columns with aligned continuation lines, keeping identifiers intact. The app map script writes `MAP.md`; its freshness test compares without writing.
+`appMap(app): Effect<AppMapSnapshot, E | CompositionClosed | GraphInvalid>` acquires the validated app and snapshots its mounts, registered features and actual ways as plain serialisable data. `renderMap(snapshot, "text" | "json" | "mermaid")` is pure and sorts each collection using code-point order. It includes mounted operations, feature flags and closures, declared edges, exposures, public features and permission owners. Known Mean values are named by identity. It neither runs features nor reads files. Mounts can declare `map: { name, kind: "package" | "read-model", package? }`; without metadata, the fallback name is the service key's last segment and the kind defaults to package. Resolve source ownership before publishing that fallback. Tooling can attach source paths with `appMapSources` from `@house-rules/rules/app-map`, which matches literal builder names to registry imports and package/read-model sources and rejects missing or ambiguous facts. The layers header is fixed and labels that limit. Use memory adapters and a frozen clock for reproducible acquisition. Install a fixed ConfigProvider inside the module plan with `Layer.provideMerge`, so infrastructure and mounted layers use it. Wrapping the caller alone does not configure the composition's separate ManagedRuntime. Text output marks final children with `└─` and wraps lists at 100 columns with aligned continuation lines, keeping identifiers intact. The app map script writes `MAP.md`; its freshness test compares without writing.
+
+### Plugs
+
+`snapshot.plugs` lists `{ name, package?, fills, ways? }`, sorted by name, and text renders it as PLUGS. `fills` is `Who`, `May`, `Mean`, `Record`, `Authenticator`, `ActorResolver`, `Approval`, `CallWatch` or the slot key of a hook way. appMap derives two kinds: `Mean.allow`, `Mean.no` and `Mean.elicitation` by identity with their ways, and `hook:<way>` for each hook way's slot. A Who value, the May Effect and a record layer carry no name, so the app declares them on its ModulePlan:
+
+```ts
+plugs: [
+  { name: "Identity.who", package: "@house-rules/identity", fills: "Who", ways: ["mcp", "web"] },
+  { name: "Party.may", package: "@house-rules/party", fills: "May" },
+  { name: "CallAudit.record", package: "@house-rules/call-audit", fills: "Record" },
+],
+```
+
+Declared plugs are review facts. No runtime code reads them and the runtime does not prove them; review and the pull-out test catch a wrong name. appMap fails with GraphInvalid when a declared plug has a blank or duplicate name, fills an unknown socket or slot, names an unknown or repeated way, puts Who on a hook or schedule way, omits ways for Who, Mean or a hook slot, names ways for May or Record, differs from a derived plug of the same name, uses the reserved `hook:` prefix without matching a hook way, or fills a socket or slot twice on one way or app. Every one of these issues is reported together. A declared plug identical to a derived one merges into it.
+
+Socket fills and hook slot fills are separate, so a hook whose Context key is `Mean` never collides with the Mean socket. In a valid map only a `hook:<way>` plug fills a slot; every other plug fills the socket named by `fills`. A declared plug that is not a derived twin fills the socket when `fills` names one.
 
 The contract door exports browser-safe feature builders and types, endpoint/API definitions, clients, session types and schema-only errors. Main adds runtime, bindings, sockets, ways, composition, trace, app map and lower slots. Neither kit owns tables or needs a migration registration. [AGENTS.md](AGENTS.md) lists the mounting rules.
 
@@ -170,11 +186,11 @@ const snapshot = yield* validatePlan(plan); // Effect<AppMapSnapshot, PlanInvali
 console.log(renderMap(snapshot, "text"));
 ```
 
-The plan holds modules `{ name, service, kind, package?, path?, operations }`, operations and features with permission, the four optional flags and edges, and ways `{ name, protocol, path | slot | clock, mean?, source?, features, public? }`. A feature adds `start?: "person" | { reason, startedBy }`. An edge is a callable name or `{ target, reason }` for a system edge. Flags, edges and start default as the builders do. `path` and `source` are pass-through facts.
+The plan holds modules `{ name, service, kind, package?, path?, operations }`, operations and features with permission, the four optional flags and edges, and ways `{ name, protocol, path | slot | clock, mean?, source?, features, public? }`, plus optional `plugs` with the snapshot's plug shape. A feature adds `start?: "person" | { reason, startedBy }`. An edge is a callable name or `{ target, reason }` for a system edge. Flags, edges and start default as the builders do. `path` and `source` are pass-through facts.
 
 `validatePlan` builds real descriptors with stub schemas and handlers, runs the runtime and way checks, and maps the result through the same code as `appMap`. Closures and lifted flags are derived, never authored. A valid plan renders the same map as the built app.
 
-`PlanInvalid` has kind invalid, a `reason` summary and `issues: { path, reason }[]`. A path such as `features[2].edges[0]` points into the plan. The first pass reports every cheap issue at once, duplicates included: duplicate callable, service and way names, unresolved edges and way features, blank system reasons, and public feature errors. After that, a cycle or a runtime or way check failure is one issue; runtime and way failures use path `plan`.
+`PlanInvalid` has kind invalid, a `reason` summary and `issues: { path, reason }[]`. A path such as `features[2].edges[0]` points into the plan. The first pass reports every cheap issue at once, duplicates included: duplicate callable, service and way names, unresolved edges and way features, blank system reasons, public feature errors and the plug checks appMap applies. Plan ways derive Mean and hook plugs the same way, so a plan may list them or leave them out. After that, a cycle or a runtime or way check failure is one issue; runtime and way failures use path `plan`.
 
 A plan cannot express everything, so a valid plan is not a working app. Stub endpoints sit at distinct paths and add no route constraints. The real build and `pnpm check` still catch:
 
@@ -182,4 +198,5 @@ A plan cannot express everything, so a valid plan is not a working app. Stub end
 - endpoint methods, paths, route collisions, API prefixes, status, session and CSRF placement;
 - MCP tool hints and metadata paths, CORS, origins and body limits;
 - hook slot providers and cron parsing;
+- whether a declared plug is really the one wired;
 - layout, browser-safe contracts, SQL ownership and every other lint rule.

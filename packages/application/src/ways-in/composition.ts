@@ -17,6 +17,7 @@ import {
   validateMounts,
 } from "../runtime/mount.ts";
 import { PermissionCatalogue } from "../registry/catalogue.ts";
+import type { MapPlug } from "../registry/app-map-snapshot.ts";
 import { ResolvedMay } from "../socket/resolved-may.ts";
 import { GraphInvalid } from "../runtime/graph-invalid.ts";
 import type { ServicesCheck } from "./mount-check.ts";
@@ -114,10 +115,13 @@ export const composition = <
   >;
   const app = compositionFromLayer({ ...options, layer });
   resolvedMounts.set(app, options.modules.mounts);
+  // Map metadata only; no runtime behaviour reads declared plugs.
+  if (options.modules.plugs !== undefined) resolvedPlugs.set(app, options.modules.plugs);
   return app;
 };
 
 export const resolvedMounts = new WeakMap<object, Mounts>();
+export const resolvedPlugs = new WeakMap<object, readonly MapPlug[]>();
 
 const compositionFromLayer = <A, E>(
   options: Readonly<{

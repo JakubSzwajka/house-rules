@@ -1,11 +1,22 @@
 import { mapRegistry } from "../registry/app-map.ts";
 import { Effect, Exit, type Cause } from "effect";
 import type { RegistrySnapshot, RegistryWay } from "../registry/registry.ts";
-import { type Composition, resolvedMounts, serveIn } from "./composition.ts";
+import { type Composition, resolvedMounts, resolvedPlugs, serveIn } from "./composition.ts";
 import { Mean } from "../socket/mean.ts";
 import { CompositionClosed } from "./composition-closed.ts";
+import { GraphInvalid } from "../runtime/graph-invalid.ts";
+import { mergePlugs } from "../registry/plugs.ts";
 
-export const appMap = <A, E>(app: Composition<A, E>) => registry(app).pipe(Effect.map(mapRegistry));
+export const appMap = <A, E>(app: Composition<A, E>) =>
+  registry(app).pipe(
+    Effect.flatMap((data) => {
+      // Declared plugs are review facts; fail closed on ones that name no real way or slot.
+      const issue = mergePlugs(data.ways, data.plugs ?? []).issues[0];
+      return issue === undefined
+        ? Effect.succeed(mapRegistry(data))
+        : Effect.fail(new GraphInvalid({ reason: `${issue.path}: ${issue.reason}` }));
+    }),
+  );
 
 const registry = <A, E>(
   app: Composition<A, E>,
@@ -20,15 +31,16 @@ const registry = <A, E>(
             operations: mount.operations,
           })),
           features: app.features,
+          plugs: resolvedPlugs.get(app) ?? [],
           ways: app.ways.map(
             (way): RegistryWay => ({
               name: way.name,
               ...(way.mean === Mean.allow
-                ? { meanName: "allow" }
+                ? { mean: "allow" }
                 : way.mean === Mean.no
-                  ? { meanName: "deny approval" }
+                  ? { mean: "no" }
                   : way.mean === Mean.elicitation
-                    ? { meanName: "ask the human" }
+                    ? { mean: "elicitation" }
                     : {}),
               ...(way.protocol === "hook"
                 ? { protocol: way.protocol, slot: way.slot.key }

@@ -36,6 +36,12 @@ test("app map source facts follow named imports and literal builder aliases", as
   assert.equal(result.features[0].path, "src/features/read/index.ts");
   assert.equal(result.ways[0].source, "src/ways-in/web/way.ts");
 });
+test("app map source facts pass plugs through untouched", async () => {
+  const { options } = await fixture();
+  const plugs = [{ name: "Party.may", package: "@house-rules/party", fills: "May" }];
+  const result = await appMapSources({ ...snapshot, plugs }, options);
+  assert.deepEqual(result.plugs, plugs);
+});
 test("app map source facts reject duplicate feature names", async () => {
   const { options, put } = await fixture();
   await put(

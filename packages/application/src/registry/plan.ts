@@ -64,10 +64,18 @@ const PlanWay = Schema.Union([
   }),
 ]);
 
+const PlanPlug = Schema.Struct({
+  name: Name,
+  package: Schema.optionalKey(Schema.String),
+  fills: Name,
+  ways: Schema.optionalKey(Schema.Array(Name)),
+});
+
 export const Plan = Schema.Struct({
   modules: Schema.Array(PlanModule),
   features: Schema.Array(PlanFeature),
   ways: Schema.Array(PlanWay),
+  plugs: Schema.optionalKey(Schema.Array(PlanPlug)),
 });
 export type Plan = typeof Plan.Type;
 
