@@ -48,8 +48,15 @@ export class Billing extends defineModule<
       | PaymentProviderFailed
       | NoOpenUnit
     >;
-    readonly expirePending: (
+    readonly duePayments: (
       caller: Caller,
+    ) => Effect.Effect<
+      readonly { readonly paymentId: string }[],
+      PaymentCallerDenied | PaymentStoreUnavailable
+    >;
+    readonly expireOne: (
+      caller: Caller,
+      paymentId: string,
     ) => Effect.Effect<ExpiredPayments, PaymentCallerDenied | PaymentStoreUnavailable | NoOpenUnit>;
   }
 >()("@example/api/modules/billing/Billing", {
@@ -89,11 +96,18 @@ export class Billing extends defineModule<
         yield* provider.refund(payment);
         return { ...payment, status: "refunded" as const };
       }),
-      expirePending: Effect.fn("Billing.expirePending")(function* (caller: Caller) {
+      duePayments: Effect.fn("Billing.duePayments")(function* (caller: Caller) {
+        if (caller.kind !== "system") return yield* new PaymentCallerDenied();
+        return yield* store.dueBefore((yield* Clock.currentTimeMillis) - pendingLifetimeMillis);
+      }),
+      expireOne: Effect.fn("Billing.expireOne")(function* (caller: Caller, paymentId: string) {
         yield* required;
         if (caller.kind !== "system") return yield* new PaymentCallerDenied();
-        const now = yield* Clock.currentTimeMillis;
-        return { expired: yield* store.expireBefore(now - pendingLifetimeMillis) };
+        const expired = yield* store.expireOne(
+          paymentId,
+          (yield* Clock.currentTimeMillis) - pendingLifetimeMillis,
+        );
+        return { expired: expired ? 1 : 0 };
       }),
     };
   }),

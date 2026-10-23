@@ -2,7 +2,7 @@ import { isPlainPath, isPlainPrefix } from "../contract/api.ts";
 import { pathParamNames } from "../contract/endpoint.ts";
 import { checkSessionPlace } from "../contract/session.ts";
 import type { AnyFeature } from "../feature/feature.ts";
-import type { WayOptions } from "./way.ts";
+import type { HookWay, ScheduleWay, SystemFeature, WayOptions } from "./way.ts";
 import { prefixMismatch } from "./api-prefix.ts";
 import { checkCors } from "./cors.ts";
 import { isHttpOrigin } from "./csrf.ts";
@@ -11,7 +11,24 @@ import { checkSession } from "./session-cookie.ts";
 type ErasedWay<W> = W extends unknown
   ? Omit<W, "overrides"> & Readonly<{ overrides?: Readonly<Record<string, unknown>> }>
   : never;
-export type AnyWay<R = never> = ErasedWay<WayOptions<R>>;
+export type NetworkWay<R = never> = ErasedWay<WayOptions<R>>;
+export type AnyHookWay = Omit<
+  HookWay<any, any, SystemFeature, NonNullable<unknown> | null | undefined>,
+  "failure"
+> & {
+  readonly failure: (error: never) => NonNullable<unknown> | null | undefined;
+};
+export type AnyScheduleWay = ScheduleWay<SystemFeature, SystemFeature>;
+export type AnyWay<R = never> = NetworkWay<R> | AnyHookWay | AnyScheduleWay;
+export type HookServices<W> = W extends {
+  readonly protocol: "hook";
+  readonly slot: import("effect").Context.Key<infer I, any>;
+}
+  ? I
+  : never;
+export type WhoServices<W> = W extends NetworkWay<infer R> ? R : never;
+export const isNetworkWay = <R>(way: AnyWay<R>): way is NetworkWay<R> =>
+  way.protocol === "http" || way.protocol === "mcp";
 
 export const validateWays = <R>(
   features: readonly AnyFeature[],
@@ -23,7 +40,29 @@ export const validateWays = <R>(
   const httpPaths = new Set<string>();
   const reservedPaths = new Set<string>();
   for (const way of ways) {
+    if (!["http", "mcp", "hook", "schedule"].includes(way.protocol)) return "Unknown way protocol";
     if (names.has(way.name)) return `Duplicate way name ${way.name}`;
+    names.add(way.name);
+    if (new Set(way.features).size !== way.features.length)
+      return `${way.name} exposes a feature twice`;
+    for (const feature of way.features)
+      if (!features.includes(feature)) return `${way.name} exposes an unregistered feature`;
+    if (!isNetworkWay(way)) {
+      if (
+        way.features.some(
+          (feature) =>
+            feature.start === "person" ||
+            feature.start.reason.trim() === "" ||
+            feature.start.startedBy.trim() === "",
+        )
+      )
+        return `${way.name}: system ways require system-start features`;
+      if (way.protocol === "hook" && way.features.length !== 1)
+        return `${way.name}: hooks require one feature`;
+      if (way.protocol === "schedule" && way.features.length !== 2)
+        return `${way.name}: schedules require selector and item features`;
+      continue;
+    }
     if (paths.has(way.path.toLowerCase())) return `Duplicate way path ${way.path}`;
     if (way.path !== "/" && !isPlainPrefix(way.path)) return `Invalid way path ${way.path}`;
     if (way.protocol === "mcp" && way.public !== undefined)
@@ -34,7 +73,6 @@ export const validateWays = <R>(
         if (feature.start === "person") return "Public features must declare a system start";
       }
     }
-    names.add(way.name);
     paths.add(way.path.toLowerCase());
     if (
       new Set(way.features).size !== way.features.length ||

@@ -2,7 +2,7 @@
 
 ## Mounts
 
-- @example/api/modules/billing/Billing: Billing.expirePending, Billing.initPayment, Billing.refund
+- @example/api/modules/billing/Billing: Billing.duePayments, Billing.expireOne, Billing.initPayment, Billing.refund
 - @example/api/modules/bookings/Bookings: Bookings.book, Bookings.cancel, Bookings.get
 - @example/api/read-models/my-bookings/MyStuff: MyStuff.myBookings
 - booking/AuditTrail: AuditTrail.mine, AuditTrail.recent
@@ -12,6 +12,8 @@
 ## Ways
 
 - mcp (mcp: /mcp): my_bookings, show_booking
+- new-login (hook: @house-rules/identity/FirstSignIn): first_sign_in
+- nightly-cleanup (schedule: 0 3 * * * UTC): due_payments, expire_payment
 - partner (http: /partner): book_for_partner
 - web (http: /api): accept_invitation, assign_role, cancel_booking, change_password, create_invitation, create_organisation, define_role, delete_role, list_invitations, list_members, list_people, list_permissions, list_roles, make_booking, my_activity, my_bookings, my_organisations, my_profile, recent_audit, remove_member, revoke_invitation, revoke_role, show_booking, sign_in, sign_out, sign_up
 
@@ -46,10 +48,15 @@
 - Permission: audit:read
 - Called by: recent_audit
 
-### Billing.expirePending
+### Billing.duePayments
 
 - Permission: billing:expire
-- Called by: nightly_cleanup
+- Called by: due_payments
+
+### Billing.expireOne
+
+- Permission: billing:expire
+- Called by: expire_payment
 
 ### Billing.initPayment
 
@@ -303,12 +310,28 @@
 - Exposed by: web (http: /api)
 - Calls: Party.deleteRole (person, inherited system stays system)
 
+### due_payments
+
+- Starts as: system: nightly cleanup; schedule:nightly-cleanup
+- Person closure: none
+- System closure: billing:expire
+- Exposed by: nightly-cleanup (schedule: 0 3 * * * UTC)
+- Calls: Billing.duePayments (person, inherited system stays system)
+
+### expire_payment
+
+- Starts as: system: nightly cleanup; schedule:nightly-cleanup
+- Person closure: none
+- System closure: billing:expire
+- Exposed by: nightly-cleanup (schedule: 0 3 * * * UTC)
+- Calls: Billing.expireOne (person, inherited system stays system)
+
 ### first_sign_in
 
 - Starts as: system: new login; hook:new-login
 - Person closure: none
 - System closure: party:create, identity:bind, party:admin
-- Exposed by: in-process only
+- Exposed by: new-login (hook: @house-rules/identity/FirstSignIn)
 - Calls: Party.createPerson (person, inherited system stays system)
 - Calls: Identity.bindLogin (person, inherited system stays system)
 - Calls: ⚙ Party.assignRole (system: default role on first sign-in)
@@ -394,14 +417,6 @@
 - Exposed by: web (http: /api)
 - Calls: show_me (person, inherited system stays system)
 - Calls: Party.myAccess (person, inherited system stays system)
-
-### nightly_cleanup
-
-- Starts as: system: nightly cleanup; schedule:nightly_cleanup
-- Person closure: none
-- System closure: billing:expire
-- Exposed by: in-process only
-- Calls: Billing.expirePending (person, inherited system stays system)
 
 ### recent_audit
 

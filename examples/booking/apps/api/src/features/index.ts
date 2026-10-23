@@ -4,7 +4,8 @@ import { cancelBooking } from "./cancel-booking/index.ts";
 import { showBooking } from "./show-booking/index.ts";
 import { myBookings } from "./my-bookings/index.ts";
 import { firstSignIn } from "./first-sign-in/index.ts";
-import { nightlyCleanup } from "./nightly-cleanup/index.ts";
+import { duePayments } from "./due-payments/index.ts";
+import { expirePayment } from "./expire-payment/index.ts";
 import { defineRole } from "./define-role/index.ts";
 import { listRoles } from "./list-roles/index.ts";
 import { assignRole } from "./assign-role/index.ts";
@@ -52,7 +53,8 @@ export const Features = {
   showBooking: showBooking,
   myBookings: myBookings,
   firstSignIn: firstSignIn,
-  nightlyCleanup: nightlyCleanup,
+  duePayments: duePayments,
+  expirePayment: expirePayment,
   defineRole: defineRole,
   listRoles: listRoles,
   assignRole: assignRole,

@@ -146,28 +146,6 @@ it.effect("supplies the catalogue before building modules and resolves May once"
     }
   }),
 );
-it.effect("acquires the temporary afterRuntime slot after Runtime", () =>
-  Effect.gen(function* () {
-    const app = composition({
-      modules: { mounts: [{ ...mount, layer: store }], layer: StepTrace.layer() },
-      features: [],
-      ways: [],
-      may: Effect.succeed(May.fixed([])),
-      system: [],
-      afterRuntime: Layer.effect(
-        Hook,
-        Runtime.pipe(Effect.map((runtime) => runtime.permissions.join(","))),
-      ),
-    });
-    try {
-      const context = yield* app.runtime.contextEffect;
-      expect(Context.get(context, Hook)).toBe("items:read");
-    } finally {
-      yield* Effect.promise(() => app.dispose());
-    }
-    expect((yield* registry(app).pipe(Effect.flip))._tag).toBe("CompositionClosed");
-  }),
-);
 it("rejects binders whose parameter contradicts the service shape", () => {
   const wrong = {
     service: Store,

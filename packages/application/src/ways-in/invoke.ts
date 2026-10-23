@@ -1,6 +1,7 @@
 import type { Actor, KindedError } from "@house-rules/domain";
 import type { CallPermissions } from "../socket/permission-lists.ts";
 import { Cause, Context, Effect, Exit, type Layer, Option, Schema } from "effect";
+import { executionContext } from "./execution-context.ts";
 import { CurrentActor } from "../actor/current-actor.ts";
 import { CallChannel } from "../call/call-facts.ts";
 import { newRequestId, requestIdOf, withRequestId } from "../call/request-id.ts";
@@ -20,7 +21,7 @@ import {
   invalidFor,
 } from "./input.ts";
 import { internalErrorView, safeViewOf, type View } from "./views.ts";
-import type { AnyWay } from "./way-validation.ts";
+import type { NetworkWay } from "./way-validation.ts";
 
 export type Outcome<Value, Failure> =
   | Readonly<{ ok: true; value: Value }>
@@ -69,7 +70,7 @@ export const invoke = <A>(
   context: Context.Context<A>,
   feature: AnyFeature,
   options: Readonly<{
-    way: AnyWay<A>;
+    way: NetworkWay<A>;
     incoming: Incoming;
     input: Effect.Effect<RawInput, InputFault | Refused>;
     channel: string;
@@ -105,7 +106,11 @@ export const invoke = <A>(
             ? yield* decodeValue(feature, raw.value)
             : yield* decodeInput(feature, raw.value, raw.source);
       invokingFeature = true;
-      const execution = execute(feature, input);
+      const execution = execute(feature, input).pipe(
+        Effect.updateContext<A | CallPermissions | Approval, A | CallPermissions | Approval>(
+          executionContext,
+        ),
+      );
       return yield* (
         actor === undefined
           ? execution.pipe(

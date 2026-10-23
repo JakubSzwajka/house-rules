@@ -41,7 +41,7 @@ type BindingOptions = Readonly<{
   ways: readonly Readonly<{
     name: string;
     features: readonly AnyFeature[];
-    protocol?: "http" | "mcp";
+    protocol?: "http" | "mcp" | "hook" | "schedule";
     public?: readonly AnyFeature[];
   }>[];
 }>;
@@ -100,6 +100,11 @@ export const validateRuntime = (options: BindingOptions): string | undefined => 
     if (!isFeature(feature)) return `Feature was not created by defineFeature: ${name}`;
   }
   for (const way of options.ways) {
+    if (
+      (way.protocol === "hook" || way.protocol === "schedule") &&
+      way.features.some((feature) => feature.start === "person")
+    )
+      return "System ways require system-start features";
     if (way.protocol === "mcp" && way.public !== undefined)
       return "MCP ways cannot expose public features";
     for (const feature of way.public ?? []) {

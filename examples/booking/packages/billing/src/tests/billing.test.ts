@@ -38,19 +38,21 @@ it.effect(
       yield* UnitOfWork.atomic(store.transition(paid.id, "pending", "paid"));
       expect(old.createdAt).toBe(0);
       yield* TestClock.adjust("24 hours");
-      const boundary = yield* UnitOfWork.atomic(billing.expirePending(system));
-      expect(boundary).toEqual({ expired: 0 });
+      expect(yield* billing.duePayments(system)).toEqual([]);
+      expect(yield* UnitOfWork.atomic(billing.expireOne(system, old.id))).toEqual({ expired: 0 });
       const fresh = yield* UnitOfWork.atomic(
         billing.initPayment(owner, { id: "fresh", bookingId: "booking-fresh", amount: 100 }),
       );
       expect(fresh.createdAt).toBe(pendingLifetimeMillis);
       yield* TestClock.adjust(1);
       expect(yield* Clock.currentTimeMillis).toBe(pendingLifetimeMillis + 1);
-      expect(yield* UnitOfWork.atomic(billing.expirePending(system))).toEqual({ expired: 1 });
+      expect(yield* billing.duePayments(system)).toEqual([{ paymentId: old.id }]);
+      expect(yield* UnitOfWork.atomic(billing.expireOne(system, old.id))).toEqual({ expired: 1 });
       expect((yield* store.find(old.id))?.status).toBe("expired");
       expect((yield* store.find(paid.id))?.status).toBe("paid");
       expect((yield* store.find(fresh.id))?.status).toBe("pending");
-      expect(yield* UnitOfWork.atomic(billing.expirePending(system))).toEqual({ expired: 0 });
+      expect(yield* UnitOfWork.atomic(billing.expireOne(system, old.id))).toEqual({ expired: 0 });
+      expect(yield* billing.duePayments(system)).toEqual([]);
       expect(yield* fake.calls).toHaveLength(3);
     }).pipe(
       Effect.provide(Layer.merge(Billing.layer.pipe(Layer.provideMerge(ports)), memoryUnitOfWork)),

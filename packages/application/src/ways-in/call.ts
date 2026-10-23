@@ -14,6 +14,7 @@ import {
   layerFailure,
   type Outcome,
 } from "./invoke.ts";
+import { isNetworkWay } from "./way-validation.ts";
 import { Refused as RefusedError } from "./caller.ts";
 
 export type CallOptions = Readonly<{ way: string; admitted?: Admitted }>;
@@ -24,7 +25,7 @@ export const call = <A, AppBuildError, E extends AnyFeature>(
   incoming: Incoming,
   options: CallOptions,
 ): Promise<Outcome<E["output"]["Type"], FeatureFailure<E> | Refused | AppBuildError>> => {
-  const way = app.ways.find((candidate) => candidate.name === options.way);
+  const way = app.ways.filter(isNetworkWay).find((candidate) => candidate.name === options.way);
   const kept =
     (options.admitted === undefined ? undefined : admittedRequestId(options.admitted)) ??
     incoming.headers.get(requestIdHeader);

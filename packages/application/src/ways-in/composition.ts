@@ -1,5 +1,5 @@
 import { Cause, Context, Effect, Exit, Fiber, Layer, ManagedRuntime } from "effect";
-import type { Permission } from "@house-rules/domain";
+import type { Permission, UnitOfWork } from "@house-rules/domain";
 import type { AnyFeature } from "../feature/feature.ts";
 import type { FeatureRequirements } from "../execution/run-feature.ts";
 import type { CurrentActor } from "../actor/current-actor.ts";
@@ -21,7 +21,13 @@ import { ResolvedMay } from "../socket/resolved-may.ts";
 import { GraphInvalid } from "../runtime/graph-invalid.ts";
 import { featureAndRecheck, type GatePolicy } from "../socket/permission-lists.ts";
 import type { ServicesCheck } from "./mount-check.ts";
-import { validateWays, type AnyWay } from "./way-validation.ts";
+import {
+  validateWays,
+  type AnyWay,
+  type HookServices,
+  type WhoServices,
+} from "./way-validation.ts";
+import { systemWays } from "./system-ways.ts";
 
 export type Composition<A, E = never> = Readonly<{
   _tag: "Composition";
@@ -47,6 +53,7 @@ type Lifecycle = Readonly<{
 
 const lifecycles = new WeakMap<object, Lifecycle>();
 
+type SystemRequirements<W> = W extends { protocol: "hook" | "schedule" } ? UnitOfWork : never;
 type Outputs<M extends Mounts, A> = A | Layer.Success<M[number]["layer"]>;
 type Errors<M extends Mounts, E> = E | Layer.Error<M[number]["layer"]> | GraphInvalid;
 
@@ -58,8 +65,6 @@ export const composition = <
   MayError,
   const Features extends readonly AnyFeature[],
   const Ways extends readonly AnyWay<R>[],
-  After = never,
-  AfterE = never,
 >(
   options: Readonly<{
     modules: ModulePlan<M, A, E, PermissionCatalogue> & { readonly mounts: CheckedMounts<M> };
@@ -68,21 +73,24 @@ export const composition = <
     may: Effect.Effect<MaySocket<MayError>, never, NoInfer<Outputs<M, A>>>;
     system: readonly Permission[];
     gatePolicy?: GatePolicy;
-    afterRuntime?: Layer.Layer<After, AfterE, NoInfer<Outputs<M, A> | Runtime>>;
   }> &
     ServicesCheck<
       | Exclude<
           FeatureRequirements<Features[number]>,
           CurrentActor | CallPermissions | Approval | Runtime
         >
-      | Effect.Services<ReturnType<Ways[number]["who"]["resolve"]>>,
-      Outputs<M, A> | After
+      | WhoServices<Ways[number]>
+      | SystemRequirements<Ways[number]>,
+      Outputs<M, A> | HookServices<Ways[number]>
     > &
     ServicesCheck<Exclude<Layer.Services<M[number]["layer"]>, PermissionCatalogue>, A> &
     ([MissingMountServices<M>] extends [never]
       ? unknown
       : { readonly mountLayerMissingServices: MissingMountServices<M> }),
-): Composition<Outputs<M, A> | After | Runtime | ResolvedMay, Errors<M, E> | AfterE> => {
+): Composition<
+  Outputs<M, A> | HookServices<Ways[number]> | Runtime | ResolvedMay,
+  Errors<M, E>
+> => {
   const modules = planLayer<M, A, E, PermissionCatalogue>(options.modules);
   const linked = Runtime.layer<M>({
     mounts: options.modules.mounts,
@@ -101,11 +109,13 @@ export const composition = <
   const withMay = Layer.effect(ResolvedMay, options.may.pipe(Effect.map(normalizeMay))).pipe(
     Layer.provideMerge(validated),
   );
-  const layer = (options.afterRuntime === undefined
-    ? withMay
-    : options.afterRuntime.pipe(Layer.provideMerge(withMay))) as unknown as Layer.Layer<
-    Outputs<M, A> | After | Runtime | ResolvedMay,
-    Errors<M, E> | AfterE
+  const layer = systemWays(
+    options.ways,
+    options.system,
+    options.gatePolicy ?? featureAndRecheck,
+  ).pipe(Layer.provideMerge(withMay)) as unknown as Layer.Layer<
+    Outputs<M, A> | HookServices<Ways[number]> | Runtime | ResolvedMay,
+    Errors<M, E>
   >;
   const app = compositionFromLayer({ ...options, layer });
   resolvedMounts.set(app, options.modules.mounts);

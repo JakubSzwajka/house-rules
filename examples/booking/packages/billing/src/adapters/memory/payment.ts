@@ -36,18 +36,20 @@ export const memoryPaymentStore = (records: readonly Payment[] = []) =>
         rows.set(id, { ...row, status: to });
         return true;
       }),
-      expireBefore: Effect.fn("PaymentStore.memory.expireBefore")(function* (cutoff: number) {
+      dueBefore: (cutoff) =>
+        Effect.sync(() =>
+          [...rows.values()]
+            .filter((row) => row.status === "pending" && row.createdAt < cutoff)
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .map((row) => ({ paymentId: row.id })),
+        ),
+      expireOne: Effect.fn("PaymentStore.memory.expireOne")(function* (id: string, cutoff: number) {
         yield* required;
-        const expired = [...rows.values()].filter(
-          (row) => row.status === "pending" && row.createdAt < cutoff,
-        );
-        yield* onRollback(
-          Effect.sync(() => {
-            for (const row of expired) rows.set(row.id, row);
-          }),
-        );
-        for (const row of expired) rows.set(row.id, { ...row, status: "expired" });
-        return expired.length;
+        const row = rows.get(id);
+        if (row === undefined || row.status !== "pending" || row.createdAt >= cutoff) return false;
+        yield* onRollback(Effect.sync(() => void rows.set(id, row)));
+        rows.set(id, { ...row, status: "expired" });
+        return true;
       }),
     });
   });

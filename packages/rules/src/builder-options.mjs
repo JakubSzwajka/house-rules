@@ -22,5 +22,7 @@ export function builderOptions(expression, hasFeatures) {
     (property) => (property.key.name ?? property.key.value) === "public",
   );
   if (publicFeatures.length > 1) return undefined;
-  return { features: features[0]?.value, public: publicFeatures[0]?.value };
+  const keys = properties.map((property) => property.key.name ?? property.key.value);
+  if (new Set(keys).size !== keys.length) return undefined;
+  return Object.fromEntries(properties.map((property, index) => [keys[index], property.value]));
 }

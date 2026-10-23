@@ -5,6 +5,7 @@ import { requestIdHeader } from "../call/request-id.ts";
 import { type Incoming, Refused } from "./caller.ts";
 import { type Composition, serveIn } from "./composition.ts";
 import { closedFailure, inRequest, internalError, layerFailure, type Outcome } from "./invoke.ts";
+import { isNetworkWay } from "./way-validation.ts";
 import { safeViewOf } from "./views.ts";
 
 declare const admittedBrand: unique symbol;
@@ -36,7 +37,7 @@ export const admit = <A, AppBuildError>(
   incoming: Incoming,
   options: AdmitOptions,
 ): Promise<Outcome<Admitted, Refused | AppBuildError>> => {
-  const way = app.ways.find((candidate) => candidate.name === options.way);
+  const way = app.ways.filter(isNetworkWay).find((candidate) => candidate.name === options.way);
   const kept = incoming.headers.get(requestIdHeader);
   const channel = options.channel ?? "web";
   const answered = serveIn<A, Outcome<Admitted, unknown>>(app, {

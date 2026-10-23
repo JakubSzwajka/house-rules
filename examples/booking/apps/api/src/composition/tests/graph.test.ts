@@ -158,16 +158,8 @@ it.effect("app features retain exact closures, starts, edges and lifted flags", 
         false,
         ["Party.createPerson", "Identity.bindLogin", "Party.assignRole"],
       ],
-      [
-        "nightly_cleanup",
-        [],
-        ["billing:expire"],
-        false,
-        true,
-        false,
-        false,
-        ["Billing.expirePending"],
-      ],
+      ["due_payments", [], ["billing:expire"], true, false, false, false, ["Billing.duePayments"]],
+      ["expire_payment", [], ["billing:expire"], false, true, false, false, ["Billing.expireOne"]],
       ["define_role", ["party:admin"], [], false, true, false, false, ["Party.defineRole"]],
       ["list_roles", ["party:read"], [], true, false, false, false, ["Party.listRoles"]],
       ["assign_role", ["party:admin"], [], false, true, false, false, ["Party.assignRole"]],
@@ -191,10 +183,10 @@ it.effect("app features retain exact closures, starts, edges and lifted flags", 
       reason: "new login",
       startedBy: "hook:new-login",
     });
-    assert.deepStrictEqual(Features.nightlyCleanup.start, {
+    assert.deepStrictEqual(Features.expirePayment.start, {
       kind: "system",
       reason: "nightly cleanup",
-      startedBy: "schedule:nightly_cleanup",
+      startedBy: "schedule:nightly-cleanup",
     });
   }),
 );

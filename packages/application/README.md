@@ -81,7 +81,7 @@ A package main exports a plain `<Module>Mount` value satisfying `MountDefinition
 
 `planLayer(plan)` builds raw services from the same plan used by composition. It merges the mount layers, provides shared infrastructure and supplies PermissionCatalogue from the mount descriptors before either builds. Its Layer retains the plan's outputs, errors and uncovered inputs. Use it for service-level tests and tooling, not a second app assembly path. It never calls binders or installs way plugs.
 
-Composition supplies the kit-owned PermissionCatalogue before building modules, then acquires mount services and infrastructure in one memoization scope. It calls each binder once, acquires Runtime, resolves the effectful May and acquires post-Runtime slots. The optional `afterRuntime` layer is temporary, replaced by hook ways (decision 48 step 2). Do not use it for anything else. Standalone `Runtime.layer({ mounts, features, ways })` requires the services but does not build mount layers. The root accepts ways from `main.ts`; it never imports the ways folder.
+Composition supplies the kit-owned PermissionCatalogue before building modules, then acquires mount services and infrastructure in one memoization scope. It calls each binder once, acquires Runtime, resolves the effectful May, installs hook slots and starts scoped schedule clocks. Standalone `Runtime.layer({ mounts, features, ways })` requires the services but does not build mount layers. The root accepts ways from `main.ts`; it never imports the ways folder.
 
 `Runtime.layer` returns typed `GraphInvalid` on duplicate service keys, operation identities or names, missing/extra/duplicate binder descriptors, cycles, invalid system reasons and duplicate or unregistered exposures. Only `defineFeature` creates a branded feature. Runtime refuses structural forgeries, including spread copies, and recomputes permission closures and lifted flags from the declared graph at acquisition. Feature starts and closure lists are immutable. Composition repeats validation for its actual features and ways against the acquired bindings. Dispatch uses descriptor identity, not name equality.
 
@@ -111,9 +111,32 @@ HTTP ways hold endpoint descriptors. List public features with `defineWay({ prot
 
 Admission stays on the way, not on endpoint descriptors. Pass `public: way.public` to `toOpenApi(endpoints, options)` to mark those operations with `security: []`, overriding any global security requirement. This option only describes admission; it cannot grant access. The router has no HTTP documentation route.
 
-MCP ways hold tools shaped as `{ feature, title, idempotent, openWorld }`, a server and a protected resource. The router builds MCP tools from feature schemas and lifted flags. MCP verifies bearer admission on every request, including existing sessions. Who must verify signature, issuer, expiry and resource audience. Missing tokens get the metadata challenge. Unset auth returns 503 without a challenge; metadata keeps GET/HEAD/405 behavior. Browser Origins require an exact allowlist.
+MCP ways hold tools shaped as `{ feature, title, idempotent, openWorld }`, a server and a protected resource. The router builds MCP tools from feature schemas and lifted flags. MCP verifies bearer admission on every request, including existing sessions. At feature execution, every network way removes the ambient HTTP request and strips Authorization, Cookie, Proxy-Authorization and Set-Cookie from CallerScope.incoming.headers. Network feature handlers and inner operations cannot recover credential headers from those request services through Effect.context(). Hooks and schedules instead use a fresh allowlist context built from composition-captured execution services, with no caller-provided services or network request context. Transport, Who, CSRF/origin checks and session handling retain the full request. Request ids, MCP sessions and elicitation keep their protocol context. Who must verify signature, issuer, expiry and resource audience. Missing tokens get the metadata challenge. Unset auth returns 503 without a challenge; metadata keeps GET/HEAD/405 behavior. Browser Origins require an exact allowlist.
 
 `toFetchHandler(app)` owns dispatch and metadata routes. Dispose the router before the composition. Builds are lazy, shared after success and retried after failure. Final disposal interrupts inflight work before releasing resources. Closed responses retain request ids and `cache-control: no-store`.
+
+## Hook and schedule ways
+
+```ts
+const hook = defineWay({
+  protocol: "hook", name: "new-login", slot: FirstSignInSlot,
+  features: [Features.firstSignIn], mean: Mean.allow,
+  input: (principal) => ({ issuer: principal.issuer, subject: principal.subject,
+    displayName: principal.subject }),
+  failure: () => new Refused({ status: 503, code: "sign_in_failed", message: "Try again." }),
+});
+const nightly = defineWay({
+  protocol: "schedule", name: "nightly-cleanup",
+  clock: { cron: "0 3 * * *", timeZone: "UTC" },
+  features: [Features.duePayments, Features.expirePayment], mean: Mean.allow, input: {},
+});
+```
+
+Both variants accept system-start features only. A hook has exactly one feature. Its caller-owned slot runs on a fresh context containing only composition-captured Runtime, StepTrace, UnitOfWork, CallWatch, the way's Approval, CallPermissions from May.system with the composition gate policy, and CallChannel. Hooks and schedule executions add fresh request ids, fresh log annotations and new root spans. Caller-provided services, log annotations and current spans are not inherited. Every hook invocation uses the hook:<name> channel; schedules use schedule:<name>. Neither calls Who or inherits CurrentActor or network request context. Hook results and mapped errors return to the slot caller; caller interruption still interrupts the hook. Internal causes are logged; only the mapped error reaches the slot. Duplicate slot providers fail GraphInvalid.
+
+A schedule's selector output must be an array of item inputs. Composition parses its UTC cron and checks its next date at acquisition; invalid or impossible clocks fail GraphInvalid. Later next-date failures are also typed GraphInvalid, logged before the driver stops. Scoped drivers start after hooks and first wait for the next tick. Each tick runs the selector, then each item sequentially through runFeature, one unit per transactional item. Item failures are logged and processing continues. There is no startup run, catch-up or distributed lease. Item operations must be idempotent. Disposal interrupts the driver before closing infrastructure. System ways have no path, Who, endpoints or tools, and never enter fetch routing.
+
+Mean is explicit. Trusted provisioning and nightly maintenance use Mean.allow; other system ways use Mean.no unless approved. For TestClock tests, supply the test Clock through the module plan's infrastructure. ManagedRuntime does not inherit ambient test services. Registry scripts use a frozen TestClock layer so acquisition cannot run scheduled work. Registry output includes hook slot keys and schedule clocks.
 
 ## Endpoints, clients and failures
 

@@ -1,10 +1,10 @@
 import { assert, it } from "@effect/vitest";
-import { Identity, FirstSignIn } from "@house-rules/identity";
-import { planLayer } from "@house-rules/application";
+import { Identity } from "@house-rules/identity";
+import { planLayer, May, Mean, runFeature } from "@house-rules/application";
 import { Actor, UnitOfWork } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
 import { ConfigProvider, Context, Effect, Layer } from "effect";
-import { modulePlan, createApp } from "../index.ts";
+import { modulePlan, createApp, Features, systemPermissions } from "../index.ts";
 import { grantAdmin } from "../../../scripts/grant-admin.ts";
 
 it.live("sign-up using the former admin email gets only member; shell grant-admin adds admin", () =>
@@ -17,7 +17,9 @@ it.live("sign-up using the former admin email gets only member; shell grant-admi
             ...plan,
             layer: plan.layer.pipe(
               Layer.provideMerge(
-                ConfigProvider.layer(ConfigProvider.fromUnknown({ STORAGE: "memory" })),
+                ConfigProvider.layer(
+                  ConfigProvider.fromUnknown({ STORAGE: "memory", NODE_ENV: "test" }),
+                ),
               ),
             ),
           },
@@ -36,16 +38,22 @@ it.live("sign-up using the former admin email gets only member; shell grant-admi
         displayName: "Admin",
       }),
     ).pipe(Effect.provideContext(ctx));
-    const id = yield* Context.get(
-      ctx,
-      FirstSignIn,
-    )({
+    const id = yield* runFeature(Features.firstSignIn, {
       issuer: issuer.issuer,
       subject: account.accountId,
-      audience: [],
-      scopes: [],
-      claims: { email: "admin@example.test" },
-    });
+      displayName: "Admin",
+    }).pipe(
+      Effect.provideContext(
+        Context.merge(
+          ctx,
+          May.system([Features.firstSignIn], {
+            system: systemPermissions,
+            via: "hook:new-login",
+          }),
+        ),
+      ),
+      Effect.provide(Mean.allow.approval),
+    );
     const party = Context.get(ctx, Party);
     const caller = { kind: "person", actor: Actor.make({ id }), via: "test" } as const;
     assert.deepStrictEqual(

@@ -121,7 +121,15 @@ export type { FetchHandler } from "./ways-in/mount-check.ts";
 export type { SessionOptions } from "./ways-in/session-cookie.ts";
 export { decodeInput, InputInvalid, type InputIssue, type InputSource } from "./ways-in/input.ts";
 export type { Outcome } from "./ways-in/invoke.ts";
-export { type WayOptions, type WayFailure, defineWay } from "./ways-in/way.ts";
+export type { AnyWay } from "./ways-in/way-validation.ts";
+export {
+  type WayOptions,
+  type WayFailure,
+  type HookWay,
+  type ScheduleWay,
+  type SystemFeature,
+  defineWay,
+} from "./ways-in/way.ts";
 export type { WordingOverrides } from "./ways-in/views.ts";
 export {
   Authenticator,

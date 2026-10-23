@@ -3,7 +3,7 @@ import { FindMyWay, HttpRouter, HttpServerRequest, HttpServerResponse } from "ef
 import { requestIdHeader, withRequestId } from "../call/request-id.ts";
 import { failureCodeHeader } from "../contract/endpoint.ts";
 import type { Incoming } from "./caller.ts";
-import { type AnyWay, validateWays } from "./way-validation.ts";
+import { type AnyWay, type NetworkWay, isNetworkWay, validateWays } from "./way-validation.ts";
 import { makeMcpHandler } from "./mcp-handler.ts";
 import { type Composition, serveIn } from "./composition.ts";
 import { checkCors, preflightRoutes, withCors } from "./cors.ts";
@@ -142,11 +142,12 @@ const makeHttpHandler = <A, E>(
 
 export const toFetchHandler = <A, E>(app: Composition<A, E>): FetchHandler => {
   const invalid = validateWays(app.features, app.ways);
-  const handlers = new Map<AnyWay<A>, FetchHandler>();
-  const matcher = FindMyWay.make<AnyWay<A>>();
+  const handlers = new Map<NetworkWay<A>, FetchHandler>();
+  const matcher = FindMyWay.make<NetworkWay<A>>();
+  const networkWays = app.ways.filter(isNetworkWay);
   if (invalid === undefined) {
     const preflights = new Set<string>();
-    for (const way of app.ways) {
+    for (const way of networkWays) {
       if (way.protocol === "mcp") {
         matcher.all(way.path, way);
         continue;
@@ -176,7 +177,7 @@ export const toFetchHandler = <A, E>(app: Composition<A, E>): FetchHandler => {
           ) as Response,
       );
     const path = new URL(request.url).pathname;
-    const metadataWay = app.ways.find(
+    const metadataWay = networkWays.find(
       (way) =>
         way.protocol === "mcp" &&
         way.resource.paths.some((each) => each.toLowerCase() === path.toLowerCase()),
@@ -186,7 +187,7 @@ export const toFetchHandler = <A, E>(app: Composition<A, E>): FetchHandler => {
     const way =
       metadataWay ??
       matcher.find(request.method, path)?.handler ??
-      [...app.ways]
+      [...networkWays]
         .sort((a, b) => b.path.length - a.path.length)
         .find(
           (candidate) =>

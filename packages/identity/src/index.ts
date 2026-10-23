@@ -67,4 +67,11 @@ export { Account } from "./passwords/account.js";
 export { PasswordAccountNotFound } from "./passwords/account-lookup.js";
 export { PasswordHash, PasswordIterations } from "./passwords/password-hash.js";
 export { PasswordsUnavailable } from "./passwords/provider-unavailable.js";
-export type { IdentityOptions, OidcProvider, PasswordsProvider } from "./sign-in/providers.js";
+export { DevLocalIssuers } from "./sign-in/dev-local-issuers.js";
+export { IdentityProviderInvalid } from "./sign-in/provider-invalid.js";
+export type {
+  DevLocalProvider,
+  IdentityOptions,
+  OidcProvider,
+  PasswordsProvider,
+} from "./sign-in/providers.js";

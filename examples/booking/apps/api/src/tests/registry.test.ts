@@ -6,11 +6,13 @@ import { createApp } from "../composition/index.ts";
 import { webWay } from "../ways-in/web/way.ts";
 import { partnerWay } from "../ways-in/partner/way.ts";
 import { mcpWay } from "../ways-in/mcp/way.ts";
+import { firstSignInWay } from "../ways-in/hooks/first-sign-in.ts";
+import { nightlyCleanupWay } from "../ways-in/schedules/nightly-cleanup.ts";
 import { registryMarkdown } from "../../scripts/registry.ts";
 
 it.effect("snapshots every actual way exposure by descriptor identity", () =>
   Effect.gen(function* () {
-    const ways = [webWay, partnerWay, mcpWay];
+    const ways = [webWay, partnerWay, mcpWay, firstSignInWay, nightlyCleanupWay];
     const app = createApp(ways);
     try {
       const snapshot = yield* registry(app);

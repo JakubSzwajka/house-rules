@@ -1,4 +1,4 @@
-import { Clock, Config, Context, Effect, Layer, Redacted, Schema } from "effect";
+import { Clock, Context, Effect, Layer, Redacted, Schema } from "effect";
 import {
   calculateJwkThumbprint,
   type CryptoKey,
@@ -10,6 +10,7 @@ import {
   type JWTPayload,
   SignJWT,
 } from "jose";
+import { requireDevelopmentSigning } from "./development-signing.js";
 import { PasswordIssuerConfigInvalid } from "./issuer-config-invalid.js";
 import type { SignedIn } from "./signed-in.js";
 
@@ -131,13 +132,9 @@ const fromKey = Effect.fnUntraced(function* (options: PasswordIssuerKeyOptions) 
 });
 
 const ephemeralService = Effect.fnUntraced(function* (options: PasswordIssuerOptions) {
-  const environment = yield* Config.String("NODE_ENV").pipe(
-    Config.withDefault("development"),
-    Effect.orDie,
-  );
-  if (environment === "production") {
-    return yield* invalid("ephemeral", "Ephemeral signing is forbidden in production.");
-  }
+  const refused = () =>
+    invalid("ephemeral", "Ephemeral signing requires NODE_ENV development or test.");
+  yield* requireDevelopmentSigning(refused);
   const ttlSeconds = yield* checked(options);
   const pair = yield* Effect.promise(() => generateKeyPair(algorithm));
   const publicKey = yield* publicPart(yield* exported(PublicJwk, pair.publicKey));
@@ -156,7 +153,7 @@ export class PasswordIssuer extends Context.Service<PasswordIssuer, PasswordIssu
   ): Layer.Layer<PasswordIssuer, PasswordIssuerConfigInvalid> =>
     Layer.effect(PasswordIssuer, fromKey(options));
 
-  // Temporary signing keys are refused in production.
+  // Temporary signing keys require development or test.
   static readonly ephemeral = (
     options: PasswordIssuerOptions,
   ): Layer.Layer<PasswordIssuer, PasswordIssuerConfigInvalid> =>

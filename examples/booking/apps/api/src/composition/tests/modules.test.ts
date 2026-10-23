@@ -7,7 +7,10 @@ import { memoryAuditLog } from "@house-rules/call-audit";
 import { Features } from "../../features/index.ts";
 import { modulePlan } from "../index.ts";
 
-for (const config of [{}, { STORAGE: "memory", DATABASE_URL: "not a database URL" }])
+for (const config of [
+  { NODE_ENV: "test" },
+  { NODE_ENV: "test", STORAGE: "memory", DATABASE_URL: "not a database URL" },
+])
   it.effect(`memory modules ignore DATABASE_URL with config ${JSON.stringify(config)}`, () =>
     Effect.gen(function* () {
       const log = memoryAuditLog();

@@ -53,7 +53,7 @@ for (const { name, layer: world } of stores) {
           expect(yield* Effect.flip(store.transition("absent", "pending", "paid"))).toBeInstanceOf(
             NoOpenUnit,
           );
-          expect(yield* Effect.flip(store.expireBefore(1000))).toBeInstanceOf(NoOpenUnit);
+          expect(yield* Effect.flip(store.expireOne("absent", 1000))).toBeInstanceOf(NoOpenUnit);
           expect(yield* store.find("no-unit")).toBeUndefined();
         }),
       );
@@ -128,17 +128,23 @@ for (const { name, layer: world } of stores) {
             row("expiry-expired", "expired", 0),
           ];
           yield* UnitOfWork.atomic(Effect.forEach(seeds, (payment) => store.insert(payment)));
+          expect(yield* store.dueBefore(1)).toEqual([{ paymentId: "expiry-old" }]);
           expect(
             yield* Effect.flip(
-              UnitOfWork.atomic(store.expireBefore(1).pipe(Effect.andThen(new AbortPayment()))),
+              UnitOfWork.atomic(
+                store.expireOne("expiry-old", 1).pipe(Effect.andThen(new AbortPayment())),
+              ),
             ),
           ).toBeInstanceOf(AbortPayment);
           expect(yield* store.find("expiry-old")).toEqual(seeds[0]);
-          expect(yield* UnitOfWork.atomic(store.expireBefore(1))).toBe(1);
+          expect(yield* UnitOfWork.atomic(store.expireOne("expiry-old", 1))).toBe(true);
           expect((yield* store.find("expiry-old"))?.status).toBe("expired");
           for (const payment of seeds.slice(1))
             expect(yield* store.find(payment.id)).toEqual(payment);
-          expect(yield* UnitOfWork.atomic(store.expireBefore(1))).toBe(0);
+          expect(yield* UnitOfWork.atomic(store.expireOne("expiry-old", 1))).toBe(false);
+          expect(yield* store.dueBefore(1)).toEqual([]);
+          for (const payment of seeds.slice(1))
+            expect(yield* UnitOfWork.atomic(store.expireOne(payment.id, 1))).toBe(false);
         }),
       );
       it.effect("service charges once, returns paid and keeps the caller's owner fact", () => {
@@ -260,9 +266,11 @@ for (const { name, layer: world } of stores) {
             yield* Effect.flip(billing.initPayment(owner, input("service-no-unit"))),
           ).toBeInstanceOf(NoOpenUnit);
           expect(yield* Effect.flip(billing.refund(system, "absent"))).toBeInstanceOf(NoOpenUnit);
-          expect(yield* Effect.flip(billing.expirePending(system))).toBeInstanceOf(NoOpenUnit);
+          expect(yield* Effect.flip(billing.expireOne(system, "absent"))).toBeInstanceOf(
+            NoOpenUnit,
+          );
           expect(
-            yield* Effect.flip(UnitOfWork.atomic(billing.expirePending(person))),
+            yield* Effect.flip(UnitOfWork.atomic(billing.expireOne(person, "absent"))),
           ).toBeInstanceOf(PaymentCallerDenied);
           expect(yield* fake.calls).toEqual([]);
           expect(yield* (yield* PaymentStore).find("service-no-unit")).toBeUndefined();
@@ -271,7 +279,6 @@ for (const { name, layer: world } of stores) {
     },
   );
 }
-
 layer(stores[1].layer, { excludeTestServices: true, timeout: "30 seconds" })(
   "v2 payment view",
   (it) => {

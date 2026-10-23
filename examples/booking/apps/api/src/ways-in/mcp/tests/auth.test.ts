@@ -1,12 +1,14 @@
 import { assert, it } from "@effect/vitest";
 import { toFetchHandler, call, Mean } from "@house-rules/application";
-import { AuthJwt, AuthJwtTesting } from "@house-rules/auth-jwt";
+import { AuthJwtTesting } from "@house-rules/auth-jwt";
 import { Actor, ActorId } from "@house-rules/domain";
 import { Identity } from "@house-rules/identity";
 import { Effect, Layer } from "effect";
 import { createApp, Features, modulePlan, resourceOf } from "../../../composition/index.ts";
 import { seedRoleTesting } from "../../../composition/tests/roles-testing.ts";
 import { databaseTesting } from "../../../composition/tests/database.ts";
+import { firstSignInWay } from "../../hooks/first-sign-in.ts";
+import { mcpWho } from "../../../composition/callers.ts";
 import { webWay } from "../../web/way.ts";
 import { mcpWay } from "../way.ts";
 import { rpcTesting, sessionTesting, requestTesting } from "./protocol.ts";
@@ -21,18 +23,12 @@ it.live(
       const issuer = "https://outside.invalid";
       const resource = resourceOf("https://booking.example", issuer);
       if (!resource.configured) return assert.fail("Expected configured resource");
-      const auth = AuthJwt.layer({ issuer, jwks: keys.jwks }).pipe(Layer.orDie);
-      const identity = Identity.who({
-        token: "bearer",
-        audience: resource.metadata.resource,
-        challenge: resource.challenge,
+      const who = mcpWho(resource);
+      const modules = modulePlan({
+        identity: { providers: [Identity.oidc({ issuer, jwks: keys.jwks })] },
       });
-      const who = {
-        resolve: (incoming: { headers: Headers; url: string }) =>
-          identity.resolve(incoming).pipe(Effect.provide(auth)),
-      };
       const app = yield* Effect.acquireRelease(
-        Effect.sync(() => createApp([{ ...template, resource, who }])),
+        Effect.sync(() => createApp([{ ...template, resource, who }, firstSignInWay], { modules })),
         (app) => Effect.promise(() => app.dispose()),
       );
       const router = yield* Effect.acquireRelease(

@@ -1,7 +1,6 @@
 import { bindOperation, type Binding } from "@house-rules/application";
 import type { Actor, Caller, NoOpenUnit } from "@house-rules/domain";
 import { Effect } from "effect";
-import { PaymentProvider } from "./payment-provider.ts";
 import {
   type Payment,
   type NewPayment,
@@ -14,13 +13,7 @@ import {
   type PaymentStoreUnavailable,
   type PaymentProviderFailed,
 } from "./payment.ts";
-import {
-  paymentPolicy,
-  paymentRelation,
-  BillingPermissions,
-  pendingLifetimeMillis,
-} from "./payment-policy.ts";
-import { initPaymentNode, refundNode, expirePendingNode } from "./operations.ts";
+import { initPaymentNode, refundNode, duePaymentsNode, expireOneNode } from "./operations.ts";
 
 type Service = {
   readonly initPayment: (
@@ -46,8 +39,15 @@ type Service = {
     | PaymentProviderFailed
     | NoOpenUnit
   >;
-  readonly expirePending: (
+  readonly duePayments: (
     caller: Caller,
+  ) => Effect.Effect<
+    readonly { readonly paymentId: string }[],
+    PaymentCallerDenied | PaymentStoreUnavailable
+  >;
+  readonly expireOne: (
+    caller: Caller,
+    paymentId: string,
   ) => Effect.Effect<ExpiredPayments, PaymentCallerDenied | PaymentStoreUnavailable | NoOpenUnit>;
 };
 
@@ -58,5 +58,6 @@ export const bindBilling = (billing: Service): readonly Binding[] => [
       : Effect.fail(new PaymentCallerDenied()),
   ),
   bindOperation(refundNode, ({ bookingId }, { caller }) => billing.refund(caller, bookingId)),
-  bindOperation(expirePendingNode, (_input, { caller }) => billing.expirePending(caller)),
+  bindOperation(duePaymentsNode, (_input, { caller }) => billing.duePayments(caller)),
+  bindOperation(expireOneNode, ({ paymentId }, { caller }) => billing.expireOne(caller, paymentId)),
 ];

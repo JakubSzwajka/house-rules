@@ -38,6 +38,7 @@ export const databaseTesting = Layer.effectDiscard(
             ConfigProvider.layer(
               ConfigProvider.fromUnknown({
                 STORAGE: "postgres",
+                NODE_ENV: "test",
                 DATABASE_URL: Redacted.value(url),
               }),
             ),

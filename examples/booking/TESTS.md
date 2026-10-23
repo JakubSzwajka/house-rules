@@ -106,6 +106,9 @@ In this table, app-relative paths start at `examples/booking/apps/api/`.
 | V | app-relative `src/read-models/my-bookings/adapters/tests/my-bookings.test.ts` | `runs the Postgres adapter against both migrated views` (suite `published views`) |
 | S | app-relative `src/read-models/my-bookings/adapters/tests/my-bookings.test.ts` | `guards every adapter SQL template against private tables and writes` |
 | T | app-relative `src/composition/tests/entries.test.ts` | `runs the schedule once using Effect Clock, expires only pending older than 24h` |
+| T | root `packages/application/src/tests/system-ways.test.ts` | Hook slot mapping, fresh ids and no ambient actor; next-tick schedule, per-item rollback, disposal, duplicate slots and invalid cron |
+| T | root `packages/identity/src/tests/providers.test.ts` | devLocal signing handles, key isolation and typed production refusal |
+| T | billing `src/adapters/tests/payment-store.test.ts` and `src/tests/billing.test.ts` | Read-only due selector, conditional expire-one, strict cutoff, rollback and repeated expiry |
 | M | app-relative `src/ways-in/mcp/tests/auth.test.ts` | `real PG MCP both read-only tools enforce fake A/B privacy; cancel is absent` |
 | J | app-relative `src/ways-in/mcp/tests/auth.test.ts` | `signed MCP admission checks challenge, metadata, signature, issuer, audience, expiry and existing sessions` |
 | I | app-relative `src/features/make-booking/tests/input-boundary.test.ts` | `memory: reused schemas reject invalid HTTP and in-process inputs before all work`; `postgres: reused schemas reject invalid HTTP and in-process inputs before all work` |

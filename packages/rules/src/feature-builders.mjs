@@ -1,10 +1,9 @@
 import path from "node:path";
-import { builderOptions } from "./builder-options.mjs";
 import { forbiddenBuilderImports, kitImplementation } from "./kit-builder-source.mjs";
 import { matchesAnyGlob } from "./file-globs.mjs";
 import { importOf, staticPropertyName, unwrapExpression } from "./import-bindings.mjs";
 import { sourceGraph } from "./source-provenance.mjs";
-import { featureOrigin } from "./feature-origin.mjs";
+import { featureOrigin, featureOptions } from "./feature-origin.mjs";
 import { ruleDocsUrl } from "./rule-docs.mjs";
 const application = (source) => /^@house-rules\/application(?:\/contract)?$/u.test(source);
 const builders = new Set([
@@ -28,7 +27,7 @@ export const featureBuildersRule = {
     docs: {
       url: ruleDocsUrl("feature-builders"),
       description:
-        "Require direct named kit builders, inline builder options, one-file feature origins for way features/public, May.context, May.system and starts, and operation builders outside features.",
+        "Require direct named kit builders, inline builder options, one-file feature origins for HTTP/MCP exposures and resolved hook/schedule system starts, May.context and May.system, and operation builders outside features.",
     },
     schema: [
       {
@@ -47,6 +46,7 @@ export const featureBuildersRule = {
         "Call defineFeature only in features/<name>/index.ts; do not call defineOperation or bindOperation in features/.",
       options:
         "Pass builder options inline with no spread, computed keys or getters; pass features inline, once, for May.context and defineWay.",
+      system: "Hook and schedule ways expose only features with an explicit system start.",
       exposure:
         "Exposed or started features must resolve to this app's defineFeature in features/<name>/index.ts, directly or through its Features registry.",
     },
@@ -93,14 +93,9 @@ export const featureBuildersRule = {
       if (!featureOrigin(graph, app, filename, expression, list))
         context.report({ node, messageId: "exposure" });
     };
-    const optionFeatures = (node, expression, hasFeatures = true, hasPublic = false) => {
-      const options = builderOptions(expression, hasFeatures);
-      if (!options) {
-        context.report({ node, messageId: "options" });
-        return;
-      }
-      if (hasFeatures) exposure(node, options.features, true);
-      if (hasPublic && options.public !== undefined) exposure(node, options.public, true);
+    const optionFeatures = (node, expression, features = true, publicList = false) => {
+      const messages = featureOptions(graph, app, filename, expression, features, publicList);
+      for (const messageId of messages) context.report({ node, messageId });
     };
     return {
       Program(program) {

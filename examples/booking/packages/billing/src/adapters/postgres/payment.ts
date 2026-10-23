@@ -42,11 +42,17 @@ export const postgresPaymentStore = Layer.effect(
       execute: ({ id, from, to }) =>
         sql`update payment set status = ${to} where id = ${id} and status = ${from} returning id`,
     });
-    const expire = SqlSchema.findAll({
+    const due = SqlSchema.findAll({
       Request: Schema.Int,
-      Result: Schema.Struct({ id: Schema.String }),
+      Result: Schema.Struct({ paymentId: Schema.String }),
       execute: (cutoff) =>
-        sql`update payment set status = 'expired' where status = 'pending' and created_at < ${cutoff} returning id`,
+        sql`select id as "paymentId" from payment where status = 'pending' and created_at < ${cutoff} order by id`,
+    });
+    const expire = SqlSchema.findAll({
+      Request: Schema.Struct({ id: Schema.String, cutoff: Schema.Int }),
+      Result: Schema.Struct({ id: Schema.String }),
+      execute: ({ id, cutoff }) =>
+        sql`update payment set status = 'expired' where id = ${id} and status = 'pending' and created_at < ${cutoff} returning id`,
     });
     return PaymentStore.of({
       find: (id) =>
@@ -71,9 +77,13 @@ export const postgresPaymentStore = Layer.effect(
         yield* required;
         return (yield* transition({ id, from, to }).pipe(Effect.mapError(unavailable))).length > 0;
       }),
-      expireBefore: Effect.fn("PaymentStore.postgres.expireBefore")(function* (cutoff: number) {
+      dueBefore: (cutoff) => due(cutoff).pipe(Effect.mapError(unavailable)),
+      expireOne: Effect.fn("PaymentStore.postgres.expireOne")(function* (
+        id: string,
+        cutoff: number,
+      ) {
         yield* required;
-        return (yield* expire(cutoff).pipe(Effect.mapError(unavailable))).length;
+        return (yield* expire({ id, cutoff }).pipe(Effect.mapError(unavailable))).length > 0;
       }),
     });
   }),

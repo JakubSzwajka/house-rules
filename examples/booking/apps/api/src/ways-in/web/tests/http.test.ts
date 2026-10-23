@@ -12,11 +12,12 @@ import { Identity } from "@house-rules/identity";
 import { Party } from "@house-rules/party";
 import { memoryAuditLog } from "@house-rules/call-audit";
 import { Context, Effect } from "effect";
-import { createApp, DemoIssuers, modulePlan, Features } from "../../../composition/index.ts";
+import { createApp, testIssuers, modulePlan, Features } from "../../../composition/index.ts";
 import { makeFakePaymentProvider } from "@example/billing";
 import { Bookings, BookingNotFound } from "@example/bookings";
 import { webWay } from "../way.ts";
 import { api } from "../endpoints.ts";
+import { firstSignInWay } from "../../hooks/first-sign-in.ts";
 import { partnerWay } from "../../partner/way.ts";
 import { mcpWay } from "../../mcp/way.ts";
 
@@ -30,7 +31,7 @@ it.live(
       const who = {
         resolve: (incoming: { headers: Headers; url: string }) =>
           Effect.gen(function* () {
-            const demo = yield* DemoIssuers;
+            const demo = yield* testIssuers.pipe(Effect.orDie);
             const auth = yield* Authenticator.pipe(Effect.provide(demo.web.layer));
             return yield* Identity.who({ token: "bearer" })
               .resolve(incoming)
@@ -47,7 +48,7 @@ it.live(
       const limited = { ...webWay, who };
       const app = yield* Effect.acquireRelease(
         Effect.sync(() =>
-          createApp([limited, partnerWay, mcpWay], {
+          createApp([limited, partnerWay, mcpWay, firstSignInWay], {
             may: May.fixed(["bookings:write", "party:read"]),
             modules: modulePlan({ provider: provider.layer, log }),
           }),
@@ -59,7 +60,7 @@ it.live(
         (router) => Effect.promise(() => router.dispose()),
       );
       const ctx = yield* app.runtime.contextEffect;
-      const demo = Context.get(ctx, DemoIssuers);
+      const demo = yield* testIssuers.pipe(Effect.provideContext(ctx));
       const token = yield* demo.web.issue({ sub: "alice" });
       const headers = new Headers({ authorization: `Bearer ${token}`, "x-request-id": "hook-web" });
       const incoming = { headers, url: "https://booking.example/api" };
@@ -87,7 +88,10 @@ it.live(
         BookingNotFound,
       );
       assert.deepStrictEqual(yield* provider.calls, []);
-      const trace = yield* Context.get(ctx, StepTrace).read("hook-web");
+      const hookRequest = log.entries().find((e) => e.capability === "first_sign_in")?.requestId;
+      assert.isString(hookRequest);
+      assert.notStrictEqual(hookRequest, "hook-web");
+      const trace = yield* Context.get(ctx, StepTrace).read(hookRequest ?? null);
       assert.deepStrictEqual(
         trace.steps.map((s) => [s.feature, s.target, s.caller, s.reason]),
         [
@@ -99,7 +103,7 @@ it.live(
       assert.deepStrictEqual(
         log.entries().map((e) => [e.capability, e.requestId]),
         [
-          ["first_sign_in", "hook-web"],
+          ["first_sign_in", hookRequest],
           ["make_booking", "hook-web"],
         ],
       );
@@ -178,7 +182,7 @@ it.live(
   () =>
     Effect.gen(function* () {
       const app = yield* Effect.acquireRelease(
-        Effect.sync(() => createApp([webWay, partnerWay, mcpWay])),
+        Effect.sync(() => createApp([webWay, partnerWay, mcpWay, firstSignInWay])),
         (app) => Effect.promise(() => app.dispose()),
       );
       const router = yield* Effect.acquireRelease(
@@ -245,6 +249,9 @@ it.live("refuses production demo JWT configuration", () =>
       Effect.sync(() => createApp([webWay], { nodeEnv: "production" })),
       (app) => Effect.promise(() => app.dispose()),
     );
-    assert.strictEqual((yield* app.runtime.contextEffect.pipe(Effect.flip))._tag, "DemoForbidden");
+    assert.strictEqual(
+      (yield* app.runtime.contextEffect.pipe(Effect.flip))._tag,
+      "IdentityProviderInvalid",
+    );
   }).pipe(Effect.scoped),
 );

@@ -3,7 +3,7 @@ import { it } from "node:test";
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { Linter } from "eslint";
+import { Linter, RuleTester } from "eslint";
 import plugin from "../src/index.mjs";
 
 const lint = (code, at = "composition/hook.ts") =>
@@ -51,6 +51,8 @@ it("traces every exposure and start through imports, barrels and the Features re
       'import {defineFeature as feature} from "@house-rules/application/contract"; export const show = feature("show", {});',
     "features/index.ts":
       'import {show} from "./show/index.ts"; export const Features = {show} as const;',
+    "features/system/index.ts":
+      'import {defineFeature} from "@house-rules/application/contract"; export const system = defineFeature("system", {start:{kind:"system",reason:"maintenance",startedBy:"clock"}});',
     "composition/barrel.ts": 'export {show as exposed} from "../features/show/index.ts";',
     "composition/star.ts": 'export * from "./barrel.ts";',
     "composition/forged.ts":
@@ -65,7 +67,7 @@ it("traces every exposure and start through imports, barrels and the Features re
       writeFileSync(target, code);
     }
     const prelude =
-      'import {endpoint as at} from "@house-rules/application/contract"; import {defineWay as way, May as Access, runFeature as run} from "@house-rules/application"; import {Features} from "../features/index.ts"; import {exposed} from "./star.ts"; import {forged} from "./forged.ts"; import {fake} from "../read-models/fake/index.ts";';
+      'import {endpoint as at} from "@house-rules/application/contract"; import {defineWay as way, May as Access, runFeature as run} from "@house-rules/application"; import {Features} from "../features/index.ts"; import {exposed} from "./star.ts"; import {forged} from "./forged.ts"; import {fake} from "../read-models/fake/index.ts"; import {system} from "../features/system/index.ts";';
     const doors = [
       (value) => `at(${value});`,
       (value) => `way({features:[${value}]});`,
@@ -80,6 +82,53 @@ it("traces every exposure and start through imports, barrels and the Features re
           filename: path.join(root, "apps/api/src/composition/hook.ts"),
         })
         .filter((m) => m.ruleId === "house-rules/feature-builders");
+    for (const protocol of ["hook", "schedule"]) {
+      assert.deepEqual(run(`way({protocol:"${protocol}",features:[system]});`), []);
+      assert.ok(
+        run(`way({protocol:"${protocol}",features:[Features.show]});`).some(
+          (m) => m.messageId === "system",
+        ),
+      );
+      assert.ok(
+        run(`way({protocol:"${protocol}",features:[forged]});`).some(
+          (m) => m.messageId === "exposure",
+        ),
+      );
+      assert.ok(
+        run(`const options = {protocol:"${protocol}",features:[system]}; way(options);`).some(
+          (m) => m.messageId === "options",
+        ),
+      );
+    }
+    const tester = new RuleTester({
+      languageOptions: plugin.configs.features[0].languageOptions,
+    });
+    const fixture = (code, errors) => ({
+      code: prelude + code,
+      filename: path.join(root, "apps/api/src/composition/hook.ts"),
+      options: [{ appsDir: [path.relative(process.cwd(), path.join(root, "apps"))] }],
+      ...(errors ? { errors: errors.map((messageId) => ({ messageId })) } : {}),
+    });
+    tester.run("feature-builders system protocols", plugin.rules["feature-builders"], {
+      valid: ["hook", "schedule"].flatMap((protocol) => [
+        fixture(`way({protocol:"${protocol}" as const,features:[system]});`),
+        fixture(`const p = "${protocol}" as const; way({protocol:p,features:[system]});`),
+      ]),
+      invalid: [
+        ...["hook", "schedule"].flatMap((protocol) => [
+          fixture(`way({protocol:"${protocol}" as const,features:[Features.show]});`, ["system"]),
+          fixture(`const p = "${protocol}"; way({protocol:p,features:[Features.show]});`, [
+            "system",
+          ]),
+          fixture(
+            `const p = "${protocol}" as const; const alias = p; way({protocol:alias,features:[Features.show]});`,
+            ["system"],
+          ),
+        ]),
+        fixture("way({protocol:unknown,features:[Features.show]});", ["options"]),
+        fixture('let p = "hook"; way({protocol:p,features:[Features.show]});', ["options"]),
+      ],
+    });
     assert.deepEqual(run('Access.fixed(["party:read"]);'), []);
     assert.deepEqual(run('const permissions = ["party:read"]; Access.fixed(permissions);'), []);
     for (const door of doors) {

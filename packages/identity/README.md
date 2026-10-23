@@ -13,7 +13,7 @@ Identity.who(options).resolve(incoming)
 
 Mount `Identity.layerPostgres({ providers })` with the shared SQL client, or `Identity.layerMemory({ providers })`. Both fill `ActorResolver` and `Authenticator` too. Register the package in `migrations.json`. `Identity.subject({ issuer })` needs no table: it uses the subject as the ActorId for that issuer only. A foreign issuer is refused before the hook runs. `Identity.refuse` fills `FirstSignIn` for invite-only signup.
 
-Exported IdentityMount is a plain `{ service, operations, bind }` value. Add its chosen layer in composition/modules.ts. Composition acquires the services and calls the binder once. For open signup, build Runtime, then acquire the hook. The hook captures that runtime, trace, watch and unit. It calls the app's system-start first-sign-in feature with `May.system`, system permissions and approval; it neither authenticates again nor builds another runtime. That feature creates the Person and calls `IdentityOperations.bindLogin` in one lifted unit. Hook failures map to `Refused`.
+Exported IdentityMount is a plain `{ service, operations, bind }` value. Add its chosen layer in composition/modules.ts. Composition acquires the services and calls the binder once. For open signup, pass the FirstSignIn slot to a hook way in ways-in/hooks with one system feature, explicit Mean, input and failure mapping. Composition installs it after Runtime and captures that runtime, trace, watch and unit. It calls the app's system-start first-sign-in feature with `May.system`, system permissions and approval; it neither authenticates again nor builds another runtime. That feature creates the Person and calls `IdentityOperations.bindLogin` in one lifted unit. Hook failures map to `Refused`.
 
 The browser-safe `./contract` door exports binding schemas, errors and `IdentityOperations.bindLogin`. `defineOperation` declares it; `bindIdentity` uses `bindOperation`. The operation is named `Identity.bindLogin`, requires `identity:bind`, has no edges and is transactional. It takes `{ issuer, subject, personId }`, binds the login and returns the ActorId. Person callers get forbidden `IdentityCallerDenied`. App features call this operation through declared edges. Only features are exposed.
 
@@ -32,11 +32,15 @@ Identity.layerPostgres({
 })
 ```
 
-`signingKey` is a Redacted private P-256 JWK string. Generate one with `PasswordIssuer.newSigningKey` and store it as a secret. Passwords options also accept `audience` and `ttlSeconds`, default 3600. For development only, replace signingKey with `ephemeral: true`. It logs a warning and refuses `NODE_ENV=production`. Restarting loses those sessions.
+`signingKey` is a Redacted private P-256 JWK string. Generate one with `PasswordIssuer.newSigningKey` and store it as a secret. Passwords options also accept `audience` and `ttlSeconds`, default 3600. For development only, replace signingKey with `ephemeral: true`. It logs a warning and requires `NODE_ENV`, trimmed and lowercased, to be exactly `development` or `test` in the active ConfigProvider. A host value, when present, must pass the same allowlist. Missing configuration, blank, production, staging and unknown values are refused. Restarting loses those sessions.
 
 OIDC options are auth-jwt's `issuer`, `jwks?`, `jwksUrl?`, `audience?` and `clockTolerance?`. Issuers must be unique and at most one passwords provider is allowed. Tokens are routed by issuer, then verified with that provider's keys, issuer, expiry and audience. `Identity.who({ token: ["bearer", { cookie: "booking_session" }] })` accepts either source, bearer first. Keep cookie issuance and CSRF in the HTTP way. `identity.passwordIssuer()` returns the configured signer with public `jwks`, or undefined. It does not publish an HTTP route by itself.
 
 An OIDC-only mount builds without a passwords provider. Password calls then fail with typed `PasswordsUnavailable`; its unused passwords table stays empty. Migration `0002_identity_password_account.sql` adds that table without changing the existing binding migration.
+
+For development/test issuers, add `Identity.devLocal({ issuer: "https://partner.invalid" })` to providers. It uses AuthJwtLocal with fresh in-memory keys and requires NODE_ENV, trimmed and lowercased, to be exactly development or test in the active ConfigProvider. A host value, when present, must pass the same allowlist. All other values, including missing configuration, fail with typed IdentityProviderInvalid, kind unavailable. Obtain a signing handle with `(yield* DevLocalIssuers).get(issuer)` and call its `issue(claims)` in tests. Handles belong in composition, never ways. Missing handles fail with the same unavailable error. Restarting invalidates development tokens. The booking example replaces DemoForbidden with IdentityProviderInvalid; both have unavailable kind.
+
+Remote MCP can share Identity's provider list through `Identity.oidc({ issuer: MCP_AUTH_ISSUER })`. Its way still checks configuration and supplies the resource audience and challenge to Identity.who. Unset auth remains 503 not_configured without a challenge, including metadata behavior.
 
 ## Password operations
 

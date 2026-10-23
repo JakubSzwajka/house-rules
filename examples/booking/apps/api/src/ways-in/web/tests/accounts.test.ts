@@ -1,3 +1,4 @@
+import { firstSignInWay } from "../../hooks/first-sign-in.ts";
 import { assert, it } from "@effect/vitest";
 import { toFetchHandler } from "@house-rules/application";
 import { Effect } from "effect";
@@ -9,7 +10,7 @@ it.live(
   () =>
     Effect.gen(function* () {
       const app = yield* Effect.acquireRelease(
-        Effect.sync(() => createApp([webWay])),
+        Effect.sync(() => createApp([webWay, firstSignInWay])),
         (app) => Effect.promise(() => app.dispose()),
       );
       const router = yield* Effect.acquireRelease(

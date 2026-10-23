@@ -47,9 +47,17 @@ export const refundNode = defineOperation("Billing.refund", {
   transactional: true,
   destructive: true,
 });
-export const expirePendingNode = defineOperation("Billing.expirePending", {
-  description: "Expire pending payments older than 24 hours.",
+export const duePaymentsNode = defineOperation("Billing.duePayments", {
+  description: "Select pending payments older than 24 hours.",
   input: NoInput,
+  output: Schema.Array(Schema.Struct({ paymentId: Schema.String })),
+  failure: Schema.Union([PaymentCallerDenied, PaymentStoreUnavailable]),
+  permission: BillingPermissions.expire,
+  readOnly: true,
+});
+export const expireOneNode = defineOperation("Billing.expireOne", {
+  description: "Expire one due payment if it is still pending; otherwise do nothing.",
+  input: Schema.Struct({ paymentId: Schema.String }),
   output: ExpiredPayments,
   failure: Schema.Union([PaymentCallerDenied, PaymentStoreUnavailable]),
   permission: BillingPermissions.expire,
@@ -60,5 +68,6 @@ export const expirePendingNode = defineOperation("Billing.expirePending", {
 export const BillingOperations = {
   initPayment: initPaymentNode,
   refund: refundNode,
-  expirePending: expirePendingNode,
+  duePayments: duePaymentsNode,
+  expireOne: expireOneNode,
 } as const;

@@ -45,7 +45,9 @@ for (const backend of ["memory", "postgres"] as const)
                 layer: plan.layer.pipe(
                   Layer.provideMerge(
                     backend === "memory"
-                      ? ConfigProvider.layer(ConfigProvider.fromUnknown({ STORAGE: "memory" }))
+                      ? ConfigProvider.layer(
+                          ConfigProvider.fromUnknown({ STORAGE: "memory", NODE_ENV: "test" }),
+                        )
                       : databaseTesting,
                   ),
                 ),

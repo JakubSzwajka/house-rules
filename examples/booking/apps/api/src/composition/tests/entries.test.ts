@@ -10,7 +10,7 @@ import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { memoryAuditLog } from "@house-rules/call-audit";
 import { Effect, Layer, Context } from "effect";
 import { TestClock } from "effect/testing";
-import { modulePlan, createApp, scheduleFeatures } from "../index.ts";
+import { modulePlan, createApp } from "../index.ts";
 
 const alice = Actor.make({ id: ActorId.make("alice") });
 const input = { id: "booking", guestName: "Alice", paymentId: "payment", amount: 100 };
@@ -143,17 +143,29 @@ it.effect("runs the schedule once using Effect Clock, expires only pending older
       Effect.provide(Approval.allowAll),
     );
     yield* TestClock.adjust("24 hours");
-    const atBoundary = yield* scheduleFeatures.nightlyCleanup.pipe(Effect.provideContext(context));
-    assert.strictEqual(atBoundary.expired, 0);
+    const systemContext = Context.merge(
+      context,
+      May.system([Features.duePayments, Features.expirePayment], {
+        system: systemPermissions,
+        via: "schedule:nightly-cleanup",
+      }),
+    );
+    const due = () =>
+      runFeature(Features.duePayments, {}).pipe(Effect.provideContext(systemContext));
+    assert.deepStrictEqual(yield* due(), []);
     yield* TestClock.adjust(1);
-    const expired = yield* scheduleFeatures.nightlyCleanup.pipe(
+    const inputs = yield* due();
+    assert.deepStrictEqual(inputs, [{ paymentId: input.paymentId }]);
+    const [first] = inputs;
+    assert.isDefined(first);
+    const expired = yield* runFeature(Features.expirePayment, first).pipe(
       withRequestId("schedule"),
-      Effect.provideContext(context),
+      Effect.provideContext(systemContext),
     );
     assert.strictEqual(expired.expired, 1);
     assert.deepStrictEqual(
       (yield* trace.read("schedule")).steps.map((s) => [s.feature, s.target, s.caller, s.reason]),
-      [["nightly_cleanup", "Billing.expirePending", "system", "nightly cleanup"]],
+      [["expire_payment", "Billing.expireOne", "system", "nightly cleanup"]],
     );
   }).pipe(Effect.scoped),
 );

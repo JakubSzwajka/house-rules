@@ -93,9 +93,9 @@ production.stdout.on("data", (chunk) => {
 try {
   const [code] = await once(production, "exit");
   assert.notEqual(code, 0);
-  assert.match(output, /DemoForbidden/u);
+  assert.match(output, /IdentityProviderInvalid/u);
   console.log(
-    `built production (${process.env.STORAGE ?? "memory"}): exit nonzero DemoForbidden; both children exited`,
+    `built production (${process.env.STORAGE ?? "memory"}): exit nonzero IdentityProviderInvalid; both children exited`,
   );
 } finally {
   await stop(production);

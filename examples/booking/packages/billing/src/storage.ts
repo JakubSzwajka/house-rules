@@ -17,8 +17,12 @@ export class PaymentStore extends Context.Service<
       from: PaymentStatus,
       to: PaymentStatus,
     ) => Effect.Effect<boolean, PaymentStoreUnavailable | NoOpenUnit>;
-    readonly expireBefore: (
+    readonly dueBefore: (
       cutoff: number,
-    ) => Effect.Effect<number, PaymentStoreUnavailable | NoOpenUnit>;
+    ) => Effect.Effect<readonly { readonly paymentId: string }[], PaymentStoreUnavailable>;
+    readonly expireOne: (
+      id: string,
+      cutoff: number,
+    ) => Effect.Effect<boolean, PaymentStoreUnavailable | NoOpenUnit>;
   }
 >()("@example/api/modules/billing/PaymentStore") {}

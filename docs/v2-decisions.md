@@ -61,6 +61,10 @@ The ledger of what the owner has decided about the v2 shape, and what is still o
     5. Nightly billing cleanup becomes a read-only selector of due payments plus an idempotent expire-one feature, with one unit per item.
     6. Dev and test token issuers become an `Identity.devLocal({ issuer })` provider that refuses production. Tests get a signing handle through `composition/sign-in.ts`, never through ways.
     7. Each system way states its Mean. The new-login hook and the nightly schedule use `Mean.allow`; any other system way uses `Mean.no` unless the owner approves otherwise.
+50. **Feature code never sees credentials or caller leftovers** (2026-10-23, owner chose both).
+    1. On every network way, HTTP and MCP, feature handlers and their operations never receive credential headers: `Authorization`, `Cookie`, `Proxy-Authorization` and `Set-Cookie`. One kit sanitiser applies where execution starts. Only transport, Who, CSRF and session handling see the full request.
+    2. Hooks and schedules run on an allowlist. Composition captures only what feature execution needs, after Runtime: Runtime, StepTrace, UnitOfWork, CallWatch, Approval, system permissions from `May.system`, and CallChannel. Each call gets a fresh request id, fresh log annotations and a new root span. Nothing from the caller's fiber carries over, even when a hook fires inside a person's sign-in.
+    3. Temporary signing keys, such as `Identity.devLocal` and the passwords provider's ephemeral key, sign only when `NODE_ENV`, trimmed and lowercased, is exactly `development` or `test`. Any other value refuses, including a missing one.
 
 ## Open, needs the owner
 

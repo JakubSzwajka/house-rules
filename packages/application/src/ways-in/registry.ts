@@ -1,5 +1,5 @@
 import { Effect, Exit, type Cause } from "effect";
-import type { RegistrySnapshot } from "../registry/registry.ts";
+import type { RegistrySnapshot, RegistryWay } from "../registry/registry.ts";
 import { type Composition, resolvedMounts, serveIn } from "./composition.ts";
 import { CompositionClosed } from "./composition-closed.ts";
 
@@ -15,12 +15,17 @@ export const registry = <A, E>(
             operations: mount.operations,
           })),
           features: app.features,
-          ways: app.ways.map((way) => ({
-            name: way.name,
-            protocol: way.protocol,
-            path: way.path,
-            features: way.features,
-          })),
+          ways: app.ways.map(
+            (way): RegistryWay => ({
+              name: way.name,
+              ...(way.protocol === "hook"
+                ? { protocol: way.protocol, slot: way.slot.key }
+                : way.protocol === "schedule"
+                  ? { protocol: way.protocol, clock: way.clock }
+                  : { protocol: way.protocol, path: way.path }),
+              features: way.features,
+            }),
+          ),
         }),
       ),
     failed: (cause) => Effect.succeed(Exit.failCause(cause as Cause.Cause<E>)),

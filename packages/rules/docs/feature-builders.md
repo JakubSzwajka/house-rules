@@ -6,6 +6,8 @@
 
 For example, `May.context(may, { features: [Features.show], system: [], via: "test" })` passes. Adding `...{ features: [{}] }` or a second `features` property fails, even after a valid feature list. `May.system([Features.show], { system: [], via: "schedule" })` passes; its options need no `features` key.
 
+Hook and schedule variants use the same inline options and feature-origin checks. Their exposed features must declare a system start, either an explicit system caller or the named systemStart helper. Person defaults and person starts fail. Protocol literals wrapped in `as const` and constant identifiers retain this check. An unresolved protocol fails closed. A schedule lists its selector and item features; a hook lists its slot feature. Runtime acquisition also validates system reasons and feature identity.
+
 ## Builder imports
 
 Use direct named imports from these doors. Import renames are allowed, runtime aliases are not.

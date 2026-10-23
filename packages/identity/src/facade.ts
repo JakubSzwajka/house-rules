@@ -8,7 +8,13 @@ import { PasswordIssuer } from "./passwords/accounts-issuer.js";
 import { PasswordsUnavailable } from "./passwords/provider-unavailable.js";
 import { memoryAccountStore } from "./adapters/memory/passwords.js";
 import { postgresAccountStore } from "./adapters/postgres/passwords.js";
-import { type IdentityOptions, oidc, passwords, providersLayer } from "./sign-in/providers.js";
+import {
+  type IdentityOptions,
+  devLocal,
+  oidc,
+  passwords,
+  providersLayer,
+} from "./sign-in/providers.js";
 import { memoryBindingStore } from "./adapters/memory/binding.js";
 import { postgresBindingStore } from "./adapters/postgres/binding.js";
 import type {
@@ -101,6 +107,7 @@ export class Identity extends defineModule<
 
   static readonly passwords = passwords;
   static readonly oidc = oidc;
+  static readonly devLocal = devLocal;
 
   static readonly subject = ActorResolver.subject;
 
