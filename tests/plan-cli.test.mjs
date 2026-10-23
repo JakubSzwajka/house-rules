@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, it } from "node:test";
@@ -73,6 +73,44 @@ it("plan view prints every issue path of an invalid plan and exits 1", () => {
   assert.match(result.stderr, /features\[2\]\.edges\[0\]: Unresolved edge target Notes\.gone/u);
   assert.match(result.stderr, /ways\[0\]\.features\[1\]: web exposes missing_feature/u);
   assert.equal(runPlan("view", file("broken.json", "{ nope")).status, 1);
+});
+
+it("plan validate prints valid or issue paths, never a page, and exits 0/1/2", () => {
+  const result = runPlan("validate", valid);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, "valid\n");
+  assert.equal(result.stderr, "");
+  const rejected = runPlan("validate", invalid);
+  assert.equal(rejected.status, 1);
+  assert.equal(rejected.stdout, "");
+  assert.match(rejected.stderr, /features\[2\]\.edges\[0\]/u);
+  for (const [name, input, issue] of [
+    ["unknown-root", { ...plan, layers: "snapshot" }, '["layers"]'],
+    [
+      "unknown-feature",
+      { ...plan, features: [{ ...plan.features[0], flags: { readOnly: true } }] },
+      '["features"][0]["flags"]',
+    ],
+    [
+      "unknown-closure",
+      { ...plan, features: [{ ...plan.features[0], closures: { person: [] } }] },
+      '["features"][0]["closures"]',
+    ],
+    ["shape", { modules: [], features: [], ways: [{}] }, '["ways"][0]'],
+  ]) {
+    const failed = runPlan("validate", file(`${name}.json`, input));
+    assert.equal(failed.status, 1, failed.stderr);
+    assert.ok(failed.stderr.includes(issue), failed.stderr);
+  }
+  assert.equal(runPlan("validate", file("invalid-json.json", "{ nope")).status, 1);
+  assert.equal(runPlan("validate", path.join(directory, "missing.json")).status, 1);
+  assert.equal(runPlan("validate").status, 2);
+  assert.equal(runPlan("validate", valid, valid).status, 2);
+  assert.equal(runPlan("validate", valid, "--text").status, 2);
+  const forbiddenOutput = path.join(directory, "never.html");
+  assert.equal(runPlan("validate", valid, "-o", forbiddenOutput).status, 2);
+  assert.equal(existsSync(forbiddenOutput), false);
+  assert.match(runPlan("--help").stdout, /plan validate <plan.json>/u);
 });
 
 it("plan diff shows no change for the same plan and names an added feature", () => {

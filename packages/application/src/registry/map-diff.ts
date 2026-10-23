@@ -125,6 +125,8 @@ const facts = (
             permission: optional(op.permission),
             readOnly: flag(op.readOnly),
             destructive: flag(op.destructive),
+            transactional: flag(op.transactional),
+            needsApproval: flag(op.needsApproval),
             edges: edgeItems(op.edges),
           },
         },

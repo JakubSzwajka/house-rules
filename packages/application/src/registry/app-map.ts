@@ -50,6 +50,8 @@ export const mapRegistry = (data: RegistrySnapshot): AppMapSnapshot => {
             permission: operation.permission,
             readOnly: operation.readOnly,
             destructive: operation.destructive,
+            transactional: operation.transactional,
+            needsApproval: operation.needsApproval,
             edges: edges(operation),
           })),
         ),

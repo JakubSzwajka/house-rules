@@ -8,6 +8,8 @@ export interface MapOperation {
   readonly permission: string | null;
   readonly readOnly: boolean;
   readonly destructive: boolean;
+  readonly transactional: boolean;
+  readonly needsApproval: boolean;
   readonly edges: readonly MapEdge[];
 }
 export interface MapModule {

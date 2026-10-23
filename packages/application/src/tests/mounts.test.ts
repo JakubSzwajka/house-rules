@@ -149,6 +149,8 @@ it.effect("supplies the catalogue before building modules and resolves May once"
           permission: operation.permission,
           readOnly: operation.readOnly,
           destructive: operation.destructive,
+          transactional: operation.transactional,
+          needsApproval: operation.needsApproval,
           edges: [],
         });
       }

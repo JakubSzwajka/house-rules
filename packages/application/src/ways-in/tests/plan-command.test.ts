@@ -12,6 +12,17 @@ const files = (snapshotJson: string): Record<string, string> => ({
   "plan.json": JSON.stringify(plan),
   "broken.json": JSON.stringify(broken),
   "map.json": snapshotJson,
+  "legacy-map.json": snapshotJson.replaceAll(
+    /\s*"(?:transactional|needsApproval)": (?:true|false),/g,
+    "",
+  ),
+  "flags.json": JSON.stringify({
+    ...plan,
+    features: [{ name: "x", permission: null, flags: { readOnly: true } }],
+  }),
+  "layers-only.json": JSON.stringify({ ...plan, layers: "copied snapshot" }),
+  "permissions-only.json": JSON.stringify({ ...plan, permissions: [] }),
+  "bad-map.json": JSON.stringify({ ...plan, layers: "snapshot", permissions: [] }),
   "bad.json": "{ not json",
   "shape.json": JSON.stringify({ modules: [{ name: "" }], features: [], ways: [] }),
 });
@@ -74,9 +85,62 @@ it.effect("diff accepts plans and map json and prints text or html", () =>
   }),
 );
 
+it.effect("validate checks decoding and graph issues without rendering or writing", () =>
+  Effect.gen(function* () {
+    expect(yield* run(["validate", "plan.json"])).toEqual({
+      exitCode: 0,
+      stdout: "valid\n",
+      stderr: "",
+    });
+    for (const file of ["broken.json", "shape.json", "bad.json", "missing.json", "flags.json"]) {
+      const result = yield* run(["validate", file]);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.output).toBeUndefined();
+    }
+    expect((yield* run(["validate", "broken.json"])).stderr).toContain("features[8].edges[0]");
+    expect((yield* run(["validate", "flags.json"])).stderr).toContain('["features"][0]["flags"]');
+    expect((yield* run(["--help"])).stdout).toContain("plan validate <plan.json>");
+  }),
+);
+
+it.effect("only diff explicitly detects snapshots by both layers and permissions", () =>
+  Effect.gen(function* () {
+    for (const command of ["view", "validate"]) {
+      const result = yield* run([command, "map.json"]);
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("not a valid plan");
+      expect(result.stderr).toContain('["layers"]');
+    }
+    for (const file of ["flags.json", "layers-only.json", "permissions-only.json"]) {
+      const result = yield* run(["diff", "plan.json", file]);
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("not a valid plan");
+    }
+    const malformed = yield* run(["diff", "bad-map.json", "plan.json"]);
+    expect(malformed.exitCode).toBe(1);
+    expect(malformed.stderr).toContain("not a valid app map");
+    const legacy = yield* run(["diff", "plan.json", "legacy-map.json"]);
+    expect(legacy.exitCode).toBe(1);
+    expect(legacy.stderr).toContain('["modules"][0]["operations"][0]["transactional"]');
+    expect(legacy.stderr).toContain('["modules"][0]["operations"][0]["needsApproval"]');
+    expect(legacy.stderr).toContain("regenerate it with the app's map script");
+  }),
+);
+
 it.effect("wrong arguments print usage and exit 2", () =>
   Effect.gen(function* () {
-    for (const args of [[], ["view"], ["diff", "plan.json"], ["view", "plan.json", "-o"], ["x"]])
+    for (const args of [
+      [],
+      ["view"],
+      ["diff", "plan.json"],
+      ["view", "plan.json", "-o"],
+      ["x"],
+      ["validate"],
+      ["validate", "plan.json", "broken.json"],
+      ["validate", "plan.json", "--text"],
+      ["validate", "plan.json", "-o", "out.html"],
+    ])
       expect((yield* run(args)).exitCode).toBe(2);
     expect((yield* run(["view", "plan.json", "--bogus"])).stderr).toContain(
       "Unknown option --bogus",

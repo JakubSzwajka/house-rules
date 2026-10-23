@@ -1,5 +1,5 @@
 import { errorKind } from "@house-rules/domain/contract";
-import { Schema } from "effect";
+import { Schema, SchemaGetter, SchemaParser } from "effect";
 
 const Name = Schema.NonEmptyString;
 const Permission = Schema.NullOr(Schema.TemplateLiteral([Schema.String, ":", Schema.String]));
@@ -71,12 +71,24 @@ const PlanPlug = Schema.Struct({
   ways: Schema.optionalKey(Schema.Array(Name)),
 });
 
-export const Plan = Schema.Struct({
+const PlanShape = Schema.Struct({
   modules: Schema.Array(PlanModule),
   features: Schema.Array(PlanFeature),
   ways: Schema.Array(PlanWay),
   plugs: Schema.optionalKey(Schema.Array(PlanPlug)),
 });
+
+export const Plan = Schema.Unknown.pipe(
+  Schema.decodeTo(PlanShape, {
+    decode: SchemaGetter.transformEffect((input, options) =>
+      SchemaParser.decodeUnknownEffect(PlanShape)(input, {
+        ...options,
+        onExcessProperty: "error",
+      }),
+    ),
+    encode: SchemaGetter.passthrough(),
+  }),
+);
 export type Plan = typeof Plan.Type;
 
 const PlanIssue = Schema.Struct({ path: Schema.String, reason: Schema.String });

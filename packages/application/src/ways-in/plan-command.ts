@@ -18,6 +18,7 @@ export interface PlanCommandResult {
 
 export const planUsage = `Usage:
   plan view <plan.json> [-o out.html]
+  plan validate <plan.json>
   plan diff <before.json> <after.json> [-o out.html] [--text]
 
 Each diff side is a plan.json or an app map from renderMap(snapshot, "json").
@@ -54,7 +55,10 @@ const load = (read: PlanCommandRead, path: string, allowMap: boolean) =>
     if (allowMap && isMap(json))
       return (yield* decodeMap(json, { errors: "all" }).pipe(
         Effect.mapError((error) =>
-          invalid(`${path}: not a valid app map`, error.message.split("\n")),
+          invalid(
+            `${path}: not a valid app map; regenerate it with the app's map script`,
+            error.message.split("\n"),
+          ),
         ),
       )) as AppMapSnapshot;
     const plan = yield* decodePlan(json, { errors: "all" }).pipe(
@@ -105,24 +109,28 @@ export const planCommand = (
   if (command === "help" || command === "--help" || command === "-h")
     return Effect.succeed({ exitCode: 0, stdout: planUsage, stderr: "" });
   if (typeof parsed === "string") return usage(parsed);
+  if (command === "validate" && (parsed.output !== undefined || parsed.text))
+    return usage("validate accepts only a plan file");
   const run =
-    command === "view" && parsed.files.length === 1 && !parsed.text
-      ? load(read, parsed.files[0] ?? "", false).pipe(
-          Effect.map((snapshot) => emit(parsed.output, renderMap(snapshot, "html"))),
-        )
-      : command === "diff" && parsed.files.length === 2
-        ? Effect.all([
-            load(read, parsed.files[0] ?? "", true),
-            load(read, parsed.files[1] ?? "", true),
-          ]).pipe(
-            Effect.map(([before, after]) =>
-              emit(
-                parsed.output,
-                renderMapDiff(diffMaps(before, after), parsed.text ? "text" : "html"),
-              ),
-            ),
+    command === "validate" && parsed.files.length === 1
+      ? load(read, parsed.files[0] ?? "", false).pipe(Effect.map(() => emit(undefined, "valid\n")))
+      : command === "view" && parsed.files.length === 1 && !parsed.text
+        ? load(read, parsed.files[0] ?? "", false).pipe(
+            Effect.map((snapshot) => emit(parsed.output, renderMap(snapshot, "html"))),
           )
-        : undefined;
+        : command === "diff" && parsed.files.length === 2
+          ? Effect.all([
+              load(read, parsed.files[0] ?? "", true),
+              load(read, parsed.files[1] ?? "", true),
+            ]).pipe(
+              Effect.map(([before, after]) =>
+                emit(
+                  parsed.output,
+                  renderMapDiff(diffMaps(before, after), parsed.text ? "text" : "html"),
+                ),
+              ),
+            )
+          : undefined;
   if (run === undefined) return usage("Wrong arguments");
   return run.pipe(
     Effect.catchTag("PlanInputInvalid", (error) =>

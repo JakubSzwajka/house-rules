@@ -44,8 +44,8 @@ const facts = (rows: readonly (readonly [string, string] | undefined)[]): string
 type Flags = Readonly<{
   readOnly: boolean;
   destructive: boolean;
-  transactional?: boolean;
-  needsApproval?: boolean;
+  transactional: boolean;
+  needsApproval: boolean;
 }>;
 
 const flagBadges = (flags: Flags): string => {

@@ -23,6 +23,8 @@ export const AppMapJson = Schema.Struct({
           permission: Schema.NullOr(Schema.String),
           readOnly: Schema.Boolean,
           destructive: Schema.Boolean,
+          transactional: Schema.Boolean,
+          needsApproval: Schema.Boolean,
           edges: Schema.Array(Edge),
         }),
       ),
