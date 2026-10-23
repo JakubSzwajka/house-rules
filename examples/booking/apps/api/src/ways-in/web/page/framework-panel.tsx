@@ -90,7 +90,6 @@ export function FrameworkPanel() {
                           ? ["web"]
                           : []),
                         ...(["show_booking", "my_bookings"].includes(feature.name) ? ["mcp"] : []),
-                        ...(feature.name === "book_for_partner" ? ["partner"] : []),
                       ].map((way) => (
                         <Badge key={way} variant="outline">
                           {way}

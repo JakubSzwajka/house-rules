@@ -1,5 +1,4 @@
 import { makeBooking } from "./make-booking/index.ts";
-import { partnerBooking } from "./book-for-partner/index.ts";
 import { cancelBooking } from "./cancel-booking/index.ts";
 import { showBooking } from "./show-booking/index.ts";
 import { myBookings } from "./my-bookings/index.ts";
@@ -48,7 +47,6 @@ export const Features = {
   signOut,
   changePassword,
   makeBooking: makeBooking,
-  partnerBooking: partnerBooking,
   cancelBooking: cancelBooking,
   showBooking: showBooking,
   myBookings: myBookings,

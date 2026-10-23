@@ -20,7 +20,7 @@ for (const [config, issuer] of [
       assert.strictEqual(options.providers[0]?.issuer, issuer);
       assert.deepStrictEqual(
         options.providers.map((provider) => provider.kind),
-        ["passwords", "devLocal", "devLocal"],
+        ["passwords", "devLocal"],
       );
       // Acquisition must use these resolved values, not read another environment.
       const plan = modulePlan({ settings });

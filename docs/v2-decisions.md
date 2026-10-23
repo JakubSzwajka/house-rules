@@ -10,7 +10,7 @@ The ledger of what the owner has decided about the v2 shape, and what is still o
 4. **One node type.** Capability, feature and use-case merge into one node. A node's place is a folder, not a type.
 5. **The graph is the feature registry.** It is generated from the code, and a PR shows its diff.
 6. **A module is a boundary.** Your own modules are folders. Shared modules are packages.
-7. **Misuse is stopped by visibility, not rules.** Other paths, such as a partner booking without payment, are legitimate.
+7. **Misuse is stopped by visibility, not rules.** Other paths, such as a partner booking without payment, are legitimate. (Decision 51 removed the partner way; the principle stands.)
 8. **Read modules over published views.** They query the database directly, joining only views other modules publish. There is no second store.
 9. **Caller context, not system nodes.** A call runs as a Person or as the System. A node switches to the system for one edge, with a reason.
 10. **Two AGENTS.md rules change** together with their checks (see `TODO.md`).
@@ -65,6 +65,7 @@ The ledger of what the owner has decided about the v2 shape, and what is still o
     1. On every network way, HTTP and MCP, feature handlers and their operations never receive credential headers: `Authorization`, `Cookie`, `Proxy-Authorization` and `Set-Cookie`. One kit sanitiser applies where execution starts. Only transport, Who, CSRF and session handling see the full request.
     2. Hooks and schedules run on an allowlist. Composition captures only what feature execution needs, after Runtime: Runtime, StepTrace, UnitOfWork, CallWatch, Approval, system permissions from `May.system`, and CallChannel. Each call gets a fresh request id, fresh log annotations and a new root span. Nothing from the caller's fiber carries over, even when a hook fires inside a person's sign-in.
     3. Temporary signing keys, such as `Identity.devLocal` and the passwords provider's ephemeral key, sign only when `NODE_ENV`, trimmed and lowercased, is exactly `development` or `test`. Any other value refuses, including a missing one.
+51. **The partner way is removed** (2026-10-23, owner). The booking example drops `ways-in/partner/`, the `book_for_partner` feature and the partner `Identity.devLocal` issuer. It was a dev-only demo with no real caller. The web way still has a `devLocal` test issuer, so the reference app still refuses to start in production. Every new login now gets `member`. The built-in `partner` role stays, held by the seed user bob, as an example of a narrower role on the web way.
 
 ## Open, needs the owner
 

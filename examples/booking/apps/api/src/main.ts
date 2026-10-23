@@ -5,7 +5,6 @@ import { toFetchHandler } from "@house-rules/application";
 import { Effect } from "effect";
 import { appConfig, createApp } from "./composition/app.ts";
 import { webWay } from "./ways-in/web/way.ts";
-import { partnerWay } from "./ways-in/partner/way.ts";
 import { mcpWay } from "./ways-in/mcp/way.ts";
 import { firstSignInWay } from "./ways-in/hooks/first-sign-in.ts";
 import { nightlyCleanupWay } from "./ways-in/schedules/nightly-cleanup.ts";
@@ -21,7 +20,6 @@ Effect.gen(function* () {
         ...webWay,
         origins: [...new Set([origin, "http://localhost:3000"])],
       },
-      partnerWay,
       firstSignInWay,
       nightlyCleanupWay,
       { ...mcpWay, resource, who: mcpWho(resource) },
@@ -34,7 +32,7 @@ Effect.gen(function* () {
   yield* app.runtime.contextEffect;
   const site = staticFiles({
     root: new URL("./web", import.meta.url).pathname,
-    exclude: ["/api", "/partner", "/mcp", "/.well-known"],
+    exclude: ["/api", "/mcp", "/.well-known"],
   });
   yield* Effect.promise(() =>
     serve((request) => site(request).then((response) => response ?? api(request)), {

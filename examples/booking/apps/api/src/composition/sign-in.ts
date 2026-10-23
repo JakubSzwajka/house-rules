@@ -1,7 +1,5 @@
 import {
-  Authenticator,
   protectedResource,
-  TokenRejected,
   Refused,
   type ProtectedResource,
   type WhoSocket,
@@ -15,10 +13,10 @@ import {
 import { Config, Effect, Redacted } from "effect";
 
 export { FirstSignIn as FirstSignInSlot };
-const local = { web: "https://web.invalid", partner: "https://partner.invalid" } as const;
+const local = { web: "https://web.invalid" } as const;
 export const testIssuers = Effect.gen(function* () {
   const issuers = yield* DevLocalIssuers;
-  return { web: yield* issuers.get(local.web), partner: yield* issuers.get(local.partner) };
+  return { web: yield* issuers.get(local.web) };
 });
 export const signInConfig = Config.all({
   issuer: Config.String("ACCOUNTS_ISSUER").pipe(Config.withDefault("")),
@@ -49,31 +47,11 @@ export const identityOptions = (settings: {
             : { ...passwordOptions, signingKey },
         ),
         Identity.devLocal({ issuer: local.web }),
-        Identity.devLocal({ issuer: local.partner }),
         ...(mcpIssuer === "" ? [] : [Identity.oidc({ issuer: mcpIssuer })]),
       ],
     };
   });
 export const webWho = Identity.who({ token: ["bearer", { cookie: "booking_session" }] });
-export const localWho = (way: "web" | "partner") => ({
-  resolve: (incoming: { headers: Headers; url: string }) =>
-    Effect.gen(function* () {
-      const auth = yield* Authenticator;
-      return yield* Identity.who({ token: "bearer" })
-        .resolve(incoming)
-        .pipe(
-          Effect.provideService(Authenticator, {
-            verify: (token, options) =>
-              auth.verify(token, options).pipe(
-                Effect.filterOrFail(
-                  (principal) => principal.issuer === local[way],
-                  () => new TokenRejected({ reason: "wrong_issuer" }),
-                ),
-              ),
-          }),
-        );
-    }),
-});
 export const resourceOf = (appOrigin: string, issuer: string) =>
   issuer === ""
     ? protectedResource(undefined, "/mcp")

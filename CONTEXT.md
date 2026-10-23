@@ -44,6 +44,8 @@ The gate checks roles at feature start and fails 403 when a closure permission i
 
 A **way in** names one of four protocols and exposed features. HTTP/MCP ways have a path, Who, Mean and optional wording overrides. Hook ways name a caller-owned slot, one system feature, input/failure mapping and explicit Mean. Schedule ways name a UTC cron, selector/item system features, selector input and explicit Mean. The selector returns an array of item inputs. System ways live in ways-in/hooks and ways-in/schedules, with no network path. It lives in `ways-in/<name>/`. It imports values only from kits, `effect`, package contract doors, app features, composition and its own folder. Other package main entries and read-model doors allow types only. Browser code under `ways-in/<name>/page/**` may also import third-party UI packages, never workspace mains, Node builtins or SQL/platform adapters. Ways never import each other.
 
+The booking example exposes web HTTP at `/api` and read-only MCP at `/mcp`. Its first-sign-in hook assigns member to every new login.
+
 A **public feature** is a system-start feature listed in an HTTP way's `public` and `features`. Its requests skip Who, even with a token, and use only composition's system permissions. Other features still require Who. MCP refuses public features.
 
 A **socket** is a question the app answers. A **plug** bundles an answer. The interfaces are `WhoSocket`, `MaySocket`, `MeanSocket` and `RecordSocket`. There is no export named Record.

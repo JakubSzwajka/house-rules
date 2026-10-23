@@ -197,14 +197,14 @@ examples/booking/
   TESTS.md                           requirement → test map
   apps/api/                          @example/api
     REGISTRY.md                      generated
-    src/nodes/                       make-booking/, book-for-partner/, cancel-booking/,
+    src/nodes/                       make-booking/, cancel-booking/,
                                      show-booking/, my-bookings/, first-sign-in/,
                                      nightly-cleanup/  (each: node.ts + handler.ts)
     src/modules/bookings/            table booking, view booking_read
     src/modules/billing/             table payment, view payment_read, fake PaymentProvider
     src/read-models/my-bookings/     joins booking_read and payment_read
     src/ways-in/web/                 /api
-    src/ways-in/partner/             /partner
+    src/ways-in/partner/             /partner  (removed by decision 51)
     src/ways-in/mcp/                 /mcp, read-only tools
     src/composition/                 modules, sign-in, access, app (decision 48)
     src/main.ts

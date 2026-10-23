@@ -5,7 +5,7 @@ import { defineFeature } from "@house-rules/application/contract";
 import { asSystem } from "@house-rules/domain/contract";
 export const firstSignIn = defineFeature("first_sign_in", {
   description:
-    "Create a person, bind login and assign partner for https://partner.invalid, otherwise member. Remote MCP uses the person's member role.",
+    "Create a person, bind login and assign member for every verified issuer, including remote MCP.",
   title: "Create a person and bind a verified login atomically",
   permission: null,
   input: Schema.Struct({
@@ -32,7 +32,7 @@ export const firstSignIn = defineFeature("first_sign_in", {
       });
       yield* call(PartyOperations.assignRole, {
         personId: person.id,
-        roleKey: input.issuer === "https://partner.invalid" ? "partner" : "member",
+        roleKey: "member",
         organisationId: null,
       });
       return yield* call(IdentityOperations.bindLogin, {

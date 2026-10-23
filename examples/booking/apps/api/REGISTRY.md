@@ -14,7 +14,6 @@
 - mcp (mcp: /mcp): my_bookings, show_booking
 - new-login (hook: @house-rules/identity/FirstSignIn): first_sign_in
 - nightly-cleanup (schedule: 0 3 * * * UTC): due_payments, expire_payment
-- partner (http: /partner): book_for_partner
 - web (http: /api): accept_invitation, assign_role, cancel_booking, change_password, create_invitation, create_organisation, define_role, delete_role, list_invitations, list_members, list_people, list_permissions, list_roles, make_booking, my_activity, my_bookings, my_organisations, my_profile, recent_audit, remove_member, revoke_invitation, revoke_role, show_booking, sign_in, sign_out, sign_up
 
 ## Permissions
@@ -71,7 +70,7 @@
 ### Bookings.book
 
 - Permission: bookings:write
-- Called by: book_for_partner, make_booking
+- Called by: make_booking
 - Calls: Party.isRelated (person, inherited system stays system)
 - Calls: Party.canAdminOrganisation (person, inherited system stays system)
 
@@ -251,14 +250,6 @@
 - System closure: none
 - Exposed by: web (http: /api)
 - Calls: Party.assignRole (person, inherited system stays system)
-
-### book_for_partner
-
-- Starts as: person
-- Person closure: bookings:write, party:read
-- System closure: none
-- Exposed by: partner (http: /partner)
-- Calls: Bookings.book (person, inherited system stays system)
 
 ### cancel_booking
 

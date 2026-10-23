@@ -21,7 +21,7 @@ This section is the whole design the spike builds. It is self-contained on purpo
 - **Caller context.** Every call carries who is calling: `Person { actor, via }`, where `via` is the way in, or `System { reason, startedBy }`. A system edge switches to `System` for that call. **Once a call runs as the system, everything below it runs as the system.** It never switches back to a person. There are no special "system nodes".
 - **System permissions.** The system has its own permission list, provided by the composition, so it cannot do everything.
 - **Closures.** For an entry, the **person closure** is the entry node's own permission plus the permissions of every node reached through person edges, stopping at the first system edge. The **system closure** is the permissions of every node at or below a system edge, plus everything when the entry itself starts as the system. Deduplicate both. The graph must have no cycles. Building the graph rejects a cycle.
-- **Entry.** Where a call graph starts: a way in (web, partner, MCP), a socket hook (first sign-in) or a schedule. The entry runs the gates **once** for its whole graph, in this order:
+- **Entry.** Where a call graph starts: a way in (web, MCP; the partner way was removed by decision 51), a socket hook (first sign-in) or a schedule. The entry runs the gates **once** for its whole graph, in this order:
   1. Record opens.
   2. Both closures are checked.
   3. Approval is asked once, if any reachable node needs it.
@@ -69,7 +69,7 @@ These choices decide the closures, approval and transactions. Use them exactly.
 | `People.createPerson` | app (wraps `@house-rules/party`) | `party:create` | transactional | — |
 | `People.bindLogin` | app (wraps `@house-rules/identity`) | `identity:bind` | transactional | — |
 | `make_booking` | app | none | — | `Bookings.book`, `Billing.initPayment` |
-| `book_for_partner` | app | none | — | `Bookings.book` |
+| ~~`book_for_partner`~~ (removed, decision 51) | app | none | — | `Bookings.book` |
 | `cancel_booking` | app | none | — | `Bookings.cancel`, ⚙ `Billing.refund` "refund after cancel" |
 | `show_booking` | app | none | readOnly | `Bookings.get` |
 | `my_bookings` | app | none | readOnly | `MyStuff.myBookings` |
@@ -87,14 +87,14 @@ Behaviour notes:
 | Grant list | Permissions |
 | --- | --- |
 | member (way in `web`) | `bookings:read`, `bookings:write`, `bookings:cancel`, `billing:charge` |
-| partner (way in `partner`) | `bookings:write` |
+| partner (way in `partner`, removed by decision 51; the role remains) | `bookings:write` |
 | agent (way in `mcp`) | `bookings:read` |
 | system | `billing:refund`, `billing:expire`, `party:create`, `identity:bind` |
 
 | Way in | Path | Who is this? | Do they mean it? | Exposes |
 | --- | --- | --- | --- | --- |
 | `web` | `/api` | local JWT, bearer | always no (plain HTTP) | `make_booking`, `show_booking`, `my_bookings`, `cancel_booking` |
-| `partner` | `/partner` | local JWT, bearer (a second issuer instance) | always no | `book_for_partner` |
+| ~~`partner`~~ (removed, decision 51) | `/partner` | local JWT, bearer (a second issuer instance) | always no | `book_for_partner` |
 | `mcp` | `/mcp` | outside issuer from `MCP_AUTH_ISSUER`. Fails closed when unset, the same as today, including the metadata paths from `protectedResource` | elicitation | `show_booking`, `my_bookings` (read-only, as the law asks of first tools) |
 
 ## 5. Scope
@@ -238,7 +238,7 @@ The task verifier checks each item and reruns each command.
 
 1. From the repo root, these all exit 0: `pnpm install --frozen-lockfile`, `pnpm check` and `pnpm test`. Postgres must be running for the tests.
 2. `REGISTRY.md` exists, and its freshness test passes without rewriting it. It shows:
-   - two callers of `Bookings.book`: `make_booking` and `book_for_partner`
+   - two callers of `Bookings.book`: `make_booking` and `book_for_partner` (decision 51 removed `book_for_partner`; one caller remains)
    - the ⚙ edge from `cancel_booking` to `Billing.refund`, with its reason
    - both closures for every entry
    - which way in exposes each entry

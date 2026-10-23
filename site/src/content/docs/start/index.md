@@ -27,7 +27,7 @@ Use `--public` instead of `--private` for a public repo. Install sets up the pre
 
 ## Read the example
 
-The [booking guide](../../../../../examples/booking/README.md) gives a reading order. The app joins booking and payment operations into features. It includes a system refund edge, Party and Identity operations, and a read model over published views. Its Vite/React dashboard has real sign-in, but no real payment provider.
+The [booking guide](../../../../../examples/booking/README.md) gives a reading order. The app joins booking and payment operations into features. It includes a system refund edge, Party and Identity operations, and a read model over published views. Its Vite/React dashboard uses the web API at `/api`; read-only MCP is at `/mcp`. Every new login gets the member role. The payment provider is a fake.
 
 A feature is one app action and its own entry. Application's `defineFeature` puts its contract and handler in `features/<name>/index.ts`. The handler only calls declared edges. `features/index.ts` exports only Features. Composition declares built-in roles and system permissions. One `Party.may()` plug resolves roles for HTTP and MCP; MCP exposes read features only.
 

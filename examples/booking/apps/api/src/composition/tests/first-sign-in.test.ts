@@ -87,7 +87,14 @@ for (const backend of ["memory", "postgres"] as const)
         );
         assert.deepStrictEqual(yield* identity.resolve(login), Option.some(original));
         const id = yield* run("fresh");
-        assert.strictEqual((yield* party.me(Actor.make({ id }))).id, id);
+        const actor = Actor.make({ id });
+        assert.strictEqual((yield* party.me(actor)).id, id);
+        assert.deepStrictEqual(
+          (yield* party.rolesOf({ kind: "person", actor, via: "test" }, id)).map(
+            (role) => role.roleKey,
+          ),
+          ["member"],
+        );
         const resolved = yield* identity.resolve({ ...login, subject: "fresh" });
         assert.strictEqual(resolved._tag, "Some");
         if (resolved._tag === "Some") assert.strictEqual(resolved.value, id);
