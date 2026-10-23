@@ -2,7 +2,7 @@ import { it } from "@effect/vitest";
 import { Context, Effect } from "effect";
 import { Party } from "@house-rules/party";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
-import { createApp } from "../index.ts";
+import { createApp } from "../app.ts";
 
 it.effect("validates role permissions on a fresh app before any request", () =>
   Effect.gen(function* () {

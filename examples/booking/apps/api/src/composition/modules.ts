@@ -25,9 +25,8 @@ import { CallAudit, memoryAuditLog, type MemoryAuditLog } from "@house-rules/cal
 import { Identity, IdentityMount, type IdentityOptions } from "@house-rules/identity";
 import { Party, PartyMount } from "@house-rules/party";
 import { Config, Effect, Layer, Option, Schema } from "effect";
-import { identityOptions } from "./callers.ts";
 import { PgClient } from "@effect/sql-pg";
-import { builtInRoles } from "./roles.ts";
+import { builtInRoles } from "./access.ts";
 import { AuditTrailMount, auditTrailReader } from "../read-models/audit-trail/index.ts";
 
 const storage = Config.Literals(["memory", "postgres"], "STORAGE").pipe(
@@ -61,21 +60,16 @@ const auditOptions = {
 const readUnavailablePort = Layer.succeed(MyBookingStore, {
   forPerson: () => Effect.fail(new ReadUnavailable({})),
 });
-export const modulePlan = (
-  options: {
-    readonly provider?: Layer.Layer<PaymentProvider>;
-    readonly log?: MemoryAuditLog;
-    readonly nodeEnv?: string;
-    readonly issuer?: string;
-    readonly identity?: IdentityOptions;
-  } = {},
-) => {
+export const modulePlan = (options: {
+  readonly provider?: Layer.Layer<PaymentProvider>;
+  readonly log?: MemoryAuditLog;
+  readonly identity: Effect.Effect<
+    IdentityOptions,
+    Config.ConfigError | import("@house-rules/identity").IdentityProviderInvalid
+  >;
+}) => {
   const provider = options.provider ?? fakePaymentProvider();
   const log = options.log ?? memoryAuditLog();
-  const identityConfig: Effect.Effect<
-    IdentityOptions,
-    Effect.Error<ReturnType<typeof identityOptions>>
-  > = options.identity === undefined ? identityOptions(options) : Effect.succeed(options.identity);
   const mounts = [
     {
       ...BookingsMount,
@@ -90,7 +84,7 @@ export const modulePlan = (
     {
       ...IdentityMount,
       layer: Layer.unwrap(
-        identityConfig.pipe(
+        options.identity.pipe(
           Effect.map((options) =>
             choose(Identity.layerMemory(options), Identity.layerPostgres(options)),
           ),

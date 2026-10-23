@@ -5,8 +5,8 @@ import { Identity } from "@house-rules/identity";
 import { Party, PersonNotFound } from "@house-rules/party";
 import { ConfigProvider, Context, Effect, Layer, Option } from "effect";
 import { Features } from "../../features/index.ts";
-import { systemPermissions } from "../roles.ts";
-import { modulePlan } from "../index.ts";
+import { systemPermissions } from "../access.ts";
+import { modulePlan } from "../app.ts";
 import { databaseTesting } from "./database.ts";
 
 for (const backend of ["memory", "postgres"] as const)

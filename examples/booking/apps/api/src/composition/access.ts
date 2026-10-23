@@ -1,3 +1,6 @@
+import { Party } from "@house-rules/party";
+
+export const may = Party.may();
 export const builtInRoles = {
   member: {
     name: "Member",

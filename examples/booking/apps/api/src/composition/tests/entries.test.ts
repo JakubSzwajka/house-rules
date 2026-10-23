@@ -1,7 +1,7 @@
 import { runFeature } from "@house-rules/application";
 import { assert, it } from "@effect/vitest";
 import { Features } from "../../features/index.ts";
-import { builtInRoles, systemPermissions } from "../roles.ts";
+import { builtInRoles, systemPermissions } from "../access.ts";
 import { makeFakePaymentProvider } from "@example/billing";
 import { Bookings, BookingNotFound } from "@example/bookings";
 import { May, StepTrace } from "@house-rules/application";
@@ -10,7 +10,7 @@ import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { memoryAuditLog } from "@house-rules/call-audit";
 import { Effect, Layer, Context } from "effect";
 import { TestClock } from "effect/testing";
-import { modulePlan, createApp } from "../index.ts";
+import { modulePlan, createApp } from "../app.ts";
 
 const alice = Actor.make({ id: ActorId.make("alice") });
 const input = { id: "booking", guestName: "Alice", paymentId: "payment", amount: 100 };

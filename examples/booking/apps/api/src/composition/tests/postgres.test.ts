@@ -1,7 +1,7 @@
 import { runFeature, planLayer } from "@house-rules/application";
 import { assert, it } from "@effect/vitest";
 import { Features } from "../../features/index.ts";
-import { builtInRoles, systemPermissions } from "../roles.ts";
+import { builtInRoles, systemPermissions } from "../access.ts";
 import { Billing, makeFakePaymentProvider } from "@example/billing";
 import { Bookings } from "@example/bookings";
 import { MyStuff } from "../../read-models/my-bookings/index.ts";
@@ -10,7 +10,7 @@ import { Approval, CurrentActor, withRequestId } from "@house-rules/application"
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { CallAudit } from "@house-rules/call-audit";
 import { Context, Effect, Layer } from "effect";
-import { modulePlan, createApp } from "../index.ts";
+import { modulePlan, createApp } from "../app.ts";
 import { databaseTesting } from "./database.ts";
 
 it.live(

@@ -5,7 +5,7 @@ import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { CallWatch, StepTrace, planLayer } from "@house-rules/application";
 import { memoryAuditLog } from "@house-rules/call-audit";
 import { Features } from "../../features/index.ts";
-import { modulePlan } from "../index.ts";
+import { modulePlan } from "../app.ts";
 
 for (const config of [
   { NODE_ENV: "test" },

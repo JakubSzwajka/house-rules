@@ -2,7 +2,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import { Effect, FileSystem } from "effect";
 import { registry } from "@house-rules/application";
-import { createApp } from "../composition/index.ts";
+import { createApp } from "../composition/app.ts";
 import { webWay } from "../ways-in/web/way.ts";
 import { partnerWay } from "../ways-in/partner/way.ts";
 import { mcpWay } from "../ways-in/mcp/way.ts";

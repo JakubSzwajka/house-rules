@@ -1,5 +1,5 @@
 import { Features } from "../../features/index.ts";
-import { webWho } from "../../composition/callers.ts";
+import { webWho } from "../../composition/sign-in.ts";
 import { defineWay, Mean } from "@house-rules/application";
 import { endpoints } from "./endpoints.ts";
 const features = [

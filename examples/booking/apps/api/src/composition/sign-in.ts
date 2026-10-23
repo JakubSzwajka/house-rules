@@ -1,5 +1,6 @@
 import {
   Authenticator,
+  protectedResource,
   TokenRejected,
   Refused,
   type ProtectedResource,
@@ -19,25 +20,27 @@ export const testIssuers = Effect.gen(function* () {
   const issuers = yield* DevLocalIssuers;
   return { web: yield* issuers.get(local.web), partner: yield* issuers.get(local.partner) };
 });
-export const identityOptions = (settings: { nodeEnv?: string; issuer?: string } = {}) =>
+export const signInConfig = Config.all({
+  issuer: Config.String("ACCOUNTS_ISSUER").pipe(Config.withDefault("")),
+  signingKey: Config.Redacted("ACCOUNTS_SIGNING_KEY").pipe(Config.withDefault(Redacted.make(""))),
+  mcpIssuer: Config.String("MCP_AUTH_ISSUER").pipe(Config.withDefault("")),
+});
+export const identityOptions = (settings: {
+  nodeEnv: string;
+  appOrigin: string;
+  port: number;
+  signIn: Config.Success<typeof signInConfig>;
+}) =>
   Effect.gen(function* () {
-    const issuer = yield* Config.String("ACCOUNTS_ISSUER").pipe(Config.withDefault(""));
-    const origin = yield* Config.String("APP_ORIGIN").pipe(Config.withDefault(""));
-    const port = yield* Config.Int("PORT").pipe(Config.withDefault(3000));
-    const signingKey = yield* Config.Redacted("ACCOUNTS_SIGNING_KEY").pipe(
-      Config.withDefault(Redacted.make("")),
-    );
-    const environment =
-      settings.nodeEnv ??
-      (yield* Config.String("NODE_ENV").pipe(Config.withDefault("development")));
-    if (environment === "production")
+    const { issuer, signingKey, mcpIssuer } = settings.signIn;
+    if (settings.nodeEnv === "production")
       return yield* new IdentityProviderInvalid({
         option: "devLocal",
         message: "Development signing is forbidden in production.",
       });
-    const mcpIssuer =
-      settings.issuer ?? (yield* Config.String("MCP_AUTH_ISSUER").pipe(Config.withDefault("")));
-    const passwordOptions = { issuer: issuer || origin || `http://localhost:${port}` };
+    const passwordOptions = {
+      issuer: issuer || settings.appOrigin || `http://localhost:${settings.port}`,
+    };
     return {
       providers: [
         Identity.passwords(
@@ -71,6 +74,14 @@ export const localWho = (way: "web" | "partner") => ({
         );
     }),
 });
+export const resourceOf = (appOrigin: string, issuer: string) =>
+  issuer === ""
+    ? protectedResource(undefined, "/mcp")
+    : protectedResource({
+        resource: `${new URL(appOrigin).origin}/mcp`,
+        authorizationServers: [issuer],
+        resourceName: "Booking",
+      });
 export const mcpWho = (resource: ProtectedResource) =>
   ({
     resolve: (incoming) =>

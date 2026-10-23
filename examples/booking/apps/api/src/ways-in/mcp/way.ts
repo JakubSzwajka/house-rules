@@ -1,6 +1,5 @@
 import { Features } from "../../features/index.ts";
-import { mcpWho } from "../../composition/callers.ts";
-import { resourceOf } from "../../composition/index.ts";
+import { mcpWho, resourceOf } from "../../composition/sign-in.ts";
 import { defineWay, Mean } from "@house-rules/application";
 const resource = resourceOf("https://booking.example", "");
 const features = [Features.showBooking, Features.myBookings] as const;

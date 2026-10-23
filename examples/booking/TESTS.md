@@ -125,6 +125,8 @@ In this table, app-relative paths start at `examples/booking/apps/api/`.
 
 ## Additional current proofs
 
+Composition is reviewed as four files: modules.ts owns the single mount list and adapters/infrastructure, sign-in.ts owns providers/Who and test signing handles, access.ts owns roles/system permissions/May, and app.ts owns config/createApp. Tests import each concern directly, not an index barrel. `src/composition/tests/config.test.ts` proves the password issuer fallback uses resolved host settings, explicit issuer wins, and the MCP provider/resource share the configured issuer. The filename split itself is a review rule, not a lint rule.
+
 The reference rows do not exhaust the current suite. First-sign-in atomicity is proved by `memory: first sign-in person and login binding share one entry unit` and `postgres: first sign-in person and login binding share one entry unit` in app-relative `src/composition/tests/first-sign-in.test.ts`.
 
 App-relative `src/tests/node-host.test.ts` runs `built Node Host fails MCP closed, shuts down, and refuses production demo JWT`. It builds and starts real child processes and waits for shutdown. The fake provider never contacts a bank; rollback tests assert database state, not compensation of external effects.

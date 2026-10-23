@@ -12,7 +12,7 @@ Register this package in `migrations.json`. Never edit applied migrations. `0001
 
 Import PermissionCatalogue from application, not Party. Composition supplies its `permissions: () => Effect<readonly Permission[]>` before building modules. It and Runtime.permissions expose the same mount-derived array. Custom-role writes fail closed without the port. May filters permissions when the port is present. Exported PartyMount contains Party, all PartyOperations and bindParty; add the chosen layer in composition/modules.ts.
 
-Pass `may: Party.may()` to composition. It resolves the MaySocket after Party is built. Its `permissionsOf(caller: PersonCaller)` returns an Effect of permissions with no requirements. It captures the built Party service. It does not cache assignments.
+Declare builtInRoles, systemPermissions and `may = Party.may()` in composition/access.ts. Pass `may` to composition in app.ts and roles to Party's mount in modules.ts. It resolves the MaySocket after Party is built. Its `permissionsOf(caller: PersonCaller)` returns an Effect of permissions with no requirements. It captures the built Party service. It does not cache assignments.
 
 ## Operations
 

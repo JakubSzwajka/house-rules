@@ -1,7 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { Features } from "../../features/index.ts";
-import { builtInRoles, systemPermissions } from "../roles.ts";
+import { builtInRoles, systemPermissions } from "../access.ts";
 
 it.effect("app features retain exact closures, starts, edges and lifted flags", () =>
   Effect.sync(() => {

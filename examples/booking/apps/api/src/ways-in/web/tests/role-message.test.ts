@@ -2,7 +2,7 @@ import { assert, it } from "@effect/vitest";
 import { toFetchHandler } from "@house-rules/application";
 import { Actor, ActorId } from "@house-rules/domain";
 import { Effect } from "effect";
-import { createApp } from "../../../composition/index.ts";
+import { createApp } from "../../../composition/app.ts";
 import { seedRoleTesting } from "../../../composition/tests/roles-testing.ts";
 import { webWay } from "../way.ts";
 it.live("an admin delegating an unheld permission gets a nonempty public HTTP refusal", () =>

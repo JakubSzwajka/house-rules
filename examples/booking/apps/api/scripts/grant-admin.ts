@@ -2,9 +2,9 @@ import * as NodePlatform from "@effect/platform-node";
 import { Identity } from "@house-rules/identity";
 import { Party } from "@house-rules/party";
 import { UnitOfWork } from "@house-rules/domain";
-import { Config, Effect, Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { planLayer } from "@house-rules/application";
-import { modulePlan } from "../src/composition/modules.ts";
+import { appConfig, modulePlan } from "../src/composition/app.ts";
 
 class GrantAdminRefused extends Schema.TaggedError<GrantAdminRefused>()("GrantAdminRefused", {
   message: Schema.String,
@@ -51,11 +51,11 @@ export const grantAdmin = Effect.fn("grantAdmin")(function* (
 });
 if (process.argv[1]?.endsWith("/grant-admin.js")) {
   Effect.gen(function* () {
-    const nodeEnv = yield* Config.String("NODE_ENV").pipe(Config.withDefault("development"));
+    const settings = yield* appConfig;
     const id = yield* grantAdmin(process.argv.slice(2).find((arg) => !arg.startsWith("--")) ?? "", {
-      nodeEnv,
+      nodeEnv: settings.nodeEnv,
       yesProduction: process.argv.includes("--yes-production"),
-    });
+    }).pipe(Effect.provide(planLayer(modulePlan({ settings }))));
     yield* Effect.log(`Granted admin to person ${id}.`);
-  }).pipe(Effect.provide(planLayer(modulePlan())), NodePlatform.NodeRuntime.runMain);
+  }).pipe(NodePlatform.NodeRuntime.runMain);
 }

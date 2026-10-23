@@ -1,9 +1,9 @@
-import { mcpWho } from "./composition/callers.ts";
+import { mcpWho, resourceOf } from "./composition/sign-in.ts";
 import * as NodePlatform from "@effect/platform-node";
 import { serve, staticFiles } from "@house-rules/node-host";
 import { toFetchHandler } from "@house-rules/application";
 import { Effect } from "effect";
-import { appConfig, createApp, resourceOf } from "./composition/index.ts";
+import { appConfig, createApp } from "./composition/app.ts";
 import { webWay } from "./ways-in/web/way.ts";
 import { partnerWay } from "./ways-in/partner/way.ts";
 import { mcpWay } from "./ways-in/mcp/way.ts";
@@ -11,19 +11,15 @@ import { firstSignInWay } from "./ways-in/hooks/first-sign-in.ts";
 import { nightlyCleanupWay } from "./ways-in/schedules/nightly-cleanup.ts";
 Effect.gen(function* () {
   const settings = yield* appConfig;
-  const resource = resourceOf(settings.appOrigin, settings.mcpIssuer);
+  const origin = settings.appOrigin || `http://localhost:${settings.port}`;
+  const resource = resourceOf(origin, settings.signIn.mcpIssuer);
   if (webWay.protocol !== "http") return yield* Effect.die("Expected HTTP way");
   if (mcpWay.protocol !== "mcp") return yield* Effect.die("Expected MCP way");
   const app = createApp(
     [
       {
         ...webWay,
-        origins: [
-          ...new Set([
-            settings.appOrigin || `http://localhost:${settings.port}`,
-            "http://localhost:3000",
-          ]),
-        ],
+        origins: [...new Set([origin, "http://localhost:3000"])],
       },
       partnerWay,
       firstSignInWay,
@@ -31,8 +27,7 @@ Effect.gen(function* () {
       { ...mcpWay, resource, who: mcpWho(resource) },
     ],
     {
-      nodeEnv: settings.nodeEnv,
-      issuer: settings.mcpIssuer,
+      settings,
     },
   );
   const api = toFetchHandler(app);

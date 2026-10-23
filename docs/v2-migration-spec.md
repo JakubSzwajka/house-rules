@@ -111,7 +111,7 @@ Defining a node never throws.
 
 ### The composition
 
-`apps/<app>/src/composition/` reads as five verbs: mount modules and read models, link modules, plug sockets, open ways, and schedule entries. It is the only place that provides services, plugs, lists and the gate policy.
+`apps/<app>/src/composition/` reads as five verbs: mount modules and read models, link modules, plug sockets, open ways, and schedule entries. It is the only place that provides services, plugs, lists and the gate policy. (Superseded by decision 48: composition is `modules.ts`, `sign-in.ts`, `access.ts` and `app.ts`; hooks and schedules are system ways in `ways-in/`.)
 
 ## 3. Where things go in the framework
 
@@ -206,7 +206,7 @@ examples/booking/
     src/ways-in/web/                 /api
     src/ways-in/partner/             /partner
     src/ways-in/mcp/                 /mcp, read-only tools
-    src/composition/                 five verbs, lists, gate policy, first sign-in hook, schedule
+    src/composition/                 modules, sign-in, access, app (decision 48)
     src/main.ts
 ```
 

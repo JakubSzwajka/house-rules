@@ -5,8 +5,8 @@ import { Party } from "@house-rules/party";
 import { Context, Effect, Layer } from "effect";
 import { Features } from "../../features/index.ts";
 import { MyStuff } from "../../read-models/my-bookings/index.ts";
-import { modulePlan, createApp } from "../index.ts";
-import { systemPermissions } from "../roles.ts";
+import { modulePlan, createApp } from "../app.ts";
+import { systemPermissions } from "../access.ts";
 import { seedRoleTesting } from "./roles-testing.ts";
 import { databaseTesting } from "./database.ts";
 

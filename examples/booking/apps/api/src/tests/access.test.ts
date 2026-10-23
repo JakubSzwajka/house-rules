@@ -3,7 +3,9 @@ import { Approval, call, CurrentActor, May, runFeature } from "@house-rules/appl
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
 import { Context, Effect, Layer } from "effect";
-import { createApp, Features, modulePlan, resourceOf } from "../composition/index.ts";
+import { createApp, modulePlan } from "../composition/app.ts";
+import { Features } from "../features/index.ts";
+import { resourceOf } from "../composition/sign-in.ts";
 import { databaseTesting } from "../composition/tests/database.ts";
 import { seedRoleTesting } from "../composition/tests/roles-testing.ts";
 import { webWay } from "../ways-in/web/way.ts";

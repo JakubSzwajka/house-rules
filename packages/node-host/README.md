@@ -7,8 +7,10 @@ Install `@house-rules/node-host` at exact version `0.2.0`, on Node 24.21.0 or la
 ```ts
 import { toFetchHandler } from "@house-rules/application";
 import { serve } from "@house-rules/node-host";
-import { app } from "./composition/index.js";
+import { createApp } from "./composition/app.js";
+import { webWay } from "./ways-in/web/way.js";
 
+const app = createApp([webWay]);
 const api = toFetchHandler(app);
 const host = await serve(api, {
   port: 3000,

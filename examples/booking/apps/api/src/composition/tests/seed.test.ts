@@ -3,8 +3,8 @@ import { planLayer } from "@house-rules/application";
 import { Actor } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
 import { Context, Effect, Layer } from "effect";
-import { modulePlan } from "../modules.ts";
-import { builtInRoles } from "../roles.ts";
+import { modulePlan } from "../app.ts";
+import { builtInRoles } from "../access.ts";
 import { databaseTesting } from "./database.ts";
 import { seed } from "../../../scripts/seed.ts";
 

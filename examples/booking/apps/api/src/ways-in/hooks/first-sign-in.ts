@@ -1,6 +1,6 @@
 import { defineWay, Mean, Refused } from "@house-rules/application";
 import { Features } from "../../features/index.ts";
-import { FirstSignInSlot } from "../../composition/callers.ts";
+import { FirstSignInSlot } from "../../composition/sign-in.ts";
 
 export const firstSignInWay = defineWay({
   protocol: "hook",

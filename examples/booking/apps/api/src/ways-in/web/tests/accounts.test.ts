@@ -2,7 +2,7 @@ import { firstSignInWay } from "../../hooks/first-sign-in.ts";
 import { assert, it } from "@effect/vitest";
 import { toFetchHandler } from "@house-rules/application";
 import { Effect } from "effect";
-import { createApp } from "../../../composition/index.ts";
+import { createApp } from "../../../composition/app.ts";
 import { webWay } from "../way.ts";
 
 it.live(

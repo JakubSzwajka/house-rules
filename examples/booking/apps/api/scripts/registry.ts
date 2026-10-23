@@ -1,21 +1,23 @@
 import { Effect } from "effect";
 import { registry, renderRegistry } from "@house-rules/application";
-import { createApp, appConfig, resourceOf } from "../src/composition/index.ts";
-import { mcpWho } from "../src/composition/callers.ts";
+import { createApp, appConfig, modulePlan } from "../src/composition/app.ts";
+import { mcpWho, resourceOf } from "../src/composition/sign-in.ts";
 import { webWay } from "../src/ways-in/web/way.ts";
 import { partnerWay } from "../src/ways-in/partner/way.ts";
 import { mcpWay } from "../src/ways-in/mcp/way.ts";
 import { firstSignInWay } from "../src/ways-in/hooks/first-sign-in.ts";
 import { nightlyCleanupWay } from "../src/ways-in/schedules/nightly-cleanup.ts";
 import { TestClock } from "effect/testing";
-import { modulePlan } from "../src/composition/modules.ts";
 import { Layer } from "effect";
 
 export const registryMarkdown = Effect.gen(function* () {
   const settings = yield* appConfig;
-  const resource = resourceOf(settings.appOrigin, settings.mcpIssuer);
+  const resource = resourceOf(
+    settings.appOrigin || `http://localhost:${settings.port}`,
+    settings.signIn.mcpIssuer,
+  );
   if (mcpWay.protocol !== "mcp") return yield* Effect.die("Expected MCP way");
-  const plan = modulePlan();
+  const plan = modulePlan({ settings });
   const app = createApp(
     [
       webWay,
@@ -26,8 +28,7 @@ export const registryMarkdown = Effect.gen(function* () {
     ],
     {
       modules: { ...plan, layer: Layer.merge(plan.layer, TestClock.layer()) },
-      nodeEnv: settings.nodeEnv,
-      issuer: settings.mcpIssuer,
+      settings,
     },
   );
   return yield* registry(app).pipe(

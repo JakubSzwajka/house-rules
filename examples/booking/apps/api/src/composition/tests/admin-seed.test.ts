@@ -4,7 +4,9 @@ import { planLayer, May, Mean, runFeature } from "@house-rules/application";
 import { Actor, UnitOfWork } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
 import { ConfigProvider, Context, Effect, Layer } from "effect";
-import { modulePlan, createApp, Features, systemPermissions } from "../index.ts";
+import { modulePlan, createApp } from "../app.ts";
+import { Features } from "../../features/index.ts";
+import { systemPermissions } from "../access.ts";
 import { grantAdmin } from "../../../scripts/grant-admin.ts";
 
 it.live("sign-up using the former admin email gets only member; shell grant-admin adds admin", () =>

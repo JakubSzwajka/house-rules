@@ -4,9 +4,9 @@ import { Billing } from "@example/billing";
 import { Identity } from "@house-rules/identity";
 import { Party } from "@house-rules/party";
 import { Actor, type ActorId, UnitOfWork } from "@house-rules/domain";
-import { Config, Effect, Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { planLayer } from "@house-rules/application";
-import { modulePlan } from "../src/composition/modules.ts";
+import { appConfig, modulePlan } from "../src/composition/app.ts";
 
 class SeedRefused extends Schema.TaggedError<SeedRefused>()("SeedRefused", {
   message: Schema.String,
@@ -131,8 +131,8 @@ export const seed = Effect.fn("seed")(function* (nodeEnv: string) {
 });
 if (process.argv[1]?.endsWith("/seed.js")) {
   Effect.gen(function* () {
-    const nodeEnv = yield* Config.String("NODE_ENV").pipe(Config.withDefault("development"));
-    yield* seed(nodeEnv);
+    const settings = yield* appConfig;
+    yield* seed(settings.nodeEnv).pipe(Effect.provide(planLayer(modulePlan({ settings }))));
     yield* Effect.log("Demo accounts ready: alice, bob, carol, dave, admin at @example.test.");
-  }).pipe(Effect.provide(planLayer(modulePlan())), NodePlatform.NodeRuntime.runMain);
+  }).pipe(NodePlatform.NodeRuntime.runMain);
 }

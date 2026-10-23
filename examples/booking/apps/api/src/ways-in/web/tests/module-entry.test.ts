@@ -3,7 +3,7 @@ import { BookingsOperations } from "@example/bookings";
 import { defineFeature, defineWay, GraphInvalid } from "@house-rules/application";
 import { endpoint } from "@house-rules/application/contract";
 import { Effect } from "effect";
-import { createApp } from "../../../composition/index.ts";
+import { createApp } from "../../../composition/app.ts";
 import { webWay } from "../way.ts";
 
 it.effect("composition refuses a way exposing a forged Bookings.get module entry", () =>
