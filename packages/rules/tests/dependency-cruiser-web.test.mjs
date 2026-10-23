@@ -40,7 +40,7 @@ test("removed server-entry option fails with current root/router guidance", () =
     assert.throws(() => layout({ scope: "@acme/", serverEntryFiles: value }), {
       name: "TypeError",
       message:
-        "layout(): serverEntryFiles was removed in 0.16.0. Put root wiring in src/composition/ as composition({ modules, features, ways, may, system, gatePolicy? }); ways may import the root, and main.ts passes way values into it. Use toFetchHandler for the router. Remove the option. See @house-rules/rules docs/dependency-cruiser.md.",
+        "layout(): serverEntryFiles was removed in 0.16.0. Put root wiring in src/composition/ as composition({ modules, features, ways, may, system }); ways may import the root, and main.ts passes way values into it. Use toFetchHandler for the router. Remove the option. See @house-rules/rules docs/dependency-cruiser.md.",
     });
 });
 test("generated declarations exempt only the named app-relative files", async () => {

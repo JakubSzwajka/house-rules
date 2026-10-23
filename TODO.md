@@ -4,12 +4,15 @@ Open work, not alternate law. Decisions 25 to 29 keep all domain modules in pack
 
 ## Decisions still open
 
-- [ ] Settle P2, the gate policy. Keep `entry-and-recheck` as the default and `entry-only` as the tested option until the owner decides.
-- [ ] Settle P4, the data socket. Does storage belong inside a domain module? Today stored modules ship memory and Postgres adapters; do not change that rule before the decision.
+- [ ] People preset is open, not designed. Use one config over Identity and Party, choosing a source per capability. Keep Identity and Party separate.
 - [ ] Map OAuth token scopes to permissions when a real app needs it. The result must be the app role's permissions intersected with token scopes. Decide where app roles live.
-- [ ] Prove human approval across the MCP clients and deployment shapes we use. Consider a CLI confirmation and a web confirmation flow. Agents cannot approve their own writes.
+- [ ] Prove human approval across the MCP clients and deployment shapes we use, including CLI confirmation. Agents cannot approve their own writes.
 
 ## Framework work
+
+- [ ] Release the ten public packages through .github/workflows/publish.yml after the owner's yes. They are 0.x and unreleased since the v2 breaking changes in decision 24.
+- [ ] Fix the known Party Postgres setup-hook flake in people.test.ts under full-suite load. Keep the 10s timeout for now, as the owner chose.
+- [ ] Add a multi-process schedule lease before running more than one instance. There is no lease yet, so items must be idempotent.
 
 - [ ] Add a migration plan command, `house-rules-migrations plan --from <sha> --to <sha>`. Compare migration ids and hashes for the listed modules. Report pending, edited and removed files; edited or removed applied SQL must block release. Use the deployed commit, not the last tag. A byte-identical move must not appear pending. Startup evidence must still catch database drift.
 - [ ] Decide audit retention and implement deletion through CallAudit, never app-owned SQL over its table. Add a true `before` cursor to row reads.
@@ -23,7 +26,7 @@ Open work, not alternate law. Decisions 25 to 29 keep all domain modules in pack
 ## App-driven work
 
 - [ ] Move Trippy from the retired capability package and Viewer to the kits, Actor and CurrentActor.
-- [ ] Design explicit login linking. Identity never merges people by email. Provider redirect/callback flows, account recovery, email checks and token revocation need their own design.
+- [ ] Design accounts: explicit login linking, password reset, email verification and sign-in rate limiting. Identity never merges people by email. Provider redirect/callback flows, account recovery and token revocation need their own design.
 - [ ] Pick one authority for organisations and memberships. Membership must not grant object access by itself; module policy still decides.
 - [ ] Add modules only from real needs: invites, tags, quotas, usage, files, preferences or entitlements. Provider adapters ship apart from domain packages.
 - [ ] Prove browser session renewal and revocation before a real app relies on them. A cleared cookie does not revoke a copied token. The booking reference has a web page and account UI.

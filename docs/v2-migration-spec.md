@@ -53,7 +53,9 @@ This section is the design. It is self-contained on purpose. Names in `code` are
   - Flags keep their literal types where the spike widened them to `boolean`. A read-only entry needs no unit of work, and a system entry needs no `CurrentActor`, in its type. Type tests prove both.
 - There is no synthetic `entry:<name>` permission, and no wrapper that turns an entry into an old contract. The entry is the thing delivery serves.
 
-### Gate policy (P2, still open)
+### Gate policy (P2, closed by decision 54)
+
+Decision 54 removed `gatePolicy` and `"entry-only"`. Every inner call rechecks its own permission. The text below is the history.
 
 `gatePolicy` is a named composition option:
 - `"entry-and-recheck"` is the default. Every inner call also re-checks its own node's permission, against the person's list or the system list. A failed re-check fails with `Forbidden` naming the inner permission. This is expected; record it in the docs.

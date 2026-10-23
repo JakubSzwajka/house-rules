@@ -1,7 +1,7 @@
 import type { Permission } from "@house-rules/domain";
 import { Context, Effect, Schema } from "effect";
 import type { AnyFeature } from "../feature/feature.ts";
-import { CallPermissions, featureAndRecheck, type PermissionLists } from "./permission-lists.ts";
+import { CallPermissions, type PermissionLists } from "./permission-lists.ts";
 import { MayUnavailable } from "./may-unavailable.ts";
 
 import type { MaySocket } from "./may-socket.ts";
@@ -30,7 +30,6 @@ const context = <E>(
     ...options,
     may: normalizeMay(may),
     person: [],
-    gatePolicy: options.gatePolicy ?? featureAndRecheck,
   });
 
 export const May = {

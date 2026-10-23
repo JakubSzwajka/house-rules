@@ -66,7 +66,7 @@ export const closedFailure = (
   });
 
 export const invoke = <A>(
-  app: Pick<Composition<A, unknown>, "may" | "system" | "gatePolicy">,
+  app: Pick<Composition<A, unknown>, "may" | "system">,
   context: Context.Context<A>,
   feature: AnyFeature,
   options: Readonly<{
@@ -128,7 +128,6 @@ export const invoke = <A>(
             features: options.way.features,
             system: app.system,
             via: options.way.name,
-            gatePolicy: app.gatePolicy,
           }),
         ),
         Effect.provide(options.approval),

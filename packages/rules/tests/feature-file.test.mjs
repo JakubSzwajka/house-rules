@@ -159,7 +159,7 @@ it("rejects extra files and folders, including files ESLint does not parse", () 
     }
   }
 });
-it("accepts a feature-only registry and rejects stray values and permission arrays", () => {
+it("accepts a registry containing only features and rejects stray values and permission arrays", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "feature-registry-"));
   try {
     const folder = path.join(root, "apps/api/src/features/show");

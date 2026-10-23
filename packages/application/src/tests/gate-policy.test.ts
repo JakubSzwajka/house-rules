@@ -15,8 +15,6 @@ import {
   bindOperation,
   CallWatch,
   CurrentActor,
-  featureAndRecheck,
-  featureOnly,
   Forbidden,
   May,
   Runtime,
@@ -143,62 +141,55 @@ it.effect("names the real missing permission and caller in either closure", () =
   }),
 );
 
-for (const gatePolicy of [featureAndRecheck, featureOnly] as const) {
-  it.effect(
-    `${gatePolicy}: keeps inner rechecks explicit when permissions change after the closure gate`,
-    () =>
-      Effect.gen(function* () {
-        const systemRoot = defineOperation("system_recheck", {
-          ...options,
-          edges: [asSystem(child, "background")],
-        });
-        for (const callable of [root, systemRoot]) {
-          const current = featureFixture(callable);
-          const held: Array<"items:write"> = ["items:write"];
-          let ran = false;
-          const bindings = [
-            bindOperation(callable, (_input, scope) =>
-              Effect.sync(() => {
-                held.length = 0;
-              }).pipe(Effect.andThen(scope.call(child, {}))),
-            ),
-            bindOperation(child, () =>
-              Effect.sync(() => {
-                ran = true;
-              }),
-            ),
-          ];
-          const outcome = yield* Effect.result(
-            runFeature(current, {}).pipe(
-              Effect.provide(RuntimeFixture.layer({ bindings, features: [current], ways: [] })),
-              Effect.provideContext(
-                May.context(May.fixed(held), {
-                  features: [current],
-                  system: held,
-                  via: "test",
-                  gatePolicy,
-                }),
-              ),
-              Effect.provideService(CurrentActor, actor),
-              Effect.provide(
-                Layer.mergeAll(StepTrace.layer(), Approval.allowAll, memoryUnitOfWork),
-              ),
-            ),
-          );
-          expect(ran).toBe(gatePolicy === featureOnly);
-          expect(outcome._tag).toBe(gatePolicy === featureOnly ? "Success" : "Failure");
-          if (outcome._tag === "Failure")
-            expect(outcome.failure).toEqual(
-              new Forbidden({
-                feature: callable.name,
-                permission: "items:write",
-                caller: callable === root ? "person" : "system",
-              }),
-            );
-        }
-      }),
-  );
-}
+it.effect("rechecks each inner operation's own permission after the closure gate", () =>
+  Effect.gen(function* () {
+    const systemRoot = defineOperation("system_recheck", {
+      ...options,
+      edges: [asSystem(child, "background")],
+    });
+    for (const callable of [root, systemRoot]) {
+      const current = featureFixture(callable);
+      const held: Array<"items:write"> = ["items:write"];
+      let ran = false;
+      const bindings = [
+        bindOperation(callable, (_input, scope) =>
+          Effect.sync(() => {
+            held.length = 0;
+          }).pipe(Effect.andThen(scope.call(child, {}))),
+        ),
+        bindOperation(child, () =>
+          Effect.sync(() => {
+            ran = true;
+          }),
+        ),
+      ];
+      const outcome = yield* Effect.result(
+        runFeature(current, {}).pipe(
+          Effect.provide(RuntimeFixture.layer({ bindings, features: [current], ways: [] })),
+          Effect.provideContext(
+            May.context(May.fixed(held), {
+              features: [current],
+              system: held,
+              via: "test",
+            }),
+          ),
+          Effect.provideService(CurrentActor, actor),
+          Effect.provide(Layer.mergeAll(StepTrace.layer(), Approval.allowAll, memoryUnitOfWork)),
+        ),
+      );
+      expect(ran).toBe(false);
+      expect(outcome._tag).toBe("Failure");
+      if (outcome._tag === "Failure")
+        expect(outcome.failure).toEqual(
+          new Forbidden({
+            feature: callable.name,
+            permission: "items:write",
+            caller: callable === root ? "person" : "system",
+          }),
+        );
+    }
+  }),
+);
 
 it.effect("refuses an feature exposed by another way before approval, unit or callables", () =>
   Effect.gen(function* () {

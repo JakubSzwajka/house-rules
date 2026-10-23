@@ -67,10 +67,9 @@ The ledger of what the owner has decided about the v2 shape, and what is still o
     3. Temporary signing keys, such as `Identity.devLocal` and the passwords provider's ephemeral key, sign only when `NODE_ENV`, trimmed and lowercased, is exactly `development` or `test`. Any other value refuses, including a missing one.
 51. **The partner way is removed** (2026-10-23, owner). The booking example drops `ways-in/partner/`, the `book_for_partner` feature and the partner `Identity.devLocal` issuer. It was a dev-only demo with no real caller. The web way still has a `devLocal` test issuer, so the reference app still refuses to start in production. Every new login now gets `member`. The built-in `partner` role stays, held by the seed user bob, as an example of a narrower role on the web way.
 52. **The booking example starts in production, and local signing guards itself** (2026-10-23, owner). In production the example signs in only through `Identity.passwords` with `ACCOUNTS_SIGNING_KEY`, plus the optional `Identity.oidc` MCP issuer. A missing key refuses startup with a typed error. `Identity.devLocal` and its test signing handles are wired only in development and test. `AuthJwtLocal.make` and `.layer` refuse on their own unless `NODE_ENV`, trimmed and lowercased, is `development` or `test`. One check, `requireDevelopmentSigning` from `@house-rules/auth-jwt`, serves `AuthJwtLocal`, `Identity.devLocal` and the passwords provider's temporary key.
+53. **Modules own their adapters; the app wires them** (2026-10-23, owner; closes P4). A stored module package defines its storage port (`storage.ts`) and its adapters (memory and Postgres, under `adapters/`), with one shared store suite run against both. Only the app's `composition/modules.ts` chooses which adapter to plug in. Storage stays inside the domain module; this is the rule already in `AGENTS.md`.
+54. **One gate policy: feature gate plus recheck** (2026-10-23, owner; closes P2). The gate at feature start checks every permission in the closure. Each inner call through a declared edge then rechecks its own permission against the permissions loaded at start. `featureOnly` and the `gatePolicy` option are removed.
 
 ## Open, needs the owner
 
-| Id | Question | Leader's lean |
-| --- | --- | --- |
-| P2 | Who runs the gates: entry only, every node, or entry plus re-check | Entry plus re-check (the spike's default) |
-| P4 | Data socket: does storage belong in a pure domain at all? | Pending, in `TODO.md` |
+None right now. P2 closed by 54, P4 by 53. Open framework work lives in `TODO.md`.

@@ -70,7 +70,7 @@ Domain's `defineOperation` describes module or read-model work. Modules export `
 
 A plain edge keeps the caller. `asSystem(target, reason)` switches that branch to the system and never back. A feature derives its permission closures and flags from the graph. Approval runs once. Only the feature runtime opens a production unit; handlers and modules join it. A failed write rolls back the graph's stored changes, not external provider effects.
 
-The default gate policy, `feature-and-recheck`, also checks each inner operation's own permission. `feature-only` skips that recheck. Both stay while P2 is open.
+Every inner call rechecks its own permission against the permissions loaded at feature start.
 
 Ways import values from kits, `effect`, package contract doors, features, composition and their own folder. Other package main entries allow types only. Build concrete plugs in composition and pass them into ways. The root receives ways from `main.ts`; it never imports them.
 

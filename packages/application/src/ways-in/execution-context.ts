@@ -6,7 +6,6 @@ import { CallWatch } from "../call/call-watch.ts";
 import { Approval } from "../gates/approval.ts";
 import { Runtime } from "../runtime/runtime.ts";
 import { May } from "../socket/may.ts";
-import type { GatePolicy } from "../socket/permission-lists.ts";
 import { StepTrace } from "../trace/step-trace.ts";
 import type { HookWay, ScheduleWay } from "./way.ts";
 import { CallerScope } from "./caller-scope.ts";
@@ -32,7 +31,6 @@ export const systemExecutionContext = (
     "protocol" | "name" | "features" | "mean"
   >,
   system: readonly Permission[],
-  gatePolicy: GatePolicy,
 ) =>
   Effect.gen(function* () {
     const runtime = yield* Runtime;
@@ -46,8 +44,6 @@ export const systemExecutionContext = (
       Context.add(CallWatch, watch),
       Context.add(Approval, approval),
       Context.add(CallChannel, `${way.protocol}:${way.name}`),
-      Context.merge(
-        May.system(way.features, { system, via: `${way.protocol}:${way.name}`, gatePolicy }),
-      ),
+      Context.merge(May.system(way.features, { system, via: `${way.protocol}:${way.name}` })),
     );
   });

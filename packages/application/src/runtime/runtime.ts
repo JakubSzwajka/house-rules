@@ -14,7 +14,7 @@ import { CallRequestId } from "../call/call-facts.ts";
 import { CallerContext } from "../caller/caller-context.ts";
 import { type AnyFeature, isFeature } from "../feature/feature.ts";
 import { Forbidden } from "../gates/gate-errors.ts";
-import { CallPermissions, featureAndRecheck } from "../socket/permission-lists.ts";
+import { CallPermissions } from "../socket/permission-lists.ts";
 import { StepTrace } from "../trace/step-trace.ts";
 import type { Binding, InnerFailure, ScopedCall } from "./binding.ts";
 import { GraphInvalid } from "./graph-invalid.ts";
@@ -200,11 +200,7 @@ export class Runtime extends Context.Service<
             });
             const work = Effect.gen(function* () {
               const held = next.kind === "system" ? permissions.system : permissions.person;
-              if (
-                (permissions.gatePolicy ?? featureAndRecheck) === featureAndRecheck &&
-                target.permission !== null &&
-                !held.includes(target.permission)
-              ) {
+              if (target.permission !== null && !held.includes(target.permission)) {
                 return yield* new Forbidden({
                   feature: featureName,
                   permission: target.permission,

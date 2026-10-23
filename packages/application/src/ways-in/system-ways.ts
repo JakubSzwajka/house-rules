@@ -4,16 +4,11 @@ import { newRequestId, withRequestId } from "../call/request-id.ts";
 import { runFeature } from "../execution/run-feature.ts";
 import { CallInvalid } from "../runtime/call-invalid.ts";
 import { GraphInvalid } from "../runtime/graph-invalid.ts";
-import type { GatePolicy } from "../socket/permission-lists.ts";
 import { systemExecutionContext } from "./execution-context.ts";
 import type { SystemFeature } from "./way.ts";
 import type { AnyWay } from "./way-validation.ts";
 
-export const systemWays = (
-  ways: readonly AnyWay<any>[],
-  system: readonly Permission[],
-  gatePolicy: GatePolicy,
-) =>
+export const systemWays = (ways: readonly AnyWay<any>[], system: readonly Permission[]) =>
   Layer.unwrap(
     Effect.gen(function* () {
       if (!ways.some((way) => way.protocol === "hook" || way.protocol === "schedule"))
@@ -24,7 +19,7 @@ export const systemWays = (
       const schedules: Array<Effect.Effect<void, GraphInvalid, import("effect").Scope.Scope>> = [];
       for (const way of ways) {
         if (way.protocol !== "hook" && way.protocol !== "schedule") continue;
-        const captured = yield* systemExecutionContext(way, system, gatePolicy);
+        const captured = yield* systemExecutionContext(way, system);
         const execute = (feature: SystemFeature, input: SystemFeature["input"]["Type"]) =>
           Effect.gen(function* () {
             const id = yield* newRequestId;

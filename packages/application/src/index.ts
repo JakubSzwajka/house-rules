@@ -35,13 +35,7 @@ export { type MaySocket, May } from "./socket/may.ts";
 export { MayUnavailable } from "./socket/may-unavailable.ts";
 export { type MeanSocket, Mean } from "./socket/mean.ts";
 export { type RecordSocket } from "./socket/record.ts";
-export {
-  CallPermissions,
-  featureAndRecheck,
-  featureOnly,
-  type GatePolicy,
-  type PermissionLists,
-} from "./socket/permission-lists.ts";
+export { CallPermissions, type PermissionLists } from "./socket/permission-lists.ts";
 export {
   StepTrace,
   type Step,

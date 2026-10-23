@@ -19,7 +19,6 @@ import {
 import { PermissionCatalogue } from "../registry/catalogue.ts";
 import { ResolvedMay } from "../socket/resolved-may.ts";
 import { GraphInvalid } from "../runtime/graph-invalid.ts";
-import { featureAndRecheck, type GatePolicy } from "../socket/permission-lists.ts";
 import type { ServicesCheck } from "./mount-check.ts";
 import {
   validateWays,
@@ -36,7 +35,6 @@ export type Composition<A, E = never> = Readonly<{
   ways: readonly AnyWay<A>[];
   may: Effect.Effect<MaySocket<MayUnavailable>, never, A>;
   system: readonly Permission[];
-  gatePolicy: GatePolicy;
   dispose: () => Promise<void>;
 }>;
 
@@ -72,7 +70,6 @@ export const composition = <
     ways: Ways;
     may: Effect.Effect<MaySocket<MayError>, never, NoInfer<Outputs<M, A>>>;
     system: readonly Permission[];
-    gatePolicy?: GatePolicy;
   }> &
     ServicesCheck<
       | Exclude<
@@ -109,11 +106,9 @@ export const composition = <
   const withMay = Layer.effect(ResolvedMay, options.may.pipe(Effect.map(normalizeMay))).pipe(
     Layer.provideMerge(validated),
   );
-  const layer = systemWays(
-    options.ways,
-    options.system,
-    options.gatePolicy ?? featureAndRecheck,
-  ).pipe(Layer.provideMerge(withMay)) as unknown as Layer.Layer<
+  const layer = systemWays(options.ways, options.system).pipe(
+    Layer.provideMerge(withMay),
+  ) as unknown as Layer.Layer<
     Outputs<M, A> | HookServices<Ways[number]> | Runtime | ResolvedMay,
     Errors<M, E>
   >;
@@ -130,7 +125,6 @@ const compositionFromLayer = <A, E>(
     features: readonly AnyFeature[];
     ways: readonly AnyWay<any>[];
     system: readonly Permission[];
-    gatePolicy?: GatePolicy;
   }>,
 ): Composition<A, E | GraphInvalid> => {
   let closed = false;
@@ -193,7 +187,6 @@ const compositionFromLayer = <A, E>(
     ways: options.ways as unknown as readonly AnyWay<A>[],
     may: ResolvedMay as unknown as Effect.Effect<MaySocket<MayUnavailable>, never, A>,
     system: options.system,
-    gatePolicy: options.gatePolicy ?? featureAndRecheck,
     dispose,
   };
   lifecycles.set(app, {

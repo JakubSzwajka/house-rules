@@ -5,7 +5,6 @@ import {
   type HookWay,
   type Principal,
   type Refused,
-  type GatePolicy,
   type MaySocket,
 } from "@house-rules/application";
 import {
@@ -64,7 +63,6 @@ export const createApp = (
     settings?: AppSettings;
     nodeEnv?: string;
     issuer?: string;
-    gatePolicy?: GatePolicy;
     may?: MaySocket;
   } = {},
 ) =>
@@ -74,5 +72,4 @@ export const createApp = (
     ways,
     may: options.may === undefined ? may : Effect.succeed(options.may),
     system: systemPermissions,
-    ...(options.gatePolicy === undefined ? {} : { gatePolicy: options.gatePolicy }),
   });
