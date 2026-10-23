@@ -99,3 +99,32 @@ it.effect("appMap fails closed on a declared plug that names no real way or slot
     }
   }),
 );
+
+it.effect("the text map prints closures for in-process features like way features", () =>
+  Effect.gen(function* () {
+    const snapshot = yield* validatePlan({
+      ...plan,
+      features: [
+        ...plan.features,
+        {
+          name: "hidden_purge",
+          permission: "app:use",
+          edges: [{ target: "Store.remove", reason: "purge old items" }],
+        },
+      ],
+    });
+    const text = renderMap(snapshot, "text");
+    const section = text.slice(
+      text.indexOf("\nIN-PROCESS FEATURES\n"),
+      text.indexOf("\nMODULES\n"),
+    );
+    expect(section).toBe(
+      "\nIN-PROCESS FEATURES\n" +
+        " hidden_purge  person  needs app:use; system needs items:remove\n" +
+        "  └─ ⚙ Store.remove (purge old items)\n" +
+        " hidden_report  person  needs items:read\n" +
+        "  └─ Views.list\n",
+    );
+    for (const line of text.split("\n")) expect(line.length).toBeLessThanOrEqual(100);
+  }),
+);

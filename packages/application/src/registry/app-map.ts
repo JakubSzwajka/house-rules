@@ -142,6 +142,27 @@ const wrap = (
 const text = (data: AppMapSnapshot): string => {
   const lines = [...wrap("LAYERS   ", data.layers), "", "WAYS"];
   const operations = data.modules.flatMap((module) => module.operations);
+  // Way features and in-process features share one form, closures included.
+  const featureLines = (
+    feature: AppMapSnapshot["features"][number],
+    branch: string,
+    trunk: string,
+  ): string[] => [
+    ...wrap(
+      branch,
+      `${feature.name}  ${feature.start === "person" ? "person" : `system (${feature.start.reason})`}${feature.path === undefined ? "" : `  ${feature.path}`}  needs ${feature.closures.person.join(" ") || "none"}${feature.closures.system.length === 0 ? "" : `; system needs ${feature.closures.system.join(" ")}`}`,
+      trunk,
+    ),
+    ...feature.edges.flatMap((edge, edgeIndex) => {
+      const children = operations.find((operation) => operation.name === edge.target)?.edges ?? [];
+      const lastEdge = edgeIndex === feature.edges.length - 1;
+      return wrap(
+        `${trunk}${lastEdge ? "└─" : "├─"} `,
+        `${edgeText(edge)}${children.length === 0 ? "" : ` → ${children.map(edgeText).join(", ")}`}`,
+        `${trunk}${lastEdge ? "   " : "│  "}`,
+      );
+    }),
+  ];
   for (const way of data.ways) {
     const address =
       way.slot === undefined
@@ -161,38 +182,19 @@ const text = (data: AppMapSnapshot): string => {
       const feature = data.features.find((entry) => entry.name === name);
       if (feature === undefined) continue;
       const lastFeature = featureIndex === way.features.length - 1;
-      const trunk = lastFeature ? "      " : "  │   ";
       lines.push(
-        ...wrap(
+        ...featureLines(
+          feature,
           `  ${lastFeature ? "└─" : "├─"} `,
-          `${name}  ${feature.start === "person" ? "person" : `system (${feature.start.reason})`}${feature.path === undefined ? "" : `  ${feature.path}`}  needs ${feature.closures.person.join(" ") || "none"}${feature.closures.system.length === 0 ? "" : `; system needs ${feature.closures.system.join(" ")}`}`,
-          trunk,
+          lastFeature ? "      " : "  │   ",
         ),
       );
-      for (const [edgeIndex, edge] of feature.edges.entries()) {
-        const children =
-          operations.find((operation) => operation.name === edge.target)?.edges ?? [];
-        const lastEdge = edgeIndex === feature.edges.length - 1;
-        lines.push(
-          ...wrap(
-            `${trunk}${lastEdge ? "└─" : "├─"} `,
-            `${edgeText(edge)}${children.length === 0 ? "" : ` → ${children.map(edgeText).join(", ")}`}`,
-            `${trunk}${lastEdge ? "   " : "│  "}`,
-          ),
-        );
-      }
     }
   }
   const hidden = data.features.filter((feature) => feature.ways.length === 0);
   if (hidden.length > 0) {
     lines.push("", "IN-PROCESS FEATURES");
-    for (const feature of hidden)
-      lines.push(
-        ...wrap(
-          " ",
-          `${feature.name}  ${feature.path ?? ""} → ${feature.edges.map(edgeText).join(", ")}`,
-        ),
-      );
+    for (const feature of hidden) lines.push(...featureLines(feature, " ", "  "));
   }
   for (const kind of ["package", "read-model"] as const) {
     lines.push("", kind === "package" ? "MODULES" : "READ MODELS");

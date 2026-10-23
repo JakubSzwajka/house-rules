@@ -185,12 +185,12 @@ Run package-local `pnpm exec tsc --project tsconfig.json --noEmit` and `pnpm exe
 `planCommand(args, read)` is the CLI core: pure apart from the `read(path)` callback, it returns `{ exitCode, stdout, stderr, output? }` and the caller writes `output.content` to `output.path`. `runPlanCommand` runs it as a Promise. In this repo, `pnpm plan` runs it from source:
 
 ```text
-pnpm plan view <plan.json> [-o out.html]
+pnpm plan view <plan.json> [-o out.html] [--text]
 pnpm plan validate <plan.json>
 pnpm plan diff <before.json> <after.json> [-o out.html] [--text]
 ```
 
-`view` decodes with `Plan`, runs `validatePlan` and renders HTML. `validate` runs those same checks, prints `valid` and exits 0, with no output file. Invalid input prints issues with paths and exits 1; wrong arguments exit 2. `validate` rejects `-o` and `--text`.
+`view` decodes with `Plan`, runs `validatePlan` and renders HTML. `view --text` prints `renderMap(snapshot, "text")` instead: ways with Mean and public features, each feature's person and system closures, modules, plugs and permissions, so one plan reads without a browser. With `-o` it writes that text to the file. `validate` runs those same checks, prints `valid` and exits 0, with no output file. Invalid input prints issues with paths and exits 1; wrong arguments exit 2. `validate` rejects `-o` and `--text`.
 
 A diff side is a plan.json, validated the same way, or app map JSON from `renderMap(snapshot, "json")`. Only `diff` accepts snapshots, detected explicitly by the presence of both `layers` and `permissions`. A detected snapshot must pass map decoding; it never falls back to plan decoding. Older snapshots without operation `transactional` or `needsApproval` fail with paths and a request to regenerate them using the app's map script. Missing facts never default to false. The package ships no bin yet, so a consumer calls `runPlanCommand(process.argv.slice(2), read)` from a short script of its own.
 

@@ -17,10 +17,11 @@ export interface PlanCommandResult {
 }
 
 export const planUsage = `Usage:
-  plan view <plan.json> [-o out.html]
+  plan view <plan.json> [-o out.html] [--text]
   plan validate <plan.json>
   plan diff <before.json> <after.json> [-o out.html] [--text]
 
+view --text prints the text map: ways, Mean, closures, modules, plugs and permissions.
 Each diff side is a plan.json or an app map from renderMap(snapshot, "json").
 Exit codes: 0 done, 1 invalid or unreadable input, 2 wrong arguments.
 `;
@@ -114,9 +115,11 @@ export const planCommand = (
   const run =
     command === "validate" && parsed.files.length === 1
       ? load(read, parsed.files[0] ?? "", false).pipe(Effect.map(() => emit(undefined, "valid\n")))
-      : command === "view" && parsed.files.length === 1 && !parsed.text
+      : command === "view" && parsed.files.length === 1
         ? load(read, parsed.files[0] ?? "", false).pipe(
-            Effect.map((snapshot) => emit(parsed.output, renderMap(snapshot, "html"))),
+            Effect.map((snapshot) =>
+              emit(parsed.output, renderMap(snapshot, parsed.text ? "text" : "html")),
+            ),
           )
         : command === "diff" && parsed.files.length === 2
           ? Effect.all([

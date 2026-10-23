@@ -7,13 +7,14 @@ Run from the repository root. `pnpm plan` is a root script. Inside an app folder
 | Command | Exit codes and output |
 | --- | --- |
 | `pnpm --silent plan validate <plan>` | 0 and `valid`; 1 with issue paths on stderr; 2 for wrong arguments, including `-o` or `--text` |
-| `pnpm --silent plan view <plan> -o <file>` | 0 and `Wrote <file>` on stderr; 1 for an invalid plan or a map JSON |
+| `pnpm --silent plan view <plan> --text` | 0 and the text map on stdout; 1 for an invalid plan or a map JSON |
+| `pnpm --silent plan view <plan> -o <file>` | 0 and `Wrote <file>` on stderr; 1 as above. Without `-o`, the HTML goes to stdout. `--text -o <file>` writes the text map. |
 | `pnpm --silent plan diff <before> <after> --text` | 0 with a text diff, even when it lists changes; 1 if either side is invalid |
 | `pnpm --silent plan diff <before> <after> -o <file>` | Same, as an HTML page |
 
-`pnpm -s plan ...` exits 2 with this pnpm (`unexpected argument '-s'`); write `--silent`. Without `--silent`, pnpm adds `$ node scripts/plan.mjs ...` and, on failure, `[ELIFECYCLE]` lines to stderr. Stdout stays clean, so `> file` works either way.
+`pnpm -s plan ...` exits 2 with this pnpm (`unexpected argument '-s'`); write `--silent`. Without it, pnpm adds `$ node scripts/plan.mjs ...` to stderr. On failure pnpm adds `[ELIFECYCLE] Command failed with exit code 1.` to stderr, with or without `--silent`. Stdout stays clean, so `> file` works either way.
 
-Booking's map script is `scripts/map.mjs` in the app, run through `pnpm --filter @example/api run map -- <options>`. `--help` prints its options and exits 2. The [app README](../../examples/booking/apps/api/README.md) explains them. `--diff` with no path uses the app's own `plan.json`. An explicit `--diff <path>` resolves from the folder where you typed the command, so pass the root-relative or absolute path.
+Booking's map script is `scripts/map.mjs` in the app, run through `pnpm --filter @example/api run map -- <options>`. The [app README](../../examples/booking/apps/api/README.md) explains its options, and `--help` prints them. The script then exits 2, as `node examples/booking/apps/api/scripts/map.mjs --help` shows; the filtered pnpm command reports exit 1. `--diff` with no path uses the app's own `plan.json`. An explicit `--diff <path>` resolves from the folder where you typed the command, so pass the root-relative or absolute path.
 
 ## Choose the owner
 
@@ -28,6 +29,42 @@ Use the root [AGENTS.md](../../AGENTS.md), especially "Inside a module", "Module
 | Does it fill a caller-owned socket or port? | A plug. Name who owns the port and test removal of the plug and its Layer.provide line. It must leave the rest building and passing. A package may own data as a module and separately supply a plug, such as Party's May. |
 
 Ownership notes must name tables, published views, foreign ids, lifecycle and access checks. Plan has no fields for these. Do not use read models to bypass module data ownership, or plugs to hide domain work.
+
+## Reuse before you build
+
+Party, Identity and CallAudit are the default base of every app, as booking shows. Check this table before cutting a new module. In a consumer, read the installed package's AGENTS.md and README instead.
+
+| Package | Kind | Covers | Operations |
+| --- | --- | --- | --- |
+| `@house-rules/party` | module, plus the May plug `Party.may()` | people, organisations, relationships, built-in and custom roles, assignments, invitations | 24, `PartyOperations` in its `contract.ts` |
+| `@house-rules/identity` | module, plus the Who plug `Identity.who` | password and OIDC logins, login bindings, the `FirstSignIn` hook slot | 4, `IdentityOperations` |
+| `@house-rules/comments` | module; needs a `CommentTargets` host port | flat plain-text comments on the app's own targets | 4, `CommentsOperations`, see its AGENTS.md |
+| `@house-rules/call-audit` | Record plug `CallAudit.record` | one audit row per feature call, refusals included, with retention | none; booking reads it through its `audit-trail` read model |
+| `@house-rules/auth-jwt` | Authenticator slot plug | JWT checks against a JSON Web Key Set | none |
+
+No package owns notifications, outbound messages or contact details. Party stores no email. Identity's `accountByEmail` is a facade method for trusted tooling, not an operation, so a feature cannot reach it. Payments, calendars and slots are app modules; booking's `billing` is an example, not a reusable package.
+
+Copy a mounted package's operations exactly, with permission and flags. For Party and Identity, copy the booking plan's `party` and `identity` modules; they list every operation. For the others, read the descriptors in the package source. This prints the names:
+
+```sh
+rg -o --no-filename 'defineOperation\(\s*"[^"]+"' -g '!**/tests/**' packages/party/src
+```
+
+If a package adds an operation later, the post-build diff lists it as added. Add it to the plan with the owner's approval.
+
+## Patterns
+
+**Pending approval.** Model "waiting for approval" as a role, not a new table. The first-sign-in hook assigns a low role such as `applicant` through a system edge to `Party.assignRole`. An `approve_member` feature calls `Party.assignRole` with the full role. Party lets a person assign a role only if they hold every permission it grants in that scope; `party:admin` alone is not enough. So the approving role must hold every permission of the role it grants. Invitations (`Party.createInvitation`, `Party.acceptInvitation`) are the invite-only alternative.
+
+**Notifications and contact data.** Decide which module owns contact details. No package does today. The owning module owns an outbound port with a dev adapter that records messages and a real adapter chosen in `composition/modules.ts`. A real sender is usually a new dependency and env vars, so it needs owner approval. A sent message cannot be rolled back with the unit.
+
+**Idempotent schedule items.** The selector returns an array of item inputs, one per unit of work, such as `{ personId, date }`. The item operation writes a claim row keyed by that input in the same unit. If the claim already exists, it does nothing. An outside send cannot join the unit. Sending before commit may repeat a message after a crash; sending after commit may lose one. Pick one and write it in `design-notes.md`.
+
+**Time zones.** `clock` takes `timeZone: "UTC"` only. Turn "every morning at 7" into a UTC cron for one named zone, note the daylight-saving shift, and list the zone as an open choice. Per-person local times need the selector to filter by each person's zone, which a module must store.
+
+**Permission on a system-only operation.** Give it a permission string, such as booking's `billing:expire`. Add that string to the system permission list and to no role, so no person-authority call can reach it without an explicit system edge (`asSystem`). Booking's `cancel_booking` reaches system-only `billing:refund` through `⚙ Billing.refund`. Use null only for an operation any caller may run, such as a read filtered to the caller in SQL.
+
+**Hook slot keys and public starts.** A hook's `slot` is the slot service's key string in the owning package source: `rg -n '"@house-rules/identity/FirstSignIn"' packages/identity/src` finds Identity's. The package AGENTS.md names the slot tag, here `FirstSignIn`, but not the key string. Booking writes a public feature's start as `{ reason: "public sign_in", startedBy: "public sign_in" }`; follow `public <feature>`. A hook start uses `startedBy: "hook:<way>"` and a schedule start `schedule:<way>`.
 
 ## Plan fields
 
@@ -46,7 +83,7 @@ Flags default false and start defaults to person. Plan rejects unknown keys at e
 
 ## Write new items
 
-Copy the spelling of the nearest existing sibling. `path`, `source` and `service` are pass-through facts: validation accepts any string, but the post-build diff compares them with the built map and flags a mismatch. In booking:
+Copy the spelling of the nearest existing sibling. `path` and `source` are pass-through facts and `service` is any nonempty string. Validation accepts them, but the post-build diff compares them with the built map and flags a mismatch. In booking:
 
 | New item | Spelling |
 | --- | --- |
@@ -56,7 +93,9 @@ Copy the spelling of the nearest existing sibling. `path`, `source` and `service
 | Feature | snake_case name, `path: "src/features/<kebab>/index.ts"` |
 | Way | HTTP and MCP `source: "src/ways-in/<way>/way.ts"`; hook `src/ways-in/hooks/<name>.ts`; schedule `src/ways-in/schedules/<name>.ts` |
 
-Flags. Set an operation's own flags as its descriptor will declare them: readOnly for reads, transactional for writes, destructive and needsApproval for hard-to-undo work. A feature lifts flags across its graph. readOnly uses AND and includes the feature's own flag, so a read feature must set `readOnly: true` itself; without it the feature reads as a write. transactional, destructive and needsApproval use OR, so omit them on a feature unless its own `defineFeature` call declares them. The diff compares lifted feature flags: it catches a missing readOnly, but not a redundant OR flag. The descriptor in code is the source of truth.
+A new app in this repo lives in `apps/<app>` with package `@<scope>/<app>`; agree the scope with the owner, since booking's `@example` marks examples. Its modules are `packages/<pkg>` with package `@<scope>/<pkg>`. Module `path` is root-relative; feature, read-model and way paths are app-relative, as in booking.
+
+Flags. Write each flag as the code will declare it. Operations: readOnly for reads, transactional for writes, destructive and needsApproval for hard-to-undo work. A read feature must set `readOnly: true` itself, because readOnly lifts with AND; without it the feature reads as a write. The other three lift with OR from the graph, so a new feature may omit them. Booking's `sign_in`, `change_password` and other features declare `flags: { transactional: true }` in code, so its plan repeats it. Both forms are valid, and the diff cannot see a redundant OR flag.
 
 ## Fix PlanInvalid
 
@@ -111,9 +150,10 @@ Run from that consumer's root with its pinned Node version:
 
 ```sh
 node scripts/plan.mjs validate plan.json
+node scripts/plan.mjs view plan.json --text
 node scripts/plan.mjs view plan.json -o "$D/design.html"
 node scripts/plan.mjs diff plan.json "$D/plan.next.json" -o "$D/change.html"
 node scripts/plan.mjs diff plan.json "$D/plan.next.json" --text
 ```
 
-The adapter uses the package main's compiled JavaScript. It needs no bin, source loader or extra dependency. Paths resolve from the working directory. A diff exits 0 even when it lists changes, so read the text or assert `diffMaps(...).empty` in an app test.
+The adapter uses the package main's compiled JavaScript. It needs no bin, source loader or extra dependency. Paths resolve from the working directory. A release without `view --text` exits 2 for it; read the HTML page instead. A diff exits 0 even when it lists changes, so read the text or assert `diffMaps(...).empty` in an app test.

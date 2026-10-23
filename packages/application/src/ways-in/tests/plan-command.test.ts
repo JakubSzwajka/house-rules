@@ -51,6 +51,30 @@ it.effect("view renders a valid plan as html and exits 0", () =>
   }),
 );
 
+it.effect("view --text prints the text map of a valid plan, to stdout or a file", () =>
+  Effect.gen(function* () {
+    const text = renderMap(yield* validatePlan(plan), "text");
+    expect(yield* run(["view", "plan.json", "--text"])).toEqual({
+      exitCode: 0,
+      stdout: text,
+      stderr: "",
+    });
+    for (const section of ["WAYS", "Mean:", "needs", "PLUGS", "PERMISSIONS"])
+      expect(text).toContain(section);
+    expect(yield* run(["view", "plan.json", "--text", "-o", "out.txt"])).toEqual({
+      exitCode: 0,
+      stdout: "",
+      stderr: "Wrote out.txt\n",
+      output: { path: "out.txt", content: text },
+    });
+    const broken = yield* run(["view", "broken.json", "--text"]);
+    expect(broken.exitCode).toBe(1);
+    expect(broken.stdout).toBe("");
+    expect(broken.stderr).toContain("features[8].edges[0]");
+    expect((yield* run(["view", "map.json", "--text"])).exitCode).toBe(1);
+  }),
+);
+
 it.effect("view reports plan issues with paths and exits 1", () =>
   Effect.gen(function* () {
     const result = yield* run(["view", "broken.json"]);
@@ -140,6 +164,7 @@ it.effect("wrong arguments print usage and exit 2", () =>
       ["view"],
       ["diff", "plan.json"],
       ["view", "plan.json", "-o"],
+      ["view", "plan.json", "plan.json", "--text"],
       ["x"],
       ["validate"],
       ["validate", "plan.json", "broken.json"],

@@ -65,6 +65,28 @@ it("plan view renders a valid plan as one html page and exits 0", () => {
   assert.equal(readFileSync(out, "utf8"), result.stdout);
 });
 
+it("plan view --text prints closures, Mean, plugs and permissions as text and exits 0", () => {
+  const result = runPlan("view", valid, "--text");
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
+  assert.doesNotMatch(result.stdout, /<!doctype html>/u);
+  for (const line of [
+    "WAYS",
+    "Mean: deny approval",
+    "needs notes:read",
+    "needs notes:write",
+    "PLUGS",
+    "Mean.no  fills Mean on web",
+    "PERMISSIONS",
+  ])
+    assert.ok(result.stdout.includes(line), line);
+  const out = path.join(directory, "view.txt");
+  const written = runPlan("view", valid, "--text", "-o", out);
+  assert.equal(written.status, 0, written.stderr);
+  assert.equal(readFileSync(out, "utf8"), result.stdout);
+  assert.equal(runPlan("view", invalid, "--text").status, 1);
+});
+
 it("plan view prints every issue path of an invalid plan and exits 1", () => {
   const result = runPlan("view", invalid);
   assert.equal(result.status, 1);
