@@ -3,6 +3,7 @@ import { IdentityOperations } from "./contract.js";
 import { bindIdentity } from "./binding/bind-identity.js";
 import type { MountDefinition } from "@house-rules/application";
 export const IdentityMount = {
+  map: { name: "identity", kind: "package", package: "@house-rules/identity" },
   service: Identity,
   operations: Object.values(IdentityOperations),
   bind: bindIdentity,

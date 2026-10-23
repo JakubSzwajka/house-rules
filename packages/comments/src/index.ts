@@ -4,6 +4,7 @@ import { CommentsOperations } from "./contract.js";
 import { bindComments } from "./comment/bind-comments.js";
 
 export const CommentsMount = {
+  map: { name: "comments", kind: "package", package: "@house-rules/comments" },
   service: Comments,
   operations: Object.values(CommentsOperations),
   bind: bindComments,

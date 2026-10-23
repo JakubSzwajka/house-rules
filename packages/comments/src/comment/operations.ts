@@ -18,7 +18,7 @@ const failure = Schema.Union([
   CommentStoreUnavailable,
   CommentTargetsUnavailable,
 ]);
-const listComments = defineOperation("list_comments", {
+const listComments = defineOperation("Comments.listComments", {
   description: "List comments on one target.",
   input: Schema.Struct({ target: CommentTarget, page: CommentPage }),
   output: CommentList,
@@ -27,7 +27,7 @@ const listComments = defineOperation("list_comments", {
   edges: [],
   readOnly: true,
 });
-const addComment = defineOperation("add_comment", {
+const addComment = defineOperation("Comments.addComment", {
   description: "Add a plain-text comment to one target.",
   input: Schema.Struct({ target: CommentTarget, body: Schema.String }),
   output: Comment,
@@ -36,7 +36,7 @@ const addComment = defineOperation("add_comment", {
   edges: [],
   transactional: true,
 });
-const editComment = defineOperation("edit_comment", {
+const editComment = defineOperation("Comments.editComment", {
   description: "Edit your own comment.",
   input: Schema.Struct({ id: Schema.NonEmptyString, body: Schema.String }),
   output: Comment,
@@ -45,7 +45,7 @@ const editComment = defineOperation("edit_comment", {
   edges: [],
   transactional: true,
 });
-const removeComment = defineOperation("remove_comment", {
+const removeComment = defineOperation("Comments.removeComment", {
   description: "Remove your own comment or moderate a target you own.",
   input: Schema.Struct({ id: Schema.NonEmptyString }),
   output: Schema.Void,

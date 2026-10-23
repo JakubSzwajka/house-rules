@@ -17,10 +17,10 @@ The browser-safe `./contract` door exports schemas, errors, permissions and `Com
 
 | CommentsOperations member / name | Permission | Flags |
 | --- | --- | --- |
-| `listComments` / `list_comments` | `comments:read` | readOnly |
-| `addComment` / `add_comment` | `comments:write` | transactional |
-| `editComment` / `edit_comment` | `comments:write` | transactional |
-| `removeComment` / `remove_comment` | `comments:write` | transactional, destructive |
+| `listComments` / `Comments.listComments` | `comments:read` | readOnly |
+| `addComment` / `Comments.addComment` | `comments:write` | transactional |
+| `editComment` / `Comments.editComment` | `comments:write` | transactional |
+| `removeComment` / `Comments.removeComment` | `comments:write` | transactional, destructive |
 
 Each has empty edges and no approval flag. All require a person; non-person calls fail with `CommentTargetNotFound`, revealing no target. Binders capture the service once and never open a unit.
 

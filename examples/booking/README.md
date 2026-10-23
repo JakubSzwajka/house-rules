@@ -22,6 +22,10 @@ Then follow `apps/api/src/features/cancel-booking`. Its refund edge switches to 
 
 Use `apps/api/REGISTRY.md` to navigate callers and closures. `TESTS.md` maps the reference behaviors to exact tests and lists unproved claims. Regenerate with `pnpm --filter @example/api registry`; the freshness test only reads.
 
+## App map
+
+[MAP.md](apps/api/MAP.md) connects ways, features and their declared operation edges to package and read-model folders. Run `pnpm --filter @example/api map` for text, add `--json` or `--mermaid` for those formats, or `--write` to refresh MAP.md. Generation uses memory storage, no sign-in providers and a frozen clock. It starts no Host and calls no features. The source helper reads the feature registry imports, literal builder calls and package manifests. Missing or ambiguous facts fail generation. Paths are app-relative for app code and repo-relative for packages. The layers header is fixed, not extracted from layout rules. Freshness tests compare without writing; REGISTRY.md stays available.
+
 ## Run and limits
 
 From the repo root, with the pinned Node and pnpm:

@@ -38,7 +38,7 @@ export class Bookings extends defineModule<
       id: string,
     ) => Effect.Effect<BookingRelation, BookingStoreUnavailable>;
   }
->()("@example/api/modules/bookings/Bookings", {
+>()("@example/bookings/Bookings", {
   make: Effect.gen(function* () {
     const store = yield* BookingStore;
     const required = UnitOfWork.required;

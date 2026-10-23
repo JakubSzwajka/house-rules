@@ -131,12 +131,12 @@ const as = (
 it.layer(world)("Party nodes", (test) => {
   test.effect("name, permission and flags are the shipped ones", () =>
     Effect.sync(() => {
-      expect(showPerson.name).toBe("show_person");
+      expect(showPerson.name).toBe("Party.showPerson");
       expect(showPerson.permission).toBe("party:read");
-      expect(showMe.name).toBe("show_me");
+      expect(showMe.name).toBe("Party.showMe");
       expect(showMe.permission).toBe("party:read");
       expect(showMe.transactional).toBe(false);
-      expect(renamePerson.name).toBe("rename_person");
+      expect(renamePerson.name).toBe("Party.renamePerson");
       expect(renamePerson.permission).toBe("party:update");
       expect(renamePerson.transactional).toBe(true);
       expect(createPerson.name).toBe("Party.createPerson");

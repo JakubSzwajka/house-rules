@@ -2,12 +2,12 @@
 
 ## Mounts
 
-- @example/api/modules/billing/Billing: Billing.duePayments, Billing.expireOne, Billing.initPayment, Billing.refund
-- @example/api/modules/bookings/Bookings: Bookings.book, Bookings.cancel, Bookings.get
+- @example/api/read-models/audit-trail/AuditTrail: AuditTrail.mine, AuditTrail.recent
 - @example/api/read-models/my-bookings/MyStuff: MyStuff.myBookings
-- booking/AuditTrail: AuditTrail.mine, AuditTrail.recent
+- @example/billing/Billing: Billing.duePayments, Billing.expireOne, Billing.initPayment, Billing.refund
+- @example/bookings/Bookings: Bookings.book, Bookings.cancel, Bookings.get
 - identity: Identity.bindLogin, Identity.changePassword, Identity.signIn, Identity.signUp
-- party: Party.acceptInvitation, Party.assignRole, Party.canAdminOrganisation, Party.createInvitation, Party.createOrganisation, Party.createPerson, Party.defineRole, Party.deleteRole, Party.isRelated, Party.listInvitations, Party.listMembers, Party.listPeople, Party.listRoles, Party.myAccess, Party.myOrganisations, Party.relate, Party.revokeInvitation, Party.revokeRole, Party.rolesOf, Party.showOrganisation, Party.unrelate, rename_person, show_me, show_person
+- party: Party.acceptInvitation, Party.assignRole, Party.canAdminOrganisation, Party.createInvitation, Party.createOrganisation, Party.createPerson, Party.defineRole, Party.deleteRole, Party.isRelated, Party.listInvitations, Party.listMembers, Party.listPeople, Party.listRoles, Party.myAccess, Party.myOrganisations, Party.relate, Party.renamePerson, Party.revokeInvitation, Party.revokeRole, Party.rolesOf, Party.showMe, Party.showOrganisation, Party.showPerson, Party.unrelate
 
 ## Ways
 
@@ -192,6 +192,11 @@
 - Permission: party:admin
 - Called by: none
 
+### Party.renamePerson
+
+- Permission: party:update
+- Called by: none
+
 ### Party.revokeInvitation
 
 - Permission: party:admin
@@ -207,7 +212,17 @@
 - Permission: party:read
 - Called by: none
 
+### Party.showMe
+
+- Permission: party:read
+- Called by: my_profile
+
 ### Party.showOrganisation
+
+- Permission: party:read
+- Called by: none
+
+### Party.showPerson
 
 - Permission: party:read
 - Called by: none
@@ -216,21 +231,6 @@
 
 - Permission: party:admin
 - Called by: remove_member
-
-### rename_person
-
-- Permission: party:update
-- Called by: none
-
-### show_me
-
-- Permission: party:read
-- Called by: my_profile
-
-### show_person
-
-- Permission: party:read
-- Called by: none
 
 ## Features
 
@@ -406,7 +406,7 @@
 - Person closure: party:read
 - System closure: none
 - Exposed by: web (http: /api)
-- Calls: show_me (person, inherited system stays system)
+- Calls: Party.showMe (person, inherited system stays system)
 - Calls: Party.myAccess (person, inherited system stays system)
 
 ### recent_audit

@@ -6,6 +6,7 @@ import { PartyOperations } from "./contract.js";
 import { bindParty } from "./person/bind-party.js";
 import type { MountDefinition } from "@house-rules/application";
 export const PartyMount = {
+  map: { name: "party", kind: "package", package: "@house-rules/party" },
   service: Party,
   operations: Object.values(PartyOperations),
   bind: bindParty,

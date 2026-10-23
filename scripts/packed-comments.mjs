@@ -52,6 +52,7 @@ import * as contract from "@house-rules/comments/contract";
 import { Migrations } from "@house-rules/migrations";
 import { NodeRuntime as NodePlatform, NodeServices } from "@effect/platform-node";
 import { Effect, FileSystem, Layer } from "effect";
+for (const name of ["listComments", "addComment", "editComment", "removeComment"]) assert.equal(contract.CommentsOperations[name].name, "Comments." + name);
 const actor = Actor.make({ id: ActorId.make("owner") });
 const outsider = Actor.make({ id: ActorId.make("outsider") });
 class Probe extends defineModule()("cold_probe", { make: Effect.succeed({ echo: (actor) => Effect.succeed(actor.id) }) }) {}

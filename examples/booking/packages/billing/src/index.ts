@@ -3,6 +3,7 @@ import { BillingOperations } from "./payment/operations.ts";
 import { bindBilling } from "./payment/bind-billing.ts";
 import type { MountDefinition } from "@house-rules/application";
 export const BillingMount = {
+  map: { name: "billing", kind: "package", package: "@example/billing" },
   service: Billing,
   operations: Object.values(BillingOperations),
   bind: bindBilling,

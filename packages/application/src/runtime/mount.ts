@@ -1,5 +1,6 @@
 import type { AnyCallable } from "@house-rules/domain";
 import { type Context, Effect, Layer } from "effect";
+import type { MountMap } from "../registry/registry.ts";
 import { PermissionCatalogue } from "../registry/catalogue.ts";
 import { permissionCatalogue } from "../registry/permission-catalogue.ts";
 import { GraphInvalid } from "./graph-invalid.ts";
@@ -7,6 +8,7 @@ import type { Binding } from "./binding.ts";
 
 export type Operation = AnyCallable & { readonly kind: "operation" };
 export type MountDefinition<I, S> = Readonly<{
+  map?: MountMap;
   service: Context.Key<I, S>;
   operations: readonly Operation[];
   bind: (service: S) => readonly Binding[];

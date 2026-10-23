@@ -108,7 +108,14 @@ export { call, type CallOptions } from "./ways-in/call.ts";
 export { type Incoming, Refused } from "./ways-in/caller.ts";
 export { type Composition, composition, once } from "./ways-in/composition.ts";
 export { CompositionClosed } from "./ways-in/composition-closed.ts";
-export { registry } from "./ways-in/registry.ts";
+export { registry, appMap } from "./ways-in/registry.ts";
+export {
+  renderMap,
+  type AppMapSnapshot,
+  type MapModule,
+  type MapOperation,
+  type MapEdge,
+} from "./registry/app-map.ts";
 export { type CorsOptions, defaultCorsMaxAge } from "./ways-in/cors.ts";
 export { defaultMaxBodyBytes, toFetchHandler } from "./ways-in/fetch-handler.ts";
 export type { FetchHandler } from "./ways-in/mount-check.ts";

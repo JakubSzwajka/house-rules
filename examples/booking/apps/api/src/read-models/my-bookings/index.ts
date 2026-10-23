@@ -3,6 +3,7 @@ import { MyStuffOperations } from "./booking/operations.ts";
 import { bindMyStuff } from "./booking/bind-my-stuff.ts";
 import type { MountDefinition } from "@house-rules/application";
 export const MyStuffMount = {
+  map: { name: "my-bookings", kind: "read-model", package: "@example/api" },
   service: MyStuff,
   operations: Object.values(MyStuffOperations),
   bind: bindMyStuff,

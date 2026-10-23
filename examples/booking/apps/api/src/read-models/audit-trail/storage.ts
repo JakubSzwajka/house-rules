@@ -8,4 +8,4 @@ export class AuditTrail extends Context.Service<
       personId: string,
     ) => Effect.Effect<readonly (typeof AuditEntry.Type)[], AuditUnavailable>;
   }
->()("booking/AuditTrail") {}
+>()("@example/api/read-models/audit-trail/AuditTrail") {}

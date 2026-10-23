@@ -13,6 +13,7 @@ export const bindAuditTrail = (service: AuditTrail["Service"]) => [
   ),
 ];
 export const AuditTrailMount = {
+  map: { name: "audit-trail", kind: "read-model", package: "@example/api" },
   service: AuditTrail,
   operations: Object.values(AuditTrailOperations),
   bind: bindAuditTrail,

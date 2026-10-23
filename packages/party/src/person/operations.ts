@@ -32,7 +32,7 @@ const createPerson = defineOperation("Party.createPerson", {
   edges: [],
   transactional: true,
 });
-const showPerson = defineOperation("show_person", {
+const showPerson = defineOperation("Party.showPerson", {
   description: "Show one person's display name by id.",
   input: Schema.Struct({ id: ActorId }),
   output: Person,
@@ -41,7 +41,7 @@ const showPerson = defineOperation("show_person", {
   edges: [],
   readOnly: true,
 });
-const showMe = defineOperation("show_me", {
+const showMe = defineOperation("Party.showMe", {
   description: "Show the signed-in person: their id and display name.",
   input: NoInput,
   output: Person,
@@ -50,7 +50,7 @@ const showMe = defineOperation("show_me", {
   edges: [],
   readOnly: true,
 });
-const renamePerson = defineOperation("rename_person", {
+const renamePerson = defineOperation("Party.renamePerson", {
   description: "Change your own display name.",
   input: Schema.Struct({ id: ActorId, displayName: Schema.String }),
   output: Person,

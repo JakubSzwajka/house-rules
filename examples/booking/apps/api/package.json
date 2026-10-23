@@ -11,6 +11,7 @@
     "build:web": "vite build",
     "start": "node dist/main.js",
     "registry": "node scripts/registry.mjs",
+    "map": "node scripts/map.mjs",
     "grant-admin": "esbuild scripts/grant-admin.ts --bundle --platform=node --format=esm --external:effect '--external:@effect/*' --outfile=dist/grant-admin.js && varlock run --path ../../../../ -- node dist/grant-admin.js",
     "seed": "esbuild scripts/seed.ts --bundle --platform=node --format=esm --external:effect '--external:@effect/*' --outfile=dist/seed.js && varlock run --path ../../../../ -- node dist/seed.js",
     "migrate": "esbuild scripts/migrate.ts --bundle --platform=node --format=esm --external:effect '--external:@effect/*' --outfile=dist/migrate.js && varlock run --path ../../../../ -- node dist/migrate.js"

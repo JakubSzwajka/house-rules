@@ -3,6 +3,7 @@ import { BookingsOperations } from "./booking/operations.ts";
 import { bindBookings } from "./booking/bind-bookings.ts";
 import type { MountDefinition } from "@house-rules/application";
 export const BookingsMount = {
+  map: { name: "bookings", kind: "package", package: "@example/bookings" },
   service: Bookings,
   operations: Object.values(BookingsOperations),
   bind: bindBookings,

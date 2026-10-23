@@ -16,6 +16,10 @@ export default [
 
 `configs.features` is the default-root form. There is no compatibility alias. It preserves no-hand-rolled-surface on JS/TS, no-hand-run-effect on tests, testing-exports-only-in-tests on JS/TS and no-computed-import on production package/app source. The feature rule checks feature indexes, sibling files and registry values. Builder provenance also checks production JS/TS workspace packages through packagesDir; only domain/application kit implementations, tests and top-level tooling are exempt. Pass the same roots to `layout()` and `featuresConfig()`.
 
+## App map source facts
+
+`appMapSources(snapshot, { appDirectory, rootDirectory, packageRoots })` from `@house-rules/rules/app-map` adds paths and owners to an application app map. Use it in tooling only. It reads direct named feature registry imports, literal defineFeature/defineOperation/defineWay names and package manifests. Import renames are supported. Missing, computed or ambiguous facts fail instead of producing a guessed path. Pass workspace package roots relative to rootDirectory; output paths are app-relative for app code and repo-relative for packages. This helper does not extract layout directions.
+
 ## Rules and checks
 
 Each rule id is a stable docs anchor. Change source, tests, docs and this table together, then run `pnpm --filter @house-rules/site generate` in the stack repository.

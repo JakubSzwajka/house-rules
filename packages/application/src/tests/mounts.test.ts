@@ -2,6 +2,8 @@ import { expect, it } from "@effect/vitest";
 import { defineOperation, NoInput } from "@house-rules/domain";
 import { Context, Effect, Layer, Schema } from "effect";
 import {
+  appMap,
+  renderMap,
   bindOperation,
   composition,
   GraphInvalid,
@@ -137,6 +139,15 @@ it.effect("supplies the catalogue before building modules and resolves May once"
       const context = yield* app.runtime.contextEffect;
       const snapshot = yield* registry(app);
       yield* registry(app);
+      const map = yield* appMap(app);
+      expect(map.modules[0]?.operations[0]).toEqual({
+        name: "mount_read",
+        permission: "items:read",
+        readOnly: true,
+        destructive: false,
+        edges: [],
+      });
+      expect(JSON.parse(renderMap(map, "json"))).toEqual(map);
       expect(Context.get(context, Runtime).permissions).toBe(catalogue);
       expect(catalogue).toEqual(["items:read"]);
       expect(snapshot.mounts[0]?.operations[0]).toBe(read);

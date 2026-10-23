@@ -59,7 +59,7 @@ export class Billing extends defineModule<
       paymentId: string,
     ) => Effect.Effect<ExpiredPayments, PaymentCallerDenied | PaymentStoreUnavailable | NoOpenUnit>;
   }
->()("@example/api/modules/billing/Billing", {
+>()("@example/billing/Billing", {
   make: Effect.gen(function* () {
     const store = yield* PaymentStore;
     const provider = yield* PaymentProvider;
