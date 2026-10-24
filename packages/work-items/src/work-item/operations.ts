@@ -63,6 +63,13 @@ const get = defineOperation("WorkItems.get", {
   input: key,
   output: WorkItem,
 });
+const getForSystem = defineOperation("WorkItems.getForSystem", {
+  ...read,
+  permission: WorkItemPermissions.systemRead,
+  description: "Read one work item as the system without person access checks.",
+  input: key,
+  output: WorkItem,
+});
 const list = defineOperation("WorkItems.list", {
   ...read,
   description: "List visible work items with filters and an exclusive cursor.",
@@ -83,6 +90,7 @@ export const WorkItemsOperations = {
   claim,
   release,
   get,
+  getForSystem,
   list,
   tree,
 } as const;

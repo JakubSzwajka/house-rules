@@ -2,7 +2,7 @@ import { type Binding, bindOperation } from "@house-rules/application";
 import { Effect } from "effect";
 import type { makeWorkItems } from "./work-items.js";
 import { WorkItemsOperations as operations } from "./operations.js";
-import { WorkItemNotFound } from "./work-item.js";
+import { WorkItemNotFound, WorkItemsCallerDenied } from "./work-item.js";
 export const bindWorkItems = (service: ReturnType<typeof makeWorkItems>): readonly Binding[] => [
   bindOperation(operations.create, (input, { caller }) =>
     caller.kind === "person"
@@ -36,6 +36,9 @@ export const bindWorkItems = (service: ReturnType<typeof makeWorkItems>): readon
   ),
   bindOperation(operations.get, ({ id }, { caller }) =>
     caller.kind === "person" ? service.get(caller.actor, id) : Effect.fail(new WorkItemNotFound()),
+  ),
+  bindOperation(operations.getForSystem, ({ id }, { caller }) =>
+    caller.kind === "system" ? service.getForSystem(id) : Effect.fail(new WorkItemsCallerDenied()),
   ),
   bindOperation(operations.list, (input, { caller }) =>
     caller.kind === "person"

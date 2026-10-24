@@ -70,6 +70,10 @@ export class WorkItemNotFound extends Schema.TaggedError<WorkItemNotFound>()("Wo
     return "Work item not found.";
   }
 }
+export class WorkItemsCallerDenied extends Schema.TaggedError<WorkItemsCallerDenied>()(
+  "WorkItemsCallerDenied",
+  { kind: errorKind("forbidden") },
+) {}
 export class WorkItemInputInvalid extends Schema.TaggedError<WorkItemInputInvalid>()(
   "WorkItemInputInvalid",
   {
@@ -143,6 +147,7 @@ export class WorkItemAccessUnavailable extends Schema.TaggedError<WorkItemAccess
 }
 export const WorkItemFailure = Schema.Union([
   WorkItemNotFound,
+  WorkItemsCallerDenied,
   WorkItemInputInvalid,
   DepthExceeded,
   WorkItemTreeTooLarge,

@@ -11,6 +11,7 @@ export {
   WorkItemTree,
   WorkItemTreeTooLarge,
   WorkItemNotFound,
+  WorkItemsCallerDenied,
   WorkItemInputInvalid,
   DepthExceeded,
   TransitionNotAllowed,

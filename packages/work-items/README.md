@@ -33,11 +33,13 @@ Entering a closed category sets closedAt. Moving between closed states retains t
 - `access(actor, containerOrNull)` returns `"write"`, `"read"` or `"none"`.
 - `visibleContainers(actor)` returns `{ containers: refs, inbox: boolean }`.
 
-The host maps expected port errors to `WorkItemAccessUnavailable`. Unavailable messages are fixed and hide their cause. Denied reads and writes fail `WorkItemNotFound`, as do missing items and stored items whose container kind is no longer configured. Lists exclude unconfigured container kinds and filter visibility in SQL before sorting or limiting. An explicit filter for a retired container kind fails `WorkItemNotFound`. The host must keep the two access answers consistent.
+The host maps expected port errors to `WorkItemAccessUnavailable`. Unavailable messages are fixed and hide their cause. Denied person reads and writes fail `WorkItemNotFound`, as do missing items and stored items whose container kind is no longer configured. Lists exclude unconfigured container kinds and filter visibility in SQL before sorting or limiting. An explicit filter for a retired container kind fails `WorkItemNotFound`. The host must keep the two access answers consistent.
 
 ## Operations and events
 
-`WorkItemsOperations` exposes create, edit, setStatus, assign, claim, release, get, list and tree. Reads require `work_items:read`; writes require `work_items:write` and are transactional. Edit is destructive. System callers fail not_found because operations require an explicit person actor.
+`WorkItemsOperations` exposes create, edit, setStatus, assign, claim, release, get, getForSystem, list and tree. Person reads require `work_items:read`; writes require `work_items:write` and are transactional. Edit is destructive. These person operations keep refusing system callers with `WorkItemNotFound`.
+
+`getForSystem({ id })` is a separate read-only operation for event reactions and schedules. It requires `WorkItemPermissions.systemRead` (`work_items:system-read`) and accepts only system callers. A person is refused with `WorkItemsCallerDenied` (kind forbidden), even when they hold the permission. It returns the stored item without an actor or either access-port check, including items in retired container kinds, or `WorkItemNotFound` when the id is missing. Composition must explicitly grant the system permission. Both the error and permission are exported from the contract and main doors. The trusted facade method is `WorkItems.getForSystem(id)`; caller checks live in its operation binding.
 
 Create accepts title and optional body, attributes, holder, parent and container. Defaults are empty body, empty object attributes, no holder, no parent and inbox. A child takes its parent's container regardless of the supplied container. Edit accepts id and a patch of title, body or attributes. Parent and container are immutable.
 

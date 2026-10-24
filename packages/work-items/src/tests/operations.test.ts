@@ -16,6 +16,7 @@ import {
   WorkItemFailure,
   WorkItemMutation,
   WorkItemNotFound,
+  WorkItemPermissions,
   WorkItems,
   WorkItemsMount,
   WorkItemsOperations,
@@ -80,7 +81,7 @@ const system = defineFeature("test_systemWorkItemRead", {
   handler: (input, { call }) => call(operations.get, input),
 });
 const features = [flow, read, list, system];
-const permissions = ["work_items:read", "work_items:write"] as const;
+const permissions = Object.values(WorkItemPermissions);
 const access = Layer.succeed(WorkItemAccess, {
   access: (actor, ref) => Effect.succeed(ref?.id === actor.id ? "write" : "none"),
   visibleContainers: (actor) =>
@@ -102,7 +103,7 @@ const caller = (actor: Actor) =>
     ),
   );
 it.layer(world)("WorkItems operation bindings", (test) => {
-  test.effect("mounts all nine bindings and returns typed event facts through the runtime", () =>
+  test.effect("mounts all ten bindings and returns typed event facts through the runtime", () =>
     Effect.gen(function* () {
       expect(WorkItemsMount.service).toBe(WorkItems);
       expect(WorkItemsMount.bind).toBe(bindWorkItems);

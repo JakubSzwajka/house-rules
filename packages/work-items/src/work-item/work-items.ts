@@ -6,6 +6,7 @@ import type { WorkItemEvent, WorkItemMutation } from "./events.js";
 import type { WorkItemsOptions } from "./options.js";
 import { sameRef } from "./order.js";
 import { workItemTree } from "./tree.js";
+import { readStoredWorkItem } from "./system-read.js";
 import {
   DepthExceeded,
   TransitionNotAllowed,
@@ -74,12 +75,6 @@ export const makeWorkItems = (
     );
     if (level === "none" || (write && level !== "write")) return yield* new WorkItemNotFound();
   });
-  const get = Effect.fn("WorkItems.get")(function* (actor: Actor, id: string) {
-    const item = yield* store.get(id);
-    if (item === null) return yield* new WorkItemNotFound();
-    yield* requireAccess(actor, item.container, false, true);
-    return item;
-  });
   const writable = Effect.fn("WorkItems.writable")(function* (actor: Actor, id: string) {
     yield* UnitOfWork.required;
     const item = yield* store.lock(id);
@@ -108,7 +103,12 @@ export const makeWorkItems = (
     };
   });
   return {
-    get,
+    get: Effect.fn("WorkItems.get")(function* (actor: Actor, id: string) {
+      const item = yield* readStoredWorkItem(store, id);
+      yield* requireAccess(actor, item.container, false, true);
+      return item;
+    }),
+    getForSystem: (id: string) => readStoredWorkItem(store, id),
     create: Effect.fn("WorkItems.create")(function* (actor: Actor, input: WorkItemCreate) {
       yield* UnitOfWork.required;
       const decoded = yield* Schema.decodeEffect(WorkItemCreate)(input).pipe(
