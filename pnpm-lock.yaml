@@ -588,7 +588,73 @@ importers:
         specifier: 5.0.1
         version: 5.0.1(@types/node@24.19.1)(vite@8.3.0(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/notes:
+    devDependencies:
+      '@effect/platform-node':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)(redis@6.3.0)
+      '@effect/platform-node-shared':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)
+      '@effect/sql-pg':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)
+      '@effect/vitest':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
+      '@house-rules/application':
+        specifier: workspace:0.2.0
+        version: link:../application
+      '@house-rules/domain':
+        specifier: workspace:0.1.0
+        version: link:../domain
+      '@house-rules/migrations':
+        specifier: workspace:0.3.0
+        version: link:../migrations
+      effect:
+        specifier: 4.0.3
+        version: 4.0.3
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.1
+        version: 5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/party:
+    devDependencies:
+      '@effect/platform-node':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)(redis@6.3.0)
+      '@effect/platform-node-shared':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)
+      '@effect/sql-pg':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)
+      '@effect/vitest':
+        specifier: 4.0.3
+        version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
+      '@house-rules/application':
+        specifier: workspace:0.2.0
+        version: link:../application
+      '@house-rules/domain':
+        specifier: workspace:0.1.0
+        version: link:../domain
+      '@house-rules/migrations':
+        specifier: workspace:0.3.0
+        version: link:../migrations
+      effect:
+        specifier: 4.0.3
+        version: 4.0.3
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.1
+        version: 5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/relations:
     devDependencies:
       '@effect/platform-node':
         specifier: 4.0.3
