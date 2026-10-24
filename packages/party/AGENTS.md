@@ -2,7 +2,7 @@
 
 ## What it does
 
-Party owns persons, organisations, relationships, roles and assignments. It owns their tables and migrations. Identity owns login bindings. Party stores no login credentials.
+Party owns person and agent principals, organisations, relationships, roles and assignments. It owns their tables and migrations. Identity owns login bindings. Party stores no login credentials.
 
 ## Mount and bind
 
@@ -20,7 +20,10 @@ Use `PartyOperations` from the browser-safe contract door. Bind all descriptors 
 
 | Operation | Permission | Flags |
 | --- | --- | --- |
-| createPerson | party:create | transactional |
+| createPerson, createPrincipal | party:create | transactional |
+| disable | party:update | transactional, destructive, needsApproval |
+| lockActive | party:read | transactional |
+| principalsByIds | party:read | readOnly |
 | showPerson, showMe | party:read | readOnly |
 | renamePerson | party:update | transactional |
 | createOrganisation | party:create-organisation | transactional |
@@ -33,6 +36,13 @@ Use `PartyOperations` from the browser-safe contract door. Bind all descriptors 
 | showOrganisation, isRelated, canAdminOrganisation, listRoles, rolesOf, myAccess | party:read | readOnly |
 
 ## Service and fixed rules
+
+- `0005_principals.sql` adds principal kind, unique immutable handle, createdBy and disabledAt. It backfills existing people with kind person, handle=id and null provenance/disable time. Legacy handles and `createPerson` bypass the new validation; Person and existing operations keep their old shapes. The migration publishes `party_principals_read(id, display_name, kind, handle, created_by, created_at, disabled_at)` and `party_assignments_read(person_id, role_key, organisation_id)` for app read models.
+- `createPrincipal({ id?, displayName, kind, handle, createdBy })` is system-only. Kind is person or agent; createdBy is an ActorId or null passed as data. New handles contain 1 to 120 characters. `handles: { pattern?: RegExp, reserved?: readonly string[] }` supplies app policy. Matching is case-sensitive, with no normalization. Handle uniqueness spans both kinds and concurrent creates.
+- `disable({ id })` is system-only, irreversible, transactional, destructive and approval-gated. It returns `{ principal, fact }`, with a `principal.disabled` fact carrying before/after or null when already disabled. Creation returns a `principal.created` fact carrying after. Composition chooses recording in the same unit. Party never emits events. There is no enable. Protecting a person owner is app policy, not a Party role rule.
+- `standingOf(actorId)` is a facade method for Identity's caller-owned standing slot, not an operation. It answers active, disabled or missing. May also returns no permissions for disabled principals. New request admission belongs to Identity; already admitted requests without a lock may finish after disable.
+- `lockActive({ handle, kind })` accepts person and system callers with party:read and requires a live unit. It returns a principal, or PersonNotFound for unknown handles and kind mismatches for person callers. System callers may receive PrincipalKindRefused for a kind mismatch. Disabled targets return PrincipalDisabledRefused. Kind agent refuses a person owner. Postgres holds FOR SHARE until unit end, never FOR KEY SHARE. Disable locks FOR NO KEY UPDATE before capturing its fact and waits for active locks. Locks after its commit fail. Memory relies on the shared memoryUnitOfWork's whole-unit serialization.
+- `principalsByIds({ ids })` accepts both person and system callers with party:read. It returns each matching principal once, includes disabled principals and omits missing ids. This is a directory read, not authority or credential admission.
 
 - `myAccess` is person-only and takes no target id. It reads only the caller's assignments, effective permissions and the public app catalogue. Postgres filters assignments by that caller id in SQL; memory uses the same port. System callers are refused.
 - Person creation is system-only at the binder. Person reads need a person caller. Rename allows only the target person. `erase(id)` is a trusted service hook, not an operation.

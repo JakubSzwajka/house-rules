@@ -11,59 +11,81 @@ import { postgresAccountStore } from "./adapters/postgres/passwords.js";
 import {
   type IdentityOptions,
   devLocal,
+  clerk,
   oidc,
   passwords,
   providersLayer,
 } from "./sign-in/providers.js";
 import { memoryBindingStore } from "./adapters/memory/binding.js";
 import { postgresBindingStore } from "./adapters/postgres/binding.js";
-import type {
-  Binding,
-  BindingInvalid,
-  BindingTaken,
-  IdentityStoreUnavailable,
-} from "./binding/binding.js";
+import type { Binding, BindingInvalid, BindingTaken } from "./binding/binding.js";
 import { makeIdentity } from "./binding/bindings.js";
 import { ActorResolver } from "./sign-in/actor-resolver.js";
 import { identityWho } from "./sign-in/caller.js";
 import { FirstSignIn } from "./sign-in/first-sign-in.js";
-import { BindingStore } from "./storage.js";
+import { BindingStore, type IdentityStoreUnavailable } from "./storage.js";
+import { ActorStanding, everyoneActive } from "./sign-in/actor-standing.js";
+import {
+  apiTokens,
+  ApiTokens,
+  type TokenMethods,
+  unavailableTokenMethods,
+} from "./api-token/tokens.js";
+import { memoryApiTokenStore } from "./adapters/memory/api-token.js";
+import { postgresApiTokenStore } from "./adapters/postgres/api-token.js";
+import { clerkSessionControl } from "./adapters/clerk/sessions.js";
+import { SessionControl } from "./sessions/session-control.js";
+import { SessionControlUnavailable, type SessionsPartlyEnded } from "./sessions/sessions.js";
+
+type SessionOptions = { sessions?: Layer.Layer<SessionControl, never, BindingStore> };
 
 export type Login = Readonly<{ issuer: string; subject: string }>;
 
 export class Identity extends defineModule<
   Identity,
-  PasswordMethods & {
-    readonly accountByEmail: (
-      email: string,
-    ) => Effect.Effect<
-      { accountId: string; actorId: ActorId; displayName: string },
-      PasswordAccountNotFound | AccountStoreUnavailable
-    >;
-    readonly passwordIssuer: () => Effect.Effect<PasswordIssuer["Service"] | undefined>;
-    readonly resolve: (
-      login: Login,
-    ) => Effect.Effect<Option.Option<ActorId>, IdentityStoreUnavailable>;
-    readonly bind: (
-      login: Login,
-      actorId: ActorId,
-    ) => Effect.Effect<void, BindingInvalid | BindingTaken | IdentityStoreUnavailable | NoOpenUnit>;
-    readonly unbind: (
-      actorId: ActorId,
-      login: Login,
-    ) => Effect.Effect<void, IdentityStoreUnavailable | NoOpenUnit>;
-    readonly bindingsOf: (
-      actorId: ActorId,
-    ) => Effect.Effect<ReadonlyArray<Binding>, IdentityStoreUnavailable>;
-    readonly unbindAll: (
-      actorId: ActorId,
-    ) => Effect.Effect<void, IdentityStoreUnavailable | NoOpenUnit>;
-  }
+  PasswordMethods &
+    TokenMethods & {
+      readonly endSessions: (
+        actorId: ActorId,
+      ) => Effect.Effect<{ ended: number }, SessionControlUnavailable | SessionsPartlyEnded>;
+      readonly accountByEmail: (
+        email: string,
+      ) => Effect.Effect<
+        { accountId: string; actorId: ActorId; displayName: string },
+        PasswordAccountNotFound | AccountStoreUnavailable
+      >;
+      readonly passwordIssuer: () => Effect.Effect<PasswordIssuer["Service"] | undefined>;
+      readonly resolve: (
+        login: Login,
+      ) => Effect.Effect<Option.Option<ActorId>, IdentityStoreUnavailable>;
+      readonly bind: (
+        login: Login,
+        actorId: ActorId,
+      ) => Effect.Effect<
+        void,
+        BindingInvalid | BindingTaken | IdentityStoreUnavailable | NoOpenUnit
+      >;
+      readonly unbind: (
+        actorId: ActorId,
+        login: Login,
+      ) => Effect.Effect<void, IdentityStoreUnavailable | NoOpenUnit>;
+      readonly bindingsOf: (
+        actorId: ActorId,
+      ) => Effect.Effect<ReadonlyArray<Binding>, IdentityStoreUnavailable>;
+      readonly unbindAll: (
+        actorId: ActorId,
+      ) => Effect.Effect<void, IdentityStoreUnavailable | NoOpenUnit>;
+    }
 >()("identity", {
   make: Effect.gen(function* identityLayer() {
     const store = yield* BindingStore;
     const issuer = yield* Effect.serviceOption(PasswordIssuer);
     const accounts = yield* Effect.serviceOption(AccountStore);
+    const tokens = yield* Effect.serviceOption(ApiTokens);
+    const sessions = yield* Effect.serviceOption(SessionControl);
+    const tokenMethods: TokenMethods = Option.isSome(tokens)
+      ? tokens.value
+      : unavailableTokenMethods;
     const passwordMethods =
       Option.isSome(issuer) && Option.isSome(accounts)
         ? makeAccounts(accounts.value, issuer.value)
@@ -75,6 +97,11 @@ export class Identity extends defineModule<
     return {
       ...makeIdentity(store),
       ...passwordMethods,
+      ...tokenMethods,
+      endSessions: (actorId: ActorId) =>
+        Option.isSome(sessions)
+          ? sessions.value.endAll(actorId)
+          : Effect.fail(new SessionControlUnavailable()),
       accountByEmail: makeAccountLookup(
         Option.getOrUndefined(accounts),
         Option.getOrUndefined(issuer),
@@ -93,21 +120,39 @@ export class Identity extends defineModule<
     }),
   );
 
-  static readonly layerMemory = (options: IdentityOptions = { providers: [] }) =>
+  static readonly layerMemory = (
+    options: IdentityOptions = { providers: [] },
+    ports: SessionOptions = {},
+  ) =>
     Layer.provideMerge(this.resolver, this.layer).pipe(
-      Layer.provide(Layer.merge(memoryBindingStore(), memoryAccountStore())),
+      Layer.provide(ports.sessions ?? Layer.empty),
       Layer.provideMerge(providersLayer(options)),
+      Layer.provide(
+        Layer.mergeAll(memoryBindingStore(), memoryAccountStore(), memoryApiTokenStore()),
+      ),
     );
 
-  static readonly layerPostgres = (options: IdentityOptions = { providers: [] }) =>
+  static readonly layerPostgres = (
+    options: IdentityOptions = { providers: [] },
+    ports: SessionOptions = {},
+  ) =>
     Layer.provideMerge(this.resolver, this.layer).pipe(
-      Layer.provide(Layer.merge(postgresBindingStore, postgresAccountStore)),
+      Layer.provide(ports.sessions ?? Layer.empty),
       Layer.provideMerge(providersLayer(options)),
+      Layer.provide(
+        Layer.mergeAll(postgresBindingStore, postgresAccountStore, postgresApiTokenStore),
+      ),
     );
 
+  static readonly providers = providersLayer;
   static readonly passwords = passwords;
   static readonly oidc = oidc;
   static readonly devLocal = devLocal;
+  static readonly clerk = clerk;
+  static readonly apiTokens = apiTokens;
+  static readonly standing = ActorStanding.layer;
+  static readonly everyoneActive = everyoneActive;
+  static readonly clerkSessions = clerkSessionControl;
 
   static readonly subject = ActorResolver.subject;
 

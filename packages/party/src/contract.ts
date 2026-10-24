@@ -30,3 +30,15 @@ export {
 } from "./person/person.js";
 export { type PartyPermission, PartyPermissions } from "./person/permissions.js";
 export { PartyOperations } from "./person/operations.js";
+export {
+  Principal,
+  PrincipalKind,
+  PrincipalHandle,
+  CreatePrincipal,
+  CreatedPrincipal,
+  DisabledPrincipal,
+  PrincipalCreated,
+  PrincipalDisabled,
+  PrincipalKindRefused,
+  PrincipalDisabledRefused,
+} from "./person/principal.js";

@@ -7,12 +7,15 @@ import { memoryPartyStore } from "./adapters/memory/party.js";
 import { postgresPartyStore } from "./adapters/postgres/party.js";
 import { PartyUnavailable } from "./organisation/organisation.js";
 import { makeParty } from "./person/party.js";
+import { makePrincipals } from "./person/principals.js";
 import { makeAccess } from "./role/access.js";
 import { PermissionCatalogue } from "@house-rules/application";
 import type { PartyOptions } from "./role/role.js";
 import { PartyStore, PersonStore } from "./storage.js";
 
-type PartyService = ReturnType<typeof makeParty> & ReturnType<typeof makeAccess>;
+type PartyService = ReturnType<typeof makeParty> &
+  ReturnType<typeof makeAccess> &
+  ReturnType<typeof makePrincipals>;
 export type PartyFailure = Effect.Error<ReturnType<PartyService[keyof PartyService]>>;
 
 export class Party extends defineModule<Party, PartyService>()("party", {
@@ -23,11 +26,16 @@ export class Party extends defineModule<Party, PartyService>()("party", {
       const catalogue = Option.getOrUndefined(yield* Effect.serviceOption(PermissionCatalogue));
       return {
         ...makeParty(persons),
+        ...makePrincipals(persons, options),
         ...makeAccess(
           store,
           {
             find: (id) =>
               persons.find(id).pipe(Effect.mapError((cause) => new PartyUnavailable({ cause }))),
+            principal: (id) =>
+              persons
+                .principal(id)
+                .pipe(Effect.mapError((cause) => new PartyUnavailable({ cause }))),
             list: (ids) =>
               persons.list(ids).pipe(Effect.mapError((cause) => new PartyUnavailable({ cause }))),
           },

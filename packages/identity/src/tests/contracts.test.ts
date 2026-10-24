@@ -11,6 +11,11 @@ it.effect("accounts operations declare v2 permissions and transactions", () =>
       ["Identity.signUp", "identity:create", true],
       ["Identity.signIn", "identity:sign-in", true],
       ["Identity.changePassword", "identity:update", true],
+      ["Identity.issueToken", "identity:tokens-issue", true],
+      ["Identity.listTokens", "identity:tokens-read", false],
+      ["Identity.revokeToken", "identity:tokens-revoke", true],
+      ["Identity.recordTokenUse", "identity:tokens-use", true],
+      ["Identity.endSessions", "identity:sessions-end", true],
     ]);
   }),
 );

@@ -33,12 +33,3 @@ export class BindingTaken extends Schema.TaggedError<BindingTaken>()("BindingTak
     return "This login is already bound to another actor.";
   }
 }
-
-export class IdentityStoreUnavailable extends Schema.TaggedError<IdentityStoreUnavailable>()(
-  "IdentityStoreUnavailable",
-  { kind: errorKind("unavailable"), cause: Schema.Defect() },
-) {
-  override get message(): string {
-    return "Login bindings are unavailable. Try again shortly.";
-  }
-}

@@ -79,7 +79,8 @@ export const mcpWho = (resource: ProtectedResource) =>
         }).resolve(incoming);
       }),
   }) satisfies WhoSocket<
-    | import("@house-rules/application").Authenticator
+    | import("@house-rules/identity").Credentials
+    | import("@house-rules/identity").ActorStanding
     | import("@house-rules/identity").ActorResolver
     | FirstSignIn
   >;

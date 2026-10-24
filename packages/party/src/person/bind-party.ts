@@ -2,12 +2,33 @@ import { type Binding, bindOperation } from "@house-rules/application";
 import { Effect } from "effect";
 import type { makeAccess } from "../role/access.js";
 import type { makeParty } from "./party.js";
+import type { makePrincipals } from "./principals.js";
 import { PartyOperations } from "./operations.js";
 import { PersonCallerDenied, PersonNotFound, PersonUpdateRefused } from "./person.js";
 
-type Service = ReturnType<typeof makeParty> & ReturnType<typeof makeAccess>;
+type Service = ReturnType<typeof makeParty> &
+  ReturnType<typeof makeAccess> &
+  ReturnType<typeof makePrincipals>;
 
 export const bindParty = (service: Service): readonly Binding[] => [
+  bindOperation(PartyOperations.createPrincipal, (input, { caller }) =>
+    caller.kind === "system"
+      ? service.createPrincipal(input)
+      : Effect.fail(new PersonCallerDenied()),
+  ),
+  bindOperation(PartyOperations.disable, ({ id }, { caller }) =>
+    caller.kind === "system" ? service.disable(id) : Effect.fail(new PersonCallerDenied()),
+  ),
+  bindOperation(PartyOperations.lockActive, (input, { caller }) =>
+    service
+      .lockActive(input)
+      .pipe(
+        Effect.catchTag("PrincipalKindRefused", (error) =>
+          Effect.fail(caller.kind === "person" ? new PersonNotFound() : error),
+        ),
+      ),
+  ),
+  bindOperation(PartyOperations.principalsByIds, ({ ids }) => service.principalsByIds(ids)),
   bindOperation(PartyOperations.canAdminOrganisation, ({ organisationId }, { caller }) =>
     service.canAdminOrganisation(caller, organisationId),
   ),

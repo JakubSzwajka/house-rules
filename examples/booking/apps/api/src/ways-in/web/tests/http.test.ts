@@ -1,14 +1,7 @@
 import { assert, it } from "@effect/vitest";
-import {
-  call,
-  toFetchHandler,
-  May,
-  Authenticator,
-  StepTrace,
-  toOpenApi,
-} from "@house-rules/application";
+import { call, toFetchHandler, May, StepTrace, toOpenApi } from "@house-rules/application";
 import { Actor } from "@house-rules/domain";
-import { Identity } from "@house-rules/identity";
+import { Credentials, Identity } from "@house-rules/identity";
 import { Party } from "@house-rules/party";
 import { memoryAuditLog } from "@house-rules/call-audit";
 import { Context, Effect } from "effect";
@@ -30,12 +23,11 @@ it.live("shared features, one authenticated hook, HTTP closure refusal and appro
     const who = {
       resolve: (incoming: { headers: Headers; url: string }) =>
         Effect.gen(function* () {
-          const demo = yield* testIssuers.pipe(Effect.orDie);
-          const auth = yield* Authenticator.pipe(Effect.provide(demo.web.layer));
+          const auth = yield* Credentials;
           return yield* Identity.who({ token: "bearer" })
             .resolve(incoming)
             .pipe(
-              Effect.provideService(Authenticator, {
+              Effect.provideService(Credentials, {
                 verify: (token, options) =>
                   Effect.sync(() => {
                     verifications++;

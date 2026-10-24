@@ -1,6 +1,5 @@
 import { expect, expectTypeOf, it } from "@effect/vitest";
 import {
-  Authenticator,
   type WhoSocket,
   CurrentActor,
   defineFeature,
@@ -15,6 +14,8 @@ import { Actor, ActorId, asSystem, memoryUnitOfWork, UnitOfWork } from "@house-r
 import { Effect, Layer, Option, Schema } from "effect";
 import {
   ActorResolver,
+  ActorStanding,
+  Credentials,
   bindIdentity,
   IdentityOperations,
   BindingInvalid,
@@ -34,7 +35,7 @@ expectTypeOf<Parameters<typeof bindIdentity>[0]>().toExtend<
 expectTypeOf<Parameters<typeof bindIdentity>[0]>().not.toHaveProperty("accountByEmail");
 expectTypeOf<Identity["Service"]>().toExtend<Parameters<typeof bindIdentity>[0]>();
 expectTypeOf<ReturnType<typeof Identity.who>>().toEqualTypeOf<
-  WhoSocket<Authenticator | ActorResolver | FirstSignIn>
+  WhoSocket<Credentials | ActorResolver | FirstSignIn | ActorStanding>
 >();
 
 const actor = Actor.make({ id: ActorId.make("person") });
@@ -95,7 +96,7 @@ const world = Layer.unwrap(
     });
   }),
 ).pipe(
-  Layer.provideMerge(Identity.layerMemory()),
+  Layer.provideMerge(Layer.merge(Identity.layerMemory(), Identity.everyoneActive)),
   Layer.provideMerge(memoryUnitOfWork),
   Layer.provideMerge(StepTrace.layer()),
 );
@@ -143,11 +144,15 @@ it.layer(world)("Identity nodes and Who hook", (test) => {
           scopes: [],
           claims: {},
         };
-        const auth = Layer.succeed(Authenticator, {
+        const auth = Layer.succeed(Credentials, {
           verify: (token) =>
             Effect.sync(() => {
               authentications++;
-              return token === "accepted" ? { ...principal, subject: "accepted" } : principal;
+              return {
+                kind: "jwt" as const,
+                principal: token === "accepted" ? { ...principal, subject: "accepted" } : principal,
+                actorId: Option.none<never>(),
+              };
             }),
         });
         let hooks = 0;

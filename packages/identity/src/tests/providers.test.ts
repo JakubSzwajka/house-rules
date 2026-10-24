@@ -95,6 +95,7 @@ it.effect("provider routing verifies every issuer with its own keys and audience
       Effect.provide(
         Layer.mergeAll(
           Identity.refuse,
+          Identity.everyoneActive,
           memoryUnitOfWork,
           Identity.layerMemory({
             providers: [

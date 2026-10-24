@@ -96,6 +96,35 @@
           "transactional": true
         },
         {
+          "name": "Identity.endSessions",
+          "permission": "identity:sessions-end",
+          "transactional": true,
+          "destructive": true,
+          "needsApproval": true
+        },
+        {
+          "name": "Identity.issueToken",
+          "permission": "identity:tokens-issue",
+          "transactional": true
+        },
+        {
+          "name": "Identity.listTokens",
+          "permission": "identity:tokens-read",
+          "readOnly": true
+        },
+        {
+          "name": "Identity.recordTokenUse",
+          "permission": "identity:tokens-use",
+          "transactional": true
+        },
+        {
+          "name": "Identity.revokeToken",
+          "permission": "identity:tokens-revoke",
+          "transactional": true,
+          "destructive": true,
+          "needsApproval": true
+        },
+        {
           "name": "Identity.signIn",
           "permission": "identity:sign-in",
           "transactional": true
@@ -159,6 +188,11 @@
           "transactional": true
         },
         {
+          "name": "Party.createPrincipal",
+          "permission": "party:create",
+          "transactional": true
+        },
+        {
           "name": "Party.defineRole",
           "permission": "party:admin",
           "transactional": true
@@ -166,6 +200,13 @@
         {
           "name": "Party.deleteRole",
           "permission": "party:admin",
+          "destructive": true,
+          "transactional": true,
+          "needsApproval": true
+        },
+        {
+          "name": "Party.disable",
+          "permission": "party:update",
           "destructive": true,
           "transactional": true,
           "needsApproval": true
@@ -196,12 +237,22 @@
           "readOnly": true
         },
         {
+          "name": "Party.lockActive",
+          "permission": "party:read",
+          "transactional": true
+        },
+        {
           "name": "Party.myAccess",
           "permission": "party:read",
           "readOnly": true
         },
         {
           "name": "Party.myOrganisations",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.principalsByIds",
           "permission": "party:read",
           "readOnly": true
         },

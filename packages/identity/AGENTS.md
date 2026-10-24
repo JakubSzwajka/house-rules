@@ -2,15 +2,15 @@
 
 ## What it does
 
-Identity owns login providers and maps each verified `(issuer, subject)` pair to an `ActorId`. It owns `identity_binding` and `identity_password_account`. Choose passwords for email/password sessions, OIDC for an outside issuer, and devLocal for development/test issuers. Each provider pairs its issuer with an auth-jwt verifier. One actor may have many bindings. Identity never links by email or learns roles. `Identity.who` resolves the Actor for a way. Version 0.1.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published packages load built `dist/`; the workspace loads source.
+Identity owns login providers and maps each verified `(issuer, subject)` pair to an `ActorId`. It owns `identity_binding`, `identity_password_account` and `identity_api_token`. Choose passwords for email/password sessions, OIDC for an outside issuer, Clerk for kind-checked Clerk JWTs, API tokens for local opaque credentials, and devLocal for development/test issuers. Each provider pairs its issuer with an auth-jwt verifier. One actor may have many bindings. Identity never links by email or learns roles. `Identity.who` resolves the Actor for a way. Version 0.1.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published packages load built `dist/`; the workspace loads source.
 
 ## Mount and bind
 
-1. [ ] Mount `Identity.layerPostgres({ providers })` with the shared SQL client, or `Identity.layerMemory({ providers })` in tests. Both provide `Identity`, `ActorResolver` and `Authenticator`. Use `Identity.passwords({ issuer, signingKey })` with a Redacted private P-256 JWK and/or `Identity.oidc({ issuer, jwks?, jwksUrl?, audience? })`. Provider issuers must be unique; only one passwords provider is allowed. No passwords provider means password methods fail with typed `PasswordsUnavailable`. Raw `Identity.layer` needs `BindingStore` and optionally captures `AccountStore` and `PasswordIssuer` for adapter tests. For one issuer with no table, `Identity.subject({ issuer })` treats its subject as the ActorId. A foreign issuer is refused before the new-login hook.
+1. [ ] Mount `Identity.layerPostgres({ providers })` with the shared SQL client, or `Identity.layerMemory({ providers })` in tests. Both provide `Identity`, `ActorResolver`, `Credentials` and `Authenticator`. Use `Identity.passwords({ issuer, signingKey })` with a Redacted private P-256 JWK and/or `Identity.oidc({ issuer, jwks?, jwksUrl?, audience? })`. Provider issuers must be unique; only one passwords provider is allowed. No passwords provider means password methods fail with typed `PasswordsUnavailable`. Raw `Identity.layer` needs `BindingStore` and optionally captures `AccountStore` and `PasswordIssuer` for adapter tests. For one issuer with no table, `Identity.subject({ issuer })` treats its subject as the ActorId. A foreign issuer is refused before the new-login hook.
 2. [ ] With bindings, register `{ "package": "@house-rules/identity" }` in `migrations.json`, or `{ "workspace": "packages/identity" }` in this repo.
 3. [ ] Import IdentityMount from main and add `{ ...IdentityMount, layer: chosenIdentityLayer }` to the app's module plan. Composition acquires Identity and calls its binder once. Standalone Runtime.layer accepts mounts and requires their services. The browser-safe `./contract` door exports binding schemas/errors and `IdentityOperations`; main adds services, ports, adapters and the binder.
 4. [ ] Fill `FirstSignIn`. `Identity.refuse` answers 403 `not_invited`. For open signup, re-export the tag from composition/sign-in.ts as FirstSignInSlot and pass it to `defineWay({ protocol: "hook", name, slot: FirstSignInSlot, features: [F], mean, input, failure })` in ways-in/hooks. F is a system-start feature returning ActorId. It creates the person and login binding in one lifted unit. The kit captures Runtime, trace, watch and unit after acquisition, supplies May.system and fresh request ids, and strips person/MCP authority. Use explicit Mean.allow only for approved trusted provisioning. Map failures to a fixed Refused; never authenticate again.
-5. [ ] Keep the configured provider `Authenticator` and the resolver/hook in the final root layer. A binding-only mount can instead receive a separate Authenticator. Fill a way's Who with `Identity.who({ token: "bearer", audience?, challenge? })`. Cookie sources and ordered token sources work too. Composition plugs one Party.may() for roles. Identity knows no roles, and ways carry no permissions.
+5. [ ] Keep the configured `Credentials`, resolver and hook in the final root layer. Fill the required `ActorStanding` slot using `Identity.standing(Effect.map(Party, (party) => party.standingOf))`, or explicit `Identity.everyoneActive` for apps without disabled accounts. Fill a way's Who with `Identity.who({ token: "bearer", accept?, requireScope?, audience?, challenge? })`. Cookie sources and ordered token sources work too. Composition plugs one Party.may() for roles. Identity knows no roles, and ways carry no permissions. Lower-level custom mounts use `Identity.providers(options)` with an ApiTokenStore; Who no longer reads a standalone Authenticator.
 6. [ ] Call `identity.unbindAll(actorId)` in the account-deletion unit.
 
 ## Development providers
@@ -21,9 +21,9 @@ Remote MCP uses `Identity.oidc({ issuer: MCP_AUTH_ISSUER })` in the same provide
 
 ## Who contract
 
-`IdentityWhoOptions` is `{ token: TokenSource, audience?: string, challenge?: (error?: "invalid_token") => string }`. There is no grant callback.
+`IdentityWhoOptions` has `token`, optional `accept`, `requireScope`, `audience` and `challenge`. There is no grant callback. `accept` defaults to `["session", "jwt"]`; `oauth_access` and `api_token` require opt-in, and `machine` is never admissible.
 
-`Identity.who(options)` returns `WhoSocket<Authenticator | ActorResolver | FirstSignIn>`. Its `resolve(incoming)` returns an Actor, not an Effect Context. It reads the token, verifies once, resolves the actor and calls the hook only for an unknown login. Construction captures neither request services nor `FirstSignIn`. The application installs request services and permissions. A hook must not authenticate again or build another runtime.
+`Identity.who(options)` returns `WhoSocket<Credentials | ActorResolver | FirstSignIn | ActorStanding>`. It checks a configured API-token prefix before any JWT decode, otherwise routes compact JWS by issuer. It checks kind admission before verification or a token-store read and again on verified JWT claims/header. Only API-token credentials can carry a resolved actor id. JWT logins still use ActorResolver and FirstSignIn. Standing runs before scope and before any feature, including permission-free person features and Next call(). Public system starts skip Who. Construction captures no request services. A hook must not authenticate again or build another runtime.
 
 | Refusal | Status / code |
 | --- | --- |
@@ -32,6 +32,22 @@ Remote MCP uses `Identity.oidc({ issuer: MCP_AUTH_ISSUER })` in the same provide
 | authenticator unavailable | 503 `auth_unavailable`, no challenge |
 | binding lookup unavailable | 503 `identity_unavailable`, no challenge |
 | invite-only unknown login | 403 `not_invited` |
+| token-store or standing unavailable | 503 `identity_unavailable`, no challenge |
+| disabled actor | 401 `actor_disabled` |
+| missing actor | 401 `token_invalid` |
+| missing required scope | 403 `scope_too_wide` |
+
+## Clerk, API tokens and sessions
+
+`Identity.clerk({ publishableKey, authorizedParties, rejectPending?, allowImpersonation?, jwks? })` reuses AuthJwt.clerkOptions, verifier and clerkKind. Impersonation is off by default. Production release needs a real session-token shape check. OIDC defaults to `jwt`; its factory accepts `kind: "session" | "oauth_access"`. Passwords and devLocal produce session credentials.
+
+`Identity.apiTokens({ prefix, hmacKey })` takes a Redacted HMAC key and an underscore-ended prefix. One provider per mount. Migration 0003 adds the token table; do not edit old migrations. Tokens use `<prefix><lookup16>_<secret64>`. HMAC input is exactly `token:<secret>`; use WebCrypto verify, including dummy verification for unknown lookups. Never expose a stored hash in summaries or log a token.
+
+`issueToken({ actorId, name, scopes, createdBy })`, `listTokens(actorId?)`, `revokeToken(id)` and `recordTokenUse()` are facade methods and corresponding IdentityOperations. Permissions are `identity:tokens-issue`, `identity:tokens-read`, `identity:tokens-revoke` and `identity:tokens-use`. Writes join a unit. Issuance trusts its supplied target; app policy must validate and lock that principal first. Revocation needs approval, returns a change once, null for an already-revoked token and not_found for an unknown id. Facts are `identity.token_issued` with `after: { name, scopes }` and `identity.token_revoked` with before/after revoked booleans. Do not reuse Board's legacy event names with changed payload schemas. The composing feature chooses which facts to record.
+
+Who only buffers last use, at most 1,000 ids. Flush through recordTokenUse in a scheduled system feature's unit. A crash loses the buffer; no write is allowed during Who.
+
+`SessionControl.endAll(actorId)` is a caller-owned port. Pass `{ sessions: Identity.clerkSessions({ issuer, secretKey, fetch? }) }` as the second argument to layerMemory/layerPostgres. The adapter captures the same BindingStore as Identity. `identity.endSessions(actorId)` and IdentityOperations.endSessions require that adapter; otherwise they fail unavailable. The operation requires `identity:sessions-end`, a unit and approval. The adapter uses plain fetch, reads only the selected issuer's bindings, lists status=active in pages of 500 before revoking, and re-lists for up to three rounds. A 404 is done but does not increase ended. Partial failures retain external revocations and return fixed-text unavailable errors with progress. Only success returns `{ ended }`; apps record their session fact after success, knowing neither the Clerk calls nor a later event failure can restore sessions. See README for retry and expiry limits.
 
 ## Service and fixed rules
 

@@ -27,7 +27,7 @@ NodePlatform.runMain(Effect.gen(function* () {
   const localPrincipal = yield* Effect.gen(function* () { return yield* (yield* Authenticator).verify(localToken); }).pipe(Effect.provide(local.layer));
   assert.equal(localPrincipal.subject, "packed-local");
   const keys = yield* AuthJwtTesting.keys;
-  const signIn = Layer.mergeAll(AuthJwt.layer({ issuer, jwks: keys.jwks }), Identity.subject({ issuer }), Identity.refuse);
+  const signIn = Layer.mergeAll(Identity.layerMemory({ providers: [Identity.oidc({ issuer, jwks: keys.jwks })] }), Identity.subject({ issuer }), Identity.refuse, Identity.everyoneActive);
   const token = yield* keys.sign({ iss: issuer, sub: "packed-user", aud: audience });
   const actor = yield* who.resolve(incoming(token)).pipe(Effect.provide(signIn));
   assert.equal(actor.id, "packed-user");
@@ -60,7 +60,7 @@ import { type Person, PartyOperations } from "@house-rules/party/contract";
 import { Effect, Schema } from "effect";
 export const options: AuthJwtOptions = { issuer: ${JSON.stringify(issuer)}, audience: ${JSON.stringify(audience)} };
 export const authenticator = AuthJwt.layer(options);
-export const clerk = AuthJwt.clerk({ publishableKey: "pk_test_Y2xlcmsuZXhhbXBsZS5jb20k" });
+export const clerk = AuthJwt.clerk({ publishableKey: "pk_test_Y2xlcmsuZXhhbXBsZS5jb20k", authorizedParties: ["https://app.example.com"] });
 export const whoOptions: IdentityWhoOptions = { token: { cookie: "__session" } };
 export const who = Identity.who(whoOptions);
 export const token = (incoming: Incoming) => tokenFrom(incoming, "bearer");

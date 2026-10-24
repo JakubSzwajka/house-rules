@@ -24,6 +24,10 @@ export type BuiltInRoles = Readonly<
 >;
 export interface PartyOptions {
   readonly builtInRoles: BuiltInRoles;
+  readonly handles?: {
+    readonly pattern?: RegExp;
+    readonly reserved?: readonly string[];
+  };
 }
 export const validateRole = (input: Role) =>
   Schema.decodeEffect(Role)(input).pipe(

@@ -2,7 +2,7 @@
 
 `PartyOperations.myAccess` reads the caller's own assignments and effective permissions plus the app's public permission catalogue. It needs `party:read`, is read-only and refuses system callers. Bind it with `bindParty` like the other operations. It accepts no target person id. Both stores filter assignments by the caller id before returning them.
 
-Party owns persons, organisations, relationships, roles and role assignments. Identity owns login bindings. Party stores no email, issuer or login subject.
+Party owns person and agent principals, organisations, relationships, roles and role assignments. Identity owns login bindings. Party stores no email, issuer or login subject.
 
 ## Mount
 
@@ -39,7 +39,10 @@ Descriptors come from `@house-rules/party/contract`. Only app features are expos
 
 | Member | Permission | Flags |
 | --- | --- | --- |
-| createPerson | party:create | T |
+| createPerson, createPrincipal | party:create | T |
+| disable | party:update | T D A |
+| lockActive | party:read | T |
+| principalsByIds | party:read | R |
 | showPerson | party:read | R |
 | showMe | party:read | R |
 | myAccess | party:read | R |
@@ -65,6 +68,37 @@ Descriptors come from `@house-rules/party/contract`. Only app features are expos
 | rolesOf | party:read | R |
 
 Organisation creation takes `{ id, name }`. Relationships take `{ from: { kind, id }, to: { kind, id }, kind }`; endpoint kinds are `person` or `organisation`. Roles take `{ key, name, permissions, organisationId }`. Assignments take `{ personId, roleKey, organisationId }`. Use `null` for global scope. Role reads add `builtIn`.
+
+## Principals and standing
+
+`createPrincipal({ id?, displayName, kind, handle, createdBy })` creates a `person` or `agent`. It returns `{ principal, fact }`; the fact is `{ kind: "principal.created", after }`. `createdBy` is an ActorId or null, passed as data by the provisioning process. Party does not infer it from a system caller. Legacy `Person`, `createPerson`, reads and rename retain their existing shapes.
+
+Handle options are app policy:
+
+```ts
+Party.layerPostgres({
+  builtInRoles,
+  handles: {
+    pattern: /^[a-z][a-z0-9-]{0,31}$/u,
+    reserved: ["me", "none"],
+  },
+});
+```
+
+New handles must contain 1 to 120 characters. Without options there is no additional pattern or reserved word. Pattern and reserved checks are case-sensitive; Party never trims or lowercases handles. Handles are immutable and unique across both kinds, including concurrent creates. Duplicate handles or ids fail with `PersonAlreadyExists`; invalid or reserved handles fail with `PersonInputInvalid`. Migration `0005_principals.sql` backfills existing people with kind `person`, handle equal to id, and null `createdBy`/`disabledAt`. These legacy handles, including those made by `createPerson`, bypass the new handle validation so existing ids and account setup keep working.
+
+Caller rules at the operation boundary:
+
+- `createPrincipal` and `disable` accept only system callers. App provisioning features use explicit `asSystem` edges with reasons. Their permissions are `party:create` and `party:update` respectively.
+- `lockActive({ handle, kind })` accepts person and system callers with `party:read`. It needs an open unit and returns the principal. Unknown handles fail with `PersonNotFound`. A kind mismatch also returns `PersonNotFound` for person callers, so they cannot probe handles; system callers get `PrincipalKindRefused`. Disabled principals fail with `PrincipalDisabledRefused`. Asking for kind `agent` rejects a person owner. Party does not know owner roles.
+- `principalsByIds({ ids })` accepts person and system callers with `party:read`. It returns matching principals once each, omits missing ids, and includes disabled principals. It exposes no credentials. This supports notification paths as well as person-facing names.
+- `standingOf(actorId)` is a facade method for a caller-owned Identity standing slot, not an operation. It returns `active`, `disabled` or `missing`; storage failures remain typed unavailable errors.
+
+`disable({ id })` permanently sets `disabledAt` and returns `{ principal, fact }`. A first disable returns `{ kind: "principal.disabled", before, after }`; a repeated disable preserves the timestamp and returns `fact: null`. Unknown ids fail with `PersonNotFound`. It is transactional, destructive and needs approval. There is no enable. Party permits disabling either kind; protecting an owner is the app's provisioning policy. The composing feature or process chooses which returned facts to record in the same unit. Party never records them itself.
+
+`Party.may()` returns no permissions for a disabled principal. Identity should also check standing before admitting a request. For writes that must not race disable, call `lockActive` in the write's unit. Postgres takes `FOR SHARE`, not `FOR KEY SHARE`, on the principal row until commit or rollback. Disable takes `FOR NO KEY UPDATE` before capturing the change, so it waits for those units; a subsequent lock sees the committed disabled state and fails. Memory's shared `memoryUnitOfWork` serializes whole units and provides the same guarantee. Requests already admitted without `lockActive` may finish after a disable.
+
+Migration `0005` publishes `party_principals_read(id, display_name, kind, handle, created_by, created_at, disabled_at)` and `party_assignments_read(person_id, role_key, organisation_id)`. Read models may select these views for directory ordering and assignment joins. Modules still ask operations, not views, for domain decisions.
 
 ## Invitations and membership
 

@@ -1,8 +1,8 @@
 import { ActorId, UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
-import { Binding, type BindingKey, IdentityStoreUnavailable } from "../../binding/binding.js";
-import { BindingStore } from "../../storage.js";
+import { Binding, type BindingKey } from "../../binding/binding.js";
+import { BindingStore, IdentityStoreUnavailable } from "../../storage.js";
 
 const decodeHolders = Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ actorId: ActorId })));
 const decodeBindings = Schema.decodeUnknownEffect(Schema.Array(Binding));

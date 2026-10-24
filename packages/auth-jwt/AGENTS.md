@@ -11,12 +11,12 @@ It fills the `Authenticator` slot from `@house-rules/application`. `verify(token
    ```ts
    AuthJwt.layer({ issuer: "https://auth.example.com", audience: "https://app.example/mcp" })
    // or, for Clerk:
-   AuthJwt.clerk({ publishableKey })
+   AuthJwt.clerk({ publishableKey, authorizedParties: ["https://app.example.com"] })
    ```
 
-2. [ ] Handle `AuthJwtConfigInvalid`, an unavailable-kind acquisition error. The layer fails with it when the issuer is not an absolute http(s) URL, the JWKS URL (explicit, or derived from the issuer) is not https, `clockTolerance` is not a finite, non-negative number, or the Clerk key is not a `pk_test_` or `pk_live_` key.
+2. [ ] Handle `AuthJwtConfigInvalid`, an unavailable-kind acquisition error. The layer fails with it when the issuer is not an absolute http(s) URL, the JWKS URL (explicit, or derived from the issuer) is not https, `clockTolerance` is not a finite, non-negative number, the Clerk key is not a `pk_test_` or `pk_live_` key, or the Clerk `authorizedParties` list is empty or contains blank values.
 3. [ ] Fill a way's Who with `Identity.who({ token, audience?, challenge? })` from identity, or a custom `WhoSocket`. It reads the token with `tokenFrom`, verifies it, then resolves the Actor. Rejected tokens become 401 `Refused`; unavailable verification becomes 503. One token source: `tokenFrom(incoming, "bearer")` or `tokenFrom(incoming, { cookie: "__session" })`. Several places, tried in order, first token wins: `tokenFrom(incoming, ["bearer", { cookie: "__session" }])`. List the bearer header first, so a script's header beats a browser's cookie.
-4. [ ] In tests, sign tokens with `AuthJwtTesting.keys` and pass its `jwks` to the layer, so no test touches the network.
+4. [ ] In tests, sign tokens with `AuthJwtTesting.keys` and pass its `jwks` to the layer, so no test touches the network. `keys.sign(claims, header?)` accepts protected-header fields for locally signed kind fixtures.
 
 No `migrations.json` line.
 
@@ -26,9 +26,21 @@ No `migrations.json` line.
 | `audience` | none | the `aud` a token must name; a `verify` call's `audience` wins over it |
 | `jwksUrl` | `<issuer>/.well-known/jwks.json` | where the public keys are fetched and cached; https only |
 | `jwks` | none | a fixed public key set used instead of `jwksUrl` |
-| `clockTolerance` | `0` | seconds of skew allowed on `exp` and `nbf` |
+| `clockTolerance` | `0`, Clerk `5` | seconds of skew allowed on `exp` and `nbf` |
+| `authorizedParties` | none; required by Clerk | a present `azp` must be a string exactly matching a listed value; absent `azp` passes |
+| `rejectPending` | `false` | reject `sts = pending` when true |
 
-`AuthJwt.clerk({ publishableKey, audience?, clockTolerance?, jwks? })` derives the issuer from the key: the base64 after the prefix is the Frontend API host plus `$`, and the issuer is `https://<host>`. `AuthJwt.clerkIssuer(key)` returns that issuer as an `Option`.
+`AuthJwt.clerk({ publishableKey, authorizedParties, audience?, clockTolerance?, jwks?, rejectPending? })` derives the issuer from the key: the base64 after the prefix is the Frontend API host plus `$`, and the issuer is `https://<host>`. JWKS comes from `<issuer>/.well-known/jwks.json` unless `jwks` is supplied. The authorized-party list must contain at least one nonblank string. `AuthJwt.clerkIssuer(key)` returns that issuer as an `Option`.
+
+### Providers needing the protected header
+
+`AuthJwt.verifier(options)` is an `Effect<AuthJwtVerifier, AuthJwtConfigInvalid>`. Acquire it once. Its `verify(token, { audience? })` returns an Effect of `{ header, principal }`, failing with `TokenRejected`. The header is jose's verified `protectedHeader`, never unverified decoded input. `AuthJwt.layer` wraps this verifier and drops the header; its Principal-only contract is unchanged.
+
+`AuthJwt.clerkOptions(ClerkOptions)` is an Effect of `AuthJwtOptions`. It validates the publishable key, nonempty authorized-party list and clock tolerance, and derives issuer, JWKS URL and the 5-second default. Identity's Clerk provider must reuse this function instead of copying the defaults.
+
+Apply pure `AuthJwt.clerkKind(header, principal.claims)` only after verification. It returns `oauth_access` for `typ` exactly `at+jwt` or `application/at+jwt`, then `machine` for `sub` starting `mch_`. A session requires `typ` absent or exactly `JWT`, `sub` starting `user_`, a nonempty string `sid` and no `act` claim. Anything else is `unknown`, which the caller must refuse. The classifier neither accepts impersonation nor chooses what a way admits. Any explicit impersonation override belongs to identity.
+
+The Clerk rules follow the accepted identity proposal's C1, C3, C4, C10 and C28 facts. Before production use, verify a real session token's header and claims against the predicate. Local fixtures are not proof of a production instance's token shape.
 
 ## Local issuer: dev and demos only
 

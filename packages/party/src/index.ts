@@ -1,3 +1,15 @@
+export {
+  Principal,
+  PrincipalKind,
+  PrincipalHandle,
+  CreatePrincipal,
+  CreatedPrincipal,
+  DisabledPrincipal,
+  PrincipalCreated,
+  PrincipalDisabled,
+  PrincipalKindRefused,
+  PrincipalDisabledRefused,
+} from "./contract.js";
 export { bindParty } from "./person/bind-party.js";
 export { Party, type PartyFailure } from "./facade.js";
 export { PartyStore, PersonStore } from "./storage.js";

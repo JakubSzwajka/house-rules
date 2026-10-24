@@ -119,6 +119,7 @@ export const modulePlan = (options: {
     ),
     choose(memoryUnitOfWork, sqlUnitOfWork),
     StepTrace.layer(),
+    Identity.everyoneActive,
     choose(
       CallAudit.record.memory(log, auditOptions).layer,
       CallAudit.record.postgres(auditOptions).layer,

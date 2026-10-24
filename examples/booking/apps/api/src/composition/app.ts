@@ -1,5 +1,4 @@
 import {
-  type Authenticator,
   composition,
   type AnyWay,
   type HookWay,
@@ -9,6 +8,8 @@ import {
 } from "@house-rules/application";
 import {
   type ActorResolver,
+  type Credentials,
+  type ActorStanding,
   type FirstSignIn,
   type DevLocalIssuers,
   type IdentityOptions,
@@ -51,7 +52,7 @@ export const modulePlan = (
           })
         : Effect.succeed(options.identity),
   });
-type WhoServices = Authenticator | ActorResolver | FirstSignIn | DevLocalIssuers;
+type WhoServices = Credentials | ActorResolver | FirstSignIn | ActorStanding | DevLocalIssuers;
 export type OpenWays = readonly (
   | Exclude<AnyWay<WhoServices>, { protocol: "hook" }>
   | HookWay<FirstSignIn, Principal, typeof Features.firstSignIn, Refused>

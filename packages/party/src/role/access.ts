@@ -32,6 +32,9 @@ export const makeAccess = (
   store: PartyStore["Service"],
   persons: {
     readonly find: (id: ActorId) => Effect.Effect<unknown, PartyUnavailable>;
+    readonly principal: (
+      id: ActorId,
+    ) => Effect.Effect<{ readonly disabledAt: number | null } | undefined, PartyUnavailable>;
     readonly list: (
       ids: readonly ActorId[] | null,
     ) => Effect.Effect<
@@ -54,6 +57,8 @@ export const makeAccess = (
     return builtIn ? Effect.succeed(builtIn) : store.role(key);
   };
   const permissionsOf = Effect.fn("Party.permissionsOf")(function* (caller: PersonCaller) {
+    const principal = yield* persons.principal(caller.actor.id);
+    if (principal && principal.disabledAt !== null) return [];
     const allowed = catalogue ? new Set(yield* catalogue.permissions()) : undefined;
     const permissions = new Set<Permission>();
     for (const assignment of yield* store.assignments(caller.actor.id)) {

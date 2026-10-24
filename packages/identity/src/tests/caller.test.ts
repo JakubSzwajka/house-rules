@@ -1,15 +1,10 @@
 import { expect, it } from "@effect/vitest";
-import {
-  Authenticator,
-  CurrentActor,
-  type Principal,
-  Refused,
-  TokenRejected,
-} from "@house-rules/application";
+import { CurrentActor, type Principal, Refused, TokenRejected } from "@house-rules/application";
 import { ActorId, memoryUnitOfWork, UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer, Option } from "effect";
 import {
   ActorResolver,
+  Credentials,
   FirstSignIn,
   Identity,
   IdentityStoreUnavailable,
@@ -38,7 +33,7 @@ const principals: Record<string, Principal> = {
   foreign: principal("user-known", "https://other.test"),
 };
 
-const fakeAuthenticator = Layer.succeed(Authenticator, {
+const fakeAuthenticator = Layer.succeed(Credentials, {
   verify: (token, options) => {
     if (token === "down") return Effect.fail(new TokenRejected({ reason: "unavailable" }));
     if (options?.audience !== undefined && options.audience !== audience)
@@ -46,7 +41,7 @@ const fakeAuthenticator = Layer.succeed(Authenticator, {
     const found = principals[token];
     return found === undefined
       ? Effect.fail(new TokenRejected({ reason: "invalid" }))
-      : Effect.succeed(found);
+      : Effect.succeed({ kind: "jwt" as const, principal: found, actorId: Option.none<never>() });
   },
 });
 
@@ -71,9 +66,12 @@ const seedKnown = Effect.gen(function* () {
   );
 });
 
-const inviteOnly = Layer.mergeAll(Identity.layerMemory(), Identity.refuse, fakeAuthenticator).pipe(
-  Layer.provideMerge(memoryUnitOfWork),
-);
+const inviteOnly = Layer.mergeAll(
+  Identity.layerMemory(),
+  Identity.refuse,
+  fakeAuthenticator,
+  Identity.everyoneActive,
+).pipe(Layer.provideMerge(memoryUnitOfWork));
 
 const createOnFirstSignIn = Layer.effect(
   FirstSignIn,
@@ -97,12 +95,15 @@ const createOnFirstSignIn = Layer.effect(
   }),
 );
 const openSignUp = createOnFirstSignIn.pipe(
-  Layer.provideMerge(Layer.merge(Identity.layerMemory(), fakeAuthenticator)),
+  Layer.provideMerge(
+    Layer.mergeAll(Identity.layerMemory(), fakeAuthenticator, Identity.everyoneActive),
+  ),
   Layer.provideMerge(memoryUnitOfWork),
 );
 
 const subjectMode = Layer.mergeAll(
   Identity.subject({ issuer }),
+  Identity.everyoneActive,
   Identity.refuse,
   fakeAuthenticator,
 );

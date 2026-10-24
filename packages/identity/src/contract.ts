@@ -4,9 +4,22 @@ export {
   BindingInvalid,
   BindingTaken,
   IdentityCallerDenied,
-  IdentityStoreUnavailable,
 } from "./binding/binding.js";
+export { IdentityStoreUnavailable } from "./availability/store-unavailable.js";
 export { IdentityOperations } from "./binding/operations.js";
+export {
+  ApiTokensUnavailable,
+  IssueTokenInput,
+  IssuedToken,
+  RevokedToken,
+  TokenId,
+  TokenInputInvalid,
+  TokenNotFound,
+  TokenSummary,
+  TokenIssued,
+  TokenRevoked,
+} from "./api-token/api-token.js";
+export { SessionControlUnavailable, SessionsPartlyEnded } from "./sessions/sessions.js";
 export { AccountId, AccountInputInvalid, DisplayName } from "./passwords/account.js";
 export { ChangePasswordInput, type ChangePasswordOutcome } from "./passwords/change-password.js";
 export { type AccountPermission, AccountPermissions } from "./passwords/permissions.js";

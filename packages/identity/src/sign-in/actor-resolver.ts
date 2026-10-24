@@ -1,7 +1,7 @@
 import type { Principal } from "@house-rules/application";
 import { ActorId, errorKind } from "@house-rules/domain";
 import { Context, Effect, Layer, Option, Schema } from "effect";
-import type { IdentityStoreUnavailable } from "../binding/binding.js";
+import type { IdentityStoreUnavailable } from "../storage.js";
 
 export class ForeignIssuer extends Schema.TaggedError<ForeignIssuer>()("ForeignIssuer", {
   kind: errorKind("forbidden"),

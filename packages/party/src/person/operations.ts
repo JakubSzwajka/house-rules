@@ -8,6 +8,7 @@ import {
 } from "../organisation/organisation.js";
 import { AccessOperations } from "../role/operations.js";
 import { PartyPermissions } from "./permissions.js";
+import { PrincipalOperations } from "./principal-operations.js";
 import {
   Person,
   PersonAlreadyExists,
@@ -102,6 +103,7 @@ const listMembers = defineOperation("Party.listMembers", {
   readOnly: true,
 });
 export const PartyOperations = {
+  ...PrincipalOperations,
   listMembers,
   listPeople,
   createPerson,

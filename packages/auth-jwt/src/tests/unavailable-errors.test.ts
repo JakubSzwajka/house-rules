@@ -8,7 +8,7 @@ it.effect("configuration failures use fixed text, not invalid input or adapter d
     for (const adapter of [
       AuthJwt.layer({ issuer: privateDetail }),
       AuthJwt.layer({ issuer: "https://auth.test", jwksUrl: privateDetail }),
-      AuthJwt.clerk({ publishableKey: privateDetail }),
+      AuthJwt.clerk({ publishableKey: privateDetail, authorizedParties: ["https://app.example"] }),
     ]) {
       const error = yield* Layer.build(adapter).pipe(Effect.flip);
       expect(error).toBeInstanceOf(AuthJwtConfigInvalid);

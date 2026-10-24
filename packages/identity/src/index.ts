@@ -9,14 +9,40 @@ export const IdentityMount = {
   bind: bindIdentity,
 } satisfies MountDefinition<Identity, Identity["Service"]>;
 export { Identity, type Login } from "./facade.js";
-export { BindingStore } from "./storage.js";
+export { ActorStanding, type Standing, type StandingCheck } from "./sign-in/actor-standing.js";
+export {
+  Credentials,
+  type Credential,
+  type CredentialKind,
+  type AcceptedKind,
+} from "./sign-in/credentials.js";
+export { ApiTokenStore } from "./api-token/token-store.js";
+export { memoryApiTokenStore } from "./adapters/memory/api-token.js";
+export { postgresApiTokenStore } from "./adapters/postgres/api-token.js";
+export { clerkSessionControl, type ClerkSessionsOptions } from "./adapters/clerk/sessions.js";
+export { SessionControl } from "./sessions/session-control.js";
+export { SessionControlUnavailable, SessionsPartlyEnded } from "./sessions/sessions.js";
+export {
+  ApiTokensUnavailable,
+  IssueTokenInput,
+  IssuedToken,
+  RevokedToken,
+  TokenId,
+  TokenInputInvalid,
+  TokenNotFound,
+  TokenSummary,
+  TokenRow,
+  TokenIssued,
+  TokenRevoked,
+} from "./api-token/api-token.js";
+export type { ApiTokensProvider, TokenMethods } from "./api-token/tokens.js";
+export { BindingStore, IdentityStoreUnavailable } from "./storage.js";
 export {
   Binding,
   BindingInvalid,
   BindingKey,
   BindingTaken,
   IdentityCallerDenied,
-  IdentityStoreUnavailable,
 } from "./binding/binding.js";
 export {
   ActorResolver,
@@ -72,6 +98,7 @@ export { DevLocalIssuers } from "./sign-in/dev-local-issuers.js";
 export { IdentityProviderInvalid } from "./sign-in/provider-invalid.js";
 export type {
   DevLocalProvider,
+  ClerkProvider,
   IdentityOptions,
   OidcProvider,
   PasswordsProvider,
