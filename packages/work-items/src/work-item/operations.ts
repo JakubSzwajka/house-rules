@@ -1,0 +1,88 @@
+import { defineOperation } from "@house-rules/domain/contract";
+import { Schema } from "effect";
+import { WorkItemMutation } from "./events.js";
+import { WorkItemPermissions } from "./permissions.js";
+import {
+  WorkItem,
+  WorkItemCreate,
+  WorkItemEdit,
+  WorkItemFailure,
+  WorkItemFilters,
+  WorkItemList,
+  WorkItemRef,
+  WorkItemTree,
+} from "./work-item.js";
+const write = {
+  failure: WorkItemFailure,
+  permission: WorkItemPermissions.write,
+  output: WorkItemMutation,
+  transactional: true,
+  edges: [],
+} as const;
+const read = {
+  failure: WorkItemFailure,
+  permission: WorkItemPermissions.read,
+  readOnly: true,
+  edges: [],
+} as const;
+const key = Schema.Struct({ id: Schema.NonEmptyString });
+const create = defineOperation("WorkItems.create", {
+  ...write,
+  description: "Create a work item, inheriting its parent's container.",
+  input: WorkItemCreate,
+});
+const edit = defineOperation("WorkItems.edit", {
+  ...write,
+  description: "Replace work item title, body or attributes.",
+  destructive: true,
+  input: Schema.Struct({ id: Schema.NonEmptyString, patch: WorkItemEdit }),
+});
+const setStatus = defineOperation("WorkItems.setStatus", {
+  ...write,
+  description: "Move a work item through its configured workflow.",
+  input: Schema.Struct({ id: Schema.NonEmptyString, status: Schema.NonEmptyString }),
+});
+const assign = defineOperation("WorkItems.assign", {
+  ...write,
+  description: "Set or clear a holder without changing status.",
+  input: Schema.Struct({ id: Schema.NonEmptyString, holder: Schema.NullOr(WorkItemRef) }),
+});
+const claim = defineOperation("WorkItems.claim", {
+  ...write,
+  description: "Claim an unheld, open item for the caller.",
+  input: key,
+});
+const release = defineOperation("WorkItems.release", {
+  ...write,
+  description: "Clear the holder and apply the configured release transition.",
+  input: key,
+});
+const get = defineOperation("WorkItems.get", {
+  ...read,
+  description: "Read one visible work item.",
+  input: key,
+  output: WorkItem,
+});
+const list = defineOperation("WorkItems.list", {
+  ...read,
+  description: "List visible work items with filters and an exclusive cursor.",
+  input: WorkItemFilters,
+  output: WorkItemList,
+});
+const tree = defineOperation("WorkItems.tree", {
+  ...read,
+  description: "Read a container's work item hierarchy.",
+  input: Schema.Struct({ container: Schema.NullOr(WorkItemRef) }),
+  output: Schema.Array(WorkItemTree),
+});
+export const WorkItemsOperations = {
+  create,
+  edit,
+  setStatus,
+  assign,
+  claim,
+  release,
+  get,
+  list,
+  tree,
+} as const;

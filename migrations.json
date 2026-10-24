@@ -2,8 +2,13 @@
   "modules": [
     { "workspace": "packages/call-audit" },
     { "workspace": "packages/comments" },
+    { "workspace": "packages/contacts" },
     { "workspace": "packages/notes" },
+    { "workspace": "packages/event-log" },
+    { "workspace": "packages/notifications" },
+    { "workspace": "packages/push" },
     { "workspace": "packages/relations" },
+    { "workspace": "packages/work-items" },
     { "workspace": "packages/identity" },
     { "workspace": "packages/party" },
     { "workspace": "examples/booking/packages/bookings", "table": "bookings_migrations" },

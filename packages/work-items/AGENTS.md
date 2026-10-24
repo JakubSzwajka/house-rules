@@ -1,0 +1,23 @@
+# @house-rules/work-items: notes for agents
+
+WorkItems owns plain-text work items, a configurable status workflow, one holder and a parent column. Version 0.1.0 peers on Effect 4.0.3, domain 0.1.0 and application 0.2.0.
+
+## Mounting
+
+1. Provide `WorkItemAccess`, one unit adapter and `WorkItems.layerMemory(options)` or `WorkItems.layerPostgres(options)` in composition/modules.ts. Postgres needs `SqlClient`.
+2. Mount `WorkItemsMount`. Descriptors live in `@house-rules/work-items/contract`; `bindWorkItems(service)` captures the facade once.
+3. Register `{ "package": "@house-rules/work-items" }` in the host's migrations list. This workspace uses `{ "workspace": "packages/work-items" }`.
+
+## Options and access
+
+Options are required. Start with `WorkItems.presets.board` and set the host's container and holder kinds. States have unique names and open, active, done or cancelled categories. `initial`, every transition target, `claim.toState` and both release states must exist. `claim.holderKind` must be in `holderKinds`. Claim uses that kind with the explicit actor's id. Claim's target must be open or active. Limits are positive integers; maxDepth is a nonnegative integer with roots at zero.
+
+`WorkItemAccess.access(actor, containerOrNull)` returns write, read or none. Missing and denied items both fail `WorkItemNotFound`. The host maps port failures to `WorkItemAccessUnavailable`. `visibleContainers(actor)` returns `{ containers, inbox }`; adapters apply this visibility before pagination. Keep both port answers consistent.
+
+## Fixed rules
+
+Writes require a live unit and never open one. Pass actors explicitly; never capture CurrentActor. System operation callers fail not_found. Cascade hooks `removeContainer(ref)` and `releaseHolder(ref)` are facade-only, require a unit and bypass person access for trusted host lifecycle code. Holder deletion never changes status.
+
+Parents and containers cannot be edited. A child inherits its parent's container. Status transitions apply to setStatus, claim and release. Assign never changes status. Claim rejects closed items and items held by someone other than `{claim.holderKind, actor.id}`. The conditional update accepts an unheld item or the caller's own holder reference. Re-claiming an item already held by the caller in claim.toState returns no events. Claiming an unheld item already in claim.toState needs no self-transition. Release may clear any holder for an actor with write access; an unheld item outside release.from returns no events.
+
+Write results are `{ item, events }`. Event facts are plain contract data, with no envelope, emission or event-log dependency. Attributes accept any JSON value and are never queried. Trees fetch at most maxTreeSize + 1 visible items in one container and fail WorkItemTreeTooLarge if the count exceeds maxTreeSize. The board preset sets maxTreeSize to 500; trees within the limit return descendants to maxDepth. Lists use createdAt/id ordering with an exclusive cursor and maxPageSize. The public SQL view is `work_items_view`.
