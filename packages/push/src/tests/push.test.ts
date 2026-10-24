@@ -1,13 +1,23 @@
-import { expect, it } from "@effect/vitest";
+import { expect, expectTypeOf, it } from "@effect/vitest";
 import { Actor, ActorId, memoryUnitOfWork, NoOpenUnit, UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import { TestClock } from "effect/testing";
 import {
   Push,
   PushInputInvalid,
+  PushSender,
+  PushStore,
   PushSubscriptionConflict,
   PushSubscriptionNotFound,
 } from "../index.js";
+
+expectTypeOf<Parameters<typeof Push.layerPostgres>[1]>().toEqualTypeOf<Layer.Layer<PushSender>>();
+expectTypeOf<Parameters<typeof Push.layerPostgres>>().toExtend<
+  readonly [unknown, Layer.Layer<PushSender>]
+>();
+expectTypeOf<Layer.Services<ReturnType<typeof Push.layer>>>().toEqualTypeOf<
+  PushSender | PushStore
+>();
 
 const world = Push.layerMemory().pipe(Layer.provideMerge(memoryUnitOfWork));
 const actor = Actor.make({ id: ActorId.make("person-a") });

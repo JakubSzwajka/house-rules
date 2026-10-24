@@ -160,6 +160,61 @@ for (const { name, layer: storage } of stores) {
             expect(yield* service.primaryFor(null, owner, "email", "general", false)).toBeNull();
           }),
       );
+      it.effect("returns PrimaryChanged only when a selected purpose moves", () =>
+        Effect.gen(function* () {
+          const service = yield* Contacts;
+          const first = yield* UnitOfWork.atomic(
+            service.addContact(alice, {
+              ...input("primary-first@example.com"),
+              purposes: ["general", "billing"],
+            }),
+          );
+          const second = yield* UnitOfWork.atomic(
+            service.addContact(alice, {
+              ...input("primary-second@example.com"),
+              purposes: ["general", "billing"],
+            }),
+          );
+          const selected = yield* UnitOfWork.atomic(service.setPrimary(alice, first.contact.id));
+          expect(selected.events).toEqual([
+            {
+              kind: "PrimaryChanged",
+              contactId: first.contact.id,
+              owner,
+              previousContactIds: { general: null, billing: null },
+            },
+          ]);
+          expect(yield* UnitOfWork.atomic(service.setPrimary(alice, first.contact.id))).toEqual({
+            contact: selected.contact,
+            events: [],
+          });
+          expect(
+            (yield* UnitOfWork.atomic(service.setPrimary(alice, first.contact.id, ["general"])))
+              .events,
+          ).toEqual([]);
+          const moved = yield* UnitOfWork.atomic(
+            service.setPrimary(alice, second.contact.id, ["general"]),
+          );
+          expect(moved.events).toEqual([
+            {
+              kind: "PrimaryChanged",
+              contactId: second.contact.id,
+              owner,
+              previousContactIds: { general: first.contact.id },
+            },
+          ]);
+          expect((yield* service.primaryFor(null, owner, "email", "billing", false))?.id).toBe(
+            first.contact.id,
+          );
+          expect(
+            yield* UnitOfWork.atomic(service.setPrimary(alice, second.contact.id, ["general"])),
+          ).toEqual({
+            contact: moved.contact,
+            events: [],
+          });
+          yield* UnitOfWork.atomic(service.erase(owner));
+        }),
+      );
       it.effect("rejects expired tokens using the persisted deadline", () =>
         Effect.gen(function* () {
           const service = yield* Contacts;

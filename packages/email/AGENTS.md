@@ -17,7 +17,7 @@ Email.layer.pipe(
 
 The main door exports `Email`, `bindEmail`, `EmailMount`, `EmailSender` and adapters. The browser-safe `./contract` door exports message/result schemas, errors, `EmailPermissions.send` (`email:send`) and `EmailOperations.send` (`Email.send`). It exports no services, bindings or adapters.
 
-`Email.send` takes `{ message, idempotencyKey }` and returns `{ providerId? }`. Only system callers may send. A person is refused with `EmailSendForbidden` (`forbidden`), even with `email:send`. Email has no not-found concept. The operation is not transactional and opens no unit. A delivery feature must pass the same idempotency key on retries; a surrounding database rollback cannot undo a sent email.
+`Email.send` takes `{ message, idempotencyKey }` and returns `{ providerId? }`. Only system callers may send. A person is refused with `EmailCallerDenied` (`forbidden`), even with `email:send`. Email has no not-found concept. The operation is not transactional and opens no unit. A delivery feature must pass the same idempotency key on retries; a surrounding database rollback cannot undo a sent email.
 
 The facade captures `EmailSender` once. Its `send(message, idempotencyKey)` delegates to `EmailSender.send`, which accepts a flat `EmailDelivery`: `to`, optional `from`, `subject`, `text`, optional `html`, `idempotencyKey` and optional headers. A missing `from` uses the required `defaultFrom`. An explicit blank `from`, blank required text or blank default sender fails with `EmailRejected` (`invalid`). CR/LF is rejected in recipients, sender addresses, subject, and header names and values. Message bodies may contain line breaks.
 

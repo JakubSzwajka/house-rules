@@ -25,8 +25,8 @@ export class EmailRejected extends Schema.TaggedError<EmailRejected>()("EmailRej
   message: Schema.String,
 }) {}
 
-export class EmailSendForbidden extends Schema.TaggedError<EmailSendForbidden>()(
-  "EmailSendForbidden",
+export class EmailCallerDenied extends Schema.TaggedError<EmailCallerDenied>()(
+  "EmailCallerDenied",
   {
     kind: errorKind("forbidden"),
     message: Schema.tag("Email sending requires a system caller."),

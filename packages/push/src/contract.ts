@@ -3,6 +3,7 @@ export {
   PushSubscription,
   PushPayload,
   PushInputInvalid,
+  PushCallerDenied,
   PushSubscriptionNotFound,
   PushSubscriptionConflict,
   PushStoreUnavailable,

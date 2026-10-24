@@ -21,7 +21,7 @@ export {
   EmailPermissions,
   EmailRejected,
   EmailSendFailed,
-  EmailSendForbidden,
+  EmailCallerDenied,
   EmailSendResult,
 } from "./contract.ts";
 export { console as consoleEmail } from "./adapters/console.ts";

@@ -6,6 +6,13 @@ export const WorkItemVisibility = Schema.Struct({
   inbox: Schema.Boolean,
 });
 export type WorkItemVisibility = typeof WorkItemVisibility.Type;
+export const configuredVisibility = (
+  visibility: WorkItemVisibility,
+  containerKinds: ReadonlyArray<string>,
+): WorkItemVisibility => ({
+  ...visibility,
+  containers: visibility.containers.filter(({ kind }) => containerKinds.includes(kind)),
+});
 export class WorkItemAccess extends Context.Service<
   WorkItemAccess,
   {

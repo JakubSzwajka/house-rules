@@ -33,7 +33,7 @@ Entering a closed category sets closedAt. Moving between closed states retains t
 - `access(actor, containerOrNull)` returns `"write"`, `"read"` or `"none"`.
 - `visibleContainers(actor)` returns `{ containers: refs, inbox: boolean }`.
 
-The host maps expected port errors to `WorkItemAccessUnavailable`. Unavailable messages are fixed and hide their cause. Denied reads and writes fail `WorkItemNotFound`, as do missing items and stored items whose container kind is no longer configured. Lists filter visibility in SQL before sorting or limiting. The host must keep the two access answers consistent.
+The host maps expected port errors to `WorkItemAccessUnavailable`. Unavailable messages are fixed and hide their cause. Denied reads and writes fail `WorkItemNotFound`, as do missing items and stored items whose container kind is no longer configured. Lists exclude unconfigured container kinds and filter visibility in SQL before sorting or limiting. An explicit filter for a retired container kind fails `WorkItemNotFound`. The host must keep the two access answers consistent.
 
 ## Operations and events
 

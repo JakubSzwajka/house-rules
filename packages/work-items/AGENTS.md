@@ -12,7 +12,7 @@ WorkItems owns plain-text work items, a configurable status workflow, one holder
 
 Options are required. Start with `WorkItems.presets.board` and set the host's container and holder kinds. States have unique names and open, active, done or cancelled categories. `initial`, every transition target, `claim.toState` and both release states must exist. `claim.holderKind` must be in `holderKinds`. Claim uses that kind with the explicit actor's id. Claim's target must be open or active. Limits are positive integers; maxDepth is a nonnegative integer with roots at zero.
 
-`WorkItemAccess.access(actor, containerOrNull)` returns write, read or none. Missing and denied items both fail `WorkItemNotFound`. The host maps port failures to `WorkItemAccessUnavailable`. `visibleContainers(actor)` returns `{ containers, inbox }`; adapters apply this visibility before pagination. Keep both port answers consistent.
+`WorkItemAccess.access(actor, containerOrNull)` returns write, read or none. Missing and denied items both fail `WorkItemNotFound`. The host maps port failures to `WorkItemAccessUnavailable`. `visibleContainers(actor)` returns `{ containers, inbox }`; adapters apply this visibility before pagination. Lists exclude unconfigured container kinds before pagination, even if the port still lists them. An explicit retired-kind container filter fails `WorkItemNotFound`. Keep both port answers consistent.
 
 ## Fixed rules
 

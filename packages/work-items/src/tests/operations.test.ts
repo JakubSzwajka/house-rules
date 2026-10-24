@@ -21,6 +21,11 @@ import {
   WorkItemsOperations,
 } from "../index.js";
 expectTypeOf<Parameters<typeof bindWorkItems>[0]>().toExtend<WorkItems["Service"]>();
+it("describes claiming an unheld item or the caller's current item", () => {
+  expect(WorkItemsOperations.claim.description).toBe(
+    "Claim an open item that is unheld or already held by the caller.",
+  );
+});
 expectTypeOf<WorkItems["Service"]>().toExtend<Parameters<typeof bindWorkItems>[0]>();
 const operations = WorkItemsOperations;
 const flow = defineFeature("test_workItemFlow", {

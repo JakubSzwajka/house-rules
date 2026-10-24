@@ -9,7 +9,7 @@ import {
   StepTrace,
 } from "@house-rules/application";
 import { Actor, ActorId, memoryUnitOfWork, UnitOfWork, type Permission } from "@house-rules/domain";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Schema } from "effect";
 import {
   bindPush,
   Push,
@@ -17,6 +17,7 @@ import {
   PushOperations,
   PushSubscriptionNotFound,
   PushInputInvalid,
+  PushCallerDenied,
   MemoryPushOutbox,
 } from "../index.js";
 
@@ -251,9 +252,19 @@ it.layer(world)("Push operation bindings", (test) => {
       };
       const outbox = yield* MemoryPushOutbox;
       const before = yield* outbox.sends;
+      const denied = yield* Effect.flip(
+        runFeature(personDeliver, message).pipe(Effect.provide(caller())),
+      );
+      expect(denied).toBeInstanceOf(PushCallerDenied);
+      expect(denied.kind).toBe("forbidden");
+      expect(yield* Schema.decodeUnknownEffect(PushOperations.deliver.failure)(denied)).toEqual(
+        denied,
+      );
       expect(
-        yield* Effect.flip(runFeature(personDeliver, message).pipe(Effect.provide(caller()))),
-      ).toBeInstanceOf(PushSubscriptionNotFound);
+        Schema.is(PushOperations.deliver.failure)(
+          new PushSubscriptionNotFound({ message: "Push subscription not found." }),
+        ),
+      ).toBe(false);
       expect(
         yield* Effect.flip(
           runFeature(deliver, message).pipe(Effect.provide(caller(permissions, []))),

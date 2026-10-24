@@ -13,7 +13,7 @@ const emailLayer = Email.layer.pipe(
 );
 ```
 
-The browser-safe `@house-rules/email/contract` exports `EmailOperations.send` (`Email.send`) and `EmailPermissions.send` (`email:send`). A feature calls it with `{ message, idempotencyKey }` and receives `{ providerId? }`. The operation accepts system callers only; people receive `EmailSendForbidden`, even if they hold the permission. It writes no unit or data. Retry with the same key because a sent email cannot roll back with a database transaction.
+The browser-safe `@house-rules/email/contract` exports `EmailOperations.send` (`Email.send`) and `EmailPermissions.send` (`email:send`). A feature calls it with `{ message, idempotencyKey }` and receives `{ providerId? }`. The operation accepts system callers only; people receive `EmailCallerDenied`, even if they hold the permission. It writes no unit or data. Retry with the same key because a sent email cannot roll back with a database transaction.
 
 `EmailSender.send` takes a flat `EmailDelivery`: recipient, optional sender, subject, text body, optional HTML body, optional headers, and a required idempotency key. `EmailRejected` represents invalid input, including explicit blank senders and CR/LF in addresses, subject or headers. `EmailSendFailed` is an unavailable failure with fixed public wording and an optional internal `cause` for provider diagnostics.
 

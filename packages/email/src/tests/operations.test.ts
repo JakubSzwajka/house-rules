@@ -2,13 +2,13 @@ import { expect, expectTypeOf, it } from "@effect/vitest";
 import { CurrentActor, May, Runtime, runFeature, StepTrace } from "@house-rules/application";
 import { defineFeature } from "@house-rules/application/contract";
 import { Actor, ActorId } from "@house-rules/domain";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Schema } from "effect";
 import {
   EmailOperations,
   EmailPermissions,
   EmailRejected,
   EmailSendFailed,
-  EmailSendForbidden,
+  EmailCallerDenied,
 } from "../contract.ts";
 import {
   bindEmail,
@@ -84,8 +84,10 @@ it.effect("refuses a person even with email:send without calling the sender", ()
     const error = yield* runFeature(person, { message, idempotencyKey: "person-1" }).pipe(
       Effect.flip,
     );
-    expect(error).toBeInstanceOf(EmailSendForbidden);
+    expect(error).toBeInstanceOf(EmailCallerDenied);
+    expect(error._tag).toBe("EmailCallerDenied");
     expect(error.kind).toBe("forbidden");
+    expect(yield* Schema.decodeUnknownEffect(send.failure)(error)).toEqual(error);
     expect(yield* (yield* MemoryEmailOutboxTesting).messages).toEqual([]);
   }).pipe(Effect.provide(Layer.merge(personCaller, world))),
 );

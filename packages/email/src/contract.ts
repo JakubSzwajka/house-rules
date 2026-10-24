@@ -2,7 +2,7 @@ export {
   EmailMessage,
   EmailRejected,
   EmailSendFailed,
-  EmailSendForbidden,
+  EmailCallerDenied,
   EmailSendResult,
 } from "./sender/message.ts";
 export { EmailOperations } from "./sender/operations.ts";

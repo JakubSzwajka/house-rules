@@ -1,6 +1,7 @@
 import { defineOperation } from "@house-rules/domain/contract";
 import { Schema } from "effect";
 import {
+  PushCallerDenied,
   PushOwner,
   PushPayload,
   PushSendFailed,
@@ -92,12 +93,7 @@ const deliver = defineOperation("Push.deliver", {
     expired: Schema.Int,
     events: Schema.Array(SubscriptionExpired),
   }),
-  failure: Schema.Union([
-    PushInputInvalid,
-    PushSubscriptionNotFound,
-    PushStoreUnavailable,
-    PushSendFailed,
-  ]),
+  failure: Schema.Union([PushInputInvalid, PushCallerDenied, PushStoreUnavailable, PushSendFailed]),
   permission: PushPermissions.deliver,
   edges: [],
   transactional: true,

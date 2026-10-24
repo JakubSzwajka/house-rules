@@ -1,7 +1,13 @@
 import { expect, layer } from "@effect/vitest";
 import { NoOpenUnit, UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
-import { WorkItemFailure, WorkItemNotFound, WorkItemStore, WorkItems } from "../../index.js";
+import {
+  WorkItemAccess,
+  WorkItemFailure,
+  WorkItemNotFound,
+  WorkItemStore,
+  WorkItems,
+} from "../../index.js";
 import { a, b, project, access } from "./access.js";
 import { stores } from "./stores.js";
 
@@ -106,6 +112,10 @@ for (const { name, layer: storeLayer } of stores) {
             ),
           );
           expect(yield* Effect.flip(changed.get(a, item.id))).toBeInstanceOf(WorkItemNotFound);
+          expect((yield* changed.list(a)).items.every((row) => row.container === null)).toBe(true);
+          expect(yield* Effect.flip(changed.list(a, { container: project("a") }))).toBeInstanceOf(
+            WorkItemNotFound,
+          );
           const writes: ReadonlyArray<Effect.Effect<unknown, WorkItemFailure | NoOpenUnit>> = [
             changed.edit(a, item.id, { title: "hidden" }),
             changed.setStatus(a, item.id, "doing"),
@@ -123,6 +133,56 @@ for (const { name, layer: storeLayer } of stores) {
             ).toBeInstanceOf(WorkItemNotFound);
           expect(yield* work.get(a, item.id)).toEqual(item);
         }),
+      );
+      it.effect(
+        "filters retired kinds before list pagination even when the access port still lists them",
+        () =>
+          Effect.gen(function* () {
+            const retired = project("list-retired");
+            const current = { kind: "current", id: "list-current" };
+            const visibility = Layer.succeed(WorkItemAccess, {
+              access: () => Effect.succeed("write" as const),
+              visibleContainers: () =>
+                Effect.succeed({ containers: [retired, current], inbox: false }),
+            });
+            const old = yield* WorkItems.pipe(
+              Effect.provide(
+                WorkItems.layer({
+                  ...WorkItems.presets.board,
+                  containerKinds: ["project", "current"],
+                }).pipe(Layer.provide(visibility)),
+              ),
+            );
+            yield* UnitOfWork.atomic(
+              old.create(a, { title: "retired before live rows", container: retired }),
+            );
+            const live = [];
+            for (const title of ["live one", "live two"])
+              live.push(
+                (yield* UnitOfWork.atomic(old.create(a, { title, container: current }))).item,
+              );
+            const changed = yield* WorkItems.pipe(
+              Effect.provide(
+                WorkItems.layer({ ...WorkItems.presets.board, containerKinds: ["current"] }).pipe(
+                  Layer.provide(visibility),
+                ),
+              ),
+            );
+            const first = yield* changed.list(a, { size: 1 });
+            expect(first.items).toHaveLength(1);
+            expect(first.items[0]?.container).toEqual(current);
+            expect(first.next).toBeDefined();
+            if (!first.next) return yield* Effect.die("Expected another page.");
+            const second = yield* changed.list(a, { size: 1, cursor: first.next });
+            expect(second.items).toHaveLength(1);
+            expect(second.next).toBeUndefined();
+            expect(new Set([...first.items, ...second.items].map((row) => row.id))).toEqual(
+              new Set(live.map((row) => row.id)),
+            );
+            expect(yield* Effect.flip(changed.list(a, { container: retired }))).toBeInstanceOf(
+              WorkItemNotFound,
+            );
+          }),
       );
       it.effect("bounds tree fetches and rejects oversized containers without truncating", () =>
         Effect.gen(function* () {

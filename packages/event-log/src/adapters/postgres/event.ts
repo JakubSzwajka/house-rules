@@ -81,6 +81,7 @@ export const postgresEventStore = Layer.effect(
         join event_log_pending p on p.consumer = ${consumer} and p.event_id = e.id::bigint`,
         );
         if (replays[0] !== undefined) return replays[0];
+        // A row range keeps rare/missing kinds on (kind, id), not a filtered primary-key walk.
         const rows = yield* read(
           Candidate,
           sql`select ${candidateColumns}
@@ -88,8 +89,8 @@ export const postgresEventStore = Layer.effect(
           select next.id from jsonb_array_elements_text(${sql.json(kinds)}) k(kind)
           cross join lateral (
             select id from event_log_events where kind = k.kind
-            and id > coalesce((select cursor from event_log_consumers where name = ${consumer}), 0)
-            order by id limit 1
+            and (kind, id) > (k.kind, coalesce((select cursor from event_log_consumers where name = ${consumer}), 0))
+            order by event_log_events.kind, id limit 1
           ) next
           order by next.id limit 1
         )) e

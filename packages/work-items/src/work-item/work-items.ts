@@ -1,7 +1,7 @@
 import { type Actor, UnitOfWork } from "@house-rules/domain";
 import { DateTime, Effect, Random, Schema } from "effect";
 import type { WorkItemStore } from "../storage.js";
-import { type WorkItemAccess, WorkItemVisibility } from "./access.js";
+import { type WorkItemAccess, WorkItemVisibility, configuredVisibility } from "./access.js";
 import type { WorkItemEvent, WorkItemMutation } from "./events.js";
 import type { WorkItemsOptions } from "./options.js";
 import { sameRef } from "./order.js";
@@ -55,6 +55,7 @@ export const makeWorkItems = (
   const visible = Effect.fn("WorkItems.visible")(function* (actor: Actor) {
     return yield* access.visibleContainers(actor).pipe(
       Effect.flatMap(Schema.decodeEffect(WorkItemVisibility)),
+      Effect.map((visibility) => configuredVisibility(visibility, options.containerKinds)),
       Effect.mapError((cause) => new WorkItemAccessUnavailable({ cause })),
     );
   });
@@ -248,7 +249,8 @@ export const makeWorkItems = (
       const filters = yield* Schema.decodeEffect(WorkItemFilters)(input).pipe(
         Effect.mapError(invalid),
       );
-      if (filters.container !== undefined) yield* requireAccess(actor, filters.container, false);
+      if (filters.container !== undefined)
+        yield* requireAccess(actor, filters.container, false, true);
       if (filters.inbox) yield* requireAccess(actor, null, false);
       if (filters.holder !== undefined)
         yield* decodeHolder(filters.holder).pipe(Effect.mapError(invalid));

@@ -16,6 +16,9 @@ export const PushPayload = Schema.Unknown;
 export type PushPayload = typeof PushPayload.Type;
 export const PushTtl = Schema.Int.check(Schema.isGreaterThan(0));
 
+export class PushCallerDenied extends Schema.TaggedError<PushCallerDenied>()("PushCallerDenied", {
+  kind: errorKind("forbidden"),
+}) {}
 export class PushInputInvalid extends Schema.TaggedError<PushInputInvalid>()("PushInputInvalid", {
   kind: errorKind("invalid"),
   message: Schema.String,

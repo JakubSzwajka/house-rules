@@ -4,7 +4,7 @@ import {
   type EmailMessage,
   type EmailRejected,
   type EmailSendFailed,
-  EmailSendForbidden,
+  EmailCallerDenied,
   type EmailSendResult,
 } from "./message.ts";
 import { EmailOperations } from "./operations.ts";
@@ -20,6 +20,6 @@ export const bindEmail = (service: Service): readonly Binding[] => [
   bindOperation(EmailOperations.send, ({ message, idempotencyKey }, { caller }) =>
     caller.kind === "system"
       ? service.send(message, idempotencyKey)
-      : Effect.fail(new EmailSendForbidden()),
+      : Effect.fail(new EmailCallerDenied()),
   ),
 ];

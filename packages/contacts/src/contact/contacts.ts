@@ -167,6 +167,8 @@ export const makeContacts = (
         return yield* invalid();
       const selection = yield* store.setPrimary(contactId, selected);
       if (!selection) return yield* new ContactNotFound();
+      if (Object.keys(selection.previousContactIds).length === 0)
+        return eventResult(selection.contact, []);
       return eventResult(selection.contact, [
         {
           kind: "PrimaryChanged",

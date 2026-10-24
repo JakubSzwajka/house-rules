@@ -2,7 +2,6 @@ import { defineModule } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import { memoryPushStore } from "./adapters/memory/push.js";
 import { memoryPushSender, type MemoryPushSenderOptions } from "./adapters/memory/sender.js";
-import { consolePushSender } from "./adapters/console/sender.js";
 import { postgresPushStore } from "./adapters/postgres/push.js";
 import { makePush } from "./push/push-service.js";
 import { PushInputInvalid, PushTtl } from "./push/push.js";
@@ -27,10 +26,8 @@ export class Push extends defineModule<Push, PushService>()("push", {
     options: PushOptions = {},
     sender: Layer.Layer<PushSender> = memoryPushSender(),
   ) => Push.layer(options).pipe(Layer.provide(Layer.merge(memoryPushStore(), sender)));
-  static readonly layerPostgres = (
-    options: PushOptions = {},
-    sender: Layer.Layer<PushSender> = consolePushSender,
-  ) => Push.layer(options).pipe(Layer.provide(Layer.merge(postgresPushStore, sender)));
+  static readonly layerPostgres = (options: PushOptions = {}, sender: Layer.Layer<PushSender>) =>
+    Push.layer(options).pipe(Layer.provide(Layer.merge(postgresPushStore, sender)));
   static readonly layerMemoryTesting = (
     options: PushOptions = {},
     senderOptions: MemoryPushSenderOptions = {},

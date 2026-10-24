@@ -42,6 +42,6 @@ The app owns consumer system features. An event-sweep schedule uses a transactio
 
 EventLog.wakeups() returns an adapter signal stream for an app-owned event-wake hook. Listen at startup and poll as well. Postgres uses transactional LISTEN/NOTIFY; memory uses an in-process signal. A stock hook invokes one feature and does not fan out items. To use one hook for selection and items, its single feature must accept an explicit phase input. App orchestration calls it once per phase and unit, committing selection before each item. Otherwise treat wake as a hint and let the sweep run items.
 
-Default retry policy is five attempts, exponential delays starting at one second, capped at five minutes. Delivery is at least once. Handlers must be idempotent. Cursor locks cover handler units; there is no distributed lease. Outside effects run in consumers after the producer commits, and cannot be undone by database rollback.
+Default retry policy is five attempts, exponential delays starting at one second, capped at five minutes. Delivery is at least once. Handlers must be idempotent. Postgres next-event lookups use the `(kind, id)` index even for sparse or missing kinds. Cursor locks cover handler units; there is no distributed lease. Outside effects run in consumers after the producer commits, and cannot be undone by database rollback.
 
 See [AGENTS.md](AGENTS.md) for the exact unit protocol, O1-O3 choices, permissions and concurrency limits.

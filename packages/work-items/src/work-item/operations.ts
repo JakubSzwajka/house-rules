@@ -49,7 +49,7 @@ const assign = defineOperation("WorkItems.assign", {
 });
 const claim = defineOperation("WorkItems.claim", {
   ...write,
-  description: "Claim an unheld, open item for the caller.",
+  description: "Claim an open item that is unheld or already held by the caller.",
   input: key,
 });
 const release = defineOperation("WorkItems.release", {
