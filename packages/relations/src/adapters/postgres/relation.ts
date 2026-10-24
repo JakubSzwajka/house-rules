@@ -32,8 +32,8 @@ export const postgresRelationStore: Layer.Layer<RelationStore, never, SqlClient>
           : []),
       ]);
     return RelationStore.of({
-      // Serialize structural checks through commit, including cascades and deletes.
-      lock: write(sql`lock table relation_edges in share row exclusive mode`),
+      // Serialize same-type checks through commit. READ COMMITTED sees the preceding writer.
+      lock: (type) => write(sql`select pg_advisory_xact_lock(1919249505, hashtext(${type}))`),
       list: (node, type, direction, size, after) =>
         read(sql`
         select ${columns} from relation_edges where ${at(node, direction)}

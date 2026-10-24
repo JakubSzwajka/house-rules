@@ -52,7 +52,7 @@ export const makeRelations = (store: RelationStore["Service"], options: Relation
         !type.directed && type.source.includes(target.kind) && type.target.includes(source.kind);
       if (!forward && !reverse) return yield* new RelationEndpointInvalid();
       if (!type.directed && compareNodes(source, target) > 0) [source, target] = [target, source];
-      yield* store.lock;
+      yield* store.lock(type.name);
       if (type.unique && (yield* store.exists(source, target, type.name)))
         return yield* new DuplicateRelation();
       if (type.directed) {
@@ -83,7 +83,6 @@ export const makeRelations = (store: RelationStore["Service"], options: Relation
     }),
     unrelate: Effect.fn("Relations.unrelate")(function* (id: string) {
       yield* UnitOfWork.required;
-      yield* store.lock;
       if (!(yield* store.remove(id))) return yield* new RelationNotFound();
     }),
     listRelations: Effect.fn("Relations.listRelations")(function* (input: ListRelationsInput) {
@@ -143,8 +142,9 @@ export const makeRelations = (store: RelationStore["Service"], options: Relation
     }),
     removeNode: Effect.fn("Relations.removeNode")(function* (ref: NodeRef) {
       yield* UnitOfWork.required;
-      const node = yield* decodeNode(ref);
-      yield* store.lock;
+      const node = yield* Schema.decodeEffect(NodeRef)(ref).pipe(
+        Effect.mapError(() => new RelationEndpointInvalid()),
+      );
       yield* store.removeNode(node);
     }),
   };

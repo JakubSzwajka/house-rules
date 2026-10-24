@@ -1,7 +1,6 @@
 {
   "name": "@house-rules/relations",
   "version": "0.1.0",
-  "private": true,
   "description": "Typed, non-authority edges between opaque nodes.",
   "license": "MIT",
   "type": "module",
@@ -14,6 +13,19 @@
   "exports": {
     ".": "./src/index.ts",
     "./contract": "./src/contract.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./contract": {
+        "types": "./dist/contract.d.ts",
+        "default": "./dist/contract.js"
+      }
+    }
   },
   "repository": {
     "type": "git",
@@ -29,6 +41,7 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
+    "prepack": "pnpm run build",
     "typecheck": "tsc --project tsconfig.json",
     "test": "varlock run --path ../../ -- vitest run"
   },

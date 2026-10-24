@@ -1,6 +1,6 @@
 # @house-rules/relations: notes for agents
 
-Relations stores typed edges between opaque `(kind, id)` nodes. It owns structural validation and graph traversal, not authority. This workspace package is private and is not part of a release.
+Relations stores typed edges between opaque `(kind, id)` nodes. It owns structural validation and graph traversal, not authority. The package is publish-ready but is not part of the release workflow.
 
 ## Boundary
 
@@ -24,11 +24,11 @@ Pass `nodeKinds`, `relationTypes`, `maxGraphSize` and `maxPageSize`. Each relati
 
 - `Relations.relate` and `Relations.unrelate` declare `relations:write` and are transactional. Unrelate is destructive.
 - `Relations.listRelations` and `Relations.subgraph` declare `relations:read` and are read-only.
-- `removeNode(ref)` is an idempotent facade hook, not an operation. Call it inside the node-deletion feature's unit.
+- `removeNode(ref)` is an idempotent facade hook, not an operation. Call it inside the node-deletion feature's unit. It accepts any nonempty kind and id, even after the kind is removed from config.
 
 ## Fixed rules
 
-Writes require `UnitOfWork.required`. The module never opens a unit. Memory registers undo before mutation and uses the shared `memoryUnitOfWork` to serialize units. Postgres joins the open transaction and takes a table-level writer lock before structural checks, holding it through commit or rollback. Use the same module config for every process sharing a database.
+Writes require `UnitOfWork.required`. The module never opens a unit. Memory registers undo before mutation and uses the shared `memoryUnitOfWork` to serialize units. Postgres joins the open transaction. Before insertion checks, it takes a transaction-scoped advisory lock with a fixed Relations namespace and a hash of the type name. Writes of one type are serialized; different types run in parallel. Deletions need no advisory lock because they cannot create a cycle or exceed a cap. The checks rely on READ COMMITTED; the default isolation level is assumed. Use the same module config for every process sharing a database.
 
 Node references are plain kind/id columns with no cross-module foreign keys. Symmetric edges use deterministic endpoint order, including when the allowed endpoint kinds differ. A self-edge counts once toward `maxDegree`; directed acyclic types reject it.
 

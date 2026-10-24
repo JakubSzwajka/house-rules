@@ -24,7 +24,7 @@ export const memoryRelationStore = (): Layer.Layer<RelationStore> =>
       run();
     });
     return RelationStore.of({
-      lock: UnitOfWork.required,
+      lock: () => UnitOfWork.required,
       list: (node, type, direction, size, after) =>
         Effect.sync(() =>
           [...rows.values()]

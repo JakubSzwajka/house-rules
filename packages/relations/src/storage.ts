@@ -12,7 +12,7 @@ type Write<A> = Effect.Effect<A, RelationsStoreUnavailable | NoOpenUnit>;
 export class RelationStore extends Context.Service<
   RelationStore,
   {
-    readonly lock: Write<void>;
+    readonly lock: (type: string) => Write<void>;
     readonly list: (
       node: NodeRef,
       type: string | undefined,

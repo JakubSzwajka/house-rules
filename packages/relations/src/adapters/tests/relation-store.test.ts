@@ -82,7 +82,7 @@ for (const { name, layer: world } of stores)
         Effect.gen(function* () {
           const store = yield* RelationStore;
           for (const write of [
-            store.lock,
+            store.lock("link"),
             store.insert(edge("outside", "x", "y")),
             store.remove("outside"),
             store.removeNode(node("x")),
@@ -107,7 +107,6 @@ for (const { name, layer: world } of stores)
             yield* Effect.flip(
               UnitOfWork.atomic(
                 Effect.gen(function* () {
-                  yield* store.lock;
                   yield* store.removeNode(node("cascade"));
                   yield* store.remove("cascade-keep");
                   yield* store.insert(edge("rolled-back", "cascade", "new"));

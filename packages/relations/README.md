@@ -1,6 +1,6 @@
 # @house-rules/relations
 
-Typed structural edges between opaque nodes, with cardinality and cycle checks. This package is private to the workspace, not published or included in a release.
+Typed structural edges between opaque nodes, with cardinality and cycle checks. The package is publish-ready but is not part of the release workflow. Nothing has been published.
 
 Relations does not check access or node existence. The app must verify both endpoints in its feature before it calls `relate` or `unrelate`. Memberships, roles and other authority-bearing relationships belong in Party.
 
@@ -45,7 +45,7 @@ The browser-safe `@house-rules/relations/contract` door exports `RelationsOperat
 
 Facade methods use the same input objects, except `unrelate(id)` takes the id directly. They take no Actor. Person and system bindings behave the same after the app's permission gates.
 
-`removeNode(ref)` is a facade-only cascade hook. Call it inside the same feature unit that deletes a node. It removes every touching edge, across all types, and succeeds when none exist. It does not delete or verify the node.
+`removeNode(ref)` is a facade-only cascade hook. Call it inside the same feature unit that deletes a node. It removes every touching edge, across all types, and succeeds when none exist. It accepts any nonempty kind and id, including a kind removed from config. It does not delete or verify the node.
 
 ## Graph semantics
 
@@ -53,7 +53,7 @@ Symmetric types store endpoints in deterministic kind-then-id order. Either inpu
 
 Directions `out` and `in` follow stored source and target columns. Use `both` for symmetric edges. Lists order by `(createdAt, id)` and use an exclusive cursor; requested page size is capped at `maxPageSize`.
 
-Directed caps count edges leaving a source or entering a target, per type. Symmetric `maxDegree` counts touching edges, including a self-edge once. Each parallel edge counts. Checks run inside the write unit. Postgres serializes graph writers with a table lock held until the transaction ends; memory uses the shared unit adapter's serialization.
+Directed caps count edges leaving a source or entering a target, per type. Symmetric `maxDegree` counts touching edges, including a self-edge once. Each parallel edge counts. Checks run inside the write unit. Postgres serializes insertions of one relation type with a transaction-scoped advisory lock; different types can run in parallel. Deletions need no advisory lock. The checks rely on the assumed default READ COMMITTED isolation level. Memory uses the shared unit adapter's serialization.
 
 For an acyclic directed type, `relate(source, target)` searches from target for source before insertion. Self-edges fail `RelationCycle`. Postgres uses a recursive CTE with node deduplication and a demand limit; memory walks the same directed graph. If visited nodes exceed `maxGraphSize`, the write fails `GraphTooLarge` rather than assuming the graph is acyclic.
 
