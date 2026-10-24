@@ -56,6 +56,11 @@ export const validateRuntime = (options: BindingOptions): string | undefined => 
   const bound = new Set<AnyCallable>(options.bindings.map((binding) => binding.callable));
   if (bound.size !== options.bindings.length) return "A callable has more than one binding";
   for (const callable of graph.graph.callables) {
+    for (const edge of callable.edges) {
+      const target = targetOf(edge);
+      if ("kind" in target && target.kind === "feature")
+        return `Edge must target an operation: ${callable.name} -> ${target.name}`;
+    }
     if ("kind" in callable && callable.kind === "feature" && !isFeature(callable))
       return `Feature was not created by defineFeature: ${callable.name}`;
     if (!isFeature(callable) && !bound.has(callable))

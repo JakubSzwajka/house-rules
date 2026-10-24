@@ -11,6 +11,12 @@ it.effect("a plan derives the same map as the built app", () =>
       const planned = yield* validatePlan(plan);
       for (const format of ["json", "text", "mermaid"] as const)
         expect(renderMap(planned, format)).toBe(renderMap(actual, format));
+      for (const snapshot of [actual, planned]) {
+        const callables = [...snapshot.features, ...snapshot.modules.flatMap((m) => m.operations)];
+        expect(
+          callables.flatMap((each) => each.edges).every((edge) => edge.kind === "operation"),
+        ).toBe(true);
+      }
       const saveFeature = planned.features.find((feature) => feature.name === "save_item");
       expect(saveFeature?.flags).toEqual({
         readOnly: false,

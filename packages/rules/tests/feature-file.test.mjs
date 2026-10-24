@@ -87,7 +87,6 @@ it("enforces the import allow-list on values and types", () => {
       "@house-rules/application/contract",
       "@acme/books/contract",
       "@acme/book.parts/contract",
-      "../other/index.ts",
       "../../read-models/books/contract.ts",
     ])
       for (const modifier of ["", "type "])
@@ -99,6 +98,7 @@ it("enforces the import allow-list on values and types", () => {
           source,
         );
     for (const source of [
+      "../other/index.ts",
       "@acme/books",
       "@house-rules/domain",
       "@house-rules/application",
@@ -117,6 +117,7 @@ it("enforces the import allow-list on values and types", () => {
     for (const source of [
       "@acme/books",
       "@acme/books/internal/contract",
+      "../other/index.ts",
       "../../composition/index.ts",
     ])
       assert.ok(
@@ -124,9 +125,13 @@ it("enforces the import allow-list on values and types", () => {
           .length,
         source,
       );
-    assert.ok(
-      run(`${prelude} export const show = ${value}; export type {X} from "@acme/books";`).length,
-    );
+    for (const source of ["@acme/books", "../other/index.ts"])
+      assert.ok(
+        run(`${prelude} export const show = ${value}; export type {X} from "${source}";`).some(
+          (message) => message.messageId === "import",
+        ),
+        source,
+      );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -1,5 +1,4 @@
 import { type AnyCallable, targetOf } from "@house-rules/domain/contract";
-import { isFeature } from "../feature/feature.ts";
 import type { RegistrySnapshot } from "./registry.ts";
 import { mergePlugs } from "./plugs.ts";
 import { mermaid } from "./app-map-mermaid.ts";
@@ -24,7 +23,7 @@ const edges = (callable: AnyCallable): MapEdge[] =>
     .map(
       (edge): MapEdge => ({
         target: targetOf(edge).name,
-        kind: isFeature(targetOf(edge)) ? "feature" : "operation",
+        kind: "operation",
         ...("target" in edge ? { reason: edge.reason } : {}),
       }),
     )

@@ -74,20 +74,35 @@ it.effect("builder and runtime checks surface as one issue", () =>
       ways,
     });
     expect(
-      yield* issuesOf(
-        only([
-          { name: "a", permission: null, edges: ["b"] },
-          { name: "b", permission: null, edges: ["a"] },
-        ]),
-      ),
-    ).toEqual([{ path: "features[0]", reason: "Cycle at a" }]);
+      yield* issuesOf({
+        modules: [
+          {
+            name: "store",
+            service: "test/Store",
+            kind: "package",
+            operations: [
+              { name: "a", permission: null, edges: ["b"] },
+              { name: "b", permission: null, edges: ["a"] },
+            ],
+          },
+        ],
+        features: [],
+        ways: [],
+      }),
+    ).toEqual([{ path: "modules[0].operations[0]", reason: "Cycle at a" }]);
     expect(
-      yield* issuesOf(
-        only([
-          { name: "read", permission: null, readOnly: true, edges: ["write"] },
-          { name: "write", permission: null },
-        ]),
-      ),
+      yield* issuesOf({
+        modules: [
+          {
+            name: "store",
+            service: "test/Store",
+            kind: "package",
+            operations: [{ name: "write", permission: null }],
+          },
+        ],
+        features: [{ name: "read", permission: null, readOnly: true, edges: ["write"] }],
+        ways: [],
+      }),
     ).toEqual([{ path: "plan", reason: "Read-only read calls write write" }]);
     expect(
       yield* issuesOf(
@@ -145,6 +160,7 @@ it.effect("a duplicate entry still reports its own start, edge and reason issues
       { path: "features[1].name", reason: "Duplicate callable name same (also features[0])" },
       { path: "features[1].start", reason: "Blank system feature reason or startedBy at same" },
       { path: "features[1].edges[0]", reason: "Unresolved edge target missing at same" },
+      { path: "features[1].edges[1]", reason: "Edge must target an operation: same -> same" },
       { path: "features[1].edges[1].reason", reason: "Blank system reason at same" },
     ]);
   }),

@@ -54,6 +54,11 @@ export const planIssues = (
       });
     for (const [e, edge] of (entry.value.edges ?? []).entries()) {
       const target = entries.get(targetName(edge));
+      if (target?.kind === "feature")
+        issues.push({
+          path: `${entry.path}.edges[${e}]`,
+          reason: `Edge must target an operation: ${entry.value.name} -> ${target.value.name}`,
+        });
       if (
         entry.kind === "operation" &&
         (entry.module.role ?? "capability") === "capability" &&

@@ -1,10 +1,12 @@
 import { expect, expectTypeOf, it } from "@effect/vitest";
+import { memoryUnitOfWork } from "@house-rules/domain";
 import { asSystem, defineOperation, NoInput } from "@house-rules/domain/contract";
 import { Context, Effect, Layer, Schema } from "effect";
 import { defineFeature, endpoint, systemStart } from "../contract.ts";
 import {
   bindOperation,
   call,
+  composition,
   type Composition,
   CurrentActor,
   CallPermissions,
@@ -101,6 +103,18 @@ const negative = () => {
     // @ts-expect-error A feature cannot return an undeclared success type.
     handler: () => Effect.succeed(1),
   });
+  defineFeature("feature_target", {
+    ...base,
+    // @ts-expect-error Feature edges target operations, never features.
+    edges: [read],
+    handler: () => Effect.void,
+  });
+  defineFeature("system_feature_target", {
+    ...base,
+    // @ts-expect-error System edges cannot target features either.
+    edges: [asSystem(read, "background")],
+    handler: () => Effect.void,
+  });
   // @ts-expect-error A system start needs a reason.
   systemStart("");
   return [invalidRun, forgedRun];
@@ -133,51 +147,63 @@ it("accepts features at every exposure door and preserves literal lifted flags",
   expect(typeof negative).toBe("function");
 });
 
-it.effect("runs feature-to-feature edges and bound operations without feature bindings", () =>
+it.effect("rejects plain and system feature targets at Runtime and composition acquisition", () =>
   Effect.gen(function* () {
-    const seen: string[] = [];
-    const leaf = defineOperation("leaf", { ...base, readOnly: true });
-    const child = defineFeature("child_feature", {
-      ...base,
-      edges: [leaf],
-      flags: { readOnly: true },
-      handler: (input, { call, caller }) => {
-        seen.push(caller.kind);
-        return call(leaf, input);
-      },
-    });
-    const root = defineFeature("root_feature", {
-      ...base,
-      edges: [asSystem(child, "background")],
-      flags: { readOnly: true },
-      handler: (input, { call }) => call(child, input),
-    });
-    const layer = Layer.merge(
-      Layer.effect(
-        Runtime,
-        Runtime.make({
-          features: [root],
-          bindings: [bindOperation(leaf, () => Effect.void)],
-          ways: [],
-        }),
-      ),
-      StepTrace.layer(),
-    );
-    yield* runFeature(root, {}).pipe(
-      Effect.provide(layer),
-      Effect.provideContext(
-        May.context(May.fixed([]), { features: [root], system: [], via: "test" }),
-      ),
-      Effect.provideService(CurrentActor, testActor),
-    );
-    expect(seen).toEqual(["system"]);
-    yield* runFeature(system, {}).pipe(
-      Effect.provide(
-        Layer.merge(Runtime.layer({ features: [system], mounts: [], ways: [] }), StepTrace.layer()),
-      ),
-      Effect.provideContext(May.system([system], { system: [], via: "hook" })),
-    );
+    for (const edge of [read, asSystem(read, "background")]) {
+      const root = defineFeature("root_feature", {
+        ...base,
+        // @ts-expect-error Exercise runtime refusal for JavaScript or erased edge types.
+        edges: [edge],
+        handler: () => Effect.void,
+      });
+      const error = yield* Effect.flip(
+        Runtime.make({ features: [root, read], bindings: [], ways: [] }),
+      );
+      expect(error).toBeInstanceOf(GraphInvalid);
+      expect(error.reason).toBe("Edge must target an operation: root_feature -> read_feature");
+      const app = composition({
+        modules: { mounts: [], layer: Layer.merge(StepTrace.layer(), memoryUnitOfWork) },
+        features: [root, read],
+        ways: [],
+        may: Effect.succeed(May.fixed([])),
+        system: [],
+      });
+      yield* Effect.acquireUseRelease(
+        Effect.succeed(app),
+        (app) =>
+          Effect.gen(function* () {
+            const error = yield* Effect.flip(app.runtime.contextEffect);
+            expect(error).toBeInstanceOf(GraphInvalid);
+            expect(error.reason).toBe(
+              "Edge must target an operation: root_feature -> read_feature",
+            );
+          }),
+        (app) => Effect.promise(() => app.dispose()),
+      );
+    }
   }),
+);
+
+it.effect("rejects an operation edge that hides a feature target", () =>
+  Effect.gen(function* () {
+    const root = defineOperation("root_operation", { ...base, edges: [read] });
+    const error = yield* Runtime.make({
+      features: [read],
+      bindings: [bindOperation(root, () => Effect.void)],
+      ways: [],
+    }).pipe(Effect.flip);
+    expect(error).toBeInstanceOf(GraphInvalid);
+    expect(error.reason).toBe("Edge must target an operation: root_operation -> read_feature");
+  }),
+);
+
+it.effect("runs a system-start feature without feature bindings", () =>
+  runFeature(system, {}).pipe(
+    Effect.provide(
+      Layer.merge(Runtime.layer({ features: [system], mounts: [], ways: [] }), StepTrace.layer()),
+    ),
+    Effect.provideContext(May.system([system], { system: [], via: "hook" })),
+  ),
 );
 
 it.effect("keeps a feature's own read-only promise when validating lifted flags", () =>

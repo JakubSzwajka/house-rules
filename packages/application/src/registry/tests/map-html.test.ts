@@ -105,8 +105,9 @@ it.effect("feature relations include its ways, reached operations and their modu
     const ids = (name: string) =>
       new RegExp(`id="(\\w+)" data-node data-name="${name}"`).exec(html)?.[1];
     const related = rel("save_item");
-    for (const name of ["web", "Store.save", "Store.audit", "list_items", "Views.list"])
+    for (const name of ["web", "Store.save", "Store.audit", "Views.list"])
       expect(related).toContain(ids(name));
+    expect(related).not.toContain(ids("list_items"));
     expect(related).not.toContain(ids("Store.remove"));
     expect(related).not.toContain(ids("mcp"));
     expect(related.filter((id) => id.startsWith("m"))).toHaveLength(2);

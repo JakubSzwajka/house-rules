@@ -16,7 +16,6 @@ const featureImport = (filename, source, root) => {
   return (
     source === "effect" ||
     /^(?:@[\w.-]+\/)?[\w-][\w.-]*\/contract$/u.test(source) ||
-    (featureTarget(filename, source, root) && path.dirname(target) !== path.dirname(filename)) ||
     (target &&
       path.dirname(path.dirname(path.dirname(target))) === path.dirname(root) &&
       /\/read-models\/[^/]+\/contract\.ts$/u.test(target))
@@ -31,7 +30,7 @@ export const featureFileRule = {
     docs: {
       url: ruleDocsUrl("feature-file"),
       description:
-        "Require exactly one defineFeature call per feature index, directly exported, only index.ts and tests/ in each feature folder, and a registry limited to Features and feature/type re-exports.",
+        "Require one directly exported defineFeature per feature index, no imports of other feature indexes, index.ts and tests/ only, and a registry limited to Features and feature/type re-exports.",
     },
     schema: [
       {
@@ -45,7 +44,7 @@ export const featureFileRule = {
         "A feature index contains exactly one defineFeature call, exported as a direct const value imported by name from @house-rules/application/contract; type exports are allowed.",
       folder: "A feature folder contains only index.ts and tests/.",
       import:
-        "A feature imports only effect, kit contract doors, package ./contract doors, read-model contract doors and other feature indexes.",
+        "A feature imports only effect, kit contract doors, package ./contract doors and same-app read-model contract doors, never another feature index.",
       registry:
         "The feature registry only builds a Features object from named feature imports and permits feature re-exports and type exports; permission lists belong in composition/access.ts.",
     },

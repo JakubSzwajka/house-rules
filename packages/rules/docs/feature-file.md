@@ -20,7 +20,7 @@ export const ping = defineFeature("ping", {
 });
 ```
 
-Value and type imports are limited to `effect`, kit contract doors, package `./contract` doors, the same app's `read-models/<name>/contract.ts` doors and other features' `index.ts` files. Package mains, composition and local handler files are not allowed. Literal dynamic imports follow the same allow-list; computed imports fail closed.
+Value and type imports are limited to `effect`, kit contract doors, package `./contract` doors, the same app's `read-models/<name>/contract.ts` doors. Other feature indexes, package mains, composition and local handler files are not allowed. Features call operations, never other features. Literal dynamic imports follow the same allow-list; computed imports fail closed.
 
 ## Feature registry
 

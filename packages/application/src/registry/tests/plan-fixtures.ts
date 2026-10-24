@@ -63,7 +63,7 @@ const listItems = defineFeature("list_items", {
 const saveItem = defineFeature("save_item", {
   ...base,
   permission: "app:use",
-  edges: [save, listItems],
+  edges: [save, list],
   handler: stub,
 });
 const removeItem = defineFeature("remove_item", {
@@ -228,7 +228,7 @@ export const plan: Plan = {
   ],
   features: [
     { name: "list_items", permission: null, readOnly: true, edges: ["Views.list"] },
-    { name: "save_item", permission: "app:use", edges: ["Store.save", "list_items"] },
+    { name: "save_item", permission: "app:use", edges: ["Store.save", "Views.list"] },
     { name: "remove_item", permission: null, edges: ["Store.remove"] },
     {
       name: "sign_up",

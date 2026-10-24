@@ -3,12 +3,12 @@ import {
   type Callable,
   type CallableFailureSchema,
   type Closures,
-  type Edge,
   type InputSchema,
   type KindedError,
   type Permission,
   type PlainSchema,
   type SystemCaller,
+  type SystemEdge,
   type Targets,
   buildGraph,
   permissionClosures,
@@ -65,12 +65,15 @@ export const systemStart = <const Reason extends string>(
   startedBy: string = reason,
 ): SystemCaller => Object.freeze({ kind: "system", reason, startedBy });
 
+type OperationTarget = AnyCallable & { readonly kind?: "operation" };
+type OperationEdge = OperationTarget | SystemEdge<OperationTarget>;
+
 export const defineFeature = <
   const Name extends string,
   I extends InputSchema,
   O extends PlainSchema,
   F extends CallableFailureSchema,
-  const Edges extends readonly Edge[] = readonly [],
+  const Edges extends readonly OperationEdge[] = readonly [],
   const RO extends boolean = false,
   const D extends boolean = false,
   const T extends boolean = false,

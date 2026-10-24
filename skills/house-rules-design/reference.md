@@ -25,7 +25,7 @@ Use the root [AGENTS.md](../../AGENTS.md), especially "Inside a module", "Module
 | Does it own data, invariants, object access or a separate lifecycle? | A package module. Keep dependent children together when writes, SQL guards and deletion cascades share a boundary. Split by consistency, access and lifecycle, not nouns. |
 | Is it one thing a module can do? | An operation owned by that module, with a browser-safe descriptor and a service-capturing binder. Storage answers facts; domain code owns policy. |
 | Is it a screen query over published views? | An app read model with read operations. No migrations. Exactly one static SELECT or WITH...SELECT over known views, filtered by person in SQL and tested for A/B privacy. SQL functions are banned, so AVG, COUNT and other aggregates cannot live there. Compute them in a module operation, or in a view the owning module publishes. If the grammar does not fit, keep reads in module operations or compose them in a feature. |
-| Is it one thing the person or system can do in the app? | A feature with declared edges. Its handler orders calls, never imports services or opens a unit. Only features enter ways. |
+| Is it one thing the person or system can do in the app? | An exposed feature with operation edges, never calls to other features. Reuse goes through capability or process operations. Its handler never imports services or opens a unit. Only features enter ways. |
 | Does it fill a caller-owned socket or port? | A plug. Name who owns the port and test removal of the plug and its Layer.provide line. It must leave the rest building and passing. A package may own data as a module and separately supply a plug, such as Party's May. |
 
 Ownership notes must name tables, published views, foreign ids, lifecycle and access checks. Plan has no fields for these. Do not use read models to bypass module data ownership, or plugs to hide domain work.
@@ -75,13 +75,13 @@ Full schema: [application README, Validate a plan](../../packages/application/RE
 | `modules[]` | `name`, unique `service`, `kind` package or read-model, optional `role` capability or process (default capability), `package` and `path`, nested `operations` |
 | Operation | Unique callable `name`, explicit `permission` string or null; optional own `readOnly`, `transactional`, `destructive`, `needsApproval`, `edges` |
 | `features[]` | Callable fields plus optional `path`, `start`: person by default or `{ reason, startedBy }` |
-| Edge | Callable name, or `{ target, reason }` for a system edge. No authored closures. |
+| Edge | Operation name, or `{ target, reason }` targeting an operation for a system edge. Features never target features. No authored closures. |
 | `ways[]` | `name`, `protocol`, `features`, optional `source`, `mean`: allow, no or elicitation. Network `path`, hook `slot`, schedule `clock: { cron, timeZone: "UTC" }`, event `on: [kinds]`. Event ways require exactly one system-start feature and explicit mean, normally no. HTTP-only `public`. |
 | `plugs[]` | Optional `{ name, package?, fills, ways? }`. Who, Mean and hook fills name ways; May, Record and EventSource are app-level. |
 
 Set `role: "process"` on a module that composes modules through operation edges, whether stateless or durable. Capabilities own their state, computation or outside effect and their rules. Capability operations never call process operations; validation names the offending edge path. Processes may call capabilities or other processes without cycles. Built mounts declare the same role in `map: { name, kind, role, package? }`. Text, HTML and Mermaid show process modules separately, and built-vs-plan diffs compare role.
 
-For example, an event way is `{ "name": "notifications", "protocol": "event", "on": ["task_moved"], "features": ["notify_task_moved"], "mean": "no" }`. Its name equals the EventLog consumer name, and on kinds must match that consumer's kinds exactly at acquisition. The handler uses EventInput from application/contract, `{ event: fullStoredEnvelope, causedBy: actorIdOrNull }`. The kit's EventSource port is filled by EventLog.source beside its mount layer; declare that plug with fills EventSource and no ways. Source coverage and retry behavior need executable tests, not only plan validation.
+For example, an event way is `{ "name": "notifications", "protocol": "event", "on": ["task_moved"], "features": ["notify_task_moved"], "mean": "no" }`. Its name equals the EventLog consumer name, and on kinds must match that consumer's kinds exactly at acquisition. The handler uses EventInput from application/contract, `{ event: fullStoredEnvelope, causedBy: actorIdOrNull }`. The kit's EventSource port is filled by EventLog.source beside its mount layer; declare that plug with fills EventSource and no ways. Source coverage and retry behavior need executable tests, not only plan validation. Retries run on the next source wake or periodic sweep at or after the retry deadline.
 
 Flags default false and start defaults to person. Plan rejects unknown keys at every depth and names their path, so a stray `flags`, `closures`, `layers` or `permissions` key fails validation.
 
@@ -113,6 +113,7 @@ Flags. Write each flag as the code will declare it. Operations: readOnly for rea
 | Blank system reason or startedBy | Write the actual reason and initiating hook, schedule or public entry. Do not use a fake reason to bypass person access. |
 | Invalid public exposure | Keep public names in that HTTP way's features and give each a system start. MCP has no public list. |
 | System way with person features or wrong count | Hook and event take one system feature. Schedule takes selector and item system features; the real selector returns an array of item inputs. Event ways name on kinds and have no network/public fields. |
+| Edge targets a feature | Call the owning module's operation instead. Put shared sequences in a process operation. validatePlan names the exact edge path; Runtime/composition rejects the edge with GraphInvalid. |
 | Capability calls process | Move the composition to a process module or feature. Keep the capability's own rules in the capability; do not relabel it just to pass. |
 | Cycle | Remove the circular responsibility. Move shared work down to its owner rather than disguising the edge. |
 | Conflicting or unknown plug fill | Correct its socket or hook slot and way names. Who needs network ways; May and Record take no ways. Mean and hook twins must match the derived plug exactly. One plug per socket per way or app. |
