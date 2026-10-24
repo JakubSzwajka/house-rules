@@ -35,7 +35,10 @@ export const mermaid = (data: AppMapSnapshot): string => {
     lines.push("  end");
   }
   for (const way of data.ways)
-    for (const feature of way.features) lines.push(`  ${id(`way:${way.name}`)} --> ${id(feature)}`);
+    for (const feature of way.features)
+      lines.push(
+        `  ${id(`way:${way.name}`)} -->${way.on === undefined ? "" : `|"${escape(way.on.join(", "))}"|`} ${id(feature)}`,
+      );
   for (const callable of [...data.features, ...data.modules.flatMap((module) => module.operations)])
     for (const edge of callable.edges)
       lines.push(

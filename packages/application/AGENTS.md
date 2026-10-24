@@ -51,6 +51,18 @@ WhoSocket resolves an Actor. `MaySocket<E = never>.permissionsOf(caller: PersonC
 
 Use explicit Mean.allow only for approved trusted provisioning and scheduled maintenance. Other system ways use Mean.no unless approved. Tests and map scripts inject a frozen Clock into the module plan; ManagedRuntime does not inherit the test caller's Clock.
 
+## Event ways and source port
+
+`defineWay({ protocol: "event", name, on: [kinds], feature, mean })` exposes one system-start feature, with explicit reason and startedBy. Mean is mandatory, normally Mean.no. The way name is the consumer name. Its `on` kinds must match the source consumer's kinds exactly; missing or extra kinds, duplicate consumers, missing EventSource and person starts fail acquisition with GraphInvalid. No path, Who, public or MCP fields belong here. Put these ways in ways-in/events/.
+
+Use `EventInput` from application/contract: `{ event: EventEnvelope, causedBy: string | null }`. The envelope is `{ id, kind, subject: { kind, id }, payload, scopeId, actorId, occurredAt, requestId }`; scopeId, actorId and requestId are nullable. Payload is source-decoded, time is epoch milliseconds. causedBy is the stored actorId, never an Actor or authority. Event trace steps retain causedBy. Permissions come only from composition's system list; the driver never queries the author's roles.
+
+Application owns EventSource, a Context service supplying consumer coverage, claimDue(consumer), takeNext(token), settleSuccess(token), settleFailure(token, safeSummary) and a wake stream. Tokens are opaque. Methods join the driver's unit; the source owns retry/backoff/dead-letter policy. EventLog.source fills this port without a kit dependency on event-log. Remove the event ways and plug and the app needs neither source nor event-log. Source presence is an acquisition check, not a static composition requirement, so existing widened AnyWay inputs need no source when they open no event ways.
+
+After hooks, composition starts one scoped driver per event way. It commits a due claim in its own unit, then opens one unit per token: take, runFeature with { event, causedBy }, settle success. Transactional features join that unit. Failure rolls it back, logs and settles a fixed safe failure summary in a separate unit. The committed attempt survives. Wakes merge the source stream with a sweep, default 30000ms, configured by positive integer composition.eventSweepMs. Startup drains only source-reported due work. The source does not report its next retry deadline; retries run on the next wake or sweep at or after that deadline. Listener failures restart after a sweep interval. Disposal interrupts drivers before resources close. Delivery is at least once; handlers must be idempotent.
+
+Event executions use the same fresh allowlist context as hooks, with May.system, fresh request ids and log annotations, channel event:<name> and a new root span. No caller services, person authority or network context is inherited. Plans use protocol event, on, exactly one features entry and mandatory mean; system starts are checked and network fields rejected. Every map format shows on kinds and their handler; diffs compare on. Real acquisition, not plan validation, checks source coverage. Declared EventLog.source map plugs fill app-level EventSource with no ways list.
+
 ## HTTP, clients and errors
 
 Kind statuses are fixed: not_found 404, conflict 409, forbidden 403, unavailable 503, invalid 400. WordingOverrides changes message only. Public messages never expose internal causes, permissions, reasons or driver text. Keep fixed plumbing messages, generic defect 500 and failure-code headers only for opted-in 4xx kinds.

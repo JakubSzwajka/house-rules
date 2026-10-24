@@ -1,6 +1,7 @@
 import type { Context, Effect } from "effect";
 import type { SystemCaller } from "@house-rules/domain";
 import type { Endpoint } from "../contract/endpoint.ts";
+import type { EventInput } from "../contract/event.ts";
 import type { AnyFeature } from "../feature/feature.ts";
 import type { FeatureFailure } from "../execution/run-feature.ts";
 import type { ProtectedResource } from "../auth/protected-resource.ts";
@@ -69,6 +70,17 @@ export type ScheduleWay<S extends SystemFeature, F extends SystemFeature> = Read
   input: S["input"]["Type"];
   clock: Readonly<{ cron: string; timeZone: string }>;
 }>;
+export type EventWay<F extends SystemFeature = SystemFeature> = Readonly<{
+  protocol: "event";
+  name: string;
+  on: readonly string[];
+  feature: F & (EventInput extends F["input"]["Type"] ? unknown : never);
+  features: readonly [F];
+  mean: MeanSocket;
+}>;
+export function defineWay<const F extends SystemFeature>(
+  options: Omit<EventWay<F>, "features">,
+): EventWay<F>;
 export function defineWay<I, Event, const F extends SystemFeature, E>(
   options: HookWay<I, Event, F, E>,
 ): HookWay<I, Event, F, E>;
@@ -82,5 +94,13 @@ export function defineWay<const Features extends readonly AnyFeature[], R = neve
   options: WayOptions<R, Features>,
 ): WayOptions<R, Features>;
 export function defineWay(options: unknown): unknown {
+  if (
+    typeof options === "object" &&
+    options !== null &&
+    "protocol" in options &&
+    options.protocol === "event" &&
+    "feature" in options
+  )
+    return { ...options, features: [options.feature] };
   return options;
 }

@@ -96,7 +96,9 @@ export const mapRegistry = (data: RegistrySnapshot): AppMapSnapshot => {
           ? { slot: way.slot }
           : way.protocol === "schedule"
             ? { clock: { cron: way.clock.cron, timeZone: way.clock.timeZone } }
-            : { path: way.path }),
+            : way.protocol === "event"
+              ? { on: strings(way.on) }
+              : { path: way.path }),
         features: strings(way.features.map((feature) => feature.name)),
         public: strings((way.public ?? []).map((feature) => feature.name)),
       })),
@@ -178,6 +180,7 @@ const text = (data: AppMapSnapshot): string => {
         `${way.name}  ${way.protocol} ${address ?? ""}  [${way.features.length} features]${way.source === undefined ? "" : `  ${way.source}`}`,
       ),
     );
+    if (way.on !== undefined) lines.push(...wrap("  on: ", way.on.join(", ")));
     if (way.mean !== undefined) lines.push(...wrap("  Mean: ", way.mean));
     if (way.public.length > 0) lines.push(...wrap("  public: ", way.public.join(", ")));
     for (const [featureIndex, name] of way.features.entries()) {

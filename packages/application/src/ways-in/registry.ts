@@ -46,7 +46,9 @@ const registry = <A, E>(
                 ? { protocol: way.protocol, slot: way.slot.key }
                 : way.protocol === "schedule"
                   ? { protocol: way.protocol, clock: way.clock }
-                  : { protocol: way.protocol, path: way.path }),
+                  : way.protocol === "event"
+                    ? { protocol: way.protocol, on: way.on }
+                    : { protocol: way.protocol, path: way.path }),
               features: way.features,
               ...(way.protocol === "http" ? { public: way.public } : {}),
             }),

@@ -54,11 +54,12 @@ export const AppMapJson = Schema.Struct({
   ways: Schema.Array(
     Schema.Struct({
       name: Name,
-      protocol: Schema.Literals(["http", "mcp", "hook", "schedule"]),
+      protocol: Schema.Literals(["http", "mcp", "hook", "schedule", "event"]),
       path: Schema.optionalKey(Schema.String),
       source: Schema.optionalKey(Schema.String),
       mean: Schema.optionalKey(Schema.String),
       slot: Schema.optionalKey(Schema.String),
+      on: Schema.optionalKey(Schema.Array(Schema.String)),
       clock: Schema.optionalKey(Schema.Struct({ cron: Schema.String, timeZone: Schema.String })),
       features: Names,
       public: Names,

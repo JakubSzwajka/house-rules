@@ -1,6 +1,6 @@
 # @house-rules/application
 
-Application runs features and their declared edges. A feature can be exposed directly. Ways, hooks and schedules start features, never module operations. [Domain](../domain/README.md) owns operation descriptors, callers, kinds and pure graph checks.
+Application runs features and their declared edges. A feature can be exposed directly. Network, hook, schedule and event ways start features, never module operations. [Domain](../domain/README.md) owns operation descriptors, callers, kinds and pure graph checks.
 
 ```text
 HTTP / MCP / call
@@ -138,6 +138,32 @@ A schedule's selector output must be an array of item inputs. Composition parses
 
 Mean is explicit. Trusted provisioning and nightly maintenance use Mean.allow; other system ways use Mean.no unless approved. For TestClock tests, supply the test Clock through the module plan's infrastructure. ManagedRuntime does not inherit ambient test services. Registry scripts use a frozen TestClock layer so acquisition cannot run scheduled work. Registry output includes hook slot keys and schedule clocks.
 
+## Event ways
+
+```ts
+const events = defineWay({
+  protocol: "event", name: "notifications", on: ["task_moved"],
+  feature: Features.notifyTaskMoved, mean: Mean.no,
+});
+```
+
+The handler feature declares `start: systemStart(reason, "event:notifications")` and uses `EventInput` from application/contract as its input schema. `EventInput` is `{ event: EventEnvelope, causedBy: string | null }`. The full envelope contains `id`, `kind`, `subject: { kind, id }`, decoded `payload`, nullable `scopeId`, nullable `actorId`, epoch-millisecond `occurredAt` and nullable `requestId`. Narrow payloads in the app's event schema when needed. `causedBy` copies `actorId`. It is an identifier, not an Actor, and grants no authority. Event trace steps retain it as data.
+
+Application owns the `EventSource` Context service, not event-log. Its port supplies consumer coverage, opaque delivery tokens from `claimDue(consumer)`, `takeNext(token)`, `settleSuccess(token)`, `settleFailure(token, safeSummary)` and a `wake` stream. Every method joins the driver's current unit. Sources own retry, backoff and dead-letter policy. EventLog.source is one plug; see [event-log mounting](../event-log/README.md#mount). An app without event ways needs neither EventSource nor event-log.
+
+A way name is its consumer name. Acquisition fails with GraphInvalid for duplicate way/consumer names, a missing source, non-system features, or any difference between `on` and the consumer's kinds. Mean is mandatory. No network fields are allowed. The source must report only due deliveries. Composition starts one scoped driver per event way after hooks. It merges source wakes with a periodic sweep, default 30000ms, configurable through `composition({ ..., eventSweepMs })` with a positive integer. It drains due tokens at startup and after wakes, without inventing missed work. Listener failures log and restart after the sweep interval. The source port does not report the next retry time. A retry runs on the first wake or sweep at or after its deadline, not necessarily at that deadline.
+
+```text
+claim due in its own unit -> COMMIT attempt + retry deadline
+  per token, one new unit:
+    take -> runFeature(system feature, { event, causedBy }) -> settle success
+  failure -> ROLLBACK -> settle failure in a separate unit
+```
+
+A transactional feature joins that delivery unit. A failed feature cannot erase the committed attempt. Failures log and delivery continues; the source decides when to retry or dead-letter. Each execution uses May.system, a fresh request id, the `event:<way>` channel and a new root span. It inherits no person, request services or network context. Disposal stops drivers before resources close. Handlers must be idempotent because delivery is at least once.
+
+Maps show the event kinds beside the handler feature in text, HTML, Mermaid and JSON; diffs compare `on`. Plans use `{ name, protocol: "event", on: ["task_moved"], features: ["notify_task_moved"], mean: "no" }`. They require exactly one system-start feature, distinct nonblank kinds and an explicit Mean, and reject public/MCP fields. Source coverage is checked only by real acquisition, not by the plan.
+
 ## Endpoints, clients and failures
 
 `endpoint(feature, at?, options?)` defaults to `POST /<feature.name>` and status 200. `defineApi` keeps keyed endpoints for clients. `toHttpClient`, `toPromiseClient` and `toOpenApi` share those descriptors. Clients keep codecs, exact origin guards, manual redirects and request-id reporting. Unknown or undeclared failure headers stay `Unknown`.
@@ -160,7 +186,7 @@ Text lists capability packages under MODULES and process modules under PROCESS M
 
 ### Plugs
 
-`snapshot.plugs` lists `{ name, package?, fills, ways? }`, sorted by name, and text renders it as PLUGS. `fills` is `Who`, `May`, `Mean`, `Record`, `Authenticator`, `ActorResolver`, `Approval`, `CallWatch` or the slot key of a hook way. appMap derives two kinds: `Mean.allow`, `Mean.no` and `Mean.elicitation` by identity with their ways, and `hook:<way>` for each hook way's slot. A Who value, the May Effect and a record layer carry no name, so the app declares them on its ModulePlan:
+`snapshot.plugs` lists `{ name, package?, fills, ways? }`, sorted by name, and text renders it as PLUGS. `fills` is `Who`, `May`, `Mean`, `Record`, `Authenticator`, `ActorResolver`, `Approval`, `CallWatch`, `EventSource` or the slot key of a hook way. appMap derives two kinds: `Mean.allow`, `Mean.no` and `Mean.elicitation` by identity with their ways, and `hook:<way>` for each hook way's slot. A Who value, the May Effect and a record layer carry no name, so the app declares them on its ModulePlan:
 
 ```ts
 plugs: [
@@ -170,7 +196,7 @@ plugs: [
 ],
 ```
 
-Declared plugs are review facts. No runtime code reads them and the runtime does not prove them; review and the pull-out test catch a wrong name. appMap fails with GraphInvalid when a declared plug has a blank or duplicate name, fills an unknown socket or slot, names an unknown or repeated way, puts Who on a hook or schedule way, omits ways for Who, Mean or a hook slot, names ways for May or Record, differs from a derived plug of the same name, uses the reserved `hook:` prefix without matching a hook way, or fills a socket or slot twice on one way or app. appMap reports only the first plug issue it finds; `validatePlan` reports every plug issue together. A declared plug identical to a derived one merges into it.
+Declared plugs are review facts. No runtime code reads them and the runtime does not prove them; review and the pull-out test catch a wrong name. appMap fails with GraphInvalid when a declared plug has a blank or duplicate name, fills an unknown socket or slot, names an unknown or repeated way, puts Who on a hook or schedule way, omits ways for Who, Mean or a hook slot, names ways for May, Record or EventSource, differs from a derived plug of the same name, uses the reserved `hook:` prefix without matching a hook way, or fills a socket or slot twice on one way or app. appMap reports only the first plug issue it finds; `validatePlan` reports every plug issue together. A declared plug identical to a derived one merges into it.
 
 Socket fills and hook slot fills are separate, so a hook whose Context key is `Mean` never collides with the Mean socket. In a valid map only a `hook:<way>` plug fills a slot; every other plug fills the socket named by `fills`. A declared plug that is not a derived twin fills the socket when `fills` names one.
 
@@ -180,7 +206,7 @@ Run package-local `pnpm exec tsc --project tsconfig.json --noEmit` and `pnpm exe
 
 ## See a map or a change as a page
 
-`renderMap(snapshot, "html")` returns one self-contained HTML document: inline CSS and script, no network, and the same bytes for the same snapshot. It shows ways in, features and operations grouped by module and read model, left to right. Hook and schedule ways sit under System. Operations and features show all four flags as badges when true. Each feature also shows its ways, its edges with system reasons, and its person and system closures. The permission catalogue and PLUGS follow as tables. Pointing at, focusing or selecting a way, feature or operation highlights what it reaches and draws its edges; Esc clears. Every name is real, focusable text, so the page reads without script and on a phone.
+`renderMap(snapshot, "html")` returns one self-contained HTML document: inline CSS and script, no network, and the same bytes for the same snapshot. It shows ways in, features and operations grouped by module and read model, left to right. Hook, schedule and event ways sit under System. Operations and features show all four flags as badges when true. Each feature also shows its ways, its edges with system reasons, and its person and system closures. The permission catalogue and PLUGS follow as tables. Pointing at, focusing or selecting a way, feature or operation highlights what it reaches and draws its edges; Esc clears. Every name is real, focusable text, so the page reads without script and on a phone.
 
 `diffMaps(before, after): MapDiff` is pure and ignores input order. For modules, operations, features, ways, plugs and permissions it lists `added` and `removed` names and `changed: { name, fields: { field, before, after, added?, removed? }[] }[]`. List fields also name the items that left and joined. Operation changes include all four flags, even when feature flags stay the same. Modules match by service, and a changed role is reported as `role: capability → process` or the reverse. `empty` is true when nothing differs, and `before`/`after` keep the sorted snapshots. `renderMapDiff(diff, "text" | "html")` starts with a summary in plain words, such as `new features: …` and `changed exposure: make_booking (now on mcp)`. The HTML page then draws the after map with removed items kept in place: green is added, red is removed and amber is changed, each with a text label.
 
@@ -208,7 +234,7 @@ console.log(renderMap(snapshot, "text"));
 
 `Plan` rejects unknown keys at every depth and reports their paths. A copied snapshot's `flags`, `closures`, `layers` or `permissions` cannot silently disappear. Write each flag directly on a plan operation or feature, not inside `flags`; closures are derived. Snapshot JSON is accepted only as a `diff` side.
 
-The plan holds modules `{ name, service, kind, role?, package?, path?, operations }`, where `role` is `"capability" | "process"` and defaults to capability, operations and features with permission, the four optional flags and edges, and ways `{ name, protocol, path | slot | clock, mean?, source?, features, public? }`, plus optional `plugs` with the snapshot's plug shape. A feature adds `start?: "person" | { reason, startedBy }`. An edge is a callable name or `{ target, reason }` for a system edge. Flags, edges and start default as the builders do. `path` and `source` are pass-through facts.
+The plan holds modules `{ name, service, kind, role?, package?, path?, operations }`, where `role` is `"capability" | "process"` and defaults to capability, operations and features with permission, the four optional flags and edges, and ways `{ name, protocol, path | slot | clock | on, mean?, source?, features, public? }`, plus optional `plugs` with the snapshot's plug shape. A feature adds `start?: "person" | { reason, startedBy }`. An edge is a callable name or `{ target, reason }` for a system edge. Flags, edges and start default as the builders do. `path` and `source` are pass-through facts.
 
 `validatePlan` builds real descriptors with stub schemas and handlers, runs the runtime and way checks, and maps the result through the same code as `appMap`. Closures and lifted flags are derived, never authored. A capability module may not call a process module: any such operation edge, plain or system, fails at `modules[m].operations[o].edges[e]`. Process-to-capability and process-to-process edges are allowed; cycle checks still apply. A valid plan renders the same map as the built app.
 

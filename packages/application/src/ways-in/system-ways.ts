@@ -7,18 +7,33 @@ import { GraphInvalid } from "../runtime/graph-invalid.ts";
 import { systemExecutionContext } from "./execution-context.ts";
 import type { SystemFeature } from "./way.ts";
 import type { AnyWay } from "./way-validation.ts";
+import { EventSource } from "./event-source.ts";
+import { eventDriver } from "./event-driver.ts";
 
-export const systemWays = (ways: readonly AnyWay<any>[], system: readonly Permission[]) =>
+export const systemWays = (
+  ways: readonly AnyWay<any>[],
+  system: readonly Permission[],
+  sweepMs = 30000,
+) =>
   Layer.unwrap(
     Effect.gen(function* () {
-      if (!ways.some((way) => way.protocol === "hook" || way.protocol === "schedule"))
+      if (
+        !ways.some(
+          (way) =>
+            way.protocol === "hook" || way.protocol === "schedule" || way.protocol === "event",
+        )
+      )
         return Layer.empty;
       let slots = Context.empty() as Context.Context<any>;
       const keys = new Set<string>();
       const available = yield* Effect.context<never>();
       const schedules: Array<Effect.Effect<void, GraphInvalid, import("effect").Scope.Scope>> = [];
+      const consumers = new Set<string>();
+      if (!Number.isSafeInteger(sweepMs) || sweepMs <= 0)
+        return yield* new GraphInvalid({ reason: "Invalid event sweep interval" });
       for (const way of ways) {
-        if (way.protocol !== "hook" && way.protocol !== "schedule") continue;
+        if (way.protocol !== "hook" && way.protocol !== "schedule" && way.protocol !== "event")
+          continue;
         const captured = yield* systemExecutionContext(way, system);
         const execute = (feature: SystemFeature, input: SystemFeature["input"]["Type"]) =>
           Effect.gen(function* () {
@@ -28,7 +43,22 @@ export const systemWays = (ways: readonly AnyWay<any>[], system: readonly Permis
               Effect.withSpan(`${way.protocol}:${way.name}`, { root: true }),
             );
           }).pipe(Effect.setContext(captured));
-        if (way.protocol === "hook") {
+        if (way.protocol === "event") {
+          const source = yield* Effect.serviceOption(EventSource);
+          if (Option.isNone(source))
+            return yield* new GraphInvalid({ reason: `Missing EventSource for ${way.name}` });
+          if (consumers.has(way.name))
+            return yield* new GraphInvalid({ reason: `Duplicate event consumer ${way.name}` });
+          consumers.add(way.name);
+          const registration = source.value.consumers.find((entry) => entry.name === way.name);
+          const missing = way.on.filter((kind) => !registration?.kinds.includes(kind));
+          const extra = registration?.kinds.filter((kind) => !way.on.includes(kind)) ?? [];
+          if (registration === undefined || missing.length > 0 || extra.length > 0)
+            return yield* new GraphInvalid({
+              reason: `Event consumer ${way.name} kinds mismatch: missing [${missing.join(", ")}], extra [${extra.join(", ")}]`,
+            });
+          schedules.push(eventDriver(way, source.value, captured, sweepMs).pipe(Effect.asVoid));
+        } else if (way.protocol === "hook") {
           if (keys.has(way.slot.key) || Option.isSome(Context.getOption(available, way.slot)))
             return yield* new GraphInvalid({ reason: `Duplicate hook slot ${way.slot.key}` });
           keys.add(way.slot.key);

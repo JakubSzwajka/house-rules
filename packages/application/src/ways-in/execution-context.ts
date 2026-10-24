@@ -7,7 +7,7 @@ import { Approval } from "../gates/approval.ts";
 import { Runtime } from "../runtime/runtime.ts";
 import { May } from "../socket/may.ts";
 import { StepTrace } from "../trace/step-trace.ts";
-import type { HookWay, ScheduleWay } from "./way.ts";
+import type { EventWay, HookWay, ScheduleWay } from "./way.ts";
 import { CallerScope } from "./caller-scope.ts";
 
 const credentialHeaders = ["authorization", "cookie", "proxy-authorization", "set-cookie"];
@@ -27,7 +27,7 @@ export const executionContext = <R>(context: Context.Context<R>): Context.Contex
 
 export const systemExecutionContext = (
   way: Pick<
-    HookWay<any, any, any, any> | ScheduleWay<any, any>,
+    HookWay<any, any, any, any> | ScheduleWay<any, any> | EventWay,
     "protocol" | "name" | "features" | "mean"
   >,
   system: readonly Permission[],

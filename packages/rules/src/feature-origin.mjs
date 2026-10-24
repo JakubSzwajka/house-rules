@@ -3,8 +3,24 @@ import { unwrapExpression } from "./import-bindings.mjs";
 import { builderOptions } from "./builder-options.mjs";
 
 export const featureOptions = (graph, app, file, expression, hasFeatures, hasPublic) => {
-  const options = builderOptions(expression, hasFeatures);
+  const options = builderOptions(expression, false);
   if (!options) return ["options"];
+  const resolvedProtocol = graph.resolve(file, options.protocol);
+  const protocolValue = resolvedProtocol?.node && unwrapExpression(resolvedProtocol.node);
+  if (hasPublic && protocolValue?.type === "Literal" && protocolValue.value === "event") {
+    if (
+      options.features !== undefined ||
+      options.feature === undefined ||
+      options.mean === undefined
+    )
+      return ["options"];
+    const messages = [];
+    if (!featureOrigin(graph, app, file, options.feature)) messages.push("exposure");
+    if (!featureOrigin(graph, app, file, options.feature, false, new Set(), true))
+      messages.push("system");
+    return messages;
+  }
+  if (hasFeatures && options.features === undefined) return ["options"];
   const messages = [];
   if (hasFeatures && !featureOrigin(graph, app, file, options.features, true))
     messages.push("exposure");
@@ -19,7 +35,7 @@ export const featureOptions = (graph, app, file, expression, hasFeatures, hasPub
     const protocol = resolved?.node && unwrapExpression(resolved.node);
     if (
       protocol?.type !== "Literal" ||
-      !["http", "mcp", "hook", "schedule"].includes(protocol.value)
+      !["http", "mcp", "hook", "schedule", "event"].includes(protocol.value)
     )
       messages.push("options");
     else if (

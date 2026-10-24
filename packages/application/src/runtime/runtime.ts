@@ -11,6 +11,7 @@ import { Context, Effect, Exit, Layer, Option } from "effect";
 import { PermissionCatalogue } from "../registry/catalogue.ts";
 import { CurrentActor } from "../actor/current-actor.ts";
 import { CallRequestId } from "../call/call-facts.ts";
+import { EventCausation } from "../call/event-causation.ts";
 import { CallerContext } from "../caller/caller-context.ts";
 import { type AnyFeature, isFeature } from "../feature/feature.ts";
 import { Forbidden } from "../gates/gate-errors.ts";
@@ -41,7 +42,7 @@ type BindingOptions = Readonly<{
   ways: readonly Readonly<{
     name: string;
     features: readonly AnyFeature[];
-    protocol?: "http" | "mcp" | "hook" | "schedule";
+    protocol?: "http" | "mcp" | "hook" | "schedule" | "event";
     public?: readonly AnyFeature[];
   }>[];
 }>;
@@ -101,7 +102,7 @@ export const validateRuntime = (options: BindingOptions): string | undefined => 
   }
   for (const way of options.ways) {
     if (
-      (way.protocol === "hook" || way.protocol === "schedule") &&
+      (way.protocol === "hook" || way.protocol === "schedule" || way.protocol === "event") &&
       way.features.some((feature) => feature.start === "person")
     )
       return "System ways require system-start features";
@@ -174,6 +175,7 @@ export class Runtime extends Context.Service<
         const permissions = yield* CallPermissions;
         const trace = yield* StepTrace;
         const requestId = yield* CallRequestId;
+        const causedBy = yield* EventCausation;
         const call = (target: AnyCallable, targetInput: unknown) =>
           Effect.gen(function* () {
             const edge = callable.edges.find((candidate) => targetOf(candidate) === target);
@@ -197,6 +199,7 @@ export class Runtime extends Context.Service<
               target: target.name,
               caller: next.kind,
               reason: next.kind === "system" ? next.reason : null,
+              ...(causedBy === undefined ? {} : { causedBy }),
             });
             const work = Effect.gen(function* () {
               const held = next.kind === "system" ? permissions.system : permissions.person;

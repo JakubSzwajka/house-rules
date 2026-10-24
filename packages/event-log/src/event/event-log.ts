@@ -49,6 +49,7 @@ export const makeEventLog = (store: EventStore["Service"], options: EventLogSett
       : undefined;
   });
   return {
+    consumers: () => Effect.succeed(options.consumers.map(({ name, kinds }) => ({ name, kinds }))),
     record: Effect.fn("EventLog.record")(function* (
       actor: Actor | null,
       fact: EventFact,

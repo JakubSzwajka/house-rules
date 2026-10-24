@@ -21,6 +21,8 @@ Features may import other feature indexes without cycles, kit/package contracts 
 
 Rules that ban reaching a folder follow re-export bridges. Ways cannot use root entries or files outside src as bridges. Read models reject every import into their app outside their own folder, including bridges beside src. Imports must respect package and read-model doors. Type-only imports still respect those doors and domain's no-house-rules fence. No package imports an app, and no app imports another app. Other packages are imported by declared name and public door only.
 
+The application kit never imports event-log, even type-only. `application-does-not-import-event-log` keeps event delivery behind application's caller-owned EventSource port. EventLog supplies a removable source plug. System event ways fit the existing ways-in/events/ area without a layout exemption.
+
 ## Ways value imports
 
 `ways-in-import-contracts-only` checks every production file in the way area, including re-export barrels. Values may come only from `@house-rules/application`, `@house-rules/application/contract`, `@house-rules/domain`, `@house-rules/domain/contract`, `effect`, any package's `./contract` door, the same app's features/composition and the way's own folder. Other package main entries allow type-only imports. Within `ways-in/<name>/page/**` only, third-party npm values such as React, Radix and Lucide are also allowed. Workspace package mains and non-kit `@house-rules/*` mains remain type-only. Node builtins remain forbidden. Other way files have no third-party allowance. Tests keep their existing exemption.

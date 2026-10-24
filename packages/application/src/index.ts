@@ -137,11 +137,14 @@ export type { SessionOptions } from "./ways-in/session-cookie.ts";
 export { decodeInput, InputInvalid, type InputIssue, type InputSource } from "./ways-in/input.ts";
 export type { Outcome } from "./ways-in/invoke.ts";
 export type { AnyWay } from "./ways-in/way-validation.ts";
+export { EventSource, EventSourceUnavailable } from "./ways-in/event-source.ts";
+export { EventEnvelope, EventInput } from "./contract/event.ts";
 export {
   type WayOptions,
   type WayFailure,
   type HookWay,
   type ScheduleWay,
+  type EventWay,
   type SystemFeature,
   defineWay,
 } from "./ways-in/way.ts";

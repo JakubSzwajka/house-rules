@@ -2,7 +2,7 @@ import { isPlainPath, isPlainPrefix } from "../contract/api.ts";
 import { pathParamNames } from "../contract/endpoint.ts";
 import { checkSessionPlace } from "../contract/session.ts";
 import type { AnyFeature } from "../feature/feature.ts";
-import type { HookWay, ScheduleWay, SystemFeature, WayOptions } from "./way.ts";
+import type { EventWay, HookWay, ScheduleWay, SystemFeature, WayOptions } from "./way.ts";
 import { prefixMismatch } from "./api-prefix.ts";
 import { checkCors } from "./cors.ts";
 import { isHttpOrigin } from "./csrf.ts";
@@ -19,7 +19,7 @@ export type AnyHookWay = Omit<
   readonly failure: (error: never) => NonNullable<unknown> | null | undefined;
 };
 export type AnyScheduleWay = ScheduleWay<SystemFeature, SystemFeature>;
-export type AnyWay<R = never> = NetworkWay<R> | AnyHookWay | AnyScheduleWay;
+export type AnyWay<R = never> = NetworkWay<R> | AnyHookWay | AnyScheduleWay | EventWay;
 export type HookServices<W> = W extends {
   readonly protocol: "hook";
   readonly slot: import("effect").Context.Key<infer I, any>;
@@ -40,7 +40,8 @@ export const validateWays = <R>(
   const httpPaths = new Set<string>();
   const reservedPaths = new Set<string>();
   for (const way of ways) {
-    if (!["http", "mcp", "hook", "schedule"].includes(way.protocol)) return "Unknown way protocol";
+    if (!["http", "mcp", "hook", "schedule", "event"].includes(way.protocol))
+      return "Unknown way protocol";
     if (names.has(way.name)) return `Duplicate way name ${way.name}`;
     names.add(way.name);
     if (new Set(way.features).size !== way.features.length)
@@ -48,6 +49,25 @@ export const validateWays = <R>(
     for (const feature of way.features)
       if (!features.includes(feature)) return `${way.name} exposes an unregistered feature`;
     if (!isNetworkWay(way)) {
+      if (way.protocol === "event") {
+        if (way.features.length !== 1) return `${way.name}: events require one feature`;
+        if (
+          way.on.length === 0 ||
+          way.on.some((kind) => kind.trim() === "") ||
+          new Set(way.on).size !== way.on.length
+        )
+          return `${way.name}: events require distinct nonblank kinds`;
+        if (
+          "public" in way ||
+          "tools" in way ||
+          "resource" in way ||
+          "path" in way ||
+          "who" in way ||
+          "server" in way
+        )
+          return `${way.name}: events cannot have network fields`;
+        if (way.mean === undefined) return `${way.name}: events require Mean`;
+      }
       if (
         way.features.some(
           (feature) =>

@@ -18,7 +18,10 @@ const migratedDatabase = Layer.effectDiscard(
     Layer.merge(
       MigrationsTesting.database({
         label: "event_log",
-        client: (url) => PgClient.layer({ url, maxConnections: 2 }),
+        client: (url) => {
+          // LISTEN reserves one connection; leave room for driver, producer and assertions.
+          return PgClient.layer({ url, maxConnections: 4 });
+        },
       }),
       NodeServices.layer,
     ),

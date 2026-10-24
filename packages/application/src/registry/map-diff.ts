@@ -186,6 +186,7 @@ const facts = (
           mean: optional(way.mean),
           features: list(way.features),
           public: list(way.public),
+          ...(way.on === undefined ? {} : { on: list(way.on) }),
         },
       },
     ]),

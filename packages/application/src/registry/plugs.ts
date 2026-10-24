@@ -10,14 +10,15 @@ export const plugSockets: readonly string[] = [
   "ActorResolver",
   "Approval",
   "CallWatch",
+  "EventSource",
 ];
 const perWay = new Set(["Who", "Mean"]);
-const appLevel = new Set(["May", "Record"]);
+const appLevel = new Set(["May", "Record", "EventSource"]);
 
 export type PlugWay = Readonly<{ name: string; mean?: MeanKey }> &
   (
     | Readonly<{ protocol: "hook"; slot: string }>
-    | Readonly<{ protocol: "http" | "mcp" | "schedule" }>
+    | Readonly<{ protocol: "http" | "mcp" | "schedule" | "event" }>
   );
 type PlugIssue = Readonly<{ path: string; reason: string }>;
 

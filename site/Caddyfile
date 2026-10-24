@@ -94,6 +94,7 @@
 	redir /rules/node/no-app-node-cycles/ /rules/#no-app-feature-cycles 301
 	redir /rules/node/no-app-feature-cycles/ /rules/#no-app-feature-cycles 301
 	redir /rules/dependency-cruiser/domain-imports-no-house-rules/ /rules/#domain-imports-no-house-rules 301
+	redir /rules/dependency-cruiser/application-does-not-import-event-log/ /rules/#application-does-not-import-event-log 301
 	redir /rules/dependency-cruiser/nodes-do-not-import-outer-folders/ /rules/#features-do-not-import-outer-folders 301
 	redir /rules/dependency-cruiser/features-do-not-import-outer-folders/ /rules/#features-do-not-import-outer-folders 301
 	redir /rules/dependency-cruiser/modules-import-modules-and-packages-only/ /rules/#retired-v1-rules 301

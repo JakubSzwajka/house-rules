@@ -47,11 +47,12 @@ export interface AppMapSnapshot {
   }>[];
   readonly ways: readonly Readonly<{
     name: string;
-    protocol: "http" | "mcp" | "hook" | "schedule";
+    protocol: "http" | "mcp" | "hook" | "schedule" | "event";
     path?: string;
     source?: string;
     mean?: string;
     slot?: string;
+    on?: readonly string[];
     clock?: Readonly<{ cron: string; timeZone: string }>;
     features: readonly string[];
     public: readonly string[];

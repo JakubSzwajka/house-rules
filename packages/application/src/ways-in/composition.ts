@@ -52,7 +52,9 @@ type Lifecycle = Readonly<{
 
 const lifecycles = new WeakMap<object, Lifecycle>();
 
-type SystemRequirements<W> = W extends { protocol: "hook" | "schedule" } ? UnitOfWork : never;
+type SystemRequirements<W> = W extends { protocol: "hook" | "schedule" | "event" }
+  ? UnitOfWork
+  : never;
 type Outputs<M extends Mounts, A> = A | Layer.Success<M[number]["layer"]>;
 type Errors<M extends Mounts, E> = E | Layer.Error<M[number]["layer"]> | GraphInvalid;
 
@@ -71,6 +73,7 @@ export const composition = <
     ways: Ways;
     may: Effect.Effect<MaySocket<MayError>, never, NoInfer<Outputs<M, A>>>;
     system: readonly Permission[];
+    eventSweepMs?: number;
   }> &
     ServicesCheck<
       | Exclude<
@@ -107,7 +110,7 @@ export const composition = <
   const withMay = Layer.effect(ResolvedMay, options.may.pipe(Effect.map(normalizeMay))).pipe(
     Layer.provideMerge(validated),
   );
-  const layer = systemWays(options.ways, options.system).pipe(
+  const layer = systemWays(options.ways, options.system, options.eventSweepMs).pipe(
     Layer.provideMerge(withMay),
   ) as unknown as Layer.Layer<
     Outputs<M, A> | HookServices<Ways[number]> | Runtime | ResolvedMay,

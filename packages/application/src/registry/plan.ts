@@ -60,6 +60,12 @@ const PlanWay = Schema.Union([
   Schema.Struct({ ...wayFields, protocol: Schema.Literal("hook"), slot: Name }),
   Schema.Struct({
     ...wayFields,
+    protocol: Schema.Literal("event"),
+    on: Schema.Array(Name).check(Schema.isMinLength(1)),
+    mean: Schema.Literals(["allow", "no", "elicitation"]),
+  }),
+  Schema.Struct({
+    ...wayFields,
     protocol: Schema.Literal("schedule"),
     clock: Schema.Struct({ cron: Schema.String, timeZone: Schema.String }),
   }),

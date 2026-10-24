@@ -59,6 +59,7 @@ test("layout snapshot pins every rule and error severity", async () => {
       "composition-does-not-import-ways-in",
       "read-models-public-entry-only",
       "domain-imports-no-house-rules",
+      "application-does-not-import-event-log",
       "no-unresolved-deep-package-imports",
       "production-does-not-import-tests",
       "tests-live-in-tests-dir",

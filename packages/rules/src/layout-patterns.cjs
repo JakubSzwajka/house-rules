@@ -233,6 +233,8 @@ function patterns(options) {
     folderRootFileAllowed: `^${apps}/[^/]+/src/${layers.readModels}/[^/]+/(?:${rootFiles.join("|")}|contract[.]ts)$`,
     folderSubject: `^(${apps}/[^/]+/src/${layers.readModels}/[^/]+)/(?!adapters/|(?:${testDirs})/)[^/]+/`,
     domainPackage: `^${packages}/domain/src/`,
+    applicationPackage: `^${packages}/application/src/`,
+    eventLogImport: `(?:^@house-rules/event-log(?:/|$)|(?:^|/)node_modules/@house-rules/event-log/|^${packages}/event-log/)`,
     houseRulesImport: `(?:^@house-rules/|(?:^|/)node_modules/@house-rules/|^${packages}/(?!domain/)[^/]+/)`,
     compositionRoot: layerRoot(layers.composition),
     appFolder: `^${apps}/[^/]+/`,

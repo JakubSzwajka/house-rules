@@ -266,6 +266,17 @@
       }
     },
     {
+      "name": "application-does-not-import-event-log",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#application-does-not-import-event-log",
+      "from": {
+        "path": "^packages/application/src/"
+      },
+      "to": {
+        "path": "(?:^@house-rules/event-log(?:/|$)|(?:^|/)node_modules/@house-rules/event-log/|^packages/event-log/)"
+      }
+    },
+    {
       "name": "no-unresolved-deep-package-imports",
       "severity": "error",
       "comment": "See https://stack.kubaszwajka.com/rules/#no-unresolved-deep-package-imports",

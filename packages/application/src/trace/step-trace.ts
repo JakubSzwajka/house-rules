@@ -7,6 +7,7 @@ export type Step = Readonly<{
   target: string;
   caller: "person" | "system";
   reason: string | null;
+  causedBy?: string | null;
   outcome: "running" | "success" | "failure";
 }>;
 export type ClosureRefusal = Readonly<{

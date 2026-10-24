@@ -128,6 +128,11 @@ function layout(options = {}) {
         { path: p.houseRulesImport },
       ),
       rule(
+        "application-does-not-import-event-log",
+        { path: p.applicationPackage },
+        { path: p.eventLogImport },
+      ),
+      rule(
         "no-unresolved-deep-package-imports",
         {},
         { path: `${p.packageNamespace}[^/]+/.+`, couldNotResolve: true },

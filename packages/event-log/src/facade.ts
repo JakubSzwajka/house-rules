@@ -5,6 +5,7 @@ import { postgresEventStore } from "./adapters/postgres/event.js";
 import { makeEventLog, type EventLogService } from "./event/event-log.js";
 import { type EventLogOptions, validateOptions, deliveryDefaults } from "./event/options.js";
 import { EventStore } from "./storage.js";
+import { eventSource } from "./event/source.js";
 
 export class EventLog extends defineModule<EventLog, EventLogService>()("event-log", {
   make: (options: EventLogOptions) =>
@@ -13,6 +14,7 @@ export class EventLog extends defineModule<EventLog, EventLogService>()("event-l
       return makeEventLog(yield* EventStore, settings);
     }),
 }) {
+  static readonly source = Layer.unwrap(Effect.map(EventLog, eventSource));
   static readonly presets = { default: deliveryDefaults } as const;
   static readonly layerMemory = (options: EventLogOptions) =>
     this.layer(options).pipe(Layer.provide(memoryEventStore()));

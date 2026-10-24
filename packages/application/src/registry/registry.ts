@@ -20,6 +20,7 @@ export type RegistryWay = Readonly<{
   (
     | Readonly<{ protocol: "http" | "mcp"; path: string }>
     | Readonly<{ protocol: "hook"; slot: string }>
+    | Readonly<{ protocol: "event"; on: readonly string[] }>
     | Readonly<{ protocol: "schedule"; clock: Readonly<{ cron: string; timeZone: string }> }>
   );
 export interface RegistrySnapshot {

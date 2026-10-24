@@ -100,6 +100,27 @@ it("traces every exposure and start through imports, barrels and the Features re
         ),
       );
     }
+    assert.deepEqual(
+      run('way({protocol:"event",name:"reaction",on:["changed"],feature:system,mean:Mean.no});'),
+      [],
+    );
+    assert.deepEqual(
+      run(
+        'way({protocol:"event",name:"reaction",on:["changed"],feature:Features.show,mean:Mean.no});',
+      ).map((m) => m.messageId),
+      ["system"],
+    );
+    assert.ok(
+      run('way({protocol:"event",feature:forged,mean:Mean.no});').some(
+        (m) => m.messageId === "exposure",
+      ),
+    );
+    for (const code of [
+      'way({protocol:"event",features:[system],mean:Mean.no});',
+      'way({protocol:"event",feature:system});',
+      'const options = {protocol:"event",feature:system,mean:Mean.no}; way(options);',
+    ])
+      assert.ok(run(code).some((m) => m.messageId === "options"));
     const tester = new RuleTester({
       languageOptions: plugin.configs.features[0].languageOptions,
     });

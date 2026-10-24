@@ -38,3 +38,4 @@ export { Refused } from "./ways-in/caller.ts";
 export { CallInvalid } from "./runtime/call-invalid.ts";
 export { GraphInvalid } from "./runtime/graph-invalid.ts";
 export { CompositionClosed } from "./ways-in/composition-closed.ts";
+export { EventEnvelope, EventInput } from "./contract/event.ts";

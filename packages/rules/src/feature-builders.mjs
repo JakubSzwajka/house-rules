@@ -27,7 +27,7 @@ export const featureBuildersRule = {
     docs: {
       url: ruleDocsUrl("feature-builders"),
       description:
-        "Require direct named kit builders, inline builder options, one-file feature origins for HTTP/MCP exposures and resolved hook/schedule system starts, May.context and May.system, and operation builders outside features.",
+        "Require direct named kit builders, inline builder options, one-file feature origins for HTTP/MCP exposures and resolved hook/schedule/event system starts, May.context and May.system, and operation builders outside features.",
     },
     schema: [
       {
@@ -46,7 +46,7 @@ export const featureBuildersRule = {
         "Call defineFeature only in features/<name>/index.ts; do not call defineOperation or bindOperation in features/.",
       options:
         "Pass builder options inline with no spread, computed keys or getters; pass features inline, once, for May.context and defineWay.",
-      system: "Hook and schedule ways expose only features with an explicit system start.",
+      system: "Hook, schedule and event ways expose only features with an explicit system start.",
       exposure:
         "Exposed or started features must resolve to this app's defineFeature in features/<name>/index.ts, directly or through its Features registry.",
     },

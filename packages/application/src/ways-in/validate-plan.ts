@@ -103,7 +103,9 @@ const derive = (plan: Plan): Derived => {
         ? { protocol: way.protocol, slot: way.slot }
         : way.protocol === "schedule"
           ? { protocol: way.protocol, clock: way.clock }
-          : { protocol: way.protocol, path: way.path }),
+          : way.protocol === "event"
+            ? { protocol: way.protocol, on: way.on }
+            : { protocol: way.protocol, path: way.path }),
       features: way.features.map(feature),
       ...(way.protocol === "http" && way.public !== undefined
         ? { public: way.public.map(feature) }

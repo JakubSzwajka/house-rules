@@ -64,7 +64,7 @@ If a package adds an operation later, the post-build diff lists it as added. Add
 
 **Permission on a system-only operation.** Give it a permission string, such as booking's `billing:expire`. Add that string to the system permission list and to no role, so no person-authority call can reach it without an explicit system edge (`asSystem`). Booking's `cancel_booking` reaches system-only `billing:refund` through `⚙ Billing.refund`. Use null only for an operation any caller may run, such as a read filtered to the caller in SQL.
 
-**Hook slot keys and public starts.** A hook's `slot` is the slot service's key string in the owning package source: `rg -n '"@house-rules/identity/FirstSignIn"' packages/identity/src` finds Identity's. The package AGENTS.md names the slot tag, here `FirstSignIn`, but not the key string. Booking writes a public feature's start as `{ reason: "public sign_in", startedBy: "public sign_in" }`; follow `public <feature>`. A hook start uses `startedBy: "hook:<way>"` and a schedule start `schedule:<way>`.
+**Hook slot keys and public starts.** A hook's `slot` is the slot service's key string in the owning package source: `rg -n '"@house-rules/identity/FirstSignIn"' packages/identity/src` finds Identity's. The package AGENTS.md names the slot tag, here `FirstSignIn`, but not the key string. Booking writes a public feature's start as `{ reason: "public sign_in", startedBy: "public sign_in" }`; follow `public <feature>`. A hook start uses `startedBy: "hook:<way>"`, a schedule start `schedule:<way>` and an event start `event:<way>`. Event handlers run as the system. Their causedBy input is the event author's identifier or null, never authority.
 
 ## Plan fields
 
@@ -76,10 +76,12 @@ Full schema: [application README, Validate a plan](../../packages/application/RE
 | Operation | Unique callable `name`, explicit `permission` string or null; optional own `readOnly`, `transactional`, `destructive`, `needsApproval`, `edges` |
 | `features[]` | Callable fields plus optional `path`, `start`: person by default or `{ reason, startedBy }` |
 | Edge | Callable name, or `{ target, reason }` for a system edge. No authored closures. |
-| `ways[]` | `name`, `protocol`, `features`, optional `source`, `mean`: allow, no or elicitation. Network `path`, hook `slot`, schedule `clock: { cron, timeZone: "UTC" }`. HTTP-only `public`. |
-| `plugs[]` | Optional `{ name, package?, fills, ways? }`. Who, Mean and hook fills name ways; May and Record are app-level. |
+| `ways[]` | `name`, `protocol`, `features`, optional `source`, `mean`: allow, no or elicitation. Network `path`, hook `slot`, schedule `clock: { cron, timeZone: "UTC" }`, event `on: [kinds]`. Event ways require exactly one system-start feature and explicit mean, normally no. HTTP-only `public`. |
+| `plugs[]` | Optional `{ name, package?, fills, ways? }`. Who, Mean and hook fills name ways; May, Record and EventSource are app-level. |
 
 Set `role: "process"` on a module that composes modules through operation edges, whether stateless or durable. Capabilities own their state, computation or outside effect and their rules. Capability operations never call process operations; validation names the offending edge path. Processes may call capabilities or other processes without cycles. Built mounts declare the same role in `map: { name, kind, role, package? }`. Text, HTML and Mermaid show process modules separately, and built-vs-plan diffs compare role.
+
+For example, an event way is `{ "name": "notifications", "protocol": "event", "on": ["task_moved"], "features": ["notify_task_moved"], "mean": "no" }`. Its name equals the EventLog consumer name, and on kinds must match that consumer's kinds exactly at acquisition. The handler uses EventInput from application/contract, `{ event: fullStoredEnvelope, causedBy: actorIdOrNull }`. The kit's EventSource port is filled by EventLog.source beside its mount layer; declare that plug with fills EventSource and no ways. Source coverage and retry behavior need executable tests, not only plan validation.
 
 Flags default false and start defaults to person. Plan rejects unknown keys at every depth and names their path, so a stray `flags`, `closures`, `layers` or `permissions` key fails validation.
 
@@ -93,7 +95,7 @@ Copy the spelling of the nearest existing sibling. `path` and `source` are pass-
 | Read model | `service: "@example/api/read-models/<kebab>/<Pascal>"`, `package: "@example/api"`, `path: "src/read-models/<kebab>"` (app-relative) |
 | Operation | `<Module>.<verb>`, permission `<module>:<action>` |
 | Feature | snake_case name, `path: "src/features/<kebab>/index.ts"` |
-| Way | HTTP and MCP `source: "src/ways-in/<way>/way.ts"`; hook `src/ways-in/hooks/<name>.ts`; schedule `src/ways-in/schedules/<name>.ts` |
+| Way | HTTP and MCP `source: "src/ways-in/<way>/way.ts"`; hook `src/ways-in/hooks/<name>.ts`; schedule `src/ways-in/schedules/<name>.ts`; event `src/ways-in/events/<name>.ts` |
 
 A new app in this repo lives in `apps/<app>` with package `@<scope>/<app>`; agree the scope with the owner, since booking's `@example` marks examples. Its modules are `packages/<pkg>` with package `@<scope>/<pkg>`. Module `path` is root-relative; feature, read-model and way paths are app-relative, as in booking.
 
@@ -110,7 +112,7 @@ Flags. Write each flag as the code will declare it. Operations: readOnly for rea
 | Unresolved edge or way feature | Correct the exact name or add its real descriptor. Expose a feature, not an operation. |
 | Blank system reason or startedBy | Write the actual reason and initiating hook, schedule or public entry. Do not use a fake reason to bypass person access. |
 | Invalid public exposure | Keep public names in that HTTP way's features and give each a system start. MCP has no public list. |
-| Hook or schedule with person features or wrong count | Hook takes one system feature. Schedule takes selector and item system features; the real selector returns an array of item inputs. |
+| System way with person features or wrong count | Hook and event take one system feature. Schedule takes selector and item system features; the real selector returns an array of item inputs. Event ways name on kinds and have no network/public fields. |
 | Capability calls process | Move the composition to a process module or feature. Keep the capability's own rules in the capability; do not relabel it just to pass. |
 | Cycle | Remove the circular responsibility. Move shared work down to its owner rather than disguising the edge. |
 | Conflicting or unknown plug fill | Correct its socket or hook slot and way names. Who needs network ways; May and Record take no ways. Mean and hook twins must match the derived plug exactly. One plug per socket per way or app. |

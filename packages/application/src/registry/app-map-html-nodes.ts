@@ -7,7 +7,13 @@ export type Marks = ReadonlyMap<string, Mark>;
 type Feature = AppMapSnapshot["features"][number];
 type Way = AppMapSnapshot["ways"][number];
 
-const protocols = { http: "HTTP", mcp: "MCP", hook: "hook", schedule: "schedule" } as const;
+const protocols = {
+  http: "HTTP",
+  mcp: "MCP",
+  hook: "hook",
+  schedule: "schedule",
+  event: "event",
+} as const;
 
 const node = (
   graph: MapGraph,
@@ -80,6 +86,7 @@ const wayNode = (graph: MapGraph, marks: Marks, way: Way): string =>
     `<p class="address">${address(way)}</p>` +
       facts([
         way.mean === undefined ? undefined : ["Mean", esc(way.mean)],
+        way.on === undefined ? undefined : ["On", way.on.map(code).join(" ")],
         [
           "Exposes",
           `${way.features.length} feature${way.features.length === 1 ? "" : "s"}${way.public.length === 0 ? "" : `, ${way.public.length} public`}`,
@@ -97,10 +104,12 @@ export const waysColumn = (data: AppMapSnapshot, graph: MapGraph, marks: Marks):
       ? ""
       : `<h3 class="group">${esc(title)}</h3><p class="note">${esc(note)}</p><ul class="nodes">${ways.map((way) => wayNode(graph, marks, way)).join("")}</ul>`;
   const network = data.ways.filter((way) => way.protocol === "http" || way.protocol === "mcp");
-  const system = data.ways.filter((way) => way.protocol === "hook" || way.protocol === "schedule");
+  const system = data.ways.filter(
+    (way) => way.protocol === "hook" || way.protocol === "schedule" || way.protocol === "event",
+  );
   return (
     group("Network", network, "People and agents call in here.") +
-    group("System", system, "Hooks and schedules start features as the system.")
+    group("System", system, "Hooks, schedules and events start features as the system.")
   );
 };
 
