@@ -27,6 +27,8 @@ It runs the SQL migrations of many modules against one Postgres database, in one
 
 No layer goes into the app's `Runtime`. Features and operations do not run migrations. It owns no tables of its own beyond the history tables.
 
+`SqlHealth.check(sqlClient)` is a no-requirements Effect that pings the app's existing client with `SELECT 1`, outside units and without tracing. `SqlHealth.fromContext(context)` returns an optional captured check, None when no client is installed. Main adapts it to a named Node Host readiness runner with `(signal) => Effect.runPromiseWith(context)(check, { signal })`; the host enforces its timeout and exposes only a failed name, never SQL errors. This package's named adapter exemption owns the SQL import, not app main or Node Host.
+
 ## Options
 
 | Entry key | Meaning |

@@ -1,4 +1,5 @@
 export { Migrations } from "./facade.ts";
+export { SqlHealth } from "./health/sql-health.ts";
 export { MigrationsTesting, type TestDatabaseOptions } from "./test-database/test-database.ts";
 export {
   type AdoptionReport,

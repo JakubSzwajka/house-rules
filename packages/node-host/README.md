@@ -51,7 +51,7 @@ Import `defineWay` and `toFetchHandler` from `@house-rules/application`. Build c
 
 `port` is required; 0 asks Node for a free port. `hostname` is optional. Without it Node listens on all interfaces. The returned `url` names the actual port and a reachable local address, not the app's public URL.
 
-The request URL uses HTTP and the incoming Host header. Forwarded headers do not change it. Missing, empty or malformed Host headers and invalid targets answer plain 400 `Bad Request`, without details. Only origin-form targets are accepted, including IPv6 authorities such as `[::1]:3000`. Absolute-form targets answer 400, even when they match Host. `OPTIONS *`, TRACE and CONNECT answer 501 `Not Implemented` before the handler runs.
+The request URL uses HTTP and the incoming Host header. Forwarded headers do not change it. Missing, empty or malformed Host headers and invalid targets answer plain 400 `Bad Request`, without details. Only origin-form targets are accepted, including IPv6 authorities such as `[::1]:3000`. Absolute-form targets answer 400, even when they match Host. `OPTIONS *`, TRACE and CONNECT answer 501 `Not Implemented` before the handler runs, except TRACE targeting a health path answers 405.
 
 Behind a TLS proxy, cookie writes get 403 `cross_origin` unless the HTTP way sets `origins` to its public origin, such as `https://public.example`. The booking API reads `APP_ORIGIN` through Effect Config for the MCP resource URL and the web way's allowed origins. Without it, main uses `http://localhost:${PORT}`. It also keeps `http://localhost:3000` in the origin list.
 
@@ -62,6 +62,53 @@ The Host has no allowed-host guard against DNS rebinding; local and internal app
 Uploads go through `Readable.toWeb`; responses stream with backpressure. The Host does not buffer bodies or add a body limit. Set `maxBodyBytes` on the HTTP way. Status and headers pass through, including separate Set-Cookie headers. The request signal aborts when a client leaves before the response ends. A normal upload finishing does not abort it.
 
 A thrown handler or a body stream failure before the response headers are flushed gives a plain 500 `Internal Server Error` without details. Node may prefetch the first chunks before flushing headers. If a response stream fails after headers went out, the Host closes that connection instead.
+
+## Health and readiness
+
+Probes are opt-in. Set `health` with a required `wayPaths` list to enable `/healthz` and `/readyz` before the supplied handler, including static files. Without `health`, those paths go to the handler unchanged. These public infrastructure paths never enter the router: no Who, May, audit row, unit or trace. `/healthz` answers without running checks. `/readyz` runs named checks concurrently, each with its own deadline. An empty check list is ready.
+
+GET returns 200 `{"status":"ok"}` or 503 `{"status":"unavailable","failed":["sql"]}`. Set `health.version` to an app-configured build identifier: `/readyz` then includes `"version"` on both 200 and 503, for example `{"status":"ok","version":"build-abc123"}`. `/healthz` stays bare. Only failed check names and the configured version leave the host, never exceptions or driver text. HEAD runs the same checks and returns the same status without a body. Other methods return 405 with `Allow: GET, HEAD`. Responses are not cached.
+
+Pass every network way's path in `health.wayPaths`. Construction rejects collisions, including overlapping prefixes and case/percent/slash aliases, before listening. `alivePath` and `readyPath` replace the defaults at startup; paths and checks are captured once. Check names must be unique and contain only letters, digits, `_` or `-`; `timeoutMs` must be a positive integer within Node's timer range. A timed-out check receives an aborted signal; a runner must honor it to release its own resources.
+
+The SQL helper belongs to `@house-rules/migrations`, an SQL adapter package, so the Host needs no Effect dependency. In main, capture the app's existing client without making another pool. Memory apps have no SQL check:
+
+```ts
+import { SqlHealth } from "@house-rules/migrations";
+import { Effect, Option } from "effect";
+
+const context = yield* app.runtime.contextEffect;
+const sql = SqlHealth.fromContext(context);
+const checks = Option.isSome(sql)
+  ? [{ name: "sql", timeoutMs: 1000, run: (signal) => Effect.runPromiseWith(context)(sql.value, { signal }) }]
+  : [];
+const host = await serve(api, {
+  port: 3000,
+  health: { wayPaths: ["/api", "/mcp"], checks, version: "build-abc123" },
+  onClose: () => api.dispose().then(() => app.dispose()),
+});
+```
+
+Booking's `main.ts` calls the tested `hostHealth(context, ways)` wiring in `composition/host-health.ts`. It supplies the constant build identifier `booking-0.0.0`, takes every network way path and adapts the existing SQL check. Change that identifier when preparing a different example build.
+
+`SqlHealth.check(sqlClient)` is the underlying no-requirements Effect. It runs `SELECT 1` without a unit and disables SQL tracing. The host also accepts any `(signal: AbortSignal) => Promise<unknown>` runner. Resolution passes; rejection, a synchronous throw or timeout fails.
+
+### Next routes
+
+`healthHandler(options)` is a plain fetch dispatcher with no Node imports. It returns `undefined` for other paths, like `staticFiles`. `healthRoutes(options)` wraps it for Next and returns Responses, with 404 on unmatched paths. Importing either export opens no sockets or servers. Create the routes once in server-only startup wiring, not per request, and pass the app's way paths and named Promise checks:
+
+```ts
+// Server-only wiring shared by both route files:
+export const probes = healthRoutes({ wayPaths: ["/api", "/mcp"], checks });
+
+// app/healthz/route.ts, importing probes from that wiring:
+export const { GET, HEAD } = probes.healthz;
+
+// app/readyz/route.ts, importing probes from that wiring:
+export const { GET, HEAD } = probes.readyz;
+```
+
+Next rejects unsupported methods itself. Keep these routes outside session/auth middleware. Custom paths must match the route folders. No `serve` call is needed.
 
 ## Static files
 

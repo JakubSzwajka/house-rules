@@ -6,6 +6,10 @@ Runs the SQL migrations of many modules against one Postgres database. Each modu
 
 It depends on `effect` only. The app provides the driver (`SqlClient`, for example from `@effect/sql-pg`) and the platform services (`FileSystem`, `Path`, `Crypto`, for example from `@effect/platform-node`).
 
+## SQL readiness
+
+`SqlHealth.check(sqlClient)` runs `SELECT 1` on the app's existing client and returns an Effect with no requirements. It neither opens a unit nor runs migrations, and SQL tracing is disabled. `SqlHealth.fromContext(context)` returns that captured Effect in an Option, or None for apps with no client. In main, adapt a present check with `(signal) => Effect.runPromiseWith(context)(check, { signal })` for Node Host's named readiness checks. The host owns deadlines and only reports failed names; driver errors never become probe bodies. See [Node Host](../node-host/README.md#health-and-readiness).
+
 ## The module list
 
 Domain modules are packages, never app folders. App areas are features, read-models, ways-in and composition. Folder locations are rejected; read models own no migrations.
