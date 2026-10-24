@@ -10,7 +10,17 @@ const holding = Schema.Struct({
   holder: Schema.NullOr(WorkItemRef),
   status: Schema.NonEmptyString,
 });
+const place = Schema.Struct({
+  parent: Schema.NullOr(Schema.NonEmptyString),
+  container: Schema.NullOr(WorkItemRef),
+});
 export const WorkItemEvents = {
+  Moved: Schema.Struct({
+    kind: Schema.Literal("work_items.moved"),
+    subject,
+    from: place,
+    to: place,
+  }),
   Created: Schema.Struct({ kind: Schema.Literal("work_items.created"), subject, item: WorkItem }),
   Edited: Schema.Struct({
     kind: Schema.Literal("work_items.edited"),
@@ -50,3 +60,12 @@ export const WorkItemMutation = Schema.Struct({
   events: Schema.Array(WorkItemEvent),
 });
 export type WorkItemMutation = typeof WorkItemMutation.Type;
+export const workItemMutation = (item: WorkItem, event: WorkItemEvent): WorkItemMutation => ({
+  item,
+  events: [event],
+});
+export const WorkItemImportResult = Schema.Struct({
+  items: Schema.Array(WorkItem),
+  events: Schema.Array(WorkItemEvent),
+});
+export type WorkItemImportResult = typeof WorkItemImportResult.Type;

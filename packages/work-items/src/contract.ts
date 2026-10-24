@@ -4,6 +4,8 @@ export {
   WorkItemCreate,
   WorkItemCursor,
   WorkItemEdit,
+  WorkItemMove,
+  WorkItemIdTaken,
   WorkItemFailure,
   WorkItemFilters,
   WorkItemList,
@@ -20,7 +22,12 @@ export {
   WorkItemStoreUnavailable,
   WorkItemAccessUnavailable,
 } from "./work-item/work-item.js";
-export { WorkItemEvent, WorkItemEvents, WorkItemMutation } from "./work-item/events.js";
+export {
+  WorkItemEvent,
+  WorkItemEvents,
+  WorkItemMutation,
+  WorkItemImportResult,
+} from "./work-item/events.js";
 export { WorkItemPermissions, type WorkItemPermission } from "./work-item/permissions.js";
 export { WorkItemsOperations } from "./work-item/operations.js";
 export { WorkItemsOptions } from "./work-item/options.js";

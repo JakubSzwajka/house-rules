@@ -2,6 +2,7 @@ import { Schema } from "effect";
 import { WorkItemCategory } from "./work-item.js";
 const cap = Schema.Int.check(Schema.isGreaterThan(0));
 export const WorkItemsOptions = Schema.Struct({
+  idStrategy: Schema.optionalKey(Schema.Literals(["random", "sequence"])),
   states: Schema.Array(
     Schema.Struct({ name: Schema.NonEmptyString, category: WorkItemCategory }),
   ).check(Schema.isMinLength(1)),
@@ -46,6 +47,7 @@ export const WorkItemsOptions = Schema.Struct({
 export type WorkItemsOptions = typeof WorkItemsOptions.Type;
 export const workItemsPresets = {
   board: {
+    idStrategy: "random",
     states: [
       { name: "todo", category: "open" },
       { name: "doing", category: "active" },

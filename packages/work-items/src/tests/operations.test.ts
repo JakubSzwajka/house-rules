@@ -103,13 +103,15 @@ const caller = (actor: Actor) =>
     ),
   );
 it.layer(world)("WorkItems operation bindings", (test) => {
-  test.effect("mounts all ten bindings and returns typed event facts through the runtime", () =>
+  test.effect("mounts all bindings and returns typed event facts through the runtime", () =>
     Effect.gen(function* () {
       expect(WorkItemsMount.service).toBe(WorkItems);
       expect(WorkItemsMount.bind).toBe(bindWorkItems);
       expect(WorkItemsMount.operations).toEqual(Object.values(operations));
       for (const operation of Object.values(operations)) {
-        const write = operation.permission === "work_items:write";
+        const write =
+          operation.permission === "work_items:write" ||
+          operation.permission === "work_items:import";
         expect(operation.transactional).toBe(write);
         expect(operation.readOnly).toBe(!write);
         expect(operation.destructive).toBe(operation === operations.edit);

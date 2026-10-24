@@ -155,6 +155,19 @@ for (const { name, layer: storeLayer } of stores) {
           ).toBeInstanceOf(WorkItemsCallerDenied);
         }),
       );
+      it.effect("refuses a system caller without system-read at the runtime gate", () =>
+        Effect.gen(function* () {
+          const denied = yield* Effect.flip(
+            runFeature(systemRead, { id: "missing" }).pipe(
+              Effect.provide(
+                Layer.succeedContext(May.system(features, { system: [], via: "test" })),
+              ),
+            ),
+          );
+          expect(denied._tag).toBe("Forbidden");
+          expect(denied.kind).toBe("forbidden");
+        }),
+      );
       it.effect("returns not_found for a missing system read", () =>
         Effect.gen(function* () {
           expect(

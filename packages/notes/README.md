@@ -17,4 +17,8 @@ Events are plain data. The module never emits, depends on event-log or reads `Cu
 
 The app fills `NoteTargets` in composition. Unknown target kinds fail decoding before the port runs. Missing rows, denied access and missing relations all fail with `NoteTargetNotFound`. Target deletion calls `notes.removeTarget(ref)` and account deletion calls `notes.erase(authorId)` inside their deletion units. These are facade cascade hooks, not operations.
 
+## Published view
+
+Read models may select `notes_view` to read note text without naming private tables. Its columns are `id`, `target_kind`, `target_id`, `author_id`, `body` and epoch-millisecond `created_at`. The additive 0002 migration publishes it over Notes' own table. The view does not apply person access checks. Read models must filter allowed targets in SQL and prove A/B privacy. Notes is already registered in the workspace migrations.json.
+
 A note is write-once. No edit or remove operation exists. `createdAt` and cursor timestamps use epoch milliseconds. Lists sort oldest-first by createdAt then id, with exclusive cursors. Note bodies are plain text; rendering, including Markdown, belongs to consumers. Errors use fixed kinds. Unavailable messages hide driver details.

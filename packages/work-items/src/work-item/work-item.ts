@@ -63,6 +63,19 @@ export const WorkItemEdit = Schema.Struct({
   attributes: Schema.optionalKey(Schema.Json),
 });
 export type WorkItemEdit = typeof WorkItemEdit.Type;
+export const WorkItemMove = Schema.Union([
+  Schema.Struct({ parent: Schema.NonEmptyString }),
+  Schema.Struct({ container: Schema.NullOr(WorkItemRef) }),
+]);
+export type WorkItemMove = typeof WorkItemMove.Type;
+export class WorkItemIdTaken extends Schema.TaggedError<WorkItemIdTaken>()("WorkItemIdTaken", {
+  kind: errorKind("conflict"),
+  id: Schema.String,
+}) {
+  override get message(): string {
+    return "Work item id is already taken.";
+  }
+}
 export class WorkItemNotFound extends Schema.TaggedError<WorkItemNotFound>()("WorkItemNotFound", {
   kind: errorKind("not_found"),
 }) {
@@ -147,7 +160,6 @@ export class WorkItemAccessUnavailable extends Schema.TaggedError<WorkItemAccess
 }
 export const WorkItemFailure = Schema.Union([
   WorkItemNotFound,
-  WorkItemsCallerDenied,
   WorkItemInputInvalid,
   DepthExceeded,
   WorkItemTreeTooLarge,

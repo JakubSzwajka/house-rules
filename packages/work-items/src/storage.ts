@@ -14,12 +14,19 @@ export class WorkItemStore extends Context.Service<
   WorkItemStore,
   {
     readonly get: (id: string) => Read<WorkItem | null>;
+    readonly lockContainers: (refs: ReadonlyArray<WorkItemRef | null>) => Write<void>;
+    readonly inContainers: (
+      refs: ReadonlyArray<WorkItemRef | null>,
+    ) => Read<ReadonlyArray<WorkItem>>;
+    readonly getMany: (ids: ReadonlyArray<string>) => Read<ReadonlyArray<WorkItem>>;
+    readonly nextId: Write<string>;
+    readonly advanceSequence: (id: string) => Write<void>;
     readonly lock: (id: string) => Write<WorkItem | null>;
     readonly list: (
       visible: WorkItemVisibility,
       filters: WorkItemQuery,
     ) => Read<ReadonlyArray<WorkItem>>;
-    readonly insert: (item: WorkItem) => Write<void>;
+    readonly insert: (item: WorkItem) => Write<boolean>;
     readonly save: (item: WorkItem) => Write<void>;
     readonly claim: (item: WorkItem) => Write<boolean>;
     readonly removeContainer: (ref: WorkItemRef) => Write<void>;

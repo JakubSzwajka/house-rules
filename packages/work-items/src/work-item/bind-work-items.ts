@@ -9,6 +9,14 @@ export const bindWorkItems = (service: ReturnType<typeof makeWorkItems>): readon
       ? service.create(caller.actor, input)
       : Effect.fail(new WorkItemNotFound()),
   ),
+  bindOperation(operations.move, ({ id, to }, { caller }) =>
+    caller.kind === "person"
+      ? service.move(caller.actor, id, to)
+      : Effect.fail(new WorkItemNotFound()),
+  ),
+  bindOperation(operations.import, ({ items }, { caller }) =>
+    caller.kind === "system" ? service.import(items) : Effect.fail(new WorkItemsCallerDenied()),
+  ),
   bindOperation(operations.edit, ({ id, patch }, { caller }) =>
     caller.kind === "person"
       ? service.edit(caller.actor, id, patch)

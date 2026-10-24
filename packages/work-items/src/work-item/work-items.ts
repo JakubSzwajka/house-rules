@@ -1,14 +1,18 @@
 import { type Actor, UnitOfWork } from "@house-rules/domain";
-import { DateTime, Effect, Random, Schema } from "effect";
+import { DateTime, Effect, Schema } from "effect";
 import type { WorkItemStore } from "../storage.js";
+import { moveWorkItem } from "./move-work-item.js";
+import { lockHierarchy } from "./hierarchy-lock.js";
+import { checkParentDepth } from "./hierarchy.js";
+import { randomWorkItemId } from "./work-item-id.js";
+import { importWorkItems } from "./import-work-items.js";
 import { type WorkItemAccess, WorkItemVisibility, configuredVisibility } from "./access.js";
-import type { WorkItemEvent, WorkItemMutation } from "./events.js";
+import { workItemMutation as result } from "./events.js";
 import type { WorkItemsOptions } from "./options.js";
 import { sameRef } from "./order.js";
 import { workItemTree } from "./tree.js";
 import { readStoredWorkItem } from "./system-read.js";
 import {
-  DepthExceeded,
   TransitionNotAllowed,
   type WorkItem,
   WorkItemAccessUnavailable,
@@ -18,6 +22,7 @@ import {
   WorkItemFilters,
   WorkItemHeld,
   WorkItemInputInvalid,
+  WorkItemStoreUnavailable,
   WorkItemNotFound,
   type WorkItemRef,
   WorkItemTreeTooLarge,
@@ -27,10 +32,6 @@ const now = DateTime.now.pipe(Effect.map(DateTime.toEpochMillis));
 const subject = (item: WorkItem) => ({ kind: "work_item" as const, id: item.id });
 const content = ({ title, body, attributes }: WorkItem) => ({ title, body, attributes });
 const holding = ({ holder, status }: WorkItem) => ({ holder, status });
-const result = (item: WorkItem, event: WorkItemEvent): WorkItemMutation => ({
-  item,
-  events: [event],
-});
 export const makeWorkItems = (
   store: WorkItemStore["Service"],
   access: WorkItemAccess["Service"],
@@ -109,24 +110,23 @@ export const makeWorkItems = (
       return item;
     }),
     getForSystem: (id: string) => readStoredWorkItem(store, id),
+    import: importWorkItems(store, options),
+    move: moveWorkItem(store, options, writable, requireAccess),
     create: Effect.fn("WorkItems.create")(function* (actor: Actor, input: WorkItemCreate) {
       yield* UnitOfWork.required;
       const decoded = yield* Schema.decodeEffect(WorkItemCreate)(input).pipe(
         Effect.mapError(invalid),
       );
       let container = decoded.container ?? null;
+      yield* lockHierarchy(
+        store,
+        decoded.parent == null ? [] : [decoded.parent],
+        decoded.parent == null ? [container] : [],
+      );
       if (decoded.parent != null) {
         const parent = yield* writable(actor, decoded.parent);
         container = parent.container;
-        let ancestor: WorkItem | null = parent;
-        let depth = 1;
-        while (ancestor.parent !== null) {
-          if (depth > options.maxDepth) return yield* new DepthExceeded();
-          ancestor = yield* store.get(ancestor.parent);
-          if (ancestor === null) return yield* new WorkItemNotFound();
-          depth++;
-        }
-        if (depth > options.maxDepth) return yield* new DepthExceeded();
+        yield* checkParentDepth(store, parent, options.maxDepth);
       }
       yield* requireAccess(actor, container, true);
       const holder = yield* decodeHolder(decoded.holder ?? null).pipe(Effect.mapError(invalid));
@@ -138,11 +138,7 @@ export const makeWorkItems = (
       const createdAt = yield* now;
       const item: WorkItem = {
         ...fields,
-        id: yield* Effect.all(
-          Array.from({ length: 4 }, () => Random.nextIntBetween(0, 0xffff_ffff)),
-        ).pipe(
-          Effect.map((words) => words.map((word) => word.toString(16).padStart(8, "0")).join("")),
-        ),
+        id: yield* options.idStrategy === "sequence" ? store.nextId : randomWorkItemId,
         container,
         holder,
         parent: decoded.parent ?? null,
@@ -151,7 +147,8 @@ export const makeWorkItems = (
         updatedAt: createdAt,
         closedAt: closed(options.initial) ? createdAt : null,
       };
-      yield* store.insert(item);
+      if (!(yield* store.insert(item)))
+        return yield* new WorkItemStoreUnavailable({ cause: "Duplicate generated work item id." });
       return result(item, { kind: "work_items.created", subject: subject(item), item });
     }),
     edit: Effect.fn("WorkItems.edit")(function* (actor: Actor, id: string, patch: WorkItemEdit) {

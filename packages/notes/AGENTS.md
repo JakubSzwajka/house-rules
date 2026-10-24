@@ -14,4 +14,6 @@ All options are required. `targets` names allowed target kinds. `maxBodyLength` 
 
 `NotesOperations.addNote` and `notes.add` return `{ note, events: [NoteAdded] }`. Import `NoteEvents` from `./contract`; `NoteAdded` has `kind: "NoteAdded"`, `noteId`, `target: { kind, id }`, `authorId` and epoch-millisecond `createdAt`. `listNotes` is unchanged. Features choose whether to record these facts through an explicit event-log edge. The module returns plain data, never emits, never depends on event-log and never reads `CurrentActor`.
 
+The published `notes_view` exposes `id`, `target_kind`, `target_id`, `author_id`, `body` and `created_at` for read models, including text search. It selects only this module's notes table. Read models must filter target/person access in their own SQL; the view grants no access by itself. Migration 0002 adds it; never alter 0001. The workspace is already registered in migrations.json.
+
 Writes require an open unit. Memory storage registers rollback undo before changes; Postgres joins the open transaction. The module never opens units. The body stays plain text; rendering is a consumer choice. Error kinds are fixed, and unavailable messages do not expose causes.

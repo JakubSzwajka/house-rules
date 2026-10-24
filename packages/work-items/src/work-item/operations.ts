@@ -1,6 +1,6 @@
 import { defineOperation } from "@house-rules/domain/contract";
 import { Schema } from "effect";
-import { WorkItemMutation } from "./events.js";
+import { WorkItemImportResult, WorkItemMutation } from "./events.js";
 import { WorkItemPermissions } from "./permissions.js";
 import {
   WorkItem,
@@ -9,6 +9,9 @@ import {
   WorkItemFailure,
   WorkItemFilters,
   WorkItemList,
+  WorkItemMove,
+  WorkItemIdTaken,
+  WorkItemsCallerDenied,
   WorkItemRef,
   WorkItemTree,
 } from "./work-item.js";
@@ -30,6 +33,19 @@ const create = defineOperation("WorkItems.create", {
   ...write,
   description: "Create a work item, inheriting its parent's container.",
   input: WorkItemCreate,
+});
+const move = defineOperation("WorkItems.move", {
+  ...write,
+  description: "Move a subtree to a parent or top-level container.",
+  input: Schema.Struct({ id: Schema.NonEmptyString, to: WorkItemMove }),
+});
+const importItems = defineOperation("WorkItems.import", {
+  ...write,
+  permission: WorkItemPermissions.import,
+  failure: Schema.Union([WorkItemFailure, WorkItemsCallerDenied, WorkItemIdTaken]),
+  description: "Import work items with their given ids as the system.",
+  input: Schema.Struct({ items: Schema.Array(WorkItem) }),
+  output: WorkItemImportResult,
 });
 const edit = defineOperation("WorkItems.edit", {
   ...write,
@@ -66,6 +82,7 @@ const get = defineOperation("WorkItems.get", {
 const getForSystem = defineOperation("WorkItems.getForSystem", {
   ...read,
   permission: WorkItemPermissions.systemRead,
+  failure: Schema.Union([WorkItemFailure, WorkItemsCallerDenied]),
   description: "Read one work item as the system without person access checks.",
   input: key,
   output: WorkItem,
@@ -84,6 +101,8 @@ const tree = defineOperation("WorkItems.tree", {
 });
 export const WorkItemsOperations = {
   create,
+  move,
+  import: importItems,
   edit,
   setStatus,
   assign,
