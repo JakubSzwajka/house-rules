@@ -4,6 +4,7 @@
     { "workspace": "packages/comments" },
     { "workspace": "packages/contacts" },
     { "workspace": "packages/notes" },
+    { "workspace": "packages/projects" },
     { "workspace": "packages/event-log" },
     { "workspace": "packages/notifications" },
     { "workspace": "packages/push" },
