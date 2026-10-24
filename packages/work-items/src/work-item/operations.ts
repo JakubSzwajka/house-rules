@@ -12,6 +12,7 @@ import {
   WorkItemMove,
   WorkItemIdTaken,
   WorkItemsCallerDenied,
+  WorkItemsChanged,
   WorkItemRef,
   WorkItemTree,
 } from "./work-item.js";
@@ -31,18 +32,25 @@ const read = {
 const key = Schema.Struct({ id: Schema.NonEmptyString });
 const create = defineOperation("WorkItems.create", {
   ...write,
+  failure: Schema.Union([WorkItemFailure, WorkItemsChanged]),
   description: "Create a work item, inheriting its parent's container.",
   input: WorkItemCreate,
 });
 const move = defineOperation("WorkItems.move", {
   ...write,
+  failure: Schema.Union([WorkItemFailure, WorkItemsChanged]),
   description: "Move a subtree to a parent or top-level container.",
   input: Schema.Struct({ id: Schema.NonEmptyString, to: WorkItemMove }),
 });
 const importItems = defineOperation("WorkItems.import", {
   ...write,
   permission: WorkItemPermissions.import,
-  failure: Schema.Union([WorkItemFailure, WorkItemsCallerDenied, WorkItemIdTaken]),
+  failure: Schema.Union([
+    WorkItemFailure,
+    WorkItemsCallerDenied,
+    WorkItemIdTaken,
+    WorkItemsChanged,
+  ]),
   description: "Import work items with their given ids as the system.",
   input: Schema.Struct({ items: Schema.Array(WorkItem) }),
   output: WorkItemImportResult,

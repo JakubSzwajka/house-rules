@@ -33,6 +33,8 @@ export const importWorkItems = (store: WorkItemStore["Service"], options: WorkIt
       if (
         item.createdAt > item.updatedAt ||
         (item.closedAt !== null) !== closed ||
+        (item.closedAt !== null &&
+          (item.closedAt < item.createdAt || item.closedAt > item.updatedAt)) ||
         item.title.length > options.maxTitleLength ||
         item.body.length > options.maxBodyLength ||
         state === undefined ||

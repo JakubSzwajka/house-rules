@@ -2,7 +2,7 @@ import { UnitOfWork } from "@house-rules/domain";
 import { Effect } from "effect";
 import type { WorkItemStore } from "../storage.js";
 import { sameRef } from "./order.js";
-import { WorkItemInputInvalid, type WorkItemRef } from "./work-item.js";
+import { type WorkItemRef, WorkItemsChanged } from "./work-item.js";
 
 export const lockHierarchy = Effect.fn("WorkItems.lockHierarchy")(function* (
   store: WorkItemStore["Service"],
@@ -20,8 +20,6 @@ export const lockHierarchy = Effect.fn("WorkItems.lockHierarchy")(function* (
       (item) => !before.some((old) => old.id === item.id && sameRef(old.container, item.container)),
     )
   )
-    return yield* new WorkItemInputInvalid({
-      message: "Work item hierarchy changed. Retry the operation.",
-    });
+    return yield* new WorkItemsChanged();
   return current;
 });

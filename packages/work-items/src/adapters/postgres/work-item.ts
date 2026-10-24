@@ -2,7 +2,13 @@ import { UnitOfWork } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
 import { WorkItemStore } from "../../storage.js";
-import { WorkItem, type WorkItemRef, WorkItemStoreUnavailable } from "../../work-item/work-item.js";
+import { sameRef } from "../../work-item/order.js";
+import {
+  WorkItem,
+  type WorkItemRef,
+  WorkItemsChanged,
+  WorkItemStoreUnavailable,
+} from "../../work-item/work-item.js";
 const decodeRows = Schema.decodeUnknownEffect(Schema.Array(WorkItem));
 const unavailable = (cause: unknown) => new WorkItemStoreUnavailable({ cause });
 export const postgresWorkItemStore: Layer.Layer<WorkItemStore, never, SqlClient> = Layer.effect(
@@ -159,10 +165,25 @@ export const postgresWorkItemStore: Layer.Layer<WorkItemStore, never, SqlClient>
             ),
           ),
         ),
-      releaseHolder: (ref, updatedAt) =>
-        write(
-          sql`update work_items set holder_kind = null, holder_id = null, updated_at = ${updatedAt} where holder_kind = ${ref.kind} and holder_id = ${ref.id}`,
-        ),
+      releaseHolder: Effect.fn("WorkItemStore.postgres.releaseHolder")(function* (ref, updatedAt) {
+        yield* UnitOfWork.required;
+        const holder = sql`holder_kind = ${ref.kind} and holder_id = ${ref.id}`;
+        const before = yield* read(sql`select ${columns} from work_items where ${holder}`);
+        const containers = before.map((item) => item.container);
+        yield* lockContainers(containers);
+        const current = yield* read(sql`select ${columns} from work_items where ${holder}`);
+        // Never chase a moved row by acquiring another container lock out of order.
+        if (current.some((item) => !containers.some((ref) => sameRef(ref, item.container))))
+          return yield* new WorkItemsChanged();
+        if (current.length === 0) return;
+        const ids = current.map((item) => item.id);
+        yield* write(
+          sql`select id from work_items where ${sql.in("id", ids)} and ${holder} order by id collate "C" for update`,
+        );
+        yield* write(
+          sql`update work_items set holder_kind = null, holder_id = null, updated_at = ${updatedAt} where ${sql.in("id", ids)} and ${holder}`,
+        );
+      }),
     });
   }),
 );

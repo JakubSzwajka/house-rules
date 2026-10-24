@@ -6,6 +6,7 @@ import type {
   WorkItemFilters,
   WorkItemRef,
   WorkItemStoreUnavailable,
+  WorkItemsChanged,
 } from "./work-item/work-item.js";
 export type WorkItemQuery = WorkItemFilters & { readonly states?: ReadonlyArray<string> };
 type Read<A> = Effect.Effect<A, WorkItemStoreUnavailable>;
@@ -30,6 +31,9 @@ export class WorkItemStore extends Context.Service<
     readonly save: (item: WorkItem) => Write<void>;
     readonly claim: (item: WorkItem) => Write<boolean>;
     readonly removeContainer: (ref: WorkItemRef) => Write<void>;
-    readonly releaseHolder: (ref: WorkItemRef, updatedAt: number) => Write<void>;
+    readonly releaseHolder: (
+      ref: WorkItemRef,
+      updatedAt: number,
+    ) => Effect.Effect<void, WorkItemStoreUnavailable | NoOpenUnit | WorkItemsChanged>;
   }
 >()("@house-rules/work-items/WorkItemStore") {}

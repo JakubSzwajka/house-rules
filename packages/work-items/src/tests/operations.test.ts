@@ -18,6 +18,7 @@ import {
   WorkItemNotFound,
   WorkItemPermissions,
   WorkItems,
+  WorkItemsChanged,
   WorkItemsMount,
   WorkItemsOperations,
 } from "../index.js";
@@ -27,12 +28,21 @@ it("describes claiming an unheld item or the caller's current item", () => {
     "Claim an open item that is unheld or already held by the caller.",
   );
 });
+it("declares hierarchy discovery conflicts only on create, move and import", () => {
+  const conflict = new WorkItemsChanged();
+  expect(Schema.is(WorkItemFailure)(conflict)).toBe(false);
+  expect(
+    Object.entries(WorkItemsOperations)
+      .filter(([, operation]) => Schema.is(operation.failure)(conflict))
+      .map(([name]) => name),
+  ).toEqual(["create", "move", "import"]);
+});
 expectTypeOf<WorkItems["Service"]>().toExtend<Parameters<typeof bindWorkItems>[0]>();
 const operations = WorkItemsOperations;
 const flow = defineFeature("test_workItemFlow", {
   input: WorkItemCreate,
   output: WorkItemMutation,
-  failure: WorkItemFailure,
+  failure: Schema.Union([WorkItemFailure, WorkItemsChanged]),
   description: "Exercise every work item binding in one feature unit.",
   permission: null,
   edges: Object.values(operations),

@@ -83,11 +83,9 @@ export const makeWorkItems = (
     yield* requireAccess(actor, item.container, true, true);
     return item;
   });
-  const closed = (status: string) =>
-    options.states.some(
-      (state) =>
-        state.name === status && (state.category === "done" || state.category === "cancelled"),
-    );
+  const category = (status: string) =>
+    options.states.find((state) => state.name === status)?.category;
+  const closed = (status: string) => ["done", "cancelled"].includes(category(status) ?? "");
   const move = Effect.fn("WorkItems.move")(function* (item: WorkItem, status: string) {
     const allowed = options.transitions[item.status];
     if (
@@ -100,7 +98,11 @@ export const makeWorkItems = (
       ...item,
       status,
       updatedAt,
-      closedAt: closed(status) ? (item.closedAt ?? updatedAt) : null,
+      closedAt: closed(status)
+        ? category(status) === category(item.status)
+          ? (item.closedAt ?? updatedAt)
+          : updatedAt
+        : null,
     };
   });
   return {

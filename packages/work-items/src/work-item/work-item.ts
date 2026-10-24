@@ -76,6 +76,13 @@ export class WorkItemIdTaken extends Schema.TaggedError<WorkItemIdTaken>()("Work
     return "Work item id is already taken.";
   }
 }
+export class WorkItemsChanged extends Schema.TaggedError<WorkItemsChanged>()("WorkItemsChanged", {
+  kind: errorKind("conflict"),
+}) {
+  override get message(): string {
+    return "Work items changed; try again";
+  }
+}
 export class WorkItemNotFound extends Schema.TaggedError<WorkItemNotFound>()("WorkItemNotFound", {
   kind: errorKind("not_found"),
 }) {

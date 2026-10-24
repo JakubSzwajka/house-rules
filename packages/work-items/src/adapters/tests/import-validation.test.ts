@@ -31,11 +31,48 @@ for (const { name, layer: storeLayer } of stores) {
           const items = [
             { ...stored("import-done", ref("closed-import")), status: "done", closedAt: 300 },
             { ...stored("import-dropped", ref("closed-import")), status: "dropped", closedAt: 400 },
+            {
+              ...stored("closed-at-creation", ref("closed-bounds")),
+              status: "done",
+              closedAt: 123,
+            },
+            {
+              ...stored("closed-at-update", ref("closed-bounds")),
+              status: "dropped",
+              closedAt: 456,
+            },
+            {
+              ...stored("closed-at-instant", ref("closed-bounds")),
+              status: "done",
+              createdAt: 456,
+              closedAt: 456,
+            },
           ];
           yield* runFeature(importItems, { items }).pipe(Effect.provide(system));
           for (const item of items) expect(yield* runFeature(read, { id: item.id })).toEqual(item);
         }).pipe(Effect.provide(caller)),
       );
+      for (const status of ["done", "dropped"]) {
+        for (const closedAt of [122, 457]) {
+          it.effect(`rejects ${status} import with closedAt ${closedAt} outside its lifetime`, () =>
+            Effect.gen(function* () {
+              const item = {
+                ...stored(`invalid-closed-${status}-${closedAt}`, ref("invalid-closed")),
+                status,
+                closedAt,
+              };
+              expect(
+                yield* Effect.flip(
+                  runFeature(importItems, { items: [item] }).pipe(Effect.provide(system)),
+                ),
+              ).toEqual(new WorkItemInputInvalid({ message: "Invalid work item import." }));
+              expect(yield* Effect.flip(runFeature(read, { id: item.id }))).toEqual(
+                new WorkItemNotFound(),
+              );
+            }).pipe(Effect.provide(caller)),
+          );
+        }
+      }
       it.effect(
         "validates import parent links, kinds, workflow, timestamps, content, depth and size",
         () =>

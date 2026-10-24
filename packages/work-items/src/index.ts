@@ -31,6 +31,7 @@ export {
   WorkItemNotFound,
   WorkItemsCallerDenied,
   WorkItemInputInvalid,
+  WorkItemsChanged,
   DepthExceeded,
   TransitionNotAllowed,
   WorkItemHeld,

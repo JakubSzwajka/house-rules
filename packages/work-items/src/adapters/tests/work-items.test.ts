@@ -9,6 +9,7 @@ import {
   WorkItemInputInvalid,
   WorkItemNotFound,
   WorkItems,
+  WorkItemsChanged,
   type WorkItemFailure,
 } from "../../index.js";
 import { stores } from "./stores.js";
@@ -251,7 +252,9 @@ for (const { name, layer: storeLayer } of stores) {
       it.effect("requires a unit for every facade write", () =>
         Effect.gen(function* () {
           const work = yield* WorkItems;
-          const writes: ReadonlyArray<Effect.Effect<unknown, WorkItemFailure | NoOpenUnit>> = [
+          const writes: ReadonlyArray<
+            Effect.Effect<unknown, WorkItemFailure | WorkItemsChanged | NoOpenUnit>
+          > = [
             work.create(a, { title: "outside" }),
             work.edit(a, "missing", {}),
             work.setStatus(a, "missing", "done"),

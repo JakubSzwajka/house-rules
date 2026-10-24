@@ -7,6 +7,7 @@ import {
   WorkItemNotFound,
   WorkItemStore,
   WorkItems,
+  WorkItemsChanged,
 } from "../../index.js";
 import { a, b, project, access } from "./access.js";
 import { stores } from "./stores.js";
@@ -116,7 +117,9 @@ for (const { name, layer: storeLayer } of stores) {
           expect(yield* Effect.flip(changed.list(a, { container: project("a") }))).toBeInstanceOf(
             WorkItemNotFound,
           );
-          const writes: ReadonlyArray<Effect.Effect<unknown, WorkItemFailure | NoOpenUnit>> = [
+          const writes: ReadonlyArray<
+            Effect.Effect<unknown, WorkItemFailure | WorkItemsChanged | NoOpenUnit>
+          > = [
             changed.edit(a, item.id, { title: "hidden" }),
             changed.setStatus(a, item.id, "doing"),
             changed.assign(a, item.id, null),
