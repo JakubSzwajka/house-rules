@@ -164,6 +164,37 @@ it.effect("supplies the catalogue before building modules and resolves May once"
     }
   }),
 );
+it.effect.each([undefined, "capability", "process"] as const)(
+  "appMap reads mount role %s and defaults it to capability",
+  (role) =>
+    Effect.gen(function* () {
+      const app = composition({
+        modules: {
+          mounts: [
+            {
+              ...mount,
+              ...(role === undefined
+                ? {}
+                : { map: { name: "store", kind: "package" as const, role } }),
+              layer: store,
+            },
+          ],
+          layer: StepTrace.layer(),
+        },
+        features: [],
+        ways: [],
+        may: Effect.succeed(May.fixed([])),
+        system: [],
+      });
+      try {
+        const snapshot = yield* appMap(app);
+        expect(snapshot.modules[0]?.role).toBe(role ?? "capability");
+      } finally {
+        yield* Effect.promise(app.dispose);
+      }
+    }),
+);
+
 it("rejects binders whose parameter contradicts the service shape", () => {
   const wrong = {
     service: Store,

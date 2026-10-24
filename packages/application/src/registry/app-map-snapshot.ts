@@ -16,6 +16,7 @@ export interface MapModule {
   readonly name: string;
   readonly service: string;
   readonly kind: "package" | "read-model";
+  readonly role?: "capability" | "process";
   readonly package?: string;
   readonly path?: string;
   readonly operations: readonly MapOperation[];

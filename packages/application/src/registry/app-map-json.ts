@@ -15,6 +15,7 @@ export const AppMapJson = Schema.Struct({
       name: Name,
       service: Name,
       kind: Schema.Literals(["package", "read-model"]),
+      role: Schema.optionalKey(Schema.Literals(["capability", "process"])),
       package: Schema.optionalKey(Schema.String),
       path: Schema.optionalKey(Schema.String),
       operations: Schema.Array(

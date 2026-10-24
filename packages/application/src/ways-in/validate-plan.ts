@@ -125,6 +125,7 @@ const derive = (plan: Plan): Derived => {
       map: {
         name: module.name,
         kind: module.kind,
+        role: module.role ?? "capability",
         ...(module.package === undefined ? {} : { package: module.package }),
       },
       operations: module.operations.map((each) => operation(each.name)),

@@ -1,5 +1,6 @@
 import type { AppMapSnapshot, MapEdge, MapModule } from "./app-map-snapshot.ts";
 import type { MapGraph } from "./app-map-html-graph.ts";
+import { moduleGroups, moduleOwner } from "./app-map-modules.ts";
 import { badge, code, esc, list, type Mark, markClass, markLabel } from "./html-text.ts";
 
 export type Marks = ReadonlyMap<string, Mark>;
@@ -141,7 +142,7 @@ const moduleGroup = (graph: MapGraph, marks: Marks, module: MapModule): string =
   );
   return (
     `<section class="module${markClass(mark)}" id="${id}" data-module aria-labelledby="${id}-name">` +
-    `<h3 class="module-head" id="${id}-name">${esc(module.name)}${markLabel(mark)}</h3>` +
+    `<h3 class="module-head" id="${id}-name">${esc(module.name)}${markLabel(mark)}${badge("owner", moduleOwner(module))}</h3>` +
     (where.length === 0 ? "" : `<p class="note">${where.join(" · ")}</p>`) +
     `<ul class="nodes">${module.operations
       .map((op) =>
@@ -163,12 +164,11 @@ const moduleGroup = (graph: MapGraph, marks: Marks, module: MapModule): string =
 };
 
 export const operationsColumn = (data: AppMapSnapshot, graph: MapGraph, marks: Marks): string =>
-  (["package", "read-model"] as const)
-    .map((kind) => {
-      const modules = data.modules.filter((module) => module.kind === kind);
+  moduleGroups(data)
+    .map(({ title, modules }) => {
       return modules.length === 0
         ? ""
-        : `<h3 class="group">${kind === "package" ? "Modules" : "Read models"}</h3>${modules
+        : `<h3 class="group">${title}</h3>${modules
             .map((module) => moduleGroup(graph, marks, module))
             .join("")}`;
     })

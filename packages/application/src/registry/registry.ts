@@ -3,7 +3,12 @@ import type { AnyFeature } from "../feature/feature.ts";
 import type { MapPlug } from "./app-map-snapshot.ts";
 
 type Operation = AnyCallable & { readonly kind: "operation" };
-export type MountMap = Readonly<{ name: string; kind: "package" | "read-model"; package?: string }>;
+export type MountMap = Readonly<{
+  name: string;
+  kind: "package" | "read-model";
+  role?: "capability" | "process";
+  package?: string;
+}>;
 
 export type MeanKey = "allow" | "no" | "elicitation";
 export type RegistryWay = Readonly<{

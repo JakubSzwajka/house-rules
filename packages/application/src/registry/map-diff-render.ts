@@ -117,7 +117,13 @@ const marks = (diff: MapDiff): Map<string, Mark> => {
   const { before, after } = diff;
   // Compare by service, not by changed names: two modules may share a display name.
   const facts = (module: MapModule) =>
-    JSON.stringify([module.name, module.kind, module.package ?? null, module.path ?? null]);
+    JSON.stringify([
+      module.name,
+      module.kind,
+      module.role ?? "capability",
+      module.package ?? null,
+      module.path ?? null,
+    ]);
   for (const module of after.modules) {
     const prior = before.modules.find((each) => each.service === module.service);
     if (prior === undefined) result.set(`module:${module.service}`, "added");

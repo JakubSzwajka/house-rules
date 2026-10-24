@@ -72,12 +72,14 @@ Full schema: [application README, Validate a plan](../../packages/application/RE
 
 | Section | Write |
 | --- | --- |
-| `modules[]` | `name`, unique `service`, `kind` package or read-model, optional `package` and `path`, nested `operations` |
+| `modules[]` | `name`, unique `service`, `kind` package or read-model, optional `role` capability or process (default capability), `package` and `path`, nested `operations` |
 | Operation | Unique callable `name`, explicit `permission` string or null; optional own `readOnly`, `transactional`, `destructive`, `needsApproval`, `edges` |
 | `features[]` | Callable fields plus optional `path`, `start`: person by default or `{ reason, startedBy }` |
 | Edge | Callable name, or `{ target, reason }` for a system edge. No authored closures. |
 | `ways[]` | `name`, `protocol`, `features`, optional `source`, `mean`: allow, no or elicitation. Network `path`, hook `slot`, schedule `clock: { cron, timeZone: "UTC" }`. HTTP-only `public`. |
 | `plugs[]` | Optional `{ name, package?, fills, ways? }`. Who, Mean and hook fills name ways; May and Record are app-level. |
+
+Set `role: "process"` on a module that composes modules through operation edges, whether stateless or durable. Capabilities own their state, computation or outside effect and their rules. Capability operations never call process operations; validation names the offending edge path. Processes may call capabilities or other processes without cycles. Built mounts declare the same role in `map: { name, kind, role, package? }`. Text, HTML and Mermaid show process modules separately, and built-vs-plan diffs compare role.
 
 Flags default false and start defaults to person. Plan rejects unknown keys at every depth and names their path, so a stray `flags`, `closures`, `layers` or `permissions` key fails validation.
 
@@ -109,6 +111,7 @@ Flags. Write each flag as the code will declare it. Operations: readOnly for rea
 | Blank system reason or startedBy | Write the actual reason and initiating hook, schedule or public entry. Do not use a fake reason to bypass person access. |
 | Invalid public exposure | Keep public names in that HTTP way's features and give each a system start. MCP has no public list. |
 | Hook or schedule with person features or wrong count | Hook takes one system feature. Schedule takes selector and item system features; the real selector returns an array of item inputs. |
+| Capability calls process | Move the composition to a process module or feature. Keep the capability's own rules in the capability; do not relabel it just to pass. |
 | Cycle | Remove the circular responsibility. Move shared work down to its owner rather than disguising the edge. |
 | Conflicting or unknown plug fill | Correct its socket or hook slot and way names. Who needs network ways; May and Record take no ways. Mean and hook twins must match the derived plug exactly. One plug per socket per way or app. |
 | Runtime or way error at `plan` | Read the full reason. Check protocol paths, exposures and starts against the package guide; rerun after each fix. |
@@ -119,7 +122,7 @@ A valid plan does not prove every required socket is filled. Review Who, May, Me
 
 `plan diff` accepts map JSON as a side. It detects a map by the presence of both `layers` and `permissions`. `plan validate` and `plan view` reject map JSON. Keep the raw `current-map.json` and build a plan beside it:
 
-1. Copy `modules` with service, kind, package, path and nested operations. Map operations carry all four of their own flags as top-level booleans. Keep the true ones and drop the false ones.
+1. Copy `modules` with service, kind, role, package, path and nested operations. A missing role means capability. Map operations carry all four of their own flags as top-level booleans. Keep the true ones and drop the false ones.
 2. Copy feature names, permissions, paths and edges. A map feature's `flags` object holds lifted values. Write `readOnly: true` where it is true. Read each feature's `defineFeature` call for literal OR flags and write only those. Convert `{ kind: "system", reason, startedBy }` starts to `{ reason, startedBy }`; drop `"person"`.
 3. An edge record with no reason becomes its target name; one with a reason becomes `{ target, reason }`. Copy ways, sources, exposures and plugs. Map `mean` holds words: `allow` is allow, `deny approval` is no, `ask the human` is elicitation. Keep `public` only on HTTP ways that list features. Remove `layers`, `permissions`, feature `flags`, `closures` and `ways`, and edge and start `kind`; strict decoding rejects them.
 4. Run `pnpm --silent plan validate <plan>`, then `pnpm --silent plan diff "$D/current-map.json" <plan> --text`. Require `No changes: both maps describe the same app.` before you edit a candidate.

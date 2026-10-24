@@ -107,6 +107,7 @@ const facts = (
         fields: {
           name: item(module.name),
           kind: item(module.kind),
+          role: item(module.role ?? "capability"),
           package: optional(module.package),
           path: optional(module.path),
         },

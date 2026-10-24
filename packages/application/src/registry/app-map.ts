@@ -5,6 +5,7 @@ import { mergePlugs } from "./plugs.ts";
 import { mermaid } from "./app-map-mermaid.ts";
 import { canonical, compare, named, strings } from "./app-map-order.ts";
 import { appMapHtml } from "./app-map-html.ts";
+import { moduleGroups, moduleOwner } from "./app-map-modules.ts";
 
 import type { AppMapSnapshot, MapEdge } from "./app-map-snapshot.ts";
 
@@ -43,6 +44,7 @@ export const mapRegistry = (data: RegistrySnapshot): AppMapSnapshot => {
             .toLowerCase(),
         service: mount.service,
         kind: mount.map?.kind ?? ("package" as const),
+        role: mount.map?.role ?? ("capability" as const),
         ...(mount.map?.package === undefined ? {} : { package: mount.map.package }),
         operations: named(
           mount.operations.map((operation) => ({
@@ -196,19 +198,25 @@ const text = (data: AppMapSnapshot): string => {
     lines.push("", "IN-PROCESS FEATURES");
     for (const feature of hidden) lines.push(...featureLines(feature, " ", "  "));
   }
-  for (const kind of ["package", "read-model"] as const) {
-    lines.push("", kind === "package" ? "MODULES" : "READ MODELS");
-    for (const module of data.modules.filter((entry) => entry.kind === kind)) {
+  for (const group of moduleGroups(data)) {
+    if (group.title === "Process modules" && group.modules.length === 0) continue;
+    lines.push("", group.title.toUpperCase());
+    for (const module of group.modules) {
       const names = new Set(module.operations.map((operation) => operation.name));
-      const callers = data.features
-        .filter((feature) => feature.edges.some((edge) => names.has(edge.target)))
-        .map((feature) => feature.name);
+      const callers = named([...data.features, ...operations])
+        .filter((callable) => callable.edges.some((edge) => names.has(edge.target)))
+        .map((callable) => callable.name);
       lines.push(
         ...wrap(
           " ",
-          `${module.name}  ${kind}${module.package === undefined ? "" : ` ${module.package}`}${module.path === undefined ? "" : `  ${module.path}`}`,
+          `${module.name}  ${module.kind} [${moduleOwner(module)}]${module.package === undefined ? "" : ` ${module.package}`}${module.path === undefined ? "" : `  ${module.path}`}`,
         ),
         ...wrap("  ops: ", module.operations.map((operation) => operation.name).join(" ")),
+        ...module.operations.flatMap((operation) =>
+          operation.edges.length === 0
+            ? []
+            : wrap(`  ${operation.name} → `, operation.edges.map(edgeText).join(", ")),
+        ),
         ...wrap("  called by: ", callers.join(" ") || "none"),
       );
     }

@@ -20,6 +20,7 @@ export const canonical = (data: AppMapSnapshot): AppMapSnapshot => ({
     .sort((a, b) => compare(a.name, b.name) || compare(a.service, b.service))
     .map((module) => ({
       ...module,
+      role: module.role ?? "capability",
       operations: named(module.operations).map((operation) => ({
         ...operation,
         edges: sortEdges(operation.edges),

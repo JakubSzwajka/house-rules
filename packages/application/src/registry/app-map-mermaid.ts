@@ -1,4 +1,5 @@
 import type { AppMapSnapshot } from "./app-map-snapshot.ts";
+import { moduleGroups, moduleOwner } from "./app-map-modules.ts";
 
 export const mermaid = (data: AppMapSnapshot): string => {
   const lines = ["flowchart LR"];
@@ -19,10 +20,18 @@ export const mermaid = (data: AppMapSnapshot): string => {
     (name) => name.startsWith("way:") || data.features.some((feature) => feature.name === name),
   ))
     lines.push(`  ${id(name)}["${escape(name)}"]`);
-  for (const [index, module] of data.modules.entries()) {
-    lines.push(`  subgraph m${index}["${escape(`${module.name} (${module.kind})`)}"]`);
-    for (const operation of module.operations)
-      lines.push(`    ${id(operation.name)}["${escape(operation.name)}"]`);
+  for (const [groupIndex, group] of moduleGroups(data).entries()) {
+    if (group.modules.length === 0) continue;
+    lines.push(`  subgraph g${groupIndex}["${group.title}"]`);
+    for (const module of group.modules) {
+      const index = data.modules.indexOf(module);
+      lines.push(
+        `    subgraph m${index}["${escape(`${module.name} (${module.kind}, ${moduleOwner(module)})`)}"]`,
+      );
+      for (const operation of module.operations)
+        lines.push(`      ${id(operation.name)}["${escape(operation.name)}"]`);
+      lines.push("    end");
+    }
     lines.push("  end");
   }
   for (const way of data.ways)

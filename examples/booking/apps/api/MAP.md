@@ -94,30 +94,34 @@ WAYS
       └─ Identity.signUp
 
 MODULES
- billing  package @example/billing  examples/booking/packages/billing
+ billing  package [app-owned] @example/billing  examples/booking/packages/billing
   ops: Billing.duePayments Billing.expireOne Billing.initPayment Billing.refund
   called by: cancel_booking due_payments expire_payment make_booking
- bookings  package @example/bookings  examples/booking/packages/bookings
+ bookings  package [app-owned] @example/bookings  examples/booking/packages/bookings
   ops: Bookings.book Bookings.cancel Bookings.get
+  Bookings.book → Party.canAdminOrganisation, Party.isRelated
+  Bookings.cancel → Party.canAdminOrganisation, Party.isRelated
+  Bookings.get → Party.isRelated
   called by: cancel_booking make_booking show_booking
- identity  package @house-rules/identity  packages/identity
+ identity  package [framework] @house-rules/identity  packages/identity
   ops: Identity.bindLogin Identity.changePassword Identity.signIn Identity.signUp
   called by: change_password first_sign_in sign_in sign_up
- party  package @house-rules/party  packages/party
+ party  package [framework] @house-rules/party  packages/party
   ops: Party.acceptInvitation Party.assignRole Party.canAdminOrganisation Party.createInvitation
        Party.createOrganisation Party.createPerson Party.defineRole Party.deleteRole Party.isRelated
        Party.listInvitations Party.listMembers Party.listPeople Party.listRoles Party.myAccess
        Party.myOrganisations Party.relate Party.renamePerson Party.revokeInvitation Party.revokeRole
        Party.rolesOf Party.showMe Party.showOrganisation Party.showPerson Party.unrelate
-  called by: accept_invitation assign_role create_invitation create_organisation define_role
-             delete_role first_sign_in list_invitations list_members list_people list_permissions
-             list_roles my_organisations my_profile remove_member revoke_invitation revoke_role
+  called by: Bookings.book Bookings.cancel Bookings.get accept_invitation assign_role
+             create_invitation create_organisation define_role delete_role first_sign_in
+             list_invitations list_members list_people list_permissions list_roles my_organisations
+             my_profile remove_member revoke_invitation revoke_role
 
 READ MODELS
- audit-trail  read-model @example/api  src/read-models/audit-trail
+ audit-trail  read-model [app-owned] @example/api  src/read-models/audit-trail
   ops: AuditTrail.mine AuditTrail.recent
   called by: my_activity recent_audit
- my-bookings  read-model @example/api  src/read-models/my-bookings
+ my-bookings  read-model [app-owned] @example/api  src/read-models/my-bookings
   ops: MyBookings.myBookings
   called by: my_bookings
 

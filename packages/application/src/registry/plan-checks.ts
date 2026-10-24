@@ -3,7 +3,12 @@ import { mergePlugs } from "./plugs.ts";
 
 type PlanEdgeValue = typeof PlanEdge.Type;
 export type Entry =
-  | Readonly<{ kind: "operation"; path: string; value: typeof PlanOperation.Type }>
+  | Readonly<{
+      kind: "operation";
+      path: string;
+      module: Plan["modules"][number];
+      value: typeof PlanOperation.Type;
+    }>
   | Readonly<{ kind: "feature"; path: string; value: typeof PlanFeature.Type }>;
 
 export const targetName = (edge: PlanEdgeValue): string =>
@@ -36,7 +41,7 @@ export const planIssues = (
         reason: `Duplicate mount service ${module.service} (also ${seen})`,
       });
     for (const [o, value] of module.operations.entries())
-      add({ kind: "operation", path: `modules[${m}].operations[${o}]`, value });
+      add({ kind: "operation", path: `modules[${m}].operations[${o}]`, module, value });
   }
   for (const [f, value] of plan.features.entries())
     add({ kind: "feature", path: `features[${f}]`, value });
@@ -48,7 +53,18 @@ export const planIssues = (
         reason: `Blank system feature reason or startedBy at ${entry.value.name}`,
       });
     for (const [e, edge] of (entry.value.edges ?? []).entries()) {
-      if (!entries.has(targetName(edge)))
+      const target = entries.get(targetName(edge));
+      if (
+        entry.kind === "operation" &&
+        (entry.module.role ?? "capability") === "capability" &&
+        target?.kind === "operation" &&
+        target.module.role === "process"
+      )
+        issues.push({
+          path: `${entry.path}.edges[${e}]`,
+          reason: `Capability module ${entry.module.name} cannot call process module ${target.module.name}: ${entry.value.name} → ${target.value.name}`,
+        });
+      if (target === undefined)
         issues.push({
           path: `${entry.path}.edges[${e}]`,
           reason: `Unresolved edge target ${targetName(edge)} at ${entry.value.name}`,
