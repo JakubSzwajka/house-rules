@@ -1,6 +1,7 @@
 import { type Actor, UnitOfWork } from "@house-rules/domain";
 import { DateTime, Effect, Random, Schema } from "effect";
 import type { NoteStore } from "../storage.js";
+import type { AddNoteResult } from "./events.js";
 import type { NoteTargets } from "./note-targets.js";
 import { type Note, NoteInputInvalid, NotePage, NoteTarget, NoteTargetNotFound } from "./note.js";
 import type { NotesOptions } from "./options.js";
@@ -60,7 +61,18 @@ export const makeNotes = (
         createdAt: DateTime.toEpochMillis(yield* DateTime.now),
       };
       yield* store.insert(note);
-      return note;
+      return {
+        note,
+        events: [
+          {
+            kind: "NoteAdded",
+            noteId: note.id,
+            target: { ...note.target },
+            authorId: note.authorId,
+            createdAt: note.createdAt,
+          },
+        ],
+      } satisfies AddNoteResult;
     }),
     removeTarget: Effect.fn("Notes.removeTarget")(function* (ref: NoteTarget) {
       yield* UnitOfWork.required;

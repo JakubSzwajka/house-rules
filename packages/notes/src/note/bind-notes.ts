@@ -1,8 +1,8 @@
 import { type Binding, bindOperation } from "@house-rules/application";
 import type { Actor, NoOpenUnit } from "@house-rules/domain";
 import { Effect } from "effect";
+import type { AddNoteResult } from "./events.js";
 import {
-  type Note,
   type NoteInputInvalid,
   type NoteList,
   type NotePage,
@@ -27,7 +27,7 @@ type Service = {
     actor: Actor,
     ref: NoteTarget,
     body: string,
-  ) => Effect.Effect<Note, Failure | NoOpenUnit>;
+  ) => Effect.Effect<AddNoteResult, Failure | NoOpenUnit>;
   readonly removeTarget: (
     ref: NoteTarget,
   ) => Effect.Effect<void, NoteInputInvalid | NoteStoreUnavailable | NoOpenUnit>;

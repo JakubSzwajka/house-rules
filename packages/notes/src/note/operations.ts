@@ -1,7 +1,7 @@
 import { defineOperation } from "@house-rules/domain/contract";
 import { Schema } from "effect";
+import { AddNoteResult } from "./events.js";
 import {
-  Note,
   NoteInputInvalid,
   NoteList,
   NotePage,
@@ -29,7 +29,7 @@ const listNotes = defineOperation("Notes.listNotes", {
 const addNote = defineOperation("Notes.addNote", {
   description: "Append a plain-text note to one target.",
   input: Schema.Struct({ target: NoteTarget, body: Schema.String }),
-  output: Note,
+  output: AddNoteResult,
   failure,
   permission: NotePermissions.write,
   edges: [],

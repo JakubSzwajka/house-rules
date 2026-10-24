@@ -17,6 +17,8 @@ export { notePolicy } from "./note/policy.js";
 export { memoryNoteStore } from "./adapters/memory/note.js";
 export { postgresNoteStore } from "./adapters/postgres/note.js";
 export {
+  AddNoteResult,
+  NoteEvents,
   NotesOperations,
   NoteSchemas,
   Note,

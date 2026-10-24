@@ -28,7 +28,7 @@ export class RelationStore extends Context.Service<
       limit: number,
     ) => Read<ReadonlyArray<NodeRef>>;
     readonly insert: (edge: Relation) => Write<void>;
-    readonly remove: (id: string) => Write<boolean>;
+    readonly remove: (id: string) => Write<Relation | undefined>;
     readonly removeNode: (node: NodeRef) => Write<void>;
   }
 >()("@house-rules/relations/RelationStore") {}

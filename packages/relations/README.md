@@ -34,18 +34,20 @@ All limits are positive integers. Endpoint kind lists must be nonempty subsets o
 
 ## Operations
 
-The browser-safe `@house-rules/relations/contract` door exports `RelationsOperations`, schemas, errors and `RelationsPermissions`. Features declare these descriptors as edges; composition captures the service with `bindRelations` through `RelationsMount`.
+The browser-safe `@house-rules/relations/contract` door exports `RelationsOperations`, `RelationEvents`, schemas, errors and `RelationsPermissions`. Features declare these descriptors as edges; composition captures the service with `bindRelations` through `RelationsMount`.
 
 | Operation | Input | Result | Permission and flags |
 | --- | --- | --- | --- |
-| `relate` | `{ type, source: { kind, id }, target: { kind, id } }` | Edge with `id` and epoch-millisecond `createdAt` | `relations:write`, transactional |
-| `unrelate` | `{ id }` | void | `relations:write`, transactional, destructive |
+| `relate` | `{ type, source: { kind, id }, target: { kind, id } }` | `{ relation, events: [Related] }`; relation has `id` and epoch-millisecond `createdAt` | `relations:write`, transactional |
+| `unrelate` | `{ id }` | `{ events: [Unrelated] }` | `relations:write`, transactional, destructive |
 | `listRelations` | `{ node, type?, direction, page?: { size?, cursor? } }` | `{ edges, next? }` | `relations:read`, readOnly |
 | `subgraph` | `{ root, type, direction, depth? }` | `{ nodes, edges }` | `relations:read`, readOnly |
 
 Facade methods use the same input objects, except `unrelate(id)` takes the id directly. They take no Actor. Person and system bindings behave the same after the app's permission gates.
 
-`removeNode(ref)` is a facade-only cascade hook. Call it inside the same feature unit that deletes a node. It removes every touching edge, across all types, and succeeds when none exist. It accepts any nonempty kind and id, including a kind removed from config. It does not delete or verify the node.
+`RelationEvents.Related` and `RelationEvents.Unrelated` declare `{ kind: "Related" | "Unrelated", type, source: { kind, id }, target: { kind, id } }`. Each successful write returns its fact in stored endpoint order. Unrelate returns the endpoints of the edge it actually deleted. Read results are unchanged. The module returns plain data, never emits, never depends on event-log and never reads `CurrentActor`. Features choose whether to record facts through explicit event-log edges; event-log supplies the envelope.
+
+`removeNode(ref)` is a facade-only cascade hook. Call it inside the same feature unit that deletes a node. It removes every touching edge, across all types, and succeeds when none exist. It accepts any nonempty kind and id, including a kind removed from config. It does not delete or verify the node. It returns void and no events because node deletion is a fact owned by the node's module.
 
 ## Graph semantics
 

@@ -38,7 +38,16 @@ it.layer(world)("Notes", (test) => {
       const target = { kind: "booking", id: "one" };
       const first = yield* UnitOfWork.atomic(notes.add(actor, target, "first"));
       yield* UnitOfWork.atomic(notes.add(actor, target, "second"));
-      expect(first).toMatchObject({ target, authorId: actor.id, body: "first" });
+      expect(first.note).toMatchObject({ target, authorId: actor.id, body: "first" });
+      expect(first.events).toEqual([
+        {
+          kind: "NoteAdded",
+          noteId: first.note.id,
+          target,
+          authorId: actor.id,
+          createdAt: first.note.createdAt,
+        },
+      ]);
       const page = yield* notes.list(actor, target, { size: 1 });
       expect(page.notes).toHaveLength(1);
       expect(page.next).toBeDefined();

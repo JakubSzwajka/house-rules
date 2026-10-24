@@ -24,9 +24,12 @@ Pass `nodeKinds`, `relationTypes`, `maxGraphSize` and `maxPageSize`. Each relati
 
 - `Relations.relate` and `Relations.unrelate` declare `relations:write` and are transactional. Unrelate is destructive.
 - `Relations.listRelations` and `Relations.subgraph` declare `relations:read` and are read-only.
-- `removeNode(ref)` is an idempotent facade hook, not an operation. Call it inside the node-deletion feature's unit. It accepts any nonempty kind and id, even after the kind is removed from config.
+- `relate` returns `{ relation, events: [Related] }`; `unrelate` returns `{ events: [Unrelated] }`. `RelationEvents` in `./contract` declares facts with `kind: "Related"` or `kind: "Unrelated"`, `type`, `source: { kind, id }` and `target: { kind, id }`. Facts use stored endpoint order, including symmetric canonicalization. Read results are unchanged.
+- `removeNode(ref)` is an idempotent facade hook, not an operation. Call it inside the node-deletion feature's unit. It accepts any nonempty kind and id, even after the kind is removed from config. It returns void and no events because node deletion is a fact owned by the node's module.
 
 ## Fixed rules
+
+The module returns event facts as plain data. It never emits, depends on event-log or reads `CurrentActor`. Features decide whether to record facts through explicit event-log edges; event-log supplies the envelope.
 
 Writes require `UnitOfWork.required`. The module never opens a unit. Memory registers undo before mutation and uses the shared `memoryUnitOfWork` to serialize units. Postgres joins the open transaction. Before insertion checks, it takes a transaction-scoped advisory lock with a fixed Relations namespace and a hash of the type name. Writes of one type are serialized; different types run in parallel. Deletions need no advisory lock because they cannot create a cycle or exceed a cap. The checks rely on READ COMMITTED; the default isolation level is assumed. Use the same module config for every process sharing a database.
 

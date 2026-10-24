@@ -84,9 +84,12 @@ it.layer(world)("Relations operation bindings", (test) => {
       expect(subgraph.readOnly).toBe(true);
       const source = { kind: "item", id: "a" };
       const target = { kind: "item", id: "b" };
-      const edge = yield* runFeature(add, { type: "link", source, target }).pipe(
-        Effect.provide(caller),
-      );
+      const { relation: edge, events } = yield* runFeature(add, {
+        type: "link",
+        source,
+        target,
+      }).pipe(Effect.provide(caller));
+      expect(events).toEqual([{ kind: "Related", type: "link", source, target }]);
       expect(
         (yield* runFeature(list, { node: source, direction: "out" }).pipe(Effect.provide(caller)))
           .edges,
@@ -96,7 +99,9 @@ it.layer(world)("Relations operation bindings", (test) => {
           Effect.provide(caller),
         )).nodes,
       ).toHaveLength(2);
-      yield* runFeature(remove, { id: edge.id }).pipe(Effect.provide(caller));
+      expect(yield* runFeature(remove, { id: edge.id }).pipe(Effect.provide(caller))).toEqual({
+        events: [{ kind: "Unrelated", type: "link", source, target }],
+      });
       expect(
         (yield* runFeature(list, { node: source, direction: "both" }).pipe(Effect.provide(caller)))
           .edges,
@@ -111,7 +116,7 @@ it.layer(world)("Relations operation bindings", (test) => {
           source: { kind: "item", id: "system-a" },
           target: { kind: "item", id: "system-b" },
         }).pipe(Effect.provide(caller)),
-      ).toMatchObject({ type: "link" });
+      ).toMatchObject({ relation: { type: "link" }, events: [{ kind: "Related", type: "link" }] });
     }),
   );
 });

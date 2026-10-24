@@ -120,8 +120,10 @@ for (const { name, layer: world } of stores)
           yield* UnitOfWork.atomic(store.removeNode(node("cascade")));
           yield* UnitOfWork.atomic(store.removeNode(node("cascade")));
           expect(yield* store.list(node("cascade"), undefined, "both", 10)).toEqual([]);
-          expect(yield* UnitOfWork.atomic(store.remove("cascade-keep"))).toBe(true);
-          expect(yield* UnitOfWork.atomic(store.remove("cascade-keep"))).toBe(false);
+          expect(yield* UnitOfWork.atomic(store.remove("cascade-keep"))).toEqual(
+            edge("cascade-keep", "keep", "other"),
+          );
+          expect(yield* UnitOfWork.atomic(store.remove("cascade-keep"))).toBeUndefined();
         }),
       );
       it.effect("returns copies that cannot mutate stored endpoints", () =>

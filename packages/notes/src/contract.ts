@@ -1,3 +1,4 @@
+export { AddNoteResult, NoteEvents } from "./note/events.js";
 export {
   Note,
   NoteCursor,

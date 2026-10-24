@@ -1,6 +1,7 @@
 import { UnitOfWork } from "@house-rules/domain";
 import { DateTime, Effect, Random, Schema } from "effect";
 import type { RelationStore } from "../storage.js";
+import type { RelateResult, UnrelateResult } from "./events.js";
 import { compareNodes, neighbours, nodeKey, sameNode } from "./graph.js";
 import type { RelationsOptions } from "./options.js";
 import {
@@ -79,11 +80,32 @@ export const makeRelations = (store: RelationStore["Service"], options: Relation
         createdAt: DateTime.toEpochMillis(yield* DateTime.now),
       };
       yield* store.insert(edge);
-      return edge;
+      return {
+        relation: edge,
+        events: [
+          {
+            kind: "Related",
+            type: edge.type,
+            source: { ...edge.source },
+            target: { ...edge.target },
+          },
+        ],
+      } satisfies RelateResult;
     }),
     unrelate: Effect.fn("Relations.unrelate")(function* (id: string) {
       yield* UnitOfWork.required;
-      if (!(yield* store.remove(id))) return yield* new RelationNotFound();
+      const edge = yield* store.remove(id);
+      if (edge === undefined) return yield* new RelationNotFound();
+      return {
+        events: [
+          {
+            kind: "Unrelated",
+            type: edge.type,
+            source: { ...edge.source },
+            target: { ...edge.target },
+          },
+        ],
+      } satisfies UnrelateResult;
     }),
     listRelations: Effect.fn("Relations.listRelations")(function* (input: ListRelationsInput) {
       yield* decodeNode(input.node);
@@ -140,6 +162,7 @@ export const makeRelations = (store: RelationStore["Service"], options: Relation
       }
       return { nodes: [...nodes.values()], edges: [...edges.values()] };
     }),
+    // Node deletion is a fact owned by the node's module, not an Unrelated event.
     removeNode: Effect.fn("Relations.removeNode")(function* (ref: NodeRef) {
       yield* UnitOfWork.required;
       const node = yield* Schema.decodeEffect(NodeRef)(ref).pipe(

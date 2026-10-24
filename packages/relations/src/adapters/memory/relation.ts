@@ -81,9 +81,9 @@ export const memoryRelationStore = (): Layer.Layer<RelationStore> =>
       }),
       remove: Effect.fn("RelationStore.memory.remove")(function* (id: string) {
         yield* UnitOfWork.required;
-        const found = rows.has(id);
+        const found = rows.get(id);
         yield* change(() => void rows.delete(id));
-        return found;
+        return found === undefined ? undefined : copyRelation(found);
       }),
       removeNode: (node) =>
         change(() => {

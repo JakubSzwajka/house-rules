@@ -2,9 +2,9 @@ import { type Actor, defineModule, type NoOpenUnit } from "@house-rules/domain";
 import { Effect, Layer, Schema } from "effect";
 import { memoryNoteStore } from "./adapters/memory/note.js";
 import { postgresNoteStore } from "./adapters/postgres/note.js";
+import type { AddNoteResult } from "./note/events.js";
 import { NoteTargets } from "./note/note-targets.js";
 import {
-  type Note,
   NoteInputInvalid,
   type NoteList,
   type NotePage,
@@ -33,7 +33,7 @@ export class Notes extends defineModule<
       actor: Actor,
       ref: NoteTarget,
       body: string,
-    ) => Effect.Effect<Note, NoteFailure | NoOpenUnit>;
+    ) => Effect.Effect<AddNoteResult, NoteFailure | NoOpenUnit>;
     readonly removeTarget: (
       ref: NoteTarget,
     ) => Effect.Effect<void, NoteInputInvalid | NoteStoreUnavailable | NoOpenUnit>;

@@ -54,18 +54,17 @@ for (const { name, layer: storage } of stores) {
           expect(yield* Effect.flip(add("cross", node("item-a"), node("item-b")))).toBeInstanceOf(
             RelationEndpointInvalid,
           );
-          const edge = yield* add("cross", node("z", "folder"), node("a"));
+          const { relation: edge } = yield* add("cross", node("z", "folder"), node("a"));
           expect(edge.source.kind).toBe("folder");
           expect(yield* add("dag")).toMatchObject({
-            source: node("opaque"),
-            target: node("absent"),
+            relation: { source: node("opaque"), target: node("absent") },
           });
         }),
       );
       it.effect("canonicalizes symmetric edges and enforces reverse uniqueness", () =>
         Effect.gen(function* () {
           const service = yield* Relations;
-          const edge = yield* UnitOfWork.atomic(
+          const { relation: edge } = yield* UnitOfWork.atomic(
             service.relate({ type: "symmetric", source: node("sym-z"), target: node("sym-a") }),
           );
           expect(edge.source).toEqual(node("sym-a"));
@@ -186,7 +185,7 @@ for (const { name, layer: storage } of stores) {
       it.effect("joins the deletion unit, rolls back, and cascades idempotently", () =>
         Effect.gen(function* () {
           const service = yield* Relations;
-          const edge = yield* UnitOfWork.atomic(
+          const { relation: edge } = yield* UnitOfWork.atomic(
             service.relate({ type: "dag", source: node("delete"), target: node("delete-target") }),
           );
           yield* UnitOfWork.atomic(
@@ -215,12 +214,21 @@ for (const { name, layer: storage } of stores) {
           expect(
             (yield* service.listRelations({ node: node("delete"), direction: "both" })).edges,
           ).toHaveLength(2);
-          yield* UnitOfWork.atomic(service.unrelate(edge.id));
+          expect(yield* UnitOfWork.atomic(service.unrelate(edge.id))).toEqual({
+            events: [
+              {
+                kind: "Unrelated",
+                type: "dag",
+                source: node("delete"),
+                target: node("delete-target"),
+              },
+            ],
+          });
           expect(yield* Effect.flip(UnitOfWork.atomic(service.unrelate(edge.id)))).toBeInstanceOf(
             RelationNotFound,
           );
-          yield* UnitOfWork.atomic(service.removeNode(node("delete")));
-          yield* UnitOfWork.atomic(service.removeNode(node("delete")));
+          expect(yield* UnitOfWork.atomic(service.removeNode(node("delete")))).toBeUndefined();
+          expect(yield* UnitOfWork.atomic(service.removeNode(node("delete")))).toBeUndefined();
           expect(
             (yield* service.listRelations({ node: node("delete"), direction: "both" })).edges,
           ).toEqual([]);

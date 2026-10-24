@@ -15,6 +15,9 @@ export { RelationStore } from "./storage.js";
 export { memoryRelationStore } from "./adapters/memory/relation.js";
 export { postgresRelationStore } from "./adapters/postgres/relation.js";
 export {
+  RelateResult,
+  RelationEvents,
+  UnrelateResult,
   DuplicateRelation,
   GraphTooLarge,
   ListRelationsInput,

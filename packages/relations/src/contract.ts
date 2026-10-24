@@ -1,3 +1,4 @@
+export { RelateResult, RelationEvents, UnrelateResult } from "./relation/events.js";
 export {
   DuplicateRelation,
   GraphTooLarge,

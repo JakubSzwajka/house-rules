@@ -1,12 +1,12 @@
 import { defineOperation } from "@house-rules/domain/contract";
 import { Schema } from "effect";
+import { RelateResult, UnrelateResult } from "./events.js";
 import { RelationsPermissions } from "./permissions.js";
 import {
   DuplicateRelation,
   GraphTooLarge,
   ListRelationsInput,
   RelateInput,
-  Relation,
   RelationCardinalityExceeded,
   RelationCycle,
   RelationEndpointInvalid,
@@ -28,7 +28,7 @@ const relate = defineOperation("Relations.relate", {
   description:
     "Connect two opaque nodes after structural validation. The app checks access and existence first.",
   input: RelateInput,
-  output: Relation,
+  output: RelateResult,
   failure: Schema.Union([
     RelationTypeUnknown,
     RelationEndpointInvalid,
@@ -44,7 +44,7 @@ const relate = defineOperation("Relations.relate", {
 const unrelate = defineOperation("Relations.unrelate", {
   description: "Remove one structural edge by id. The app checks endpoint access first.",
   input: Schema.Struct({ id: Schema.NonEmptyString }),
-  output: Schema.Void,
+  output: UnrelateResult,
   failure: Schema.Union([RelationNotFound, RelationsStoreUnavailable]),
   permission: RelationsPermissions.write,
   transactional: true,

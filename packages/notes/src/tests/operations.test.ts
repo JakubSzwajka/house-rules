@@ -88,7 +88,16 @@ it.layer(world)("Notes operation bindings", (test) => {
     Effect.gen(function* () {
       const target = { kind: "booking", id: "page-size" };
       for (const body of ["one", "two", "three"]) {
-        yield* runFeature(add, { target, body }).pipe(Effect.provide(caller));
+        const result = yield* runFeature(add, { target, body }).pipe(Effect.provide(caller));
+        expect(result.events).toEqual([
+          {
+            kind: "NoteAdded",
+            noteId: result.note.id,
+            target,
+            authorId: actor.id,
+            createdAt: result.note.createdAt,
+          },
+        ]);
       }
       expect((yield* runFeature(list, { target }).pipe(Effect.provide(caller))).notes).toHaveLength(
         3,

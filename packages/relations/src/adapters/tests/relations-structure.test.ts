@@ -39,7 +39,7 @@ for (const { name, layer: storage } of stores) {
               service.relate({ type: "limited", source: node(source), target: node(target) }),
             );
           yield* add("out-cap-before", "out-cap-middle");
-          expect(yield* add("out-cap-middle", "out-cap-after")).toMatchObject({
+          expect((yield* add("out-cap-middle", "out-cap-after")).relation).toMatchObject({
             source: node("out-cap-middle"),
             target: node("out-cap-after"),
           });
@@ -53,7 +53,7 @@ for (const { name, layer: storage } of stores) {
               service.relate({ type: "limited", source: node(source), target: node(target) }),
             );
           yield* add("in-cap-middle", "in-cap-after");
-          expect(yield* add("in-cap-before", "in-cap-middle")).toMatchObject({
+          expect((yield* add("in-cap-before", "in-cap-middle")).relation).toMatchObject({
             source: node("in-cap-before"),
             target: node("in-cap-middle"),
           });
@@ -69,7 +69,7 @@ for (const { name, layer: storage } of stores) {
           yield* add("diamond-a", "diamond-b");
           yield* add("diamond-a", "diamond-c");
           yield* add("diamond-b", "diamond-d");
-          expect(yield* add("diamond-c", "diamond-d")).toMatchObject({
+          expect((yield* add("diamond-c", "diamond-d")).relation).toMatchObject({
             source: node("diamond-c"),
             target: node("diamond-d"),
           });

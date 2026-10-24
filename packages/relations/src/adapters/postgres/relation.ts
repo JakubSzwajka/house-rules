@@ -71,10 +71,10 @@ export const postgresRelationStore: Layer.Layer<RelationStore, never, SqlClient>
         ),
       remove: Effect.fn("RelationStore.postgres.remove")(function* (id: string) {
         yield* UnitOfWork.required;
-        const rows = yield* sql`delete from relation_edges where id = ${id} returning id`.pipe(
-          Effect.mapError(unavailable),
+        const rows = yield* read(
+          sql`delete from relation_edges where id = ${id} returning ${columns}`,
         );
-        return rows.length > 0;
+        return rows[0];
       }),
       removeNode: (node) => write(sql`delete from relation_edges where ${at(node, "both")}`),
     });

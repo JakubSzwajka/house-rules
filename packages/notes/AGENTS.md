@@ -12,4 +12,6 @@ Notes owns immutable, flat plain-text records attached to host-owned targets. Re
 
 All options are required. `targets` names allowed target kinds. `maxBodyLength` and `maxPageSize` are positive integers. `Notes.presets.default` supplies 4000 UTF-16 units and 100 items, never target kinds. Lists are oldest-first by createdAt then id; cursors are exclusive epoch milliseconds plus id. There are only list and add operations. Notes have no edit or delete operation.
 
+`NotesOperations.addNote` and `notes.add` return `{ note, events: [NoteAdded] }`. Import `NoteEvents` from `./contract`; `NoteAdded` has `kind: "NoteAdded"`, `noteId`, `target: { kind, id }`, `authorId` and epoch-millisecond `createdAt`. `listNotes` is unchanged. Features choose whether to record these facts through an explicit event-log edge. The module returns plain data, never emits, never depends on event-log and never reads `CurrentActor`.
+
 Writes require an open unit. Memory storage registers rollback undo before changes; Postgres joins the open transaction. The module never opens units. The body stays plain text; rendering is a consumer choice. Error kinds are fixed, and unavailable messages do not expose causes.
