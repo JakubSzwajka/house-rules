@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, realpath } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { parseForESLint } from "@typescript-eslint/parser";
 
@@ -18,9 +18,17 @@ const unique = (values, label) => {
     throw new Error(`App map requires exactly one source for ${label}, found ${values.length}`);
   return values[0];
 };
-const files = async (directory) => {
+const entries = async (directory, optional = false) => {
+  try {
+    return await readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (optional && error.code === "ENOENT") return [];
+    throw error;
+  }
+};
+const files = async (directory, optional = false) => {
   const result = [];
-  for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) =>
+  for (const entry of (await entries(directory, optional)).sort((a, b) =>
     a.name < b.name ? -1 : 1,
   )) {
     if (["tests", "adapters", "node_modules", "dist"].includes(entry.name)) continue;
@@ -69,6 +77,34 @@ const calls = (source, builder) => {
   visit(source);
   return result;
 };
+const installedPackage = async (packageName, appDirectory, rootDirectory, packageRoots) => {
+  if (typeof packageName !== "string" || !packageName.startsWith("@house-rules/")) return undefined;
+  let current = resolve(appDirectory);
+  const root = resolve(rootDirectory);
+  while (current === root || current.startsWith(`${root}/`)) {
+    const directory = resolve(current, "node_modules", ...packageName.split("/"));
+    try {
+      const manifest = JSON.parse(await readFile(resolve(directory, "package.json"), "utf8"));
+      if (manifest.name === packageName) {
+        const realDirectory = await realpath(directory);
+        if (
+          packageRoots.some(
+            (base) => realDirectory === base || realDirectory.startsWith(`${base}/`),
+          )
+        )
+          return undefined;
+        return { manifest, path: relative(rootDirectory, directory) };
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    if (current === root) break;
+    const parent = resolve(current, "..");
+    if (parent === current || !(parent === root || parent.startsWith(`${root}/`))) break;
+    current = parent;
+  }
+  return undefined;
+};
 const operationNames = async (directory) => {
   const names = [];
   for (const path of await files(directory))
@@ -81,7 +117,9 @@ const operationNames = async (directory) => {
 /** Read only literal source facts. Missing and conflicting ownership is an error. */
 export const appMapSources = async (snapshot, { appDirectory, rootDirectory, packageRoots }) => {
   const packageDirectories = [];
+  const realPackageRoots = [];
   for (const base of packageRoots) {
+    realPackageRoots.push(await realpath(resolve(rootDirectory, base)));
     for (const entry of await readdir(resolve(rootDirectory, base), { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       const directory = resolve(rootDirectory, base, entry.name);
@@ -135,9 +173,7 @@ export const appMapSources = async (snapshot, { appDirectory, rootDirectory, pac
     });
   }
   const appPackage = JSON.parse(await readFile(resolve(appDirectory, "package.json"), "utf8")).name;
-  for (const entry of await readdir(resolve(appDirectory, "src/read-models"), {
-    withFileTypes: true,
-  })) {
+  for (const entry of await entries(resolve(appDirectory, "src/read-models"), true)) {
     if (!entry.isDirectory()) throw new Error("Unexpected read-model entry");
     const directory = resolve(appDirectory, "src/read-models", entry.name);
     owners.push({
@@ -149,7 +185,7 @@ export const appMapSources = async (snapshot, { appDirectory, rootDirectory, pac
     });
   }
   const wayPaths = new Map();
-  for (const path of await files(resolve(appDirectory, "src/ways-in"))) {
+  for (const path of await files(resolve(appDirectory, "src/ways-in"), true)) {
     for (const call of calls(await parse(path), "defineWay")) {
       const options = call.arguments[0];
       if (
@@ -170,23 +206,42 @@ export const appMapSources = async (snapshot, { appDirectory, rootDirectory, pac
   }
   return {
     ...snapshot,
-    modules: snapshot.modules.map((module) => {
-      if (module.operations.length === 0)
-        throw new Error(`Cannot locate empty mount ${module.service}`);
-      const owner = unique(
-        owners.filter((owner) =>
+    modules: await Promise.all(
+      snapshot.modules.map(async (module) => {
+        if (module.operations.length === 0)
+          throw new Error(`Cannot locate empty mount ${module.service}`);
+        const matchingOwners = owners.filter((owner) =>
           module.operations.every((operation) => owner.operations.includes(operation.name)),
-        ),
-        module.service,
-      );
-      return {
-        ...module,
-        name: owner.name,
-        kind: owner.kind,
-        package: owner.package,
-        path: owner.path,
-      };
-    }),
+        );
+        if (matchingOwners.length > 0) {
+          const owner = unique(matchingOwners, module.service);
+          return {
+            ...module,
+            name: owner.name,
+            kind: owner.kind,
+            package: owner.package,
+            path: owner.path,
+          };
+        }
+        const installed = await installedPackage(
+          module.package,
+          appDirectory,
+          rootDirectory,
+          realPackageRoots,
+        );
+        if (installed !== undefined) {
+          return {
+            ...module,
+            name: installed.manifest.name.split("/").at(-1),
+            kind: "package",
+            package: installed.manifest.name,
+            version: installed.manifest.version,
+            path: installed.path,
+          };
+        }
+        throw new Error(`App map requires exactly one source for ${module.service}, found 0`);
+      }),
+    ),
     features: snapshot.features.map((feature) => ({
       ...feature,
       path: unique(
