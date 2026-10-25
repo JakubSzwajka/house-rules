@@ -1,6 +1,6 @@
 # @house-rules/work-items: notes for agents
 
-WorkItems owns plain-text work items, a configurable status workflow, one holder and a parent column. Version 0.1.0 peers on Effect 4.0.3, domain 0.1.0 and application 0.2.0.
+WorkItems owns plain-text work items, a configurable status workflow, one holder and a parent column. Version 0.1.0 peers on Effect 4.0.3, domain 0.2.0 and application 0.2.0.
 
 ## Mounting
 

@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@house-rules/application": "workspace:0.2.0",
-    "@house-rules/domain": "workspace:0.1.0",
+    "@house-rules/domain": "workspace:0.2.0",
     "effect": "4.0.3"
   },
   "devDependencies": {
@@ -24,7 +24,7 @@
     "@effect/platform-node-shared": "4.0.3",
     "@effect/sql-pg": "4.0.3",
     "@effect/vitest": "4.0.3",
-    "@house-rules/migrations": "workspace:0.3.0",
+    "@house-rules/migrations": "workspace:0.4.0",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
   }

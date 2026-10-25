@@ -19,4 +19,4 @@ Object policy stays in the module. Owners read, write and moderate; members read
 
 The app must call `removeTarget` when deleting a target and `erase` when deleting an author, in the same unit. Targets have no cross-module foreign keys. Comments stores plain text and hard-deletes rows; it adds no rendering, threads or history.
 
-Version 0.2.0 is prepared for release. Pin domain 0.1.0, application 0.2.0 and Effect 4.0.3 exactly. Published packages load built `dist/`; the workspace loads `src/`. Consumers whose rules preset requires a contract trust list add `@house-rules/comments` to `trustedContractPackages`, trusting only `/contract`. See [AGENTS.md](AGENTS.md) for mounting and checks.
+Version 0.2.0 is prepared for release. Pin domain 0.2.0, application 0.2.0 and Effect 4.0.3 exactly. Published packages load built `dist/`; the workspace loads `src/`. Consumers whose rules preset requires a contract trust list add `@house-rules/comments` to `trustedContractPackages`, trusting only `/contract`. See [AGENTS.md](AGENTS.md) for mounting and checks.

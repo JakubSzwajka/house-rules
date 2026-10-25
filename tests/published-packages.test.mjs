@@ -13,8 +13,23 @@ const BUILT = [
   "call-audit",
   "comments",
   "node-host",
+  "work-items",
+  "notes",
+  "relations",
+  "event-log",
+  "contacts",
+  "notifications",
+  "push",
+  "email",
+  "projects",
 ];
-const WITH_MIGRATIONS = ["call-audit", "comments", "identity", "party"];
+const WITH_MIGRATIONS = [
+  "call-audit",
+  "comments",
+  "identity",
+  "party",
+  ...BUILT.slice(9).filter((folder) => folder !== "email"),
+];
 const PUBLISHED = [...BUILT, "rules"];
 const DOCS = new Set(["AGENTS.md", "README.md"]);
 
@@ -58,8 +73,8 @@ describe("published packages", () => {
   }
 
   it("the kits and the additions peer on exact kit versions and Effect 4.0.3", () => {
-    const kits = { "@house-rules/application": "0.2.0", "@house-rules/domain": "0.1.0" };
-    assert.equal(manifest("domain").version, "0.1.0");
+    const kits = { "@house-rules/application": "0.2.0", "@house-rules/domain": "0.2.0" };
+    assert.equal(manifest("domain").version, "0.2.0");
     assert.equal(manifest("application").version, "0.2.0");
     assert.equal(manifest("comments").version, "0.2.0");
     assert.equal(manifest("call-audit").version, "0.7.0");
@@ -68,7 +83,7 @@ describe("published packages", () => {
     }
     assert.deepEqual(manifest("domain").peerDependencies, { effect: "4.0.3" });
     assert.deepEqual(manifest("application").peerDependencies, {
-      "@house-rules/domain": "0.1.0",
+      "@house-rules/domain": "0.2.0",
       effect: "4.0.3",
     });
     for (const folder of ["comments", "auth-jwt", "identity", "party"]) {

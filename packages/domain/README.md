@@ -118,7 +118,7 @@ Nested atomic work joins the open unit without a savepoint. Memory units run top
 
 ## Package doors
 
-Install exact `@house-rules/domain` 0.1.0 with `effect` 4.0.3. Published packages load built JavaScript and declarations from `dist/`; this workspace reads `src/`.
+Install exact `@house-rules/domain` 0.2.0 with `effect` 4.0.3. Published packages load built JavaScript and declarations from `dist/`; this workspace reads `src/`.
 
 The browser door, `@house-rules/domain/contract`, exports operation/edge/schema types and constructors, caller data, kinds, graph/closure functions, `Actor`, `ActorId`, `Permission`, `NoOpenUnit` and `UnitOfWorkFailed`.
 

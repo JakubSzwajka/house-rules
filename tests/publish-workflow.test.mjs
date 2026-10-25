@@ -15,8 +15,12 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 describe("publish workflow", () => {
   const workflow = () => parseWorkflow(read(".github/workflows/publish.yml"));
 
-  it("verifies changes to the packed comments and auth helpers", () => {
-    for (const helper of ["scripts/packed-comments.mjs", "scripts/packed-auth.mjs"]) {
+  it("verifies changes to the packed comments, auth and support-module helpers", () => {
+    for (const helper of [
+      "scripts/packed-comments.mjs",
+      "scripts/packed-auth.mjs",
+      "scripts/packed-support-modules.mjs",
+    ]) {
       assert.ok(workflow().on.pull_request.paths.includes(helper), helper);
     }
   });

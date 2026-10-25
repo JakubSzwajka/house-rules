@@ -1,7 +1,8 @@
 name: Publish packages
 
-# Publishes the public @house-rules packages to npm: rules, domain, application, auth-jwt, identity,
-# party, migrations, call-audit, comments, node-host. The retired @house-rules/capability is never published again.
+# Publishes the 19 public @house-rules packages to npm: rules, domain, application, auth-jwt, identity,
+# party, migrations, call-audit, comments, node-host, work-items, notes, relations, event-log, contacts,
+# notifications, push, email, projects. The retired @house-rules/capability is never published again.
 # `pnpm publish -r` skips private packages and every version already on the registry, so one run
 # publishes exactly the packages whose version was bumped.
 # Two jobs. `verify` runs on every trigger with `contents: read` only: no token, no OIDC. It checks,
@@ -23,6 +24,7 @@ on:
       - "scripts/packed-comments.mjs"
       - "scripts/packed-next-host.mjs"
       - "scripts/packed-workspace.mjs"
+      - "scripts/packed-support-modules.mjs"
       - "scripts/tarball-content.mjs"
       - "scripts/tag-published.mjs"
       - "tests/publish-workflow*.mjs"

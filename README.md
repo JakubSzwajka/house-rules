@@ -82,22 +82,31 @@ These are workspace versions, not a claim that the changed APIs are already on n
 
 | Package | Version | Guide |
 | --- | --- | --- |
-| `@house-rules/domain` | `0.1.0` | [Domain](packages/domain/README.md) |
+| `@house-rules/domain` | `0.2.0` | [Domain](packages/domain/README.md) |
 | `@house-rules/application` | `0.2.0` | [Application](packages/application/README.md) |
-| `@house-rules/rules` | `0.18.0` | [Rules](packages/rules/README.md) |
-| `@house-rules/migrations` | `0.3.0` | [Migrations](packages/migrations/README.md) |
+| `@house-rules/rules` | `0.19.0` | [Rules](packages/rules/README.md) |
+| `@house-rules/migrations` | `0.4.0` | [Migrations](packages/migrations/README.md) |
 | `@house-rules/node-host` | `0.2.0` | [Node Host](packages/node-host/README.md) |
 | `@house-rules/comments` | `0.2.0` | [Comments](packages/comments/README.md) |
 | `@house-rules/party` | `0.1.0` | [Party](packages/party/README.md) |
 | `@house-rules/identity` | `0.1.0` | [Identity](packages/identity/README.md) |
 | `@house-rules/auth-jwt` | `0.1.0` | [JWT](packages/auth-jwt/README.md) |
 | `@house-rules/call-audit` | `0.7.0` | [Audit](packages/call-audit/README.md) |
+| `@house-rules/work-items` | `0.1.0` | [Work Items](packages/work-items/README.md) |
+| `@house-rules/notes` | `0.1.0` | [Notes](packages/notes/README.md) |
+| `@house-rules/relations` | `0.1.0` | [Relations](packages/relations/README.md) |
+| `@house-rules/event-log` | `0.1.0` | [Event Log](packages/event-log/README.md) |
+| `@house-rules/contacts` | `0.1.0` | [Contacts](packages/contacts/README.md) |
+| `@house-rules/notifications` | `0.1.0` | [Notifications](packages/notifications/README.md) |
+| `@house-rules/push` | `0.1.0` | [Push](packages/push/README.md) |
+| `@house-rules/email` | `0.1.0` | [Email](packages/email/README.md) |
+| `@house-rules/projects` | `0.1.0` | [Projects](packages/projects/README.md) |
 
 Each framework package an app mounts ships `AGENTS.md`. Load the [house-rules skill](skills/house-rules/SKILL.md) to find the right guide.
 
 Use [house-rules-design](skills/house-rules-design/SKILL.md) to turn a brief or app change into an approval view. Write `plan.json`, validate and render it with `pnpm plan view plan.json -o design.html`, or compare designs with `pnpm plan diff plan.json plan.next.json -o change.html`. After approval, build and require an empty built-map diff plus passing check/test. Keep the approved plan alongside the code; the [booking example](examples/booking/apps/api/README.md) shows the map commands.
 
-The nine TypeScript packages publish JavaScript and declarations in `dist/`. Workspace imports still read `src/`. Plain Node and TypeScript consumers need no source loader or Next transpile setting. Rules is plain JavaScript with no build step. Consumer configs extend presets and set project values; they never copy a preset.
+The 18 TypeScript packages publish JavaScript and declarations in `dist/`. Workspace imports still read `src/`. Plain Node and TypeScript consumers need no source loader or Next transpile setting. Rules is plain JavaScript with no build step. Consumer configs extend presets and set project values; they never copy a preset.
 
 ## Checks and CI
 
@@ -111,7 +120,7 @@ Warnings fail Biome and ESLint. All Dependency Cruiser rules have error severity
 
 CI starts Postgres, installs the frozen lockfile, then runs check, test, packed-consumer, the booking API build and the site build. The booking example serves a Vite/React shadcn dashboard with real sign-in through `/api` and read-only MCP at `/mcp`. Every new login gets the member role. Its build writes the page to `dist/web`, then bundles `src/main.ts` for Node. Production requires ACCOUNTS_SIGNING_KEY, a private P-256 JWK, and APP_ORIGIN over HTTPS for Secure cookies. Optional MCP_AUTH_ISSUER adds the real OIDC MCP provider; without it MCP stays closed. The devLocal test issuer is mounted only in development/test.
 
-`pnpm run packed-consumer` builds and packs all ten public packages, installs them in a cold npm consumer, and checks Node, TypeScript, browser contracts, layout and migration behavior. It needs the registry. `pnpm acceptance` clones committed HEAD into a temp folder and runs frozen install, check and test. It cannot see uncommitted work.
+`pnpm run packed-consumer` builds and packs all 19 public packages, installs them in a cold npm consumer, and checks Node, TypeScript, browser contracts, layout and migration behavior. It needs the registry. `pnpm acceptance` clones committed HEAD into a temp folder and runs frozen install, check and test. It cannot see uncommitted work.
 
 ## Pins and environment
 

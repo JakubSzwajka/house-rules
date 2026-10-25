@@ -9,6 +9,14 @@ export const commentsConsumerFiles = {
       { package: "@house-rules/comments" },
       { package: "@house-rules/identity" },
       { package: "@house-rules/party" },
+      { package: "@house-rules/work-items" },
+      { package: "@house-rules/notes" },
+      { package: "@house-rules/relations" },
+      { package: "@house-rules/event-log" },
+      { package: "@house-rules/contacts" },
+      { package: "@house-rules/notifications" },
+      { package: "@house-rules/push" },
+      { package: "@house-rules/projects" },
     ],
   },
   "browser-contract.json": {
@@ -77,7 +85,20 @@ NodePlatform.runMain(Effect.gen(function* () {
   const denied = yield* Effect.flip(runFeature(list, { target, page: { size: 10 } }).pipe(Effect.provide(as(outsider))));
   assert.ok(denied instanceof CommentTargetNotFound);
   const modules = yield* Migrations.readModuleList("migrations.json");
-  assert.deepEqual(modules.map(({ name, table }) => ({ name, table })), [{ name: "call_audit", table: "call_audit_migrations" }, { name: "comments", table: "comments_migrations" }, { name: "identity", table: "identity_migrations" }, { name: "party", table: "party_migrations" }]);
+  assert.deepEqual(modules.map(({ name, table }) => ({ name, table })), [
+    { name: "call_audit", table: "call_audit_migrations" },
+    { name: "comments", table: "comments_migrations" },
+    { name: "identity", table: "identity_migrations" },
+    { name: "party", table: "party_migrations" },
+    { name: "work_items", table: "work_items_migrations" },
+    { name: "notes", table: "notes_migrations" },
+    { name: "relations", table: "relations_migrations" },
+    { name: "event_log", table: "event_log_migrations" },
+    { name: "contacts", table: "contacts_migrations" },
+    { name: "notifications", table: "notifications_migrations" },
+    { name: "push", table: "push_migrations" },
+    { name: "projects", table: "projects_migrations" },
+  ]);
   const fs = yield* FileSystem.FileSystem;
   for (const module of modules) {
     assert.equal(module.directory, path.resolve(\`node_modules/@house-rules/\${module.name.replaceAll("_", "-")}/migrations\`));
@@ -137,7 +158,7 @@ export function assertPackedComments(app, { run, write, failure }) {
     app,
     { capture: true },
   );
-  assert.match(migrationCheck, /owned by 4 module\(s\).*4 module\(s\) listed/u);
+  assert.match(migrationCheck, /owned by 12 module\(s\).*12 module\(s\) listed/u);
   console.log(migrationCheck.trim());
   assertBrowserGraph(app, { run, write, failure });
 }

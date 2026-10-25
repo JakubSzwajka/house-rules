@@ -61,4 +61,4 @@ The public `requireDevelopmentSigning(refused)` helper applies that same guard a
 
 `issue` drops the reserved claims `iss`, `aud`, `exp`, `iat`, `nbf` and `jti` from the claims you pass. The issuer sets `iss`, `iat` and `exp`, and sets `aud` only when you configured an audience; otherwise the token has no `aud`.
 
-Version 0.1.0 is prepared for its first public release, not yet live on npm. Pin `@house-rules/application` 0.2.0, `@house-rules/domain` 0.1.0 and Effect 4.0.3 exactly. It depends on `jose` 6.2.12. See `AGENTS.md` for options and fixed rules.
+Version 0.1.0 is prepared for its first public release, not yet live on npm. Pin `@house-rules/application` 0.2.0, `@house-rules/domain` 0.2.0 and Effect 4.0.3 exactly. It depends on `jose` 6.2.12. See `AGENTS.md` for options and fixed rules.

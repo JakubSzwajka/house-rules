@@ -1,6 +1,6 @@
 # @house-rules/rules
 
-This is the installable home of the house rules and tool presets. Consumers keep project values, stack-only files such as CI/environment/hooks, prose and wiring tests. They do not copy presets. Version stays 0.18.0 until an approved release.
+This is the installable home of the house rules and tool presets. Consumers keep project values, stack-only files such as CI/environment/hooks, prose and wiring tests. They do not copy presets. Version stays 0.19.0 until an approved release.
 
 ## Presets
 

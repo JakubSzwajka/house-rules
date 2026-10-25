@@ -1,6 +1,6 @@
 # @house-rules/migrations
 
-Version 0.3.0 peers on exact `effect` 4.0.3. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
+Version 0.4.0 peers on exact `effect` 4.0.3. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
 
 Runs the SQL migrations of many modules against one Postgres database. Each module keeps its own folder of `.sql` files and its own history table. It is a port of Trippy's `@trippy/db` runner, which runs in production, widened from one folder to a list.
 

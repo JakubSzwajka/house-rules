@@ -2,7 +2,7 @@
 
 ## What it does
 
-Identity owns login providers and maps each verified `(issuer, subject)` pair to an `ActorId`. It owns `identity_binding`, `identity_password_account` and `identity_api_token`. Choose passwords for email/password sessions, OIDC for an outside issuer, Clerk for kind-checked Clerk JWTs, API tokens for local opaque credentials, and devLocal for development/test issuers. Each provider pairs its issuer with an auth-jwt verifier. One actor may have many bindings. Identity never links by email or learns roles. `Identity.who` resolves the Actor for a way. Version 0.1.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published packages load built `dist/`; the workspace loads source.
+Identity owns login providers and maps each verified `(issuer, subject)` pair to an `ActorId`. It owns `identity_binding`, `identity_password_account` and `identity_api_token`. Choose passwords for email/password sessions, OIDC for an outside issuer, Clerk for kind-checked Clerk JWTs, API tokens for local opaque credentials, and devLocal for development/test issuers. Each provider pairs its issuer with an auth-jwt verifier. One actor may have many bindings. Identity never links by email or learns roles. `Identity.who` resolves the Actor for a way. Version 0.1.0 peers on exact domain 0.2.0, application 0.2.0 and Effect 4.0.3. Published packages load built `dist/`; the workspace loads source.
 
 ## Mount and bind
 

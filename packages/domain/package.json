@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/domain",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Domain graphs and modules for Effect apps: nodes, caller data, error kinds, policies, and the unit of work.",
   "license": "MIT",
   "type": "module",

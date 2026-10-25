@@ -114,4 +114,4 @@ Passwords must have 10 to 200 Unicode code points after NFKC normalization.
 
 The passwords subject retains PBKDF2-SHA256 at 600,000 iterations, dummy hashing for unknown emails, random salts and constant-time comparison. Five failed attempts lock for 15 minutes; admission rechecks the lock and stored hash after hashing. Shared memory and real Postgres suites cover counts, races, hash upgrades and rollback through MigrationsTesting.
 
-Version 0.1.0 is prepared for its first release. Pin domain 0.1.0, application 0.2.0 and Effect 4.0.3 exactly. Published packages load built `dist/`; this workspace loads source. See [AGENTS.md](AGENTS.md) for refusal codes, mounting and tests.
+Version 0.1.0 is prepared for its first release. Pin domain 0.2.0, application 0.2.0 and Effect 4.0.3 exactly. Published packages load built `dist/`; this workspace loads source. See [AGENTS.md](AGENTS.md) for refusal codes, mounting and tests.

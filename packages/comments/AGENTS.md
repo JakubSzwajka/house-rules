@@ -2,7 +2,7 @@
 
 ## What it does
 
-Comments owns flat, plain-text comments on the app's targets. `Comments` captures its storage and the required `CommentTargets` host port. User methods take an explicit Actor and return Effects with no requirements. Version 0.2.0 peers on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Published packages load built `dist/`; this workspace loads source.
+Comments owns flat, plain-text comments on the app's targets. `Comments` captures its storage and the required `CommentTargets` host port. User methods take an explicit Actor and return Effects with no requirements. Version 0.2.0 peers on exact domain 0.2.0, application 0.2.0 and Effect 4.0.3. Published packages load built `dist/`; this workspace loads source.
 
 ## Mount and bind
 

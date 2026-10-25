@@ -1,6 +1,6 @@
 # @house-rules/migrations: notes for agents
 
-Version 0.3.0 peers on exact `effect` 4.0.3. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
+Version 0.4.0 peers on exact `effect` 4.0.3. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
 
 ## What it does
 

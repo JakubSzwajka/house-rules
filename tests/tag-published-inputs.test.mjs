@@ -119,7 +119,7 @@ describe("publish report and recovery inputs", () => {
     );
   });
 
-  it("loads the ten public workspace manifests and the retired capability one, without the summary", () => {
+  it("loads the 19 public workspace manifests and the retired capability one, without the summary", () => {
     const files = [];
     const packages = workspacePackages((file) => {
       files.push(file);
@@ -139,10 +139,19 @@ describe("publish report and recovery inputs", () => {
         "call-audit",
         "comments",
         "node-host",
+        "work-items",
+        "notes",
+        "relations",
+        "event-log",
+        "contacts",
+        "notifications",
+        "push",
+        "email",
+        "projects",
         "capability",
       ].map((folder) => `packages/${folder}/package.json`),
     );
-    assert.equal(packages.length, 11);
+    assert.equal(packages.length, 20);
     assert.throws(() => workspacePackages(() => JSON.stringify({ name: "@other/app" })));
     assert.throws(() =>
       workspacePackages((file) =>
@@ -193,6 +202,15 @@ describe("publish report and recovery inputs", () => {
       "call-audit",
       "comments",
       "node-host",
+      "work-items",
+      "notes",
+      "relations",
+      "event-log",
+      "contacts",
+      "notifications",
+      "push",
+      "email",
+      "projects",
     ];
     assert.deepEqual(names(workspacePackages(checkout(current))), current);
   });
@@ -205,7 +223,7 @@ describe("publish report and recovery inputs", () => {
       return JSON.stringify({ name: `@house-rules/${folder}`, version: "1.0.0" });
     };
     const packages = workspacePackages(historical);
-    assert.equal(packages.length, 10);
+    assert.equal(packages.length, 19);
     assert.ok(!packages.some(({ name }) => name === "@house-rules/comments"));
     for (const source of [
       "not json",

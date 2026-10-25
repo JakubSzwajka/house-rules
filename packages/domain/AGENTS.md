@@ -4,7 +4,7 @@ Domain modules are packages. Apps keep one feature in `features/<name>/index.ts`
 
 ## What it does
 
-The domain kit owns operation descriptors, edges, caller data, error kinds, pure graph checks and permission closures. It also owns modules, object policy and the unit of work. It imports no house-rules package. Version 0.1.0 peers on exact `effect` 4.0.3. Read `README.md` for examples.
+The domain kit owns operation descriptors, edges, caller data, error kinds, pure graph checks and permission closures. It also owns modules, object policy and the unit of work. It imports no house-rules package. Version 0.2.0 peers on exact `effect` 4.0.3. Read `README.md` for examples.
 
 ## Public API and doors
 

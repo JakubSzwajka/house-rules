@@ -14,6 +14,7 @@ import {
   commentsConsumerFiles,
 } from "./packed-comments.mjs";
 import { assertPackedAuth, authConsumerFiles } from "./packed-auth.mjs";
+import { SUPPORT_MODULES, supportImportLines } from "./packed-support-modules.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const PUBLISHED_IN_BUILD_ORDER = [
@@ -27,6 +28,7 @@ const PUBLISHED_IN_BUILD_ORDER = [
   "comments",
   "node-host",
   "rules",
+  ...SUPPORT_MODULES,
 ];
 const ALLOWED_TOP = new Set(["package.json", "README.md", "AGENTS.md", "LICENSE"]);
 
@@ -135,6 +137,7 @@ try {
       },
     },
     "run.mjs": `import assert from "node:assert/strict";
+${supportImportLines()}
 import * as domain from "@house-rules/domain";
 import * as domainContract from "@house-rules/domain/contract";
 import * as application from "@house-rules/application";
@@ -154,6 +157,10 @@ for (const name of ["defineContract", "toTool", "NoInput", "defineOperation", "e
   assert.equal(Object.hasOwn(contract, name), false, name);
 assert.equal(contract.defineFeature, application.defineFeature);
 assert.equal(typeof domain.defineModule, "function");
+for (const { name, main, contract } of supportPackages) {
+  assert.ok(Object.keys(main).length > 0, name + " main entry exports");
+  assert.ok(Object.keys(contract).length > 0, name + " contract entry exports");
+}
 assert.equal(domainContract.ActorId, domain.ActorId);
 assert.equal(domainContract.UnitOfWorkFailed, domain.UnitOfWorkFailed);
 assert.notEqual(migrations.Migrations, undefined);
