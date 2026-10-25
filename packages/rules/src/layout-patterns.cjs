@@ -73,9 +73,10 @@ const TRUSTED_CONTRACT_PACKAGES = Object.freeze([
   "@house-rules/identity",
 ]);
 // The effect modules a contract entry may import: the root barrel, its stable top-level modules, and
-// http (unstable/http on RCs). Their installed import graphs are unseen here; trust is explicit.
+// http (unstable/http on RCs), and the public encoding barrel. Their installed graphs are unseen;
+// trust is explicit. no-computed-import keeps encoding imports on the exact public door.
 const EFFECT_BROWSER_MODULES =
-  "(?:index|[A-Z][A-Za-z0-9]*|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js";
+  "(?:index|[A-Z][A-Za-z0-9]*|encoding/index|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js";
 // Effect's SQL modules, under any build folder: effect/sql and effect/sql/* in 4.x, effect/unstable/sql on RCs.
 // Ways never import them, even when a project's adapterImports leaves them out.
 const EFFECT_SQL = "(?:^|/)node_modules/effect/(?:[^/]+/|)(?:unstable/|)sql(?:[/.]|$)";

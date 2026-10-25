@@ -1,8 +1,8 @@
 name: Publish packages
 
-# Publishes the 19 public @house-rules packages to npm: rules, domain, application, auth-jwt, identity,
+# Publishes the 20 public @house-rules packages to npm: rules, domain, application, auth-jwt, identity,
 # party, migrations, call-audit, comments, node-host, work-items, notes, relations, event-log, contacts,
-# notifications, push, email, projects. The retired @house-rules/capability is never published again.
+# notifications, push, push-node, email, projects. The retired @house-rules/capability is never published again.
 # `pnpm publish -r` skips private packages and every version already on the registry, so one run
 # publishes exactly the packages whose version was bumped.
 # Package PRs use ci.yml. PR verification here runs only for changes to publish machinery.

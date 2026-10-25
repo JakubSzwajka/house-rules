@@ -159,7 +159,7 @@ assert.equal(contract.defineFeature, application.defineFeature);
 assert.equal(typeof domain.defineModule, "function");
 for (const { name, main, contract } of supportPackages) {
   assert.ok(Object.keys(main).length > 0, name + " main entry exports");
-  assert.ok(Object.keys(contract).length > 0, name + " contract entry exports");
+  if (contract !== null) assert.ok(Object.keys(contract).length > 0, name + " contract entry exports");
 }
 assert.equal(domainContract.ActorId, domain.ActorId);
 assert.equal(domainContract.UnitOfWorkFailed, domain.UnitOfWorkFailed);

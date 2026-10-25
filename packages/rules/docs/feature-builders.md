@@ -24,6 +24,8 @@ Namespaces, destructuring, runtime aliases, callbacks, `.call`, dynamic imports 
 
 Non-kit production workspace packages cannot import `defineFeature`, `defineWay` or `endpoint`, even unused. They may define operations and export service-capturing binders that call `bindOperation`. No non-kit production code may re-export a kit builder. Finished operation descriptors, feature values and binders are values, not builders.
 
+App way factories may call `defineWay` directly with valid inline options and return completed ways, injecting startup Who sockets or resource settings. Importing these factories or a root aggregator of completed ways does not import a builder. The defining calls still undergo the usual options and feature-origin checks. Returning the constructor, aliasing it or forwarding arbitrary builder arguments remains forbidden; factories do not permit per-request actor capture.
+
 Enable `configs.features` or `featuresConfig({ appsDir, packagesDir })`. Scope covers production JS/TS under the declared app and package roots. Only the real configured domain/application kit roots with matching package names are exempt. Nested manifests grant no exemption. Test exemptions are relative to the owning `src/`, never an ancestor or workspace named `tests`. Top-level tooling outside `src/` is exempt. Installed non-workspace npm re-export contents are not inspected.
 
 The separate `feature-file` rule checks the single builder call and export, file layout, feature imports and registry values. `esm-only-effect` bans CommonJS across production app and Effect-package source, including the kits.

@@ -119,7 +119,7 @@ describe("publish report and recovery inputs", () => {
     );
   });
 
-  it("loads the 19 public workspace manifests and the retired capability one, without the summary", () => {
+  it("loads the 20 public workspace manifests and the retired capability one, without the summary", () => {
     const files = [];
     const packages = workspacePackages((file) => {
       files.push(file);
@@ -146,12 +146,13 @@ describe("publish report and recovery inputs", () => {
         "contacts",
         "notifications",
         "push",
+        "push-node",
         "email",
         "projects",
         "capability",
       ].map((folder) => `packages/${folder}/package.json`),
     );
-    assert.equal(packages.length, 20);
+    assert.equal(packages.length, 21);
     assert.throws(() => workspacePackages(() => JSON.stringify({ name: "@other/app" })));
     assert.throws(() =>
       workspacePackages((file) =>
@@ -223,7 +224,7 @@ describe("publish report and recovery inputs", () => {
       return JSON.stringify({ name: `@house-rules/${folder}`, version: "1.0.0" });
     };
     const packages = workspacePackages(historical);
-    assert.equal(packages.length, 19);
+    assert.equal(packages.length, 20);
     assert.ok(!packages.some(({ name }) => name === "@house-rules/comments"));
     for (const source of [
       "not json",

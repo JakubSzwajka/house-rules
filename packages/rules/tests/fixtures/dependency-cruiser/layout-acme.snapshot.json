@@ -73,7 +73,7 @@
           "^apps/[^/]+/src/ways-in/[^/]+/endpoints[.]ts$",
           "^apps/[^/]+/src/read-models/[^/]+/(?!adapters/|(?:index|facade|storage)[.]ts$|(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$).+",
           "^packages/[^/]+/(?!src/adapters(?:/|$)|(?:src/index[.]ts|src/facade[.]ts|src/storage[.]ts)$|src/(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$)src/",
-          "(?:^|/)node_modules/effect/dist/(?:index|[A-Z][A-Za-z0-9]*|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js$",
+          "(?:^|/)node_modules/effect/dist/(?:index|[A-Z][A-Za-z0-9]*|encoding/index|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js$",
           "(?:^|/)node_modules/(?:@house-rules/application|@house-rules/domain|@house-rules/identity)/(?:src/contract[.]ts|dist/contract[.](?:js|d[.]ts))$"
         ]
       }
@@ -470,7 +470,7 @@
           "^apps/[^/]+/src/ways-in/[^/]+/endpoints[.]ts$",
           "^apps/[^/]+/src/read-models/[^/]+/(?!adapters/|(?:index|facade|storage)[.]ts$|(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$).+",
           "^packages/[^/]+/(?!src/adapters(?:/|$)|(?:src/index[.]ts|src/facade[.]ts|src/storage[.]ts)$|src/(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$)src/",
-          "(?:^|/)node_modules/effect/dist/(?:index|[A-Z][A-Za-z0-9]*|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js$",
+          "(?:^|/)node_modules/effect/dist/(?:index|[A-Z][A-Za-z0-9]*|encoding/index|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js$",
           "(?:^|/)node_modules/(?:@house-rules/application|@house-rules/domain|@house-rules/identity)/(?:src/contract[.]ts|dist/contract[.](?:js|d[.]ts))$"
         ]
       }

@@ -18,10 +18,10 @@ Use the exact pnpm version in `package.json`. Do not replace it or add a second 
 | `pnpm exec varlock run -- <cmd>` | Run with validated environment values |
 | `docker compose up -d` | Start Postgres; each database test creates and drops its own database through `TEST_DATABASE_ADMIN_URL` |
 | `pnpm fix` / `pnpm format` | Rewrite files with safe lint fixes / formatting only; run only when intended |
-| `pnpm build` | Build the 18 TypeScript framework packages to dist for packing; workspace imports still read src |
+| `pnpm build` | Build the 19 TypeScript framework packages to dist for packing; workspace imports still read src |
 | `pnpm acceptance` | Clone committed HEAD into a temp folder and run frozen install, check and test |
-| `pnpm run packed-consumer` | Pack all 19 public packages, install in a cold npm consumer and prove Node, TypeScript, browser contracts and layout behavior; needs the registry |
-| `pnpm run local-publish` | Publish all public packages as -local prereleases to the local Verdaccio (docs/local-registry.md); never npm |
+| `pnpm run packed-consumer` | Pack all 20 public packages, install in a cold npm consumer and prove Node, TypeScript, browser contracts and layout behavior; needs the registry |
+| `pnpm run local-publish` | Publish all 20 public packages as -local prereleases to the local Verdaccio (docs/local-registry.md); never npm |
 | `pnpm vendor:agent-sources` | Clone the pinned Effect source into `.agent_sources/` |
 | `pnpm --filter <package> add <dep>` | Add an exact dependency pin to one workspace, after approval |
 | `pnpm --filter @house-rules/site generate` | Regenerate the existing rules page |
@@ -47,7 +47,7 @@ The four socket interfaces are `WhoSocket`, `MaySocket`, `MeanSocket`, `RecordSo
 - A name ending in Testing is for tests and testing code whose runtime exports all end in Testing. Path re-exports preserve that name. Production never imports tests. Tests sit directly inside a tests/ folder in the folder they test. A package's tests use its public entry; only adapter-local tests import adapter production files directly. Other tests may use adapters/tests support, not adapters themselves.
 - Each Effect workspace has its own tsconfig extending the root base and its own typecheck/test scripts. Rules is plain JavaScript, has no tsconfig, and checks each source with node --check. Its own layout and comment-rule exemptions stay.
 - Every framework package an app mounts ships its short AGENTS.md in files. It documents mounting, options, ports, migrations and fixed rules. Keep it in step with the package API.
-- Nineteen public packages publish only through `.github/workflows/publish.yml`: rules, domain, application, auth-jwt, identity, party, migrations, call-audit, comments, node-host, work-items, notes, relations, event-log, contacts, notifications, push, email and projects. Never publish by hand. The TypeScript packages build to dist but use src in this workspace. A release bumps a package and every workspace pin together, with approval. Publish tags come only from pnpm-publish-summary.json and use GITHUB_TOKEN so tags cannot retrigger publishing.
+- Twenty public packages publish only through `.github/workflows/publish.yml`: rules, domain, application, auth-jwt, identity, party, migrations, call-audit, comments, node-host, work-items, notes, relations, event-log, contacts, notifications, push, push-node, email and projects. Never publish by hand. The TypeScript packages build to dist but use src in this workspace. A release bumps a package and every workspace pin together, with approval. Publish tags come only from pnpm-publish-summary.json and use GITHUB_TOKEN so tags cannot retrigger publishing.
 
 ## App folders and import directions
 

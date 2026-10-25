@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import path from "node:path";
 import { parseForESLint } from "@typescript-eslint/parser";
 import { unwrapExpression } from "./import-bindings.mjs";
+import { featureOptions } from "./feature-origin.mjs";
 import {
   builderFromExport,
   importedOrigin,
@@ -241,9 +242,26 @@ export const sourceGraph = (
         ["ArrowFunctionExpression", "FunctionExpression", "FunctionDeclaration"].includes(
           node.type,
         );
+      const callee = node.type === "CallExpression" && unwrapExpression(node.callee);
+      const binding = callee?.type === "Identifier" && definition(found.file, callee);
+      const completedWay =
+        withinFunction &&
+        binding?.node?.type === "ImportSpecifier" &&
+        (binding.node.imported.name ?? binding.node.imported.value) === "defineWay" &&
+        binding.parent.source.value === "@house-rules/application" &&
+        featureOptions(
+          { resolve },
+          found.file.slice(0, found.file.lastIndexOf(`${path.sep}src${path.sep}`) + 5),
+          found.file,
+          node.arguments[0],
+          true,
+          true,
+        ).length === 0;
       for (const [key, value] of Object.entries(node)) {
         if (["parent", "loc", "range", "tokens", "comments", "id", "key", "property"].includes(key))
           continue;
+        // A completed way is a value; keep scanning its arguments for escaped builders.
+        if (completedWay && key === "callee") continue;
         for (const child of Array.isArray(value) ? value : [value]) {
           if (!child || typeof child !== "object" || typeof child.type !== "string") continue;
           pending.push({

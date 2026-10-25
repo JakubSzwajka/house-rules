@@ -16,7 +16,7 @@ Only the publish job has `contents: write`, needed to push those tags. Its check
 
 ### Kits release preparation
 
-This section records the earlier kits release preparation, kept as history. The current plan is under "Current 19-package release preparation" below.
+This section records the earlier kits release preparation, kept as history. The current plan is under "Current 20-package release preparation" below.
 
 Merge first, publish later. This change splits `@house-rules/capability` into two kits and prepares seven public packages:
 
@@ -36,9 +36,9 @@ Before a later approved publish, confirm the `NPM_TOKEN` owner can create `@hous
 
 Consumers must wait 24 hours after a future publication under this repo's release-age policy. No `minimumReleaseAgeExclude` entry is added; any exception needs separate owner approval.
 
-### Current 19-package release preparation
+### Current 20-package release preparation
 
-Merge first, publish later. This release adds nine support modules and prepares all 19 public packages:
+Merge first, publish later. This release adds nine support modules and the optional Node Push sender, preparing all 20 public packages:
 
 | Package | npm | Release | Why |
 | --- | --- | --- | --- |
@@ -59,6 +59,7 @@ Merge first, publish later. This release adds nine support modules and prepares 
 | `@house-rules/contacts` | not published | 0.1.0 | First release. |
 | `@house-rules/notifications` | not published | 0.1.0 | First release. |
 | `@house-rules/push` | not published | 0.1.0 | First release. |
+| `@house-rules/push-node` | not published | 0.1.0 | Optional Node sender for the PushSender port. |
 | `@house-rules/email` | not published | 0.1.0 | First release. |
 | `@house-rules/projects` | not published | 0.1.0 | First release. |
 

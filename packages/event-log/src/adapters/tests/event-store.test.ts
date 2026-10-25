@@ -30,6 +30,31 @@ for (const { name, layer: world } of stores) {
   layer(world, { excludeTestServices: true, timeout: "30 seconds" })(
     `Event log on ${name}`,
     (it) => {
+      it.effect("paginates 29 events in numeric ID order with exclusive page-7 cursors", () =>
+        Effect.gen(function* () {
+          const log = yield* EventLog;
+          const expectedIds = Array.from({ length: 29 }, (_, index) => String(index + 1));
+          const recorded = yield* UnitOfWork.atomic(
+            Effect.forEach(expectedIds, (id) => log.record(null, fact("numeric-page", id))),
+          );
+          expect(recorded.map((event) => event.id)).toEqual(expectedIds);
+
+          const ids: string[] = [];
+          let cursor: { after?: string } = {};
+          for (let offset = 0; offset < expectedIds.length; offset += 7) {
+            const page = yield* log.read({ ...cursor, kinds: ["numeric-page"], limit: 7 });
+            expect(page).toEqual(recorded.slice(offset, offset + 7));
+            ids.push(...page.map((event) => event.id));
+            const last = page.at(-1);
+            if (last === undefined) break;
+            cursor = { after: last.id };
+          }
+          expect(ids).toEqual(expectedIds);
+          expect(new Set(ids).size).toBe(29);
+          expect(yield* log.read({ ...cursor, kinds: ["numeric-page"], limit: 7 })).toEqual([]);
+        }).pipe(Effect.provide(EventLog.layer(options("numeric-page")))),
+      );
+
       it.effect("validates the app registry and stamps an explicit actor, time and request", () =>
         Effect.gen(function* () {
           const log = yield* EventLog;

@@ -35,6 +35,8 @@ Producer modules declare event facts in their contract and return them alongside
 | listDeadLetters | event-log:dead-letters | Read dead letters |
 | replay | event-log:replay | Manually queue one dead letter; requires approval |
 
+read returns history in ascending numeric event-ID order. IDs remain decimal strings to preserve bigint precision. To continue a filtered query, pass the last returned ID as the exclusive `after` cursor and keep the same filters. The default limit is 100, maximum 1000.
+
 replay returns the typed ReplayResult: `enqueued`, `busy` or `already_queued`. Retry `busy` later; it does not confirm a queued replay.
 
 The binder passes Actor explicitly from the caller, or null for a system caller. EventLog never reads CurrentActor. Facts contain kind, subject, payload and nullable scopeId. No secrets belong in events or error summaries.

@@ -3,6 +3,7 @@ import { DateTime, Effect, Schema } from "effect";
 import type { PushStore } from "../storage.js";
 import {
   PushInputInvalid,
+  PushSendFailed,
   PushTtl,
   type PushPayload,
   PushSubscriptionConflict,
@@ -86,7 +87,14 @@ export const makePush = (
     let sent = 0;
     const events: { readonly _tag: "SubscriptionExpired"; readonly endpoint: string }[] = [];
     for (const subscription of subscriptions) {
-      const result = yield* sender.send(subscription, payload, { ttl: seconds, idempotencyKey });
+      const result = yield* sender
+        .send(subscription, payload, { ttl: seconds, idempotencyKey })
+        .pipe(
+          // A caller may recover in this unit, committing the earlier expiries.
+          Effect.mapError(
+            (error) => new PushSendFailed({ cause: error.cause, events: [...events] }),
+          ),
+        );
       if (result === "sent") sent++;
       else if (
         yield* store.expired(subscription.endpoint, DateTime.toEpochMillis(yield* DateTime.now))

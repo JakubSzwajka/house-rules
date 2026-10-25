@@ -1,5 +1,5 @@
 import { errorKind } from "@house-rules/domain/contract";
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 export const PushOwner = Schema.Struct({ kind: Schema.NonEmptyString, id: Schema.NonEmptyString });
 export type PushOwner = typeof PushOwner.Type;
@@ -48,9 +48,16 @@ export class PushStoreUnavailable extends Schema.TaggedError<PushStoreUnavailabl
     return "Push subscriptions are unavailable. Try again shortly.";
   }
 }
+export const SubscriptionExpired = Schema.TaggedStruct("SubscriptionExpired", {
+  endpoint: Schema.NonEmptyString,
+});
 export class PushSendFailed extends Schema.TaggedError<PushSendFailed>()("PushSendFailed", {
   kind: errorKind("unavailable"),
   cause: Schema.Defect(),
+  events: Schema.Array(SubscriptionExpired).pipe(
+    Schema.withDecodingDefaultKey(Effect.sync(() => [])),
+    Schema.withConstructorDefault(Effect.sync(() => [])),
+  ),
 }) {
   override get message(): string {
     return "Push delivery is unavailable. Try again shortly.";
@@ -63,8 +70,5 @@ export const Subscribed = Schema.TaggedStruct("Subscribed", {
 export const Unsubscribed = Schema.TaggedStruct("Unsubscribed", {
   endpoint: Schema.NonEmptyString,
   owner: PushOwner,
-});
-export const SubscriptionExpired = Schema.TaggedStruct("SubscriptionExpired", {
-  endpoint: Schema.NonEmptyString,
 });
 export const PushEvents = { Subscribed, Unsubscribed, SubscriptionExpired } as const;

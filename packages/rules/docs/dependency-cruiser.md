@@ -45,6 +45,8 @@ Safe descriptor trees contain schemas, errors, permissions and edges only. Packa
 
 Installed domain/application/identity contracts are explicitly trusted in source and dist form because node_modules graphs are not followed. trustedContractPackages adds other reviewed package names, not package mains. Effect browser modules remain allowlisted. Production computed imports fail ESLint because Dependency Cruiser cannot record a computed edge.
 
+Exact `effect/encoding` is allowlisted at its Effect 4.0.3 export, `dist/encoding/index.js`. A browser ESM bundle of every runtime export resolves without externals. For that barrel, ESLint's `no-computed-import` requires the public specifier, rejecting deep/private paths, relative paths and resolved aliases. No other encoding file gains trust; feature import boundaries and SQL/Node/driver bans stay unchanged.
+
 ## Package layout
 
 A package src/ and a read-model root allow index.ts, facade.ts, storage.ts, optional contract.ts, adapters/, tests/ and subject folders. Other loose root files fail. utils/helpers/misc fail anywhere. Mechanism names such as types/models/errors/internal fail in any letter case inside packages and read models.
