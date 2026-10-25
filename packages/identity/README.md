@@ -92,7 +92,7 @@ Identity.layerPostgres({ providers }, {
 })
 ```
 
-The adapter reads bindings for that issuer only. It lists active sessions in pages of 500, collects every page before revoking, then re-lists. After three revocation rounds, remaining sessions fail with fixed-text `SessionsPartlyEnded { ended, remaining }`. A failed revoke also reports partial progress. A 404 counts as done but not as a successful revoke. Retrying reports only successful revoke calls in that attempt.
+The adapter reads bindings for that issuer only. It lists active sessions in pages of 500 by default, collects every page before revoking, then re-lists. Set optional `pageSize` to an integer from 1 to 500 to use smaller pages, including in tests. Other values fail layer construction with `IdentityProviderInvalid`, option `pageSize`, before any fetch. After three revocation rounds, remaining sessions fail with fixed-text `SessionsPartlyEnded { ended, remaining }`. A failed revoke also reports partial progress. A 404 counts as done but not as a successful revoke. Retrying reports only successful revoke calls in that attempt.
 
 Clerk calls cannot roll back with a database unit. Record an app-owned session fact only after success; if recording fails, already-revoked sessions remain revoked. A previously issued JWT can still pass until expiry plus accepted skew, normally up to 65 seconds for Clerk. No Clerk SDK is used.
 

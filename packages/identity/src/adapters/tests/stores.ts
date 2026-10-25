@@ -11,7 +11,7 @@ import {
   postgresBindingStore,
 } from "../../index.js";
 
-const migratedDatabase = Layer.effectDiscard(
+export const identityDatabaseTesting = Layer.effectDiscard(
   Migrations.run([
     {
       name: "identity",
@@ -40,7 +40,7 @@ export const identityWorldsTesting = (
       name: "postgres",
       layer: Identity.layerPostgres(options, ports).pipe(
         Layer.provideMerge(sqlUnitOfWork),
-        Layer.provideMerge(migratedDatabase),
+        Layer.provideMerge(identityDatabaseTesting),
       ),
     },
     { name: "memory", layer: Layer.merge(Identity.layerMemory(options, ports), memoryUnitOfWork) },
@@ -50,7 +50,7 @@ export const stores = [
   {
     name: "postgres",
     layer: Layer.merge(postgresBindingStore, sqlUnitOfWork).pipe(
-      Layer.provideMerge(migratedDatabase),
+      Layer.provideMerge(identityDatabaseTesting),
     ),
   },
   { name: "memory", layer: Layer.merge(memoryBindingStore(), memoryUnitOfWork) },

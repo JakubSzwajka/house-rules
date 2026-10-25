@@ -3,10 +3,12 @@ import { Effect, Layer, Redacted, Schema } from "effect";
 import { SessionControl } from "../../sessions/session-control.js";
 import { SessionControlUnavailable, SessionsPartlyEnded } from "../../sessions/sessions.js";
 import { BindingStore } from "../../storage.js";
+import { IdentityProviderInvalid } from "../../sign-in/provider-invalid.js";
 
 export type ClerkSessionsOptions = Readonly<{
   issuer: string;
   secretKey: Redacted.Redacted<string>;
+  pageSize?: number;
   fetch?: (url: string, init: RequestInit) => Promise<Pick<Response, "ok" | "status" | "json">>;
 }>;
 const Session = Schema.Struct({ id: Schema.NonEmptyString });
@@ -17,6 +19,13 @@ export const clerkSessionControl = (options: ClerkSessionsOptions) =>
   Layer.effect(
     SessionControl,
     Effect.gen(function* () {
+      const pageSize = options.pageSize ?? 500;
+      if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 500) {
+        return yield* new IdentityProviderInvalid({
+          option: "pageSize",
+          message: "Clerk session pageSize must be an integer from 1 to 500.",
+        });
+      }
       const store = yield* BindingStore;
       const fetch = options.fetch ?? globalThis.fetch;
       const request = (path: string, method: "GET" | "POST") =>
@@ -32,9 +41,9 @@ export const clerkSessionControl = (options: ClerkSessionsOptions) =>
       const list = Effect.fnUntraced(function* (users: ReadonlyArray<string>) {
         const ids = new Set<string>();
         for (const user of users) {
-          for (let offset = 0; ; offset += 500) {
+          for (let offset = 0; ; offset += pageSize) {
             const response = yield* request(
-              `/sessions?user_id=${encodeURIComponent(user)}&status=active&limit=500&offset=${offset}`,
+              `/sessions?user_id=${encodeURIComponent(user)}&status=active&limit=${pageSize}&offset=${offset}`,
               "GET",
             );
             if (!response.ok) return yield* new SessionControlUnavailable();
@@ -47,7 +56,7 @@ export const clerkSessionControl = (options: ClerkSessionsOptions) =>
             );
             const sessions = "data" in page ? page.data : page;
             for (const session of sessions) ids.add(session.id);
-            if (sessions.length < 500) break;
+            if (sessions.length < pageSize) break;
           }
         }
         return [...ids];

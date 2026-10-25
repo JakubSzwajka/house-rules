@@ -35,9 +35,12 @@ import { memoryApiTokenStore } from "./adapters/memory/api-token.js";
 import { postgresApiTokenStore } from "./adapters/postgres/api-token.js";
 import { clerkSessionControl } from "./adapters/clerk/sessions.js";
 import { SessionControl } from "./sessions/session-control.js";
+import type { IdentityProviderInvalid } from "./sign-in/provider-invalid.js";
 import { SessionControlUnavailable, type SessionsPartlyEnded } from "./sessions/sessions.js";
 
-type SessionOptions = { sessions?: Layer.Layer<SessionControl, never, BindingStore> };
+type SessionOptions = {
+  sessions?: Layer.Layer<SessionControl, IdentityProviderInvalid, BindingStore>;
+};
 
 export type Login = Readonly<{ issuer: string; subject: string }>;
 
