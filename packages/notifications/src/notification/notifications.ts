@@ -266,11 +266,28 @@ export const makeNotifications = (
       yield* UnitOfWork.required;
       const id = yield* decode(Schema.NonEmptyString)(deliveryId);
       const detail = yield* decode(Schema.String)(error);
-      yield* store.markFailed(id, detail, yield* now, {
+      const at = yield* now;
+      const retry = {
         maxAttempts: options.maxAttempts ?? 5,
         baseMs: options.retryBaseMs ?? 1000,
         capMs: options.retryCapMs ?? 3_600_000,
-      });
+      };
+      yield* store.markFailed(id, detail, at, retry);
+      const item = yield* store.delivery(id);
+      if (item === null || item.delivery.state !== "pending") return;
+      if (item.delivery.channel === "inapp") return;
+      const category = categoryOf(item.notification.category);
+      if (category === undefined || category.mandatory) return;
+      const hours = yield* store.quietHours(item.delivery.recipient);
+      if (hours === null) return;
+      const retryAt = item.delivery.retryAt ?? at;
+      const dueAt = releaseAt(
+        retryAt,
+        hours,
+        (yield* store.timeZone(item.delivery.recipient)) ?? "UTC",
+      );
+      if (dueAt > retryAt)
+        yield* store.reschedule(item.delivery.id, { ...item.delivery, state: "held", dueAt });
     }),
     erase: Effect.fn("Notifications.erase")(function* (recipient: Recipient) {
       yield* UnitOfWork.required;

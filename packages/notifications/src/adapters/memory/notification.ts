@@ -153,6 +153,15 @@ export const memoryNotificationStore = (): Layer.Layer<NotificationStore> =>
                 : [structuredClone({ delivery, notification })];
             }),
         ),
+      delivery: (id) =>
+        Effect.sync(() => {
+          const delivery = deliveries.get(id);
+          const notification =
+            delivery === undefined ? undefined : notifications.get(delivery.notificationId);
+          return delivery === undefined || notification === undefined
+            ? null
+            : structuredClone({ delivery, notification });
+        }),
       reschedule: (id, schedule) =>
         change(() => {
           const row = deliveries.get(id);

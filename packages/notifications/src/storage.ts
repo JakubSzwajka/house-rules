@@ -36,6 +36,7 @@ export class NotificationStore extends Context.Service<
       recipient: Recipient,
       query?: { readonly unsettledOnly: boolean },
     ) => Read<readonly DeliveryItem[]>;
+    readonly delivery: (id: string) => Read<DeliveryItem | null>;
     readonly reschedule: (
       id: string,
       schedule: Pick<Delivery, "mode" | "state" | "dueAt">,
