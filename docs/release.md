@@ -6,6 +6,8 @@ The template has no Dockerfile and no health endpoint, so the workflow never run
 
 ## House Rules package releases
 
+For local package testing without npm, see [the local framework registry guide](local-registry.md).
+
 The npm packages use `.github/workflows/publish.yml`, not the application release flow below. It starts on package tag pushes and manual runs. Pull requests trigger it only for changes to the workflow, `scripts/tag-published.mjs`, `scripts/packed-*.mjs`, `scripts/tarball-content.mjs`, or `tests/publish-workflow*.mjs` and `tests/tag-published*.mjs`. Other package changes use `ci.yml` alone. After its read-only verify job passes, an approved publish job runs `pnpm publish -r --access public --provenance --no-git-checks --report-summary`.
 
 Only after that command succeeds, `scripts/tag-published.mjs` reads `pnpm-publish-summary.json`. It creates `@house-rules/<pkg>@<version>` tags for the packages the report says were published, then pushes those tags atomically. Already-published versions and private packages get no new tag. A tag already at the published commit stays untouched; a tag at another commit fails the job rather than moving it.

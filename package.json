@@ -25,6 +25,7 @@
     "test": "node --test ${CI:+--test-reporter=spec --test-reporter=./scripts/slow-tests.mjs --test-reporter-destination=stdout --test-reporter-destination=stdout} \"tests/**/*.test.mjs\" && TURBO_TELEMETRY_DISABLED=1 turbo run test",
     "build": "TURBO_TELEMETRY_DISABLED=1 turbo run build --filter=./packages/*",
     "packed-consumer": "node scripts/packed-consumer.mjs",
+    "local-publish": "node scripts/local-publish.mjs",
     "plan": "node scripts/plan.mjs",
     "acceptance": "bash scripts/acceptance-cold-clone.sh",
     "prepare": "effect-tsgo patch && lefthook install",

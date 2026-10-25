@@ -21,6 +21,7 @@ Use the exact pnpm version in `package.json`. Do not replace it or add a second 
 | `pnpm build` | Build the 18 TypeScript framework packages to dist for packing; workspace imports still read src |
 | `pnpm acceptance` | Clone committed HEAD into a temp folder and run frozen install, check and test |
 | `pnpm run packed-consumer` | Pack all 19 public packages, install in a cold npm consumer and prove Node, TypeScript, browser contracts and layout behavior; needs the registry |
+| `pnpm run local-publish` | Publish all public packages as -local prereleases to the local Verdaccio (docs/local-registry.md); never npm |
 | `pnpm vendor:agent-sources` | Clone the pinned Effect source into `.agent_sources/` |
 | `pnpm --filter <package> add <dep>` | Add an exact dependency pin to one workspace, after approval |
 | `pnpm --filter @house-rules/site generate` | Regenerate the existing rules page |
