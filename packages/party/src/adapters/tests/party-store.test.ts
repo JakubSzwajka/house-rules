@@ -121,6 +121,32 @@ for (const { name, layer: world } of stores) {
           expect(yield* store.assignments(personId)).toEqual(before);
         }),
       );
+      it.effect("restores repeated assignment changes without affecting another scope", () =>
+        Effect.gen(function* () {
+          const store = yield* PartyStore;
+          const global = { ...assignment, organisationId: null };
+          const before = yield* store.assignments(personId);
+          expect(
+            yield* Effect.flip(
+              UnitOfWork.atomic(
+                Effect.gen(function* () {
+                  yield* store.revoke(global);
+                  yield* store.assign(global);
+                  yield* store.revoke(global);
+                  yield* store.assign(assignment);
+                  yield* store.assign(assignment);
+                  yield* store.revoke(assignment);
+                  yield* store.assign(assignment);
+                  return yield* new Rollback();
+                }),
+              ),
+            ),
+          ).toBeInstanceOf(Rollback);
+          expect(yield* store.assignments(personId)).toEqual(before);
+          expect(yield* store.holderIds(role.key, null, 10)).toEqual([personId]);
+          expect(yield* store.holderIds(role.key, org.id, 10)).toEqual([]);
+        }),
+      );
       it.effect("deleting a role removes its assignments", () =>
         Effect.gen(function* () {
           const store = yield* PartyStore;

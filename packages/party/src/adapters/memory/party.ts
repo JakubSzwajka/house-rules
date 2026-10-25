@@ -41,6 +41,22 @@ export const memoryPartyStore = (): Layer.Layer<PartyStore> =>
       );
       return run();
     });
+    const changeAssignment = Effect.fnUntraced(function* (value: Assignment, assigned: boolean) {
+      yield* UnitOfWork.required;
+      let undo: (() => void) | undefined;
+      yield* UnitOfWork.onRollback(Effect.sync(() => undo?.()));
+      yield* Effect.sync(() => {
+        // Keep one previous entry, not a growing snapshot for every assignment in the unit.
+        const id = key(value);
+        const before = assignments.get(id);
+        undo = () => {
+          if (before === undefined) assignments.delete(id);
+          else assignments.set(id, before);
+        };
+        if (assigned) assignments.set(id, copy(value));
+        else assignments.delete(id);
+      });
+    });
     return PartyStore.of({
       organisation: (id) => Effect.sync(() => copy(organisations.get(id))),
       organisationsFor: (id) =>
@@ -203,14 +219,8 @@ export const memoryPartyStore = (): Layer.Layer<PartyStore> =>
           roles.delete(id);
           for (const [k, v] of assignments) if (v.roleKey === id) assignments.delete(k);
         }),
-      assign: (value) =>
-        change(() => {
-          assignments.set(key(value), copy(value));
-        }),
-      revoke: (value) =>
-        change(() => {
-          assignments.delete(key(value));
-        }),
+      assign: (value) => changeAssignment(value, true),
+      revoke: (value) => changeAssignment(value, false),
       assignments: (id, organisationIds, builtInKeys = []) =>
         Effect.sync(() =>
           copy(

@@ -6,26 +6,34 @@ import { PersonStore } from "../../storage.js";
 export const memoryPersonStore = (): Layer.Layer<PersonStore> =>
   Layer.sync(PersonStore, () => {
     const rows = new Map<string, Principal>();
-    const change = Effect.fn("PersonStore.memory.change")(function* <A>(run: () => A) {
+    const handles = new Map<string, string>();
+    const set = (id: string, principal: Principal | undefined) => {
+      const before = rows.get(id);
+      if (before) handles.delete(before.handle);
+      if (principal) {
+        rows.set(id, principal);
+        handles.set(principal.handle, id);
+      } else {
+        rows.delete(id);
+      }
+    };
+    const change = Effect.fnUntraced(function* <A>(id: string, run: () => A) {
       yield* UnitOfWork.required;
-      const before = new Map(rows);
-      yield* UnitOfWork.onRollback(
-        Effect.sync(() => {
-          rows.clear();
-          for (const [id, person] of before) rows.set(id, person);
-        }),
-      );
-      return run();
+      let undo: (() => void) | undefined;
+      yield* UnitOfWork.onRollback(Effect.sync(() => undo?.()));
+      return yield* Effect.sync(() => {
+        // Capture and mutate together, after registering undo, even with parallel writes in a unit.
+        const before = rows.get(id);
+        undo = () => set(id, before);
+        return run();
+      });
     });
-    const insertPrincipal = Effect.fn("PersonStore.memory.insertPrincipal")(function* (
-      principal: Principal,
-    ) {
-      yield* UnitOfWork.required;
-      if (rows.has(principal.id) || [...rows.values()].some((p) => p.handle === principal.handle))
-        return false;
-      yield* change(() => void rows.set(principal.id, { ...principal }));
-      return true;
-    });
+    const insertPrincipal = (principal: Principal) =>
+      change(principal.id, () => {
+        if (rows.has(principal.id) || handles.has(principal.handle)) return false;
+        set(principal.id, { ...principal });
+        return true;
+      });
     return PersonStore.of({
       principal: (id) =>
         Effect.sync(() => {
@@ -34,7 +42,8 @@ export const memoryPersonStore = (): Layer.Layer<PersonStore> =>
         }),
       principalByHandle: (handle) =>
         Effect.sync(() => {
-          const row = [...rows.values()].find((p) => p.handle === handle);
+          const id = handles.get(handle);
+          const row = id === undefined ? undefined : rows.get(id);
           return row && { ...row };
         }),
       principalsByIds: (ids) =>
@@ -46,7 +55,8 @@ export const memoryPersonStore = (): Layer.Layer<PersonStore> =>
       lockPrincipal: (handle) =>
         Effect.gen(function* () {
           yield* UnitOfWork.required;
-          const row = [...rows.values()].find((p) => p.handle === handle);
+          const id = handles.get(handle);
+          const row = id === undefined ? undefined : rows.get(id);
           return row && { ...row };
         }),
       principalForUpdate: (id) =>
@@ -61,7 +71,7 @@ export const memoryPersonStore = (): Layer.Layer<PersonStore> =>
           const row = rows.get(id);
           if (!row) return undefined;
           const disabled = { ...row, disabledAt: row.disabledAt ?? disabledAt };
-          yield* change(() => void rows.set(id, disabled));
+          yield* change(id, () => set(id, disabled));
           return { ...disabled };
         }),
       find: (id) =>
@@ -80,9 +90,9 @@ export const memoryPersonStore = (): Layer.Layer<PersonStore> =>
           const person = rows.get(id);
           if (person === undefined) return undefined;
           const renamed = { ...person, displayName };
-          yield* change(() => void rows.set(id, renamed));
+          yield* change(id, () => set(id, renamed));
           return personOf(renamed);
         }),
-      erase: (id) => change(() => void rows.delete(id)),
+      erase: (id) => change(id, () => set(id, undefined)),
     });
   });
