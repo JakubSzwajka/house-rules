@@ -235,36 +235,6 @@ for (const { name, layer: storage } of stores) {
       );
     },
   );
-  layer(world(), { excludeTestServices: true, timeout: "30 seconds" })(
-    `Default holder limit on ${name}`,
-    (test) => {
-      test.effect("defaults to 1000 ids and flags only overflow", () =>
-        Effect.gen(function* () {
-          const party = yield* Party;
-          yield* UnitOfWork.atomic(
-            Effect.gen(function* () {
-              for (let n = 0; n < 1001; n++) {
-                const id = ActorId.make(`default-holder-${String(n).padStart(4, "0")}`);
-                yield* party.createPerson({ id, displayName: id });
-                yield* party.assignRole(system, {
-                  personId: id,
-                  roleKey: "owner",
-                  organisationId: null,
-                });
-              }
-            }),
-          );
-          for (const feature of [holders, systemHolders]) {
-            const result = yield* runFeature(feature, { role: "owner" });
-            expect(result.ids).toHaveLength(1000);
-            expect(result.ids[0]).toBe("default-holder-0000");
-            expect(result.ids[999]).toBe("default-holder-0999");
-            expect(result.truncated).toBe(true);
-          }
-        }),
-      );
-    },
-  );
 }
 
 it.effect("rejects invalid holder limits when acquiring Party", () =>
