@@ -1,11 +1,17 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "allowImportingTsExtensions": false,
-    "declaration": true,
-    "declarationMap": true,
+    "noEmit": false,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "rootDir": "src",
     "outDir": "dist",
-    "rootDir": "src"
+    "declaration": true,
+    "rewriteRelativeImportExtensions": true,
+    "paths": {
+      "@house-rules/application": ["../application/dist/index.d.ts"],
+      "@house-rules/domain": ["../domain/dist/index.d.ts"]
+    }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/tests/**"]
 }

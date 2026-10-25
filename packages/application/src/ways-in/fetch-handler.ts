@@ -92,7 +92,7 @@ const makeHttpHandler = <A, E>(
             closed: closedFailure(options.overrides),
           });
           // A sign-out clears the cookie whatever the capability answered.
-          const cleared =
+          const cleared: View["headers"] =
             route.session === "clear" && session !== undefined
               ? { "set-cookie": clearedCookie(session, web.success) }
               : {};
@@ -106,14 +106,11 @@ const makeHttpHandler = <A, E>(
           // checkSession refused this mount already; never fall back to a body with the token.
           if (session === undefined) return yield* Effect.die("session route without a cookie");
           const issued = yield* issueSession(session, route, web.success, outcome.value);
-          return issued === undefined
-            ? respond(internalErrorView.status, internalErrorView.body, requestId)
-            : respond(
-                route.status,
-                issued.body,
-                requestId,
-                issued.setCookie === undefined ? {} : { "set-cookie": issued.setCookie },
-              );
+          if (issued === undefined)
+            return respond(internalErrorView.status, internalErrorView.body, requestId);
+          const issueHeaders: View["headers"] =
+            issued.setCookie === undefined ? {} : { "set-cookie": issued.setCookie };
+          return respond(route.status, issued.body, requestId, issueHeaders);
         });
         // One boundary for the whole request: a defect anywhere is the fixed 500 with this request id.
         return yield* answer.pipe(

@@ -1,12 +1,17 @@
-import { UnitOfWork } from "@house-rules/domain";
-import { Cause, type Context, Effect, Schedule, Stream } from "effect";
+import { type KindedError, UnitOfWork } from "@house-rules/domain";
+import { Cause, type Context, Effect, Schedule, Stream, type Fiber, type Scope } from "effect";
 import { EventCausation } from "../call/event-causation.ts";
 import { newRequestId, withRequestId } from "../call/request-id.ts";
 import { runFeature } from "../execution/run-feature.ts";
-import { EventSource } from "./event-source.ts";
+import { EventSource, EventSourceUnavailable } from "./event-source.ts";
 import type { EventWay } from "./way.ts";
 
-export const eventDriver = (
+export const eventDriver: (
+  way: EventWay,
+  source: EventSource["Service"],
+  captured: Context.Context<any>,
+  sweepMs: number,
+) => Effect.Effect<Fiber.Fiber<never, EventSourceUnavailable | KindedError>, never, Scope.Scope> = (
   way: EventWay,
   source: EventSource["Service"],
   captured: Context.Context<any>,
