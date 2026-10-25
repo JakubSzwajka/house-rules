@@ -25,6 +25,95 @@ test("Next page cannot use proxy as a bridge to module values", async () => {
     "ways-in-import-contracts-only: apps/web/src/app/page.tsx -> apps/web/src/proxy.ts",
   ]);
 });
+test("Next route files and private folders get npm imports, but loose app files do not", async () => {
+  const tree = JSON.parse(await readFile(path.join(FIXTURES, "next-routes/tree.json"), "utf8"));
+  assert.deepEqual(await violatedRules(tree, layout({ scope: "@acme/", host: "next" })), []);
+
+  const forbiddenImports = [
+    ["workspace main", "import {Bookings} from '@example/bookings';"],
+    ["non-kit house-rules main", "import {bindLogin} from '@house-rules/identity';"],
+    ["Node builtin", "import {randomUUID} from 'node:crypto';"],
+    ["SQL adapter", "import {PgClient} from '@effect/sql-pg';"],
+    ["platform adapter", "import {NodeServices} from '@effect/platform-node';"],
+  ];
+  for (const [name, source] of forbiddenImports) {
+    const violations = await violatedRules(
+      { ...tree, "apps/web/src/app/kanban/page.tsx": source },
+      layout({ scope: "@acme/", host: "next" }),
+    );
+    assert.ok(
+      violations.some(({ rule: name }) => name === "ways-in-import-contracts-only"),
+      `${name}: ${JSON.stringify(violations)}`,
+    );
+  }
+  for (const [specifier, file] of [
+    ["effect/sql/SqlClient", "apps/web/src/app/api/v1/tasks/route.ts"],
+    ["effect/unstable/sql/SqlClient", "apps/web/src/app/_http/sql.ts"],
+    ["@effect/platform-node", "apps/web/src/app/api/v1/tasks/route.ts"],
+  ]) {
+    const violations = await violatedRules(
+      { ...tree, [file]: `import {SqlClient} from '${specifier}';` },
+      layout({ scope: "@acme/", host: "next" }),
+    );
+    assert.ok(
+      violations.some(({ rule: name }) => name === "ways-in-import-contracts-only"),
+      `${specifier}: ${JSON.stringify(violations)}`,
+    );
+  }
+  for (const file of [
+    "apps/web/src/app/tasks/[id]/task-once.ts",
+    "apps/web/src/app/tasks/task_once.ts",
+    "apps/web/src/app/sitemap.helper.ts",
+    "apps/web/src/app/robots.anything.ts",
+  ]) {
+    const loose = await violatedRules(
+      { ...tree, [file]: "import React from 'react';" },
+      layout({ scope: "@acme/", host: "next" }),
+    );
+    assert.ok(
+      loose.some(({ rule: name }) => name === "ways-in-import-contracts-only"),
+      `${file}: ${JSON.stringify(loose)}`,
+    );
+  }
+  const nextPattern = layout({ scope: "@acme/", host: "next" }).forbidden.find(
+    (item) =>
+      item.name === "ways-in-import-contracts-only" && item.from.path.includes("page|layout"),
+  ).from.path;
+  assert.equal(new RegExp(nextPattern).test("apps/web/src/app/icon"), false);
+  const routesOverride = layout({ scope: "@acme/", host: "next", layers: { waysIn: "routes" } });
+  assert.deepEqual(
+    await violatedRules(
+      {
+        ...Object.fromEntries(
+          Object.entries(tree).filter(([file]) => !file.startsWith("apps/web/src/app/")),
+        ),
+        "apps/web/src/routes/tasks/page.tsx": "import React from 'react';",
+        "apps/web/src/routes/tasks/route.ts": "import React from 'react';",
+      },
+      routesOverride,
+    ),
+    [],
+  );
+  const readModel = await violatedRules(
+    {
+      ...tree,
+      "apps/web/src/app/kanban/page.tsx":
+        "import {report} from '../../read-models/report/index.ts';",
+    },
+    layout({ scope: "@acme/", host: "next" }),
+  );
+  assert.ok(readModel.some(({ rule: name }) => name === "ways-in-do-not-import-read-model-values"));
+
+  const withoutHost = await violatedRules(tree, layout({ scope: "@acme/" }));
+  assert.deepEqual(
+    withoutHost.map(({ rule: name }) => name),
+    ["app-folders", "app-folders", "app-folders", "app-folders", "app-folders"],
+  );
+  assert.equal(
+    rule(layout({ scope: "@acme/" }), "ways-in-import-contracts-only").from.pathNot[1],
+    "^(apps/[^/]+/src)/ways-in/[^/]+/page/",
+  );
+});
 test("plain Node wiring still passes without a host", async () =>
   assert.deepEqual(await violatedRules("node-app", layout({ scope: "@acme/" })), []));
 test("Next changes host-owned paths only and keeps every severity", () => {

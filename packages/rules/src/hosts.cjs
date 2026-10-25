@@ -5,6 +5,28 @@
 const HOSTS = Object.freeze({
   next: Object.freeze({
     waysInLayer: "app",
+    singleWayArea: true,
+    waysInPageFiles: Object.freeze([
+      "page",
+      "layout",
+      "template",
+      "loading",
+      "error",
+      "not-found",
+      "global-error",
+      "default",
+      "route",
+    ]),
+    waysInMetadataFiles: Object.freeze([
+      "manifest",
+      "icon",
+      "apple-icon",
+      "opengraph-image",
+      "twitter-image",
+      "sitemap",
+      "robots",
+    ]),
+    privateFolderPrefix: "_",
     appEntryFiles: Object.freeze(["proxy.ts", "instrumentation.ts"]),
     generatedDeclarationFiles: Object.freeze(["next-env.d.ts"]),
     buildOutputFolders: Object.freeze([".next"]),

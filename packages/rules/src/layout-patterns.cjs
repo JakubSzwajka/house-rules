@@ -202,7 +202,9 @@ function patterns(options) {
     featuresRoot: layerRoot(layers.features),
     readModelsRoot: layerRoot(layers.readModels),
     waysInRoot: layerRoot(layers.waysIn),
-    waysInPage: `^(${apps}/[^/]+/src)/${layers.waysIn}/[^/]+/page/`,
+    waysInPage: host?.singleWayArea
+      ? `^(${apps}/[^/]+/src)/${layers.waysIn}/(?:.*/|)(?:(?:${host.waysInPageFiles.join("|")})[.][cm]?[jt]sx?$|(?:${host.waysInMetadataFiles.join("|")})[.][^./]+$|${host.privateFolderPrefix}[^/]+/.+)`
+      : `^(${apps}/[^/]+/src)/${layers.waysIn}/[^/]+/page/`,
     waysInThirdParty:
       "(?:^|/)node_modules/(?![.]pnpm/|@house-rules/|@effect/sql-|@effect/platform-|effect/)[^/]+/",
     waysInImporter: `^(${apps}/[^/]+/src)/${layers.waysIn}(?:/|$)`,
@@ -224,7 +226,9 @@ function patterns(options) {
     ],
     featureFolder: `^(${apps}/[^/]+/src/${layers.features}/[^/]+)/`,
     readModelFolder: `^(${apps}/[^/]+/src/${layers.readModels}/[^/]+)/`,
-    wayFolder: `^(${apps}/[^/]+/src/${layers.waysIn}/[^/]+)/`,
+    wayFolder: host?.singleWayArea
+      ? `^(${apps}/[^/]+/src/${layers.waysIn})/`
+      : `^(${apps}/[^/]+/src/${layers.waysIn}/[^/]+)/`,
     folderCode: `^(${apps}/[^/]+/src/${layers.readModels}/[^/]+)/`,
     folderSource: `^${apps}/[^/]+/src/${layers.readModels}/[^/]+/`,
     folderAdapters: `^${apps}/[^/]+/src/${layers.readModels}/[^/]+/adapters/`,

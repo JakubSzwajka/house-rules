@@ -148,7 +148,7 @@
         "path": "^(apps/[^/]+/src)/app(?:/|$)",
         "pathNot": [
           "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$",
-          "^(apps/[^/]+/src)/app/[^/]+/page/"
+          "^(apps/[^/]+/src)/app/(?:.*/|)(?:(?:page|layout|template|loading|error|not-found|global-error|default|route)[.][cm]?[jt]sx?$|(?:manifest|icon|apple-icon|opengraph-image|twitter-image|sitemap|robots)[.][^./]+$|_[^/]+/.+)"
         ]
       },
       "to": {
@@ -175,7 +175,7 @@
       "severity": "error",
       "comment": "See https://stack.kubaszwajka.com/rules/#ways-in-import-contracts-only",
       "from": {
-        "path": "^(apps/[^/]+/src)/app/[^/]+/page/",
+        "path": "^(apps/[^/]+/src)/app/(?:.*/|)(?:(?:page|layout|template|loading|error|not-found|global-error|default|route)[.][cm]?[jt]sx?$|(?:manifest|icon|apple-icon|opengraph-image|twitter-image|sitemap|robots)[.][^./]+$|_[^/]+/.+)",
         "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
       },
       "to": {
@@ -221,7 +221,7 @@
       "severity": "error",
       "comment": "See https://stack.kubaszwajka.com/rules/#ways-in-do-not-import-other-ways",
       "from": {
-        "path": "^(apps/[^/]+/src/app/[^/]+)/",
+        "path": "^(apps/[^/]+/src/app)/",
         "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
       },
       "to": {
