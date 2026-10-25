@@ -212,6 +212,16 @@
           "needsApproval": true
         },
         {
+          "name": "Party.findPrincipal",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.holdersOf",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
           "name": "Party.isRelated",
           "permission": "party:read",
           "readOnly": true

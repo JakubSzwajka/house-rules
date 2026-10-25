@@ -44,6 +44,10 @@ export const postgresPersonStore: Layer.Layer<PersonStore, never, SqlClient> = L
         readPrincipals(sql`select ${principalColumns} from party_person where id = ${id}`).pipe(
           Effect.map((rows) => rows[0]),
         ),
+      principalByHandle: (handle) =>
+        readPrincipals(
+          sql`select ${principalColumns} from party_person where handle = ${handle}`,
+        ).pipe(Effect.map((rows) => rows[0])),
       principalsByIds: (ids) =>
         readPrincipals(
           sql`select ${principalColumns} from party_person where ${sql.in("id", ids)} order by id`,

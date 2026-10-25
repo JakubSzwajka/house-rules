@@ -118,6 +118,18 @@ export const memoryPartyStore = (): Layer.Layer<PartyStore> =>
         ),
       assignmentsInOrganisation: (id) =>
         Effect.sync(() => copy([...assignments.values()].filter((a) => a.organisationId === id))),
+      holderIds: (role, scope, take) =>
+        Effect.sync(() =>
+          [
+            ...new Set(
+              [...assignments.values()]
+                .filter((a) => a.roleKey === role && a.organisationId === scope)
+                .map((a) => a.personId),
+            ),
+          ]
+            .sort()
+            .slice(0, take),
+        ),
       lockOrganisation: () => UnitOfWork.required,
       memberIds: (ids) =>
         Effect.sync(() => [

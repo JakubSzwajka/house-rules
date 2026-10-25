@@ -42,7 +42,7 @@ Descriptors come from `@house-rules/party/contract`. Only app features are expos
 | createPerson, createPrincipal | party:create | T |
 | disable | party:update | T D A |
 | lockActive | party:read | T |
-| principalsByIds | party:read | R |
+| principalsByIds, findPrincipal, holdersOf | party:read | R |
 | showPerson | party:read | R |
 | showMe | party:read | R |
 | myAccess | party:read | R |
@@ -90,9 +90,13 @@ New handles must contain 1 to 120 characters. Without options there is no additi
 Caller rules at the operation boundary:
 
 - `createPrincipal` and `disable` accept only system callers. App provisioning features use explicit `asSystem` edges with reasons. Their permissions are `party:create` and `party:update` respectively.
-- `lockActive({ handle, kind })` accepts person and system callers with `party:read`. It needs an open unit and returns the principal. Unknown handles fail with `PersonNotFound`. A kind mismatch also returns `PersonNotFound` for person callers, so they cannot probe handles; system callers get `PrincipalKindRefused`. Disabled principals fail with `PrincipalDisabledRefused`. Asking for kind `agent` rejects a person owner. Party does not know owner roles.
+- `lockActive({ handle, kind })` accepts person and system callers with `party:read`. It needs an open unit and returns the principal. Unknown handles fail with `PersonNotFound`. A kind mismatch also returns `PersonNotFound` for person callers, so they cannot probe handles; system callers get `PrincipalKindRefused`. Disabled principals also return `PersonNotFound` to person callers; system callers get `PrincipalDisabledRefused`. Asking for kind `agent` rejects a person owner. Party does not know owner roles.
 - `principalsByIds({ ids })` accepts person and system callers with `party:read`. It returns matching principals once each, omits missing ids, and includes disabled principals. It exposes no credentials. This supports notification paths as well as person-facing names.
+- `findPrincipal({ handle })` accepts person and system callers with `party:read`. It matches the exact handle and returns the full principal, including id, kind, displayName, handle, createdBy, createdAt and disabledAt. Missing handles fail with `PersonNotFound`. Disabled principals are returned, not refused. Callers decide whether standing permits their action.
+- `holdersOf({ role, scope? })` accepts person and system callers with `party:read`. The role is its key; scope is one organisation id. Omitted or null scope selects global assignments only, never assignments across all organisations. It returns `{ ids, truncated }` in ascending id order, without duplicates, including disabled holders. Unknown roles or scopes with no assignments return `{ ids: [], truncated: false }`. This lookup grants no authority.
 - `standingOf(actorId)` is a facade method for a caller-owned Identity standing slot, not an operation. It returns `active`, `disabled` or `missing`; storage failures remain typed unavailable errors.
+
+Both lookups are read-only and need no unit. Set `holdersLimit` in `Party.layerMemory`, `Party.layerPostgres` or raw `Party.layer` options to bound each `holdersOf` result. The default is 1000. The limit must be a positive safe integer below `Number.MAX_SAFE_INTEGER`; invalid options fail layer acquisition with `PartyInputInvalid`. Adapters fetch at most limit + 1 distinct ids, then Party returns at most limit ids. `truncated` is true only when another matching id exists. Overflow is not an unavailable error; actual storage failures remain typed unavailable errors. Consumers that require complete results must check the flag.
 
 `disable({ id })` permanently sets `disabledAt` and returns `{ principal, fact }`. A first disable returns `{ kind: "principal.disabled", before, after }`; a repeated disable preserves the timestamp and returns `fact: null`. Unknown ids fail with `PersonNotFound`. It is transactional, destructive and needs approval. There is no enable. Party permits disabling either kind; protecting an owner is the app's provisioning policy. The composing feature or process chooses which returned facts to record in the same unit. Party never records them itself.
 

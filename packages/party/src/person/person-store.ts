@@ -9,6 +9,9 @@ export class PersonStore extends Context.Service<
     readonly principal: (
       id: ActorId,
     ) => Effect.Effect<Principal | undefined, PersonStoreUnavailable>;
+    readonly principalByHandle: (
+      handle: string,
+    ) => Effect.Effect<Principal | undefined, PersonStoreUnavailable>;
     readonly principalsByIds: (
       ids: readonly ActorId[],
     ) => Effect.Effect<readonly Principal[], PersonStoreUnavailable>;

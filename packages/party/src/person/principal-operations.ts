@@ -1,5 +1,7 @@
 import { ActorId, defineOperation } from "@house-rules/domain/contract";
 import { Schema } from "effect";
+import { PartyUnavailable } from "../organisation/organisation.js";
+import { RoleKey } from "../role/role.js";
 import {
   PersonAlreadyExists,
   PersonCallerDenied,
@@ -61,9 +63,31 @@ const principalsByIds = defineOperation("Party.principalsByIds", {
   permission: "party:read",
   readOnly: true,
 });
+const findPrincipal = defineOperation("Party.findPrincipal", {
+  description: "Find a principal by its exact handle, including disabled principals.",
+  input: Schema.Struct({ handle: Schema.String }),
+  output: Principal,
+  failure: Schema.Union([PersonNotFound, PersonStoreUnavailable]),
+  permission: "party:read",
+  readOnly: true,
+});
+const holdersOf = defineOperation("Party.holdersOf", {
+  description:
+    "Read bounded principal ids assigned a role in one exact scope, global when omitted.",
+  input: Schema.Struct({
+    role: RoleKey,
+    scope: Schema.optionalKey(Schema.NullOr(Schema.NonEmptyString)),
+  }),
+  output: Schema.Struct({ ids: Schema.Array(ActorId), truncated: Schema.Boolean }),
+  failure: PartyUnavailable,
+  permission: "party:read",
+  readOnly: true,
+});
 export const PrincipalOperations = {
   createPrincipal,
   disable,
   lockActive,
   principalsByIds,
+  findPrincipal,
+  holdersOf,
 } as const;

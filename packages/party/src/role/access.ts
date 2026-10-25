@@ -7,6 +7,7 @@ import {
 } from "@house-rules/domain";
 import { Effect } from "effect";
 import { makePeople } from "./people.js";
+import { makeHolders } from "../assignment/holders.js";
 import { makeInvitations } from "../invitation/invitations.js";
 import { type Assignment, validateAssignment } from "../assignment/assignment.js";
 import {
@@ -178,6 +179,7 @@ export const makeAccess = (
     ...makeInvitations(store, admin, checkInvitationRole),
     ...makePeople(store, persons, role, adminScopes, organisationExists),
     permissionsOf,
+    ...makeHolders(store, options.holdersLimit ?? 1000),
     canAdminOrganisation: Effect.fn("Party.canAdminOrganisation")(function* (
       caller: Caller,
       organisationId: string,

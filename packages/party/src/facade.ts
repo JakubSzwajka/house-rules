@@ -1,11 +1,11 @@
 import type { MaySocket } from "@house-rules/application";
 import { defineModule } from "@house-rules/domain";
-import { Effect, Layer, Option } from "effect";
+import { Effect, Layer, Option, Schema } from "effect";
 import { memoryPersonStore } from "./adapters/memory/person.js";
 import { postgresPersonStore } from "./adapters/postgres/person.js";
 import { memoryPartyStore } from "./adapters/memory/party.js";
 import { postgresPartyStore } from "./adapters/postgres/party.js";
-import { PartyUnavailable } from "./organisation/organisation.js";
+import { PartyInputInvalid, PartyUnavailable } from "./organisation/organisation.js";
 import { makeParty } from "./person/party.js";
 import { makePrincipals } from "./person/principals.js";
 import { makeAccess } from "./role/access.js";
@@ -21,6 +21,14 @@ export type PartyFailure = Effect.Error<ReturnType<PartyService[keyof PartyServi
 export class Party extends defineModule<Party, PartyService>()("party", {
   make: (options: PartyOptions) =>
     Effect.gen(function* () {
+      const holdersLimit = yield* Schema.decodeEffect(
+        Schema.Int.check(
+          Schema.isGreaterThanOrEqualTo(1),
+          Schema.isLessThanOrEqualTo(Number.MAX_SAFE_INTEGER - 1),
+        ),
+      )(options.holdersLimit ?? 1000).pipe(
+        Effect.mapError(() => new PartyInputInvalid({ message: "Invalid holders limit." })),
+      );
       const persons = yield* PersonStore;
       const store = yield* PartyStore;
       const catalogue = Option.getOrUndefined(yield* Effect.serviceOption(PermissionCatalogue));
@@ -39,7 +47,7 @@ export class Party extends defineModule<Party, PartyService>()("party", {
             list: (ids) =>
               persons.list(ids).pipe(Effect.mapError((cause) => new PartyUnavailable({ cause }))),
           },
-          options,
+          { ...options, holdersLimit },
           catalogue,
         ),
       };

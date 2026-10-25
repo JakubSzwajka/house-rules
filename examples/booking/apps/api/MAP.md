@@ -111,10 +111,11 @@ MODULES
  party  package [framework] @house-rules/party  packages/party
   ops: Party.acceptInvitation Party.assignRole Party.canAdminOrganisation Party.createInvitation
        Party.createOrganisation Party.createPerson Party.createPrincipal Party.defineRole
-       Party.deleteRole Party.disable Party.isRelated Party.listInvitations Party.listMembers
-       Party.listPeople Party.listRoles Party.lockActive Party.myAccess Party.myOrganisations
-       Party.principalsByIds Party.relate Party.renamePerson Party.revokeInvitation Party.revokeRole
-       Party.rolesOf Party.showMe Party.showOrganisation Party.showPerson Party.unrelate
+       Party.deleteRole Party.disable Party.findPrincipal Party.holdersOf Party.isRelated
+       Party.listInvitations Party.listMembers Party.listPeople Party.listRoles Party.lockActive
+       Party.myAccess Party.myOrganisations Party.principalsByIds Party.relate Party.renamePerson
+       Party.revokeInvitation Party.revokeRole Party.rolesOf Party.showMe Party.showOrganisation
+       Party.showPerson Party.unrelate
   called by: Bookings.book Bookings.cancel Bookings.get accept_invitation assign_role
              create_invitation create_organisation define_role delete_role first_sign_in
              list_invitations list_members list_people list_permissions list_roles my_organisations
@@ -158,9 +159,9 @@ PERMISSIONS
                Party.revokeRole, Party.unrelate
  party:create ← Party.createPerson, Party.createPrincipal
  party:create-organisation ← Party.createOrganisation
- party:read ← Party.acceptInvitation, Party.canAdminOrganisation, Party.isRelated,
-              Party.listMembers, Party.listRoles, Party.lockActive, Party.myAccess,
-              Party.myOrganisations, Party.principalsByIds, Party.rolesOf, Party.showMe,
-              Party.showOrganisation, Party.showPerson
+ party:read ← Party.acceptInvitation, Party.canAdminOrganisation, Party.findPrincipal,
+              Party.holdersOf, Party.isRelated, Party.listMembers, Party.listRoles,
+              Party.lockActive, Party.myAccess, Party.myOrganisations, Party.principalsByIds,
+              Party.rolesOf, Party.showMe, Party.showOrganisation, Party.showPerson
  party:update ← Party.disable, Party.renamePerson
 ```

@@ -24,6 +24,7 @@ export type BuiltInRoles = Readonly<
 >;
 export interface PartyOptions {
   readonly builtInRoles: BuiltInRoles;
+  readonly holdersLimit?: number;
   readonly handles?: {
     readonly pattern?: RegExp;
     readonly reserved?: readonly string[];

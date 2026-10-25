@@ -32,6 +32,11 @@ export const memoryPersonStore = (): Layer.Layer<PersonStore> =>
           const row = rows.get(id);
           return row && { ...row };
         }),
+      principalByHandle: (handle) =>
+        Effect.sync(() => {
+          const row = [...rows.values()].find((p) => p.handle === handle);
+          return row && { ...row };
+        }),
       principalsByIds: (ids) =>
         Effect.sync(() =>
           [...rows.values()].filter((p) => ids.includes(p.id)).map((p) => ({ ...p })),

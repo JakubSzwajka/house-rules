@@ -64,6 +64,13 @@ export const postgresPartyStore = Layer.effect(
           Assignment,
           sql`select person_id as "personId", role_key as "roleKey", organisation_id as "organisationId" from party_assignment where organisation_id = ${id}`,
         ),
+      holderIds: (role, scope, take) =>
+        read(
+          Schema.Struct({ id: ActorId }),
+          sql`select distinct person_id collate "C" as id from party_assignment
+            where role_key = ${role} and organisation_id is not distinct from ${scope}
+            order by id limit ${take}`,
+        ).pipe(Effect.map((rows) => rows.map((r) => r.id))),
       lockOrganisation: (id) =>
         write(sql`select id from party_organisation where id = ${id} for update`),
       memberIds: (ids) =>

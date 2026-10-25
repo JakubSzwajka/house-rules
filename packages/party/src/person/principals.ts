@@ -84,6 +84,11 @@ export const makePrincipals = (store: PersonStore["Service"], options: PartyOpti
       if (!after) return yield* new PersonNotFound();
       return { principal: after, fact: { kind: "principal.disabled", before, after } };
     }),
+    findPrincipal: Effect.fn("Party.findPrincipal")(function* (input: { readonly handle: string }) {
+      const principal = yield* store.principalByHandle(input.handle);
+      if (!principal) return yield* new PersonNotFound();
+      return principal;
+    }),
     principalsByIds: (ids: readonly ActorId[]) => store.principalsByIds(ids),
   };
 };

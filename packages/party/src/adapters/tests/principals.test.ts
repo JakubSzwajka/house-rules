@@ -202,7 +202,7 @@ for (const { name, layer: storage } of stores) {
             ).toBeInstanceOf(PrincipalDisabledRefused);
           }),
       );
-      it.effect("person callers cannot distinguish unknown handles from wrong kinds", () =>
+      it.effect("person callers cannot distinguish unknown, wrong-kind and disabled handles", () =>
         Effect.gen(function* () {
           yield* runFeature(create, input("hidden-owner", "person"));
           const missing = yield* Effect.flip(
@@ -211,9 +211,19 @@ for (const { name, layer: storage } of stores) {
           const wrongKind = yield* Effect.flip(
             runFeature(personLock, { handle: "hidden-owner", kind: "agent" }),
           );
+          const created = yield* runFeature(create, input("hidden-disabled"));
+          yield* runFeature(disable, { id: created.principal.id });
+          const disabled = yield* Effect.flip(
+            runFeature(personLock, { handle: "hidden-disabled", kind: "agent" }),
+          );
           expect(missing).toBeInstanceOf(PersonNotFound);
           expect(wrongKind).toBeInstanceOf(PersonNotFound);
+          expect(disabled).toBeInstanceOf(PersonNotFound);
           expect(wrongKind).toEqual(missing);
+          expect(disabled).toEqual(missing);
+          expect(
+            yield* Effect.flip(runFeature(lock, { handle: "hidden-disabled", kind: "agent" })),
+          ).toBeInstanceOf(PrincipalDisabledRefused);
         }),
       );
       it.effect(

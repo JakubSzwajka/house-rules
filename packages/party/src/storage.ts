@@ -29,6 +29,11 @@ export class PartyStore extends Context.Service<
       organisationIds: readonly string[] | null,
     ) => Read<readonly Assignment[]>;
     readonly assignmentsInOrganisation: (organisationId: string) => Read<readonly Assignment[]>;
+    readonly holderIds: (
+      role: string,
+      scope: string | null,
+      take: number,
+    ) => Read<readonly ActorId[]>;
     readonly lockOrganisation: (organisationId: string) => Write<void>;
     readonly memberIds: (organisationIds: readonly string[]) => Read<readonly ActorId[]>;
     readonly insertInvitation: (value: StoredInvitation) => Write<void>;

@@ -23,12 +23,14 @@ export const bindParty = (service: Service): readonly Binding[] => [
     service
       .lockActive(input)
       .pipe(
-        Effect.catchTag("PrincipalKindRefused", (error) =>
+        Effect.catchTag(["PrincipalKindRefused", "PrincipalDisabledRefused"], (error) =>
           Effect.fail(caller.kind === "person" ? new PersonNotFound() : error),
         ),
       ),
   ),
   bindOperation(PartyOperations.principalsByIds, ({ ids }) => service.principalsByIds(ids)),
+  bindOperation(PartyOperations.findPrincipal, (input) => service.findPrincipal(input)),
+  bindOperation(PartyOperations.holdersOf, (input) => service.holdersOf(input)),
   bindOperation(PartyOperations.canAdminOrganisation, ({ organisationId }, { caller }) =>
     service.canAdminOrganisation(caller, organisationId),
   ),
