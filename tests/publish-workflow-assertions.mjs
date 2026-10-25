@@ -24,6 +24,15 @@ const MAIN_ONLY_RUN = [
   "fi",
   "",
 ].join("\n");
+export const PR_PATHS = [
+  "scripts/packed-*.mjs",
+  "scripts/tarball-content.mjs",
+  "scripts/tag-published.mjs",
+  "tests/publish-workflow*.mjs",
+  "tests/tag-published*.mjs",
+  ".github/workflows/publish.yml",
+];
+
 export const VERIFY_RUNS = [
   "pnpm check",
   "pnpm test",
@@ -44,6 +53,7 @@ export function assertPublishWorkflow(workflow) {
   assert.deepEqual(workflow.permissions, { contents: "read" });
   assert.deepEqual(Object.keys(workflow.on).sort(), ["pull_request", "push", "workflow_dispatch"]);
   assert.deepEqual(workflow.on.push, { tags: ["@house-rules/*@*"] });
+  assert.deepEqual(workflow.on.pull_request, { paths: PR_PATHS });
   assert.deepEqual(Object.keys(workflow.on.workflow_dispatch.inputs), ["publish"]);
   assert.equal(workflow.on.workflow_dispatch.inputs.publish.type, "boolean");
   assert.equal(workflow.on.workflow_dispatch.inputs.publish.default, false);
@@ -86,6 +96,9 @@ export function assertPublishWorkflow(workflow) {
     assert.equal(step.if, undefined, `${step.run} may not be conditional`);
     assert.equal(step["continue-on-error"], undefined, `${step.run} may not fail softly`);
   }
+  assert.deepEqual(stepsOf(verify).find((step) => step.run === "pnpm test").env, {
+    TURBO_CONCURRENCY: "2",
+  });
   assert.equal(
     stepsOf(verify).at(-1).run,
     VERIFY_RUNS.at(-1),

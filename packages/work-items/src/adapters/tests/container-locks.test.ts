@@ -45,19 +45,20 @@ layer(world, { excludeTestServices: true, timeout: "30 seconds" })(
       }),
     );
 
-    it.effect("finishes 40 rounds of opposite cross-container moves without deadlocks", () =>
+    it.effect("finishes opposite cross-container moves in both directions without deadlocks", () =>
       Effect.gen(function* () {
         const service = yield* WorkItems;
         const left = ref("opposite-left");
         const right = ref("opposite-right");
-        const a = (yield* UnitOfWork.atomic(service.create(actor, { title: "a", container: left })))
-          .item;
-        const b = (yield* UnitOfWork.atomic(
-          service.create(actor, { title: "b", container: right }),
-        )).item;
-        for (let round = 0; round < 40; round++) {
+        const a = stored("opposite-a", left);
+        const b = stored("opposite-b", right);
+        yield* UnitOfWork.atomic(service.import([a, b]));
+        for (let round = 0; round < 2; round++) {
           const start = yield* Deferred.make<void>();
+          const acquired = yield* Deferred.make<void>();
+          const firstKeys = new Set<unknown>();
           let arrivals = 0;
+          let holders = 0;
           const outcomes = yield* Effect.forEach(
             [
               { id: a.id, container: round % 2 === 0 ? right : left },
@@ -70,10 +71,20 @@ layer(world, { excludeTestServices: true, timeout: "30 seconds" })(
                   Effect.gen(function* () {
                     if (firstLock && statement.compile()[0].includes("pg_advisory_xact_lock")) {
                       firstLock = false;
-                      // Both transactions reach their first lock before either can acquire it.
+                      firstKeys.add(statement.compile()[1][0]);
                       arrivals++;
                       if (arrivals === 2) yield* Deferred.succeed(start, undefined);
                       yield* Deferred.await(start);
+                      // Force different first locks to be held so a broken order cannot pass by luck.
+                      if (firstKeys.size > 1) {
+                        yield* statement.pipe(
+                          Effect.provideService(CurrentTransformer, undefined),
+                          Effect.orDie,
+                        );
+                        holders++;
+                        if (holders === 2) yield* Deferred.succeed(acquired, undefined);
+                        yield* Deferred.await(acquired);
+                      }
                     }
                     return statement;
                   }),

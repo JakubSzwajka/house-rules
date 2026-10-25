@@ -1,3 +1,10 @@
 import { defineConfig } from "vitest/config";
 
-export default defineConfig({ test: { include: ["src/**/tests/*.test.ts"] } });
+export default defineConfig({
+  test: {
+    slowTestThreshold: 1000,
+    reporters: process.env.CI ? ["default", "json"] : ["default"],
+    outputFile: { json: "../../coverage/slow-tests/packages/event-log/slow-tests.json" },
+    include: ["src/**/tests/*.test.ts"],
+  },
+});

@@ -5,6 +5,8 @@ name: Publish packages
 # notifications, push, email, projects. The retired @house-rules/capability is never published again.
 # `pnpm publish -r` skips private packages and every version already on the registry, so one run
 # publishes exactly the packages whose version was bumped.
+# Package PRs use ci.yml. PR verification here runs only for changes to publish machinery.
+# Tag pushes and manual runs always verify before publishing.
 # Two jobs. `verify` runs on every trigger with `contents: read` only: no token, no OIDC. It checks,
 # tests, builds, runs the packed consumer and dry-runs the publish. Its first step refuses a manual
 # publish run from any ref but exactly refs/heads/main.
@@ -18,20 +20,11 @@ on:
       - "@house-rules/*@*"
   pull_request:
     paths:
-      - "packages/**"
-      - "scripts/packed-consumer.mjs"
-      - "scripts/packed-auth.mjs"
-      - "scripts/packed-comments.mjs"
-      - "scripts/packed-next-host.mjs"
-      - "scripts/packed-workspace.mjs"
-      - "scripts/packed-support-modules.mjs"
+      - "scripts/packed-*.mjs"
       - "scripts/tarball-content.mjs"
       - "scripts/tag-published.mjs"
       - "tests/publish-workflow*.mjs"
       - "tests/tag-published*.mjs"
-      - "tests/fixtures/npm-attestations.json"
-      - "package.json"
-      - "pnpm-lock.yaml"
       - ".github/workflows/publish.yml"
   workflow_dispatch:
     inputs:
@@ -106,6 +99,12 @@ jobs:
           [ "$actual" = "$version" ] || { echo "${TAG} does not match ${folder} version ${actual}." >&2; exit 1; }
       - run: pnpm check
       - run: pnpm test
+        env:
+          TURBO_CONCURRENCY: "2"
+      - name: Slow tests
+        if: always()
+        continue-on-error: true
+        run: node scripts/slow-tests.mjs
       - run: pnpm build
       - run: pnpm run packed-consumer
       - name: Dry run
