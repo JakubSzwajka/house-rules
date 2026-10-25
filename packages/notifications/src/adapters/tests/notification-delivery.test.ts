@@ -72,6 +72,108 @@ for (const { name, layer: storage } of stores) {
       }).pipe(Effect.provide(world)),
     );
 
+    it.effect("does not hold a mandatory retry that falls inside quiet hours", () =>
+      Effect.gen(function* () {
+        const start = 1000;
+        const retryAt = start + 200;
+        yield* TestClock.setTime(start);
+        const notifications = yield* Notifications;
+        const store = yield* NotificationStore;
+        yield* UnitOfWork.atomic(
+          Effect.gen(function* () {
+            yield* notifications.notify(message("mandatory-quiet-retry", "security"));
+            yield* notifications.setMyQuietHours(actor("mandatory-quiet-retry"), {
+              start: "00:00",
+              end: "01:00",
+            });
+          }),
+        );
+        const delivery = (yield* store.deliveries(ref("mandatory-quiet-retry")))[0]?.delivery;
+        expect(delivery).toBeDefined();
+        const id = delivery?.id ?? "missing";
+        const otherIds = (yield* store.deliveries(ref("mandatory-quiet-retry")))
+          .map((row) => row.delivery.id)
+          .filter((otherId) => otherId !== id);
+        yield* UnitOfWork.atomic(notifications.markSent(otherIds));
+        yield* UnitOfWork.atomic(notifications.markFailed(id, "temporary outage"));
+        expect(
+          (yield* store.deliveries(ref("mandatory-quiet-retry"))).find(
+            (row) => row.delivery.id === id,
+          )?.delivery,
+        ).toMatchObject({ state: "pending", retryAt, dueAt: retryAt });
+        yield* TestClock.setTime(retryAt);
+        expect((yield* notifications.dueDeliveries())[0]?.deliveries[0]?.delivery.id).toBe(id);
+      }).pipe(Effect.provide(world)),
+    );
+
+    it.effect("keeps a final failure terminal while quiet hours are set", () =>
+      Effect.gen(function* () {
+        yield* TestClock.setTime(1000);
+        const notifications = yield* Notifications;
+        const store = yield* NotificationStore;
+        yield* UnitOfWork.atomic(
+          Effect.gen(function* () {
+            yield* notifications.notify(message("quiet-terminal"));
+            yield* notifications.setMyQuietHours(actor("quiet-terminal"), {
+              start: "00:00",
+              end: "01:00",
+            });
+          }),
+        );
+        const delivery = (yield* store.deliveries(ref("quiet-terminal")))[0]?.delivery;
+        expect(delivery).toBeDefined();
+        const id = delivery?.id ?? "missing";
+        const otherIds = (yield* store.deliveries(ref("quiet-terminal")))
+          .map((row) => row.delivery.id)
+          .filter((otherId) => otherId !== id);
+        yield* UnitOfWork.atomic(notifications.markSent(otherIds));
+        yield* UnitOfWork.atomic(notifications.markFailed(id, "failure 1"));
+        yield* UnitOfWork.atomic(notifications.markFailed(id, "failure 2"));
+        yield* UnitOfWork.atomic(notifications.markFailed(id, "final failure"));
+        expect(
+          (yield* store.deliveries(ref("quiet-terminal"))).find((row) => row.delivery.id === id)
+            ?.delivery,
+        ).toMatchObject({ state: "failed", attempts: 3, lastError: "final failure" });
+        expect(yield* notifications.dueDeliveries()).toEqual([]);
+      }).pipe(Effect.provide(world)),
+    );
+
+    it.effect("holds a retry when its backoff ends inside quiet hours", () =>
+      Effect.gen(function* () {
+        const start = 1000;
+        const retryAt = start + 200;
+        const releaseAt = Date.parse("1970-01-01T01:00:00.000Z");
+        yield* TestClock.setTime(start);
+        const notifications = yield* Notifications;
+        const store = yield* NotificationStore;
+        yield* UnitOfWork.atomic(
+          Effect.gen(function* () {
+            yield* notifications.notify(message("quiet-retry"));
+            yield* notifications.setMyQuietHours(actor("quiet-retry"), {
+              start: "00:00",
+              end: "01:00",
+            });
+          }),
+        );
+        const delivery = (yield* store.deliveries(ref("quiet-retry")))[0]?.delivery;
+        expect(delivery).toBeDefined();
+        const id = delivery?.id ?? "missing";
+        const otherIds = (yield* store.deliveries(ref("quiet-retry")))
+          .map((row) => row.delivery.id)
+          .filter((otherId) => otherId !== id);
+        yield* UnitOfWork.atomic(notifications.markSent(otherIds));
+        yield* UnitOfWork.atomic(notifications.markFailed(id, "temporary outage"));
+        const retried = (yield* store.deliveries(ref("quiet-retry"))).find(
+          (row) => row.delivery.id === id,
+        )?.delivery;
+        expect(retried).toMatchObject({ state: "held", retryAt, dueAt: releaseAt });
+        yield* TestClock.setTime(retryAt);
+        expect(yield* notifications.dueDeliveries()).toEqual([]);
+        yield* TestClock.setTime(releaseAt);
+        expect((yield* notifications.dueDeliveries())[0]?.deliveries[0]?.delivery.id).toBe(id);
+      }).pipe(Effect.provide(world)),
+    );
+
     it.effect(
       "never queues in-app work, so 101 inbox-only notifications cannot starve senders",
       () =>
