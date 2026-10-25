@@ -46,6 +46,17 @@ describe("tags for published packages", () => {
     );
   });
 
+  it("accepts a support module in a successful report", () => {
+    const { git } = fakeGit();
+    assert.deepEqual(
+      tagPublished(
+        { publishedPackages: [{ name: "@house-rules/event-log", version: "0.1.0" }] },
+        git,
+      ),
+      ["@house-rules/event-log@0.1.0"],
+    );
+  });
+
   it("accepts the auth and party first releases and the exact-peer bumps", async () => {
     const packages = [application, authJwt, identity, party, comments, callAudit];
     const tags = [

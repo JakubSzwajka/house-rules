@@ -5,6 +5,7 @@ import {
   assertPublishWorkflow,
   parseWorkflow,
   PUBLISH_IF,
+  PR_PATHS,
   runsOf,
   VERIFY_RUNS,
 } from "./publish-workflow-assertions.mjs";
@@ -15,10 +16,8 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf
 describe("publish workflow", () => {
   const workflow = () => parseWorkflow(read(".github/workflows/publish.yml"));
 
-  it("verifies changes to the packed comments and auth helpers", () => {
-    for (const helper of ["scripts/packed-comments.mjs", "scripts/packed-auth.mjs"]) {
-      assert.ok(workflow().on.pull_request.paths.includes(helper), helper);
-    }
+  it("verifies only publish machinery changes on PRs, leaving package PRs to CI", () => {
+    assert.deepEqual(workflow().on.pull_request.paths, PR_PATHS);
   });
 
   it("splits a read-only verify job from a gated publish job", () => {
@@ -51,6 +50,23 @@ describe("publish workflow", () => {
   });
 
   const breaks = {
+    "ordinary package PRs duplicate verification": (w) => {
+      w.on.pull_request.paths.push("packages/**");
+    },
+    "manifest PRs duplicate verification": (w) => {
+      w.on.pull_request.paths.push("package.json");
+    },
+    "lockfile PRs duplicate verification": (w) => {
+      w.on.pull_request.paths.push("pnpm-lock.yaml");
+    },
+    "packed helper changes skip verification": (w) => {
+      w.on.pull_request.paths = w.on.pull_request.paths.filter(
+        (path) => path !== "scripts/packed-*.mjs",
+      );
+    },
+    "test concurrency returns to the overloaded default": (w) => {
+      delete w.jobs.verify.steps.find((step) => step.run === "pnpm test").env;
+    },
     "publish cannot push tags": (w) => {
       w.jobs.publish.permissions.contents = "read";
     },

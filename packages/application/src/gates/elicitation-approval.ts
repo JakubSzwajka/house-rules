@@ -12,9 +12,9 @@ const inputAsJson = (input: unknown): string =>
     2,
   ) ?? "null";
 
-export const approvalMessage = (capabilityName: string, input: unknown): string =>
+export const approvalMessage = (feature: string, input: unknown): string =>
   [
-    `An agent asks to run "${capabilityName}".`,
+    `An agent asks to run "${feature}".`,
     "Its input, as data:",
     inputAsJson(input),
     "Approve this call?",
@@ -49,17 +49,17 @@ const failureReason = (error: unknown): string => {
 };
 
 const askHuman = (
-  capabilityName: string,
+  feature: string,
   input: unknown,
   client: McpSchema.McpServerClient["Service"],
 ): Effect.Effect<void, ApprovalDenied> => {
-  const denied = (reason: string) => new ApprovalDenied({ capabilityName, reason });
+  const denied = (reason: string) => new ApprovalDenied({ feature, reason });
   const failed = (error: unknown) => denied(failureReason(error));
   return Effect.gen(function* askHumanGate() {
     const reverse = yield* client.getClient;
     const request = new McpSchema.ElicitRequestFormParams({
       mode: "form",
-      message: approvalMessage(capabilityName, input),
+      message: approvalMessage(feature, input),
       requestedSchema: ApprovalForm,
     });
     const answer = yield* reverse.elicit(request).pipe(
@@ -84,7 +84,7 @@ const askHuman = (
 };
 
 const approveByElicitation = (
-  capabilityName: string,
+  feature: string,
   input: unknown,
 ): Effect.Effect<void, ApprovalDenied> =>
   Effect.gen(function* approveByElicitationGate() {
@@ -94,15 +94,15 @@ const approveByElicitation = (
       Option.isNone(client) || !formElicitation
         ? Effect.fail(
             new ApprovalDenied({
-              capabilityName,
+              feature,
               reason: "The MCP client cannot ask a human for approval",
             }),
           )
-        : askHuman(capabilityName, input, client.value),
+        : askHuman(feature, input, client.value),
     );
     // Log the decision only. Never the input or anything the user wrote.
     const annotations = {
-      capability: capabilityName,
+      feature,
       clientName: Option.match(client, {
         onNone: () => "none",
         onSome: (value) => value.clientInfo.name,

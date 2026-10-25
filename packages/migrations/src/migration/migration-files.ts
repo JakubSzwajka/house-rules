@@ -3,7 +3,12 @@ import { Hex } from "effect/encoding";
 import { MigrationFailed } from "./migration.ts";
 
 const FILE_NAME = /^(\d+)_([a-z0-9_]+)\.sql$/;
-const STATEMENT_BREAKPOINT = /^--> statement-breakpoint[ \t]*$/m;
+const migrationChunks = (text: string) =>
+  // Mirror packages/rules/src/migration-chunks.mjs.
+  text
+    .split(/^--> statement-breakpoint[ \t]*$/m)
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.length > 0);
 
 export type MigrationFile = Readonly<{
   id: number;
@@ -30,6 +35,13 @@ export const readMigrationFiles = Effect.fnUntraced(function* readMigrationFiles
   );
   const files: Array<MigrationFile> = [];
   for (const entry of entries.filter((name) => name.endsWith(".sql"))) {
+    const linked = yield* fs
+      .readLink(path.join(directory, entry))
+      .pipe(Effect.match({ onFailure: () => false, onSuccess: () => true }));
+    if (linked)
+      return yield* new MigrationFailed({
+        message: `Module ${module}: migration file ${entry} must not be a symlink.`,
+      });
     const match = FILE_NAME.exec(entry);
     if (match === null || match[1] === undefined || match[2] === undefined) {
       return yield* new MigrationFailed({
@@ -66,10 +78,7 @@ export const readMigrationFiles = Effect.fnUntraced(function* readMigrationFiles
       id: Number(match[1]),
       name: match[2],
       sha256: Hex.encode(digest),
-      statements: text
-        .split(STATEMENT_BREAKPOINT)
-        .map((statement) => statement.trim())
-        .filter((statement) => statement.length > 0),
+      statements: migrationChunks(text),
     });
   }
   files.sort((left, right) => left.id - right.id);

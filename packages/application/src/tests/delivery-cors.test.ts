@@ -1,9 +1,8 @@
 import { afterAll, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
-import { route, toFetchHandler } from "../index.ts";
+import { admit, endpoint } from "../index.ts";
 import {
   answer,
-  bearerCallerFor,
   cancelBooking,
   makeApp,
   renameGuest,
@@ -13,17 +12,16 @@ import {
 
 const page = "https://web.example";
 const t = makeApp();
-const api = toFetchHandler(t.app, {
-  prefix: "/api",
-  caller: bearerCallerFor(t.work),
+const corsApp = makeApp({
   cors: { origins: [page, "http://localhost:5173"] },
-  routes: [
-    route(showBooking, "GET /bookings/:id"),
-    route(renameGuest, "PATCH /bookings/:id"),
-    route(renameGuest, "POST /rename"),
+  endpoints: [
+    endpoint(showBooking, "GET /bookings/:id"),
+    endpoint(renameGuest, "PATCH /bookings/:id"),
+    endpoint(renameGuest, "POST /rename"),
   ],
 });
-afterAll(() => api.dispose().then(t.dispose));
+const api = corsApp.router;
+afterAll(() => corsApp.dispose().then(t.dispose));
 
 const at = (path: string, init: RequestInit = {}) =>
   Effect.promise(() => api(webRequest(`https://api.example${path}`, init)));
@@ -162,12 +160,12 @@ it.effect("a listed origin makes bearer writes; a cookie write still meets the C
     const bearer = yield* write({});
     expect(bearer.status).toBe(200);
     expect(bearer.headers.get("access-control-allow-origin")).toBe(page);
-    const before = { ...t.work };
+    const before = { ...corsApp.work };
     const cookie = yield* write({ cookie: "session=s-ada" });
     expect(cookie.status).toBe(403);
     expect(cookie.body).toMatchObject({ error: { code: "cross_origin" } });
     expect(cookie.headers.get("access-control-allow-origin")).toBe(page);
-    expect(t.work).toEqual(before);
+    expect(corsApp.work).toEqual(before);
   }),
 );
 
@@ -187,12 +185,13 @@ it.effect("without cors, a handler answers no preflight and sends no CORS header
   }),
 );
 
-const short = toFetchHandler(t.app, {
-  caller: bearerCallerFor(t.work),
+const shortApp = makeApp({
+  path: "/",
   cors: { origins: [page], maxAge: 5 },
-  routes: [route(showBooking, "GET /bookings/:id")],
+  endpoints: [endpoint(showBooking, "GET /bookings/:id")],
 });
-afterAll(() => short.dispose());
+const short = shortApp.router;
+afterAll(shortApp.dispose);
 
 it.effect("maxAge sets the preflight cache", () =>
   Effect.gen(function* maxAge() {
@@ -208,16 +207,17 @@ it.effect("maxAge sets the preflight cache", () =>
   }),
 );
 
-const mixed = toFetchHandler(t.app, {
-  caller: bearerCallerFor(t.work),
+const mixedApp = makeApp({
+  path: "/",
   cors: { origins: [page] },
-  routes: [
-    route(showBooking, "GET /bookings/b-1"),
-    route(renameGuest, "PATCH /bookings/:id"),
-    route(cancelBooking, "DELETE /bookings/:id/guest"),
+  endpoints: [
+    endpoint(showBooking, "GET /bookings/b-1"),
+    endpoint(renameGuest, "PATCH /bookings/:id"),
+    endpoint(cancelBooking, "DELETE /bookings/:id/guest"),
   ],
 });
-afterAll(() => mixed.dispose());
+const mixed = mixedApp.router;
+afterAll(mixedApp.dispose);
 
 const mixedPreflight = (path: string) =>
   Effect.promise(() =>
@@ -244,7 +244,7 @@ it.effect("a preflight names every method whose route matches the concrete path"
   }),
 );
 
-it.each([
+it.effect.each([
   [{ origins: [] }, /origins is empty/u],
   [{ origins: ["*"] }, /not an http\(s\) origin/u],
   [{ origins: ["null"] }, /not an http\(s\) origin/u],
@@ -252,8 +252,16 @@ it.each([
   [{ origins: ["ftp://web.example"] }, /not an http\(s\) origin/u],
   [{ origins: [page], maxAge: -1 }, /maxAge/u],
   [{ origins: [page], maxAge: 1.5 }, /maxAge/u],
-])("cors %j is refused at mount", (cors, message) => {
-  expect(() =>
-    toFetchHandler(t.app, { cors, routes: [route(showBooking, "GET /bookings/:id")] }),
-  ).toThrow(message);
-});
+])("cors %j is refused at acquisition", ([cors, message]) =>
+  Effect.gen(function* () {
+    const invalid = makeApp({ cors: cors as import("../index.ts").CorsOptions });
+    const result = yield* Effect.promise(() =>
+      admit(invalid.app, { headers: new Headers(), url: "/" }, { way: "api" }),
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      error: { _tag: "GraphInvalid", reason: expect.stringMatching(message as RegExp) },
+    });
+    yield* Effect.promise(invalid.dispose);
+  }),
+);

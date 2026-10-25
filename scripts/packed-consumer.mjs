@@ -14,6 +14,7 @@ import {
   commentsConsumerFiles,
 } from "./packed-comments.mjs";
 import { assertPackedAuth, authConsumerFiles } from "./packed-auth.mjs";
+import { SUPPORT_MODULES, supportImportLines } from "./packed-support-modules.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const PUBLISHED_IN_BUILD_ORDER = [
@@ -27,6 +28,7 @@ const PUBLISHED_IN_BUILD_ORDER = [
   "comments",
   "node-host",
   "rules",
+  ...SUPPORT_MODULES,
 ];
 const ALLOWED_TOP = new Set(["package.json", "README.md", "AGENTS.md", "LICENSE"]);
 
@@ -128,68 +130,110 @@ try {
         "@effect/platform-node-shared": effect,
       },
       devDependencies: {
+        "@shadcn/lint": pins["@shadcn/lint"],
         "@swc/core": pins["@swc/core"],
         "dependency-cruiser": pins["dependency-cruiser"],
         eslint: pins.eslint,
       },
     },
-    "run.mjs": [
-      'import assert from "node:assert/strict";',
-      'import * as domain from "@house-rules/domain";',
-      'import * as domainContract from "@house-rules/domain/contract";',
-      'import * as application from "@house-rules/application";',
-      'import * as contract from "@house-rules/application/contract";',
-      'import * as migrations from "@house-rules/migrations";',
-      'import * as callAudit from "@house-rules/call-audit";',
-      'import { NodeRuntime, NodeServices } from "@effect/platform-node";',
-      'import { Context, Effect, FileSystem, Layer, Schema } from "effect";',
-      'assert.equal(typeof application.implement, "function");',
-      'assert.equal(typeof contract.defineContract, "function");',
-      "assert.equal(contract.defineContract, application.defineContract);",
-      'assert.equal(typeof domain.defineModule, "function");',
-      "assert.equal(domainContract.ActorId, domain.ActorId);",
-      "assert.equal(domainContract.UnitOfWorkFailed, domain.UnitOfWorkFailed);",
-      "assert.notEqual(migrations.Migrations, undefined);",
-      "assert.notEqual(callAudit.CallAudit, undefined);",
-      "let observedChannel;",
-      'const write = application.implement(application.defineContract("cold_write", {',
-      '  description: "Check the installed unit of work and Node services.",',
-      "  input: application.NoInput, output: Schema.String, failure: Schema.Never,",
-      '  permission: "public", transactional: true,',
-      "}), () => Effect.gen(function* () {",
-      "  yield* domain.UnitOfWork.required;",
-      "  observedChannel = yield* application.CallChannel;",
-      '  return "stable";',
-      "}));",
-      "const app = application.composition({",
-      "  layer: domain.memoryUnitOfWork,",
-      "  caller: () => Effect.succeed(Context.empty()),",
-      "});",
-      'const incoming = { headers: new Headers(), url: "/" };',
-      "try {",
-      "  const refused = await application.admit(app, incoming, {",
-      '    caller: () => Effect.fail(new application.Refused({ status: 401, code: "missing", message: "Sign in." })),',
-      "  });",
-      "  assert.equal(refused.ok, false);",
-      '  const admitted = await application.admit(app, incoming, { channel: "api" });',
-      "  assert.equal(admitted.ok, true);",
-      '  if (!admitted.ok) throw new Error("Expected admission to succeed.");',
-      '  assert.deepEqual(await application.call(app, write, {}, incoming, { admitted: admitted.value }), { ok: true, value: "stable" });',
-      '  assert.equal(observedChannel, "api");',
-      "} finally { await app.dispose(); }",
-      "NodeRuntime.runMain(Effect.gen(function* () {",
-      '  assert.equal(yield* (yield* FileSystem.FileSystem).exists("package.json"), true);',
-      '  assert.equal(yield* write.handler({}), "stable");',
-      '  yield* Effect.log("cold install: packed admit refuses, admitted call succeeds, Node services and transactional handler run");',
-      "}).pipe(Effect.provide(Layer.merge(NodeServices.layer, domain.memoryUnitOfWork))));",
-      "",
-    ].join("\n"),
+    "run.mjs": `import assert from "node:assert/strict";
+${supportImportLines()}
+import * as domain from "@house-rules/domain";
+import * as domainContract from "@house-rules/domain/contract";
+import * as application from "@house-rules/application";
+import * as contract from "@house-rules/application/contract";
+import * as migrations from "@house-rules/migrations";
+import * as callAudit from "@house-rules/call-audit";
+import { NodeRuntime as NodePlatform, NodeServices } from "@effect/platform-node";
+import { Context, Effect, FileSystem, Layer, Schema } from "effect";
+assert.equal(typeof domain.defineOperation, "function");
+assert.equal(typeof domain.errorKind, "function");
+assert.equal(typeof application.bindOperation, "function");
+assert.equal(typeof application.defineFeature, "function");
+assert.equal(typeof application.defineWay, "function");
+for (const name of ["implement", "defineContract", "Grant", "route", "toTool", "toMcpHandler", "mount", "problemView"])
+  assert.equal(Object.hasOwn(application, name), false, name);
+for (const name of ["defineContract", "toTool", "NoInput", "defineOperation", "errorKind"])
+  assert.equal(Object.hasOwn(contract, name), false, name);
+assert.equal(contract.defineFeature, application.defineFeature);
+assert.equal(typeof domain.defineModule, "function");
+for (const { name, main, contract } of supportPackages) {
+  assert.ok(Object.keys(main).length > 0, name + " main entry exports");
+  assert.ok(Object.keys(contract).length > 0, name + " contract entry exports");
+}
+assert.equal(domainContract.ActorId, domain.ActorId);
+assert.equal(domainContract.UnitOfWorkFailed, domain.UnitOfWorkFailed);
+assert.notEqual(migrations.Migrations, undefined);
+assert.notEqual(callAudit.CallAudit, undefined);
+const actor = domain.Actor.make({ id: domain.ActorId.make("cold") });
+const state = { builds: 0, releases: 0, channel: "" };
+const write = domain.defineOperation("cold_write_operation", {
+  description: "Check installed transactions and Node services.",
+  input: domain.NoInput, output: Schema.String, failure: Schema.Never,
+  permission: null, transactional: true,
+});
+const feature = application.defineFeature("cold_write", {
+  ...write, edges: [write], handler: (input, { call }) => call(write, input),
+});
+const binding = application.bindOperation(write, () => Effect.gen(function* () {
+  yield* domain.UnitOfWork.required;
+  return "stable";
+}));
+const features = [feature];
+const who = { resolve: () => Effect.succeed(actor) };
+const way = application.defineWay({ name: "web", path: "/", protocol: "http", features,
+  endpoints: [application.endpoint(feature)], who, mean: application.Mean.no });
+const ways = [way];
+const lifecycle = Layer.effectDiscard(Effect.acquireRelease(
+  Effect.sync(() => { state.builds++; }), () => Effect.sync(() => { state.releases++; })));
+const watch = Layer.succeed(application.CallWatch, application.CallWatch.of({ around: (_entry, _input, work) => Effect.gen(function* () {
+  state.channel = yield* application.CallChannel;
+  return yield* work;
+}) }));
+const Probe = Context.Reference("cold/Probe", { defaultValue: () => ({}) });
+const probeLayer = Layer.succeed(Probe, {});
+const modules = { mounts: [{ service: Probe, operations: [write], bind: () => [binding], layer: probeLayer }],
+  layer: Layer.mergeAll(application.StepTrace.layer(), domain.memoryUnitOfWork, lifecycle, watch) };
+const layer = application.Runtime.layer({ mounts: modules.mounts, features, ways }).pipe(Layer.provideMerge(Layer.merge(probeLayer, modules.layer)));
+const app = application.composition({ modules, features, ways, may: Effect.succeed(application.May.fixed([])), system: [] });
+const router = application.toFetchHandler(app);
+const incoming = { headers: new Headers(), url: "http://packed.test/" };
+assert.equal(state.builds, 0);
+try {
+  const deniedWay = application.defineWay({ ...way, name: "denied", who: { resolve: () => Effect.fail(new application.Refused({ status: 401, code: "missing", message: "Sign in." })) } });
+  const denied = application.composition({ modules, features, ways: [deniedWay], may: Effect.succeed(application.May.fixed([])), system: [] });
+  try { assert.equal((await application.admit(denied, incoming, { way: "denied" })).ok, false); }
+  finally { await denied.dispose(); }
+  const admitted = await application.admit(app, incoming, { way: "web", channel: "api" });
+  assert.equal(admitted.ok, true);
+  if (!admitted.ok) throw new Error("Expected admission to succeed.");
+  assert.deepEqual(await application.call(app, feature, {}, incoming, { way: "web", admitted: admitted.value }), { ok: true, value: "stable" });
+  assert.equal(state.channel, "api");
+  const response = await router(new Request("http://packed.test/cold_write", { method: "POST", body: "{}", headers: { "content-type": "application/json" } }));
+  assert.equal(response.status, 200);
+  assert.equal(await response.json(), "stable");
+  assert.equal(state.builds, 2);
+} finally { await router.dispose(); await app.dispose(); }
+assert.equal(state.releases, 2);
+assert.equal((await router(new Request("http://packed.test/cold_write"))).status, 503);
+assert.equal((await application.call(app, feature, {}, incoming, { way: "web" })).ok, false);
+NodePlatform.runMain(Effect.gen(function* () {
+  assert.equal(yield* (yield* FileSystem.FileSystem).exists("package.json"), true);
+  const value = yield* application.runFeature(feature, {}).pipe(
+    Effect.provideContext(application.May.context(application.May.fixed([]), { features, system: [], via: "node" })),
+    Effect.provideService(application.CurrentActor, actor));
+  assert.equal(value, "stable");
+  yield* Effect.log("cold install: transactional feature, admission, in-process call, router, lazy build/disposal and Node services pass");
+}).pipe(Effect.provide(Layer.merge(layer, NodeServices.layer))));
+`,
     ...commentsConsumerFiles,
     ...authConsumerFiles,
     "rules.mjs": [
       'import assert from "node:assert/strict";',
       'import rules from "@house-rules/rules";',
-      'assert.equal(typeof rules.rules["use-case-is-capability"], "object");',
+      'assert.equal(typeof rules.rules["feature-file"], "object");',
+      'assert.equal(typeof rules.rules["feature-builders"], "object");',
+      'assert.equal(Object.hasOwn(rules.rules, "use-case-is-capability"), false);',
       'console.log("cold install: packed rules plugin loads in plain node");',
       "",
     ].join("\n"),

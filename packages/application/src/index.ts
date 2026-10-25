@@ -1,5 +1,55 @@
 export { CurrentActor } from "./actor/current-actor.ts";
+export { CallerContext } from "./caller/caller-context.ts";
+export {
+  type Binding,
+  type CallScope,
+  type ScopedCall,
+  type InnerFailure,
+  bindOperation,
+} from "./runtime/binding.ts";
+export { Runtime, type RuntimeOptions } from "./runtime/runtime.ts";
+export {
+  planLayer,
+  type MountDefinition,
+  type ModuleMount,
+  type Mounts,
+  type ModulePlan,
+} from "./runtime/mount.ts";
+export { PermissionCatalogue } from "./registry/catalogue.ts";
+export { CallInvalid } from "./runtime/call-invalid.ts";
+export { GraphInvalid } from "./runtime/graph-invalid.ts";
+export {
+  type Feature,
+  type AnyFeature,
+  type FeatureFlags,
+  defineFeature,
+  systemStart,
+} from "./feature/feature.ts";
+export {
+  runFeature,
+  type FeatureFailure,
+  type FeatureRequirements,
+} from "./execution/run-feature.ts";
+export { type WhoSocket } from "./socket/who.ts";
+export { type MaySocket, May } from "./socket/may.ts";
+export { MayUnavailable } from "./socket/may-unavailable.ts";
+export { type MeanSocket, Mean } from "./socket/mean.ts";
+export { type RecordSocket } from "./socket/record.ts";
+export { CallPermissions, type PermissionLists } from "./socket/permission-lists.ts";
+export {
+  StepTrace,
+  type Step,
+  type StepTraceOptions,
+  type ClosureRefusal,
+  type TraceSnapshot,
+} from "./trace/step-trace.ts";
 export { Approval, type ApprovalService } from "./gates/approval.ts";
+export {
+  ApprovalForm,
+  approvalMessage,
+  elicitationApproval,
+} from "./gates/elicitation-approval.ts";
+export { ApprovalDenied, Forbidden } from "./gates/gate-errors.ts";
 export {
   CallChannel,
   type CallFacts,
@@ -12,49 +62,17 @@ export {
   unknownCallFacts,
 } from "./call/call-facts.ts";
 export { type Around, CallWatch, type CallWatchService } from "./call/call-watch.ts";
-export {
-  type Annotations,
-  type AnyContract,
-  type AuditDeclaration,
-  type AuditOptions,
-  type Contract,
-  type DefineContractOptions,
-  defineContract,
-  type FailureOf,
-  type FailureSchemaOf,
-  failureSchemaOf,
-  type InputSchema,
-  NoInput,
-  type PlainSchema,
-  type StringKeyOf,
-  type StructInput,
-  type UnionInput,
-} from "./contract/contract.ts";
-export {
-  ApprovalForm,
-  approvalMessage,
-  elicitationApproval,
-} from "./gates/elicitation-approval.ts";
-export { ApprovalDenied, Forbidden } from "./gates/gate-errors.ts";
-export { Grant, type GrantService } from "./gates/grant.ts";
-export { type Capability, type HandlerOf, implement } from "./implement/implement.ts";
-export type { PermissionDeclaration } from "./gates/permission.ts";
-export {
-  type ApprovalRequirement,
-  type GateRequirements,
-  type GrantRequirement,
-  type UnitOfWorkRequirement,
-} from "./implement/gate-requirements.ts";
 export { newRequestId, requestIdHeader, requestIdOf, withRequestId } from "./call/request-id.ts";
-export { type ContractTool, type ToToolOptions, toTool } from "./contract/to-tool.ts";
 export {
   type Endpoint,
   type EndpointOptions,
-  type EndpointShape,
+  type Method,
+  type CsrfOptOut,
   endpoint,
   failureCodeHeader,
-  type Method,
 } from "./contract/endpoint.ts";
+export type { BodyOf, SessionGrant, SessionOption, SessionRole } from "./contract/session.ts";
+export { type Api, type ApiEndpoints, type ApiOptions, defineApi } from "./contract/api.ts";
 export {
   type ClientCall,
   type ClientFailureCode,
@@ -65,52 +83,72 @@ export {
   toHttpClient,
 } from "./client/http-client.ts";
 export {
+  type CallReport,
+  type PromiseCall,
+  type PromiseClientOf,
+  type PromiseClientOptions,
+  type PromiseFailureOf,
+  toPromiseClient,
+} from "./client/promise-client.ts";
+export {
   type OpenApiDocument,
   type OpenApiOptions,
   type OpenApiSecurity,
   type OpenApiSecurityScheme,
   toOpenApi,
-} from "./delivery/open-api.ts";
-export { type MergedParameters, type ToolParameters } from "./contract/tool-parameters.ts";
+} from "./ways-in/open-api.ts";
 export { sqlUnitOfWork } from "./adapters/sql-unit-of-work.ts";
-export { admit, type Admitted, type AdmitOptions } from "./delivery/admit.ts";
-export { call, type CallOptions } from "./delivery/call.ts";
-export { type Caller, type Incoming, Refused } from "./delivery/caller.ts";
-export { type Composition, composition, once } from "./delivery/composition.ts";
-export { CompositionClosed } from "./delivery/composition-closed.ts";
-export { type CorsOptions, defaultCorsMaxAge } from "./delivery/cors.ts";
+export { admit, type Admitted, type AdmitOptions } from "./ways-in/admit.ts";
+export { call, type CallOptions } from "./ways-in/call.ts";
+export { type Incoming, Refused } from "./ways-in/caller.ts";
+export { type Composition, composition, once } from "./ways-in/composition.ts";
+export { CompositionClosed } from "./ways-in/composition-closed.ts";
+export { appMap } from "./ways-in/registry.ts";
 export {
-  defaultMaxBodyBytes,
-  type FetchHandler,
-  type FetchHandlerOptions,
-  toFetchHandler,
-} from "./delivery/fetch-handler.ts";
-export { decodeInput, InputInvalid, type InputIssue, type InputSource } from "./delivery/input.ts";
-export type { ApprovalOption, Mountable, Outcome } from "./delivery/invoke.ts";
+  renderMap,
+  type AppMapSnapshot,
+  type MapModule,
+  type MapOperation,
+  type MapEdge,
+  type MapPlug,
+} from "./registry/app-map.ts";
+export { Plan, PlanInvalid, type PlanIssue } from "./registry/plan.ts";
+export { validatePlan } from "./ways-in/validate-plan.ts";
 export {
-  type McpHandlerOptions,
-  type McpTool,
-  type McpToolOptions,
-  tool,
-  toMcpHandler,
-} from "./delivery/mcp-handler.ts";
-export type { MountCheck, ServicesCheck } from "./delivery/mount-check.ts";
-export { type CsrfOptOut, type Route, type RouteOptions, route } from "./delivery/route.ts";
+  diffMaps,
+  type MapChanged,
+  type MapDiff,
+  type MapDiffKind,
+  type MapDiffSection,
+  type MapFieldChange,
+} from "./registry/map-diff.ts";
+export { renderMapDiff } from "./registry/map-diff-render.ts";
 export {
-  type CallerContext,
-  type DefaultViewTag,
-  type DefectStatusReserved,
-  defaultViews,
-  problem,
-  problemView,
-  type ProblemViewOptions,
-  type StaticStatus,
-  type View,
-  type ViewFn,
-  type ViewStatus,
-  type ViewsCheck,
-  type ViewTable,
-} from "./delivery/views.ts";
+  planCommand,
+  planUsage,
+  runPlanCommand,
+  type PlanCommandRead,
+  type PlanCommandResult,
+} from "./ways-in/plan-command.ts";
+export { type CorsOptions, defaultCorsMaxAge } from "./ways-in/cors.ts";
+export { defaultMaxBodyBytes, toFetchHandler } from "./ways-in/fetch-handler.ts";
+export type { FetchHandler } from "./ways-in/mount-check.ts";
+export type { SessionOptions } from "./ways-in/session-cookie.ts";
+export { decodeInput, InputInvalid, type InputIssue, type InputSource } from "./ways-in/input.ts";
+export type { Outcome } from "./ways-in/invoke.ts";
+export type { AnyWay } from "./ways-in/way-validation.ts";
+export { EventSource, EventSourceUnavailable } from "./ways-in/event-source.ts";
+export { EventEnvelope, EventInput } from "./contract/event.ts";
+export {
+  type WayOptions,
+  type WayFailure,
+  type HookWay,
+  type ScheduleWay,
+  type EventWay,
+  type SystemFeature,
+  defineWay,
+} from "./ways-in/way.ts";
+export type { WordingOverrides } from "./ways-in/views.ts";
 export {
   Authenticator,
   type AuthenticatorService,
@@ -126,14 +164,4 @@ export {
   protectedResourceMetadataPath,
 } from "./auth/protected-resource.ts";
 export { TokenRejected, type TokenRejectedReason } from "./auth/token-rejected.ts";
-export { type TokenSource, tokenFrom } from "./auth/token-source.ts";
-export { type Api, type ApiEndpoints, type ApiOptions, defineApi } from "./contract/api.ts";
-export {
-  type CallEntry,
-  type PromiseCall,
-  type PromiseClientOf,
-  type PromiseClientOptions,
-  type PromiseFailureOf,
-  toPromiseClient,
-} from "./client/promise-client.ts";
-export { type CapabilitiesOf, mount } from "./delivery/mount-api.ts";
+export { type TokenPlace, type TokenSource, tokenFrom } from "./auth/token-source.ts";

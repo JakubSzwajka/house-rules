@@ -2,15 +2,16 @@
 
 A Host listens on a socket and passes Web Requests to a fetch handler. `serve` is the Node Host for House Rules. It uses Node's built-in HTTP server with no runtime dependencies.
 
-Install `@house-rules/node-host` at exact version `0.2.0`, on Node 24.21.0 or later. Call it in the app's `src/main.ts`, an `appEntryFiles` entry, where the entry joins delivery and composition. `src/server/` holds background loops, not the Host call:
+Install `@house-rules/node-host` at exact version `0.2.0`, on Node 24.21.0 or later. Call it in the app's `src/main.ts`, where main joins the ways and composition. Scheduled work starts through system-start features, not a separate server area:
 
 ```ts
 import { toFetchHandler } from "@house-rules/application";
 import { serve } from "@house-rules/node-host";
-import { bookingRoutes } from "./delivery/http/routes.js";
-import { app } from "./composition/index.js";
+import { createApp } from "./composition/app.js";
+import { webWay } from "./ways-in/web/way.js";
 
-const api = toFetchHandler(app, { prefix: "/api", routes: bookingRoutes });
+const app = createApp([webWay]);
+const api = toFetchHandler(app);
 const host = await serve(api, {
   port: 3000,
   onClose: () => api.dispose().then(() => app.dispose()),
@@ -24,32 +25,94 @@ await host.close();
 
 The Host itself needs no Effect runtime. An app that also installs `@effect/platform-node` must declare `@effect/platform-node-shared` as an exact direct dependency at the same version as `effect`, now `4.0.3`. Pin all Effect runtime packages together, even the shared Node package.
 
-The handler takes a `Request` and returns a `Promise<Response>`. Use the function that `toFetchHandler` returns. A Next app already has a Host, so it does not need this package. The reference API reads `PORT` through Effect Config, with a default of 3000.
+The handler takes a `Request` and returns a `Promise<Response>`. `toFetchHandler(app)` takes only the composition and returns that handler. Configure `origins`, `cors`, `session` and `maxBodyBytes` on the HTTP way, not on the Host or `toFetchHandler`:
+
+```ts
+// In ways-in/web/way.ts, using the app's features, endpoints and sockets:
+const webWay = defineWay({
+  name: "web",
+  path: "/api",
+  protocol: "http",
+  features,
+  endpoints,
+  who,
+  mean,
+  origins: ["https://public.example"],
+  maxBodyBytes: 1024 * 1024,
+});
+// In main.ts, using the app's composition factory:
+const app = createApp([webWay]);
+const api = toFetchHandler(app);
+```
+
+Import `defineWay` and `toFetchHandler` from `@house-rules/application`. Build client endpoints with `endpoint(feature)`; module operations cannot be exposed. `createApp` is app-owned, as in the booking example. That example's web way sets a session cookie and allowed origins. Its main sets the runtime origins, passes the ways to `createApp` and calls `toFetchHandler(app)`. Composition supplies one app-level May; ways carry no permission lists. A Next app already has a Host, so it does not need this package. The reference API reads `PORT` through Effect Config, with a default of 3000.
 
 ## Socket behaviour
 
 `port` is required; 0 asks Node for a free port. `hostname` is optional. Without it Node listens on all interfaces. The returned `url` names the actual port and a reachable local address, not the app's public URL.
 
-The request URL uses HTTP and the incoming Host header. Forwarded headers do not change it. Missing, empty or malformed Host headers and invalid targets answer plain 400 `Bad Request`, without details. Only origin-form targets are accepted, including IPv6 authorities such as `[::1]:3000`. Absolute-form targets answer 400, even when they match Host. `OPTIONS *`, TRACE and CONNECT answer 501 `Not Implemented` before the handler runs.
+The request URL uses HTTP and the incoming Host header. Forwarded headers do not change it. Missing, empty or malformed Host headers and invalid targets answer plain 400 `Bad Request`, without details. Only origin-form targets are accepted, including IPv6 authorities such as `[::1]:3000`. Absolute-form targets answer 400, even when they match Host. `OPTIONS *`, TRACE and CONNECT answer 501 `Not Implemented` before the handler runs, except TRACE targeting a health path answers 405.
 
-Behind a TLS proxy, cookie writes get 403 `cross_origin` unless the app sets its public origin:
+Behind a TLS proxy, cookie writes get 403 `cross_origin` unless the HTTP way sets `origins` to its public origin, such as `https://public.example`. The booking API reads `APP_ORIGIN` through Effect Config for the MCP resource URL and the web way's allowed origins. Without it, main uses `http://localhost:${PORT}`. It also keeps `http://localhost:3000` in the origin list.
 
-```ts
-const PUBLIC_ORIGIN = "https://public.example";
-const api = toFetchHandler(app, { routes: bookingRoutes, origins: [PUBLIC_ORIGIN] });
-```
-
-See [the application kit's CSRF check](../application/README.md#csrf). The reference API reads optional `APP_ORIGIN` through Effect Config and passes it as `origins` when set.
+See [the application kit's session and CSRF options](../application/README.md#endpoints-clients-and-failures).
 
 The Host has no allowed-host guard against DNS rebinding; local and internal apps must restrict Host at their proxy or listener and set explicit `origins` for cookie writes.
 
-Uploads go through `Readable.toWeb`; responses stream with backpressure. The Host does not buffer bodies or add a body limit. Set `maxBodyBytes` in `toFetchHandler`. Status and headers pass through, including separate Set-Cookie headers. The request signal aborts when a client leaves before the response ends. A normal upload finishing does not abort it.
+Uploads go through `Readable.toWeb`; responses stream with backpressure. The Host does not buffer bodies or add a body limit. Set `maxBodyBytes` on the HTTP way. Status and headers pass through, including separate Set-Cookie headers. The request signal aborts when a client leaves before the response ends. A normal upload finishing does not abort it.
 
 A thrown handler or a body stream failure before the response headers are flushed gives a plain 500 `Internal Server Error` without details. Node may prefetch the first chunks before flushing headers. If a response stream fails after headers went out, the Host closes that connection instead.
 
+## Health and readiness
+
+Probes are opt-in. Set `health` with a required `wayPaths` list to enable `/healthz` and `/readyz` before the supplied handler, including static files. Without `health`, those paths go to the handler unchanged. These public infrastructure paths never enter the router: no Who, May, audit row, unit or trace. `/healthz` answers without running checks. `/readyz` runs named checks concurrently, each with its own deadline. An empty check list is ready.
+
+GET returns 200 `{"status":"ok"}` or 503 `{"status":"unavailable","failed":["sql"]}`. Set `health.version` to an app-configured build identifier: `/readyz` then includes `"version"` on both 200 and 503, for example `{"status":"ok","version":"build-abc123"}`. `/healthz` stays bare. Only failed check names and the configured version leave the host, never exceptions or driver text. HEAD runs the same checks and returns the same status without a body. Other methods return 405 with `Allow: GET, HEAD`. Responses are not cached.
+
+Pass every network way's path in `health.wayPaths`. Construction rejects collisions, including overlapping prefixes and case/percent/slash aliases, before listening. `alivePath` and `readyPath` replace the defaults at startup; paths and checks are captured once. Check names must be unique and contain only letters, digits, `_` or `-`; `timeoutMs` must be a positive integer within Node's timer range. A timed-out check receives an aborted signal; a runner must honor it to release its own resources.
+
+The SQL helper belongs to `@house-rules/migrations`, an SQL adapter package, so the Host needs no Effect dependency. In main, capture the app's existing client without making another pool. Memory apps have no SQL check:
+
+```ts
+import { SqlHealth } from "@house-rules/migrations";
+import { Effect, Option } from "effect";
+
+const context = yield* app.runtime.contextEffect;
+const sql = SqlHealth.fromContext(context);
+const checks = Option.isSome(sql)
+  ? [{ name: "sql", timeoutMs: 1000, run: (signal) => Effect.runPromiseWith(context)(sql.value, { signal }) }]
+  : [];
+const host = await serve(api, {
+  port: 3000,
+  health: { wayPaths: ["/api", "/mcp"], checks, version: "build-abc123" },
+  onClose: () => api.dispose().then(() => app.dispose()),
+});
+```
+
+Booking's `main.ts` calls the tested `hostHealth(context, ways)` wiring in `composition/host-health.ts`. It supplies the constant build identifier `booking-0.0.0`, takes every network way path and adapts the existing SQL check. Change that identifier when preparing a different example build.
+
+`SqlHealth.check(sqlClient)` is the underlying no-requirements Effect. It runs `SELECT 1` without a unit and disables SQL tracing. The host also accepts any `(signal: AbortSignal) => Promise<unknown>` runner. Resolution passes; rejection, a synchronous throw or timeout fails.
+
+### Next routes
+
+`healthHandler(options)` is a plain fetch dispatcher with no Node imports. It returns `undefined` for other paths, like `staticFiles`. `healthRoutes(options)` wraps it for Next and returns Responses, with 404 on unmatched paths. Importing either export opens no sockets or servers. Create the routes once in server-only startup wiring, not per request, and pass the app's way paths and named Promise checks:
+
+```ts
+// Server-only wiring shared by both route files:
+export const probes = healthRoutes({ wayPaths: ["/api", "/mcp"], checks });
+
+// app/healthz/route.ts, importing probes from that wiring:
+export const { GET, HEAD } = probes.healthz;
+
+// app/readyz/route.ts, importing probes from that wiring:
+export const { GET, HEAD } = probes.readyz;
+```
+
+Next rejects unsupported methods itself. Keep these routes outside session/auth middleware. Custom paths must match the route folders. No `serve` call is needed.
+
 ## Static files
 
-`staticFiles` serves a built single-page app from the same Node service as the API, so the page and `/api` share one origin and the client needs no `baseUrl` and no CORS. That is the default way to ship a web page. A page on another origin is the alternative; see [the application kit's CORS option](../application/README.md#cors).
+`staticFiles` serves a built single-page app from the same Node service as the API, so the page and `/api` share one origin and the client needs no `baseUrl` and no CORS. That is the default way to ship a web page. A page on another origin is the alternative; see [the HTTP way's CORS option](../application/README.md#open-ways-and-plug-sockets).
 
 ```ts
 import { serve, staticFiles } from "@house-rules/node-host";

@@ -1,6 +1,9 @@
-import type { ActorId, NoOpenUnit } from "@house-rules/domain";
+import type { ActorId, NoOpenUnit } from "@house-rules/domain/contract";
 import { Context, type Effect } from "effect";
-import type { Binding, BindingKey, IdentityStoreUnavailable } from "./binding/binding.js";
+import type { IdentityStoreUnavailable } from "./availability/store-unavailable.js";
+import type { Binding, BindingKey } from "./binding/binding.js";
+
+export { IdentityStoreUnavailable } from "./availability/store-unavailable.js";
 
 export class BindingStore extends Context.Service<
   BindingStore,

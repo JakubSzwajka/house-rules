@@ -2,12 +2,7 @@ import { Effect, Random } from "effect";
 import { dual } from "effect/Function";
 import { CallRequestId } from "./call-facts.ts";
 
-export const requestIdHeader = "x-request-id";
-
-const safeRequestId = /^[A-Za-z0-9._:-]{1,128}$/u;
-
-export const requestIdOf = (value: unknown): string | null =>
-  typeof value === "string" && safeRequestId.test(value) ? value : null;
+export { requestIdHeader, requestIdOf } from "./request-id-header.ts";
 
 const randomWord = Random.nextIntBetween(0, 0xffff_ffff).pipe(
   Effect.map((word) => word.toString(16).padStart(8, "0")),

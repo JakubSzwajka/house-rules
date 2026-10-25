@@ -1,95 +1,79 @@
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation } from "@house-rules/domain";
+import { bindFixture } from "./execution-fixtures.ts";
+import { httpFixture, mcpFixture } from "./router-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
-import { Context, Effect, Layer, Schema } from "effect";
-import {
-  call,
-  composition,
-  decodeInput,
-  defineContract,
-  implement,
-  type InputInvalid,
-  route,
-  toFetchHandler,
-  toMcpHandler,
-  tool,
-  type View,
-} from "../index.ts";
+import { Effect, Schema } from "effect";
+import { call, decodeInput, type InputInvalid, endpoint } from "../index.ts";
 import { answer, webRequest } from "./delivery-fixtures.ts";
 import { callMcpTool, openMcpSession } from "./delivery-mcp-client.ts";
 
 const Status = Schema.Literals(["todo", "doing", "done"]);
 
-const listThings = implement(
-  defineContract("list_things", {
-    description: "List things.",
-    input: Schema.Struct({ q: Schema.String, limit: Schema.optionalKey(Schema.Int) }),
-    output: Schema.Struct({ q: Schema.String }),
-    failure: Schema.Never,
-    permission: "public",
-    annotations: { readOnly: true },
-  }),
+const listThings = bindFixture(
+  featureFixture(
+    defineOperation("list_things", {
+      description: "List things.",
+      input: Schema.Struct({ q: Schema.String, limit: Schema.optionalKey(Schema.Int) }),
+      output: Schema.Struct({ q: Schema.String }),
+      failure: Schema.Never,
+      permission: null,
+      readOnly: true,
+    }),
+  ),
   ({ q }) => Effect.succeed({ q }),
 );
 
-const moveThing = implement(
-  defineContract("move_thing", {
-    description: "Move a thing.",
-    input: Schema.Struct({ id: Schema.Int, to: Status }),
-    output: Schema.Struct({ id: Schema.Int, to: Status }),
-    failure: Schema.Never,
-    permission: "public",
-  }),
+const moveThing = bindFixture(
+  featureFixture(
+    defineOperation("move_thing", {
+      description: "Move a thing.",
+      input: Schema.Struct({ id: Schema.Int, to: Status }),
+      output: Schema.Struct({ id: Schema.Int, to: Status }),
+      failure: Schema.Never,
+      permission: null,
+    }),
+  ),
   (input) => Effect.succeed(input),
 );
 
 let nameChecks = 0;
-const holdsTwice = Schema.makeFilter<string>(() => {
-  // The toolkit decodes, invoke encodes, then the contract decodes: only that third check fails.
+const validName = Schema.makeFilter<string>((name) => {
   nameChecks += 1;
-  return nameChecks <= 2;
+  return name !== "bad";
 });
 
-const pickThing = implement(
-  defineContract("pick_thing", {
-    description: "Pick a thing by name.",
-    input: Schema.Struct({ name: Schema.String.check(holdsTwice) }),
-    output: Schema.Struct({ name: Schema.String }),
-    failure: Schema.Never,
-    permission: "public",
-    annotations: { readOnly: true },
-  }),
+const pickThing = bindFixture(
+  featureFixture(
+    defineOperation("pick_thing", {
+      description: "Pick a thing by name.",
+      input: Schema.Struct({ name: Schema.String.check(validName) }),
+      output: Schema.Struct({ name: Schema.String }),
+      failure: Schema.Never,
+      permission: null,
+      readOnly: true,
+    }),
+  ),
   ({ name }) => Effect.succeed({ name }),
 );
 
 const exposed = {
-  InputInvalid: (error: InputInvalid): View => ({
-    status: 422,
-    body: {
-      capabilityName: error.capabilityName,
-      field: error.field,
-      issue: error.issue,
-      message: error.message,
-    },
-  }),
+  InputInvalid: (error: InputInvalid) =>
+    `${error.feature}|${error.field}|${error.issue}|${error.message}`,
 };
-
-const nobody = () => Effect.succeed(Context.empty());
-const app = composition({ layer: Layer.empty, caller: nobody, views: exposed });
-const plain = composition({ layer: Layer.empty, caller: nobody });
-const http = toFetchHandler(app, {
-  routes: [route(listThings, "GET /things"), route(moveThing, "POST /things/:id/move")],
+const fixture = httpFixture([listThings, moveThing], {
+  endpoints: [endpoint(listThings, "GET /things"), endpoint(moveThing, "POST /things/:id/move")],
+  overrides: exposed,
 });
-const plainHttp = toFetchHandler(plain, { routes: [route(listThings, "GET /things")] });
-const mcp = toMcpHandler(app, {
-  path: "/mcp",
-  name: "test",
-  version: "0",
-  tools: [tool(pickThing, { title: "Pick", idempotent: true, openWorld: false })],
+const plain = httpFixture([listThings], { endpoints: [endpoint(listThings, "GET /things")] });
+const mcpApp = mcpFixture([pickThing], {
+  tools: [{ feature: pickThing, title: "Pick", idempotent: true, openWorld: false }],
 });
-afterAll(() =>
-  Promise.all([http.dispose(), plainHttp.dispose(), mcp.dispose()]).then(() =>
-    Promise.all([app.dispose(), plain.dispose()]),
-  ),
-);
+const app = fixture.app;
+const http = fixture.handler;
+const plainHttp = plain.handler;
+const mcp = mcpApp.handler;
+afterAll(() => Promise.all([fixture.dispose(), plain.dispose(), mcpApp.dispose()]));
 
 const get = (path: string) => answer(http, webRequest(`https://app.example${path}`));
 
@@ -103,9 +87,9 @@ const post = (path: string, body: NonNullable<RequestInit["body"]>) =>
     }),
   );
 
-const fault = (capabilityName: string, field: string, issue: string, message: string) => ({
-  status: 422,
-  body: { capabilityName, field, issue, message },
+const fault = (feature: string, field: string, issue: string, message: string) => ({
+  status: 400,
+  body: { error: { code: "invalid", message: `${feature}|${field}|${issue}|${message}` } },
 });
 
 const outcomeOf = (r: Readonly<{ status: number; body: unknown }>) => ({
@@ -182,19 +166,17 @@ it.effect("path param: a value its field cannot decode is invalid", () =>
   }),
 );
 
-it.effect("MCP params: arguments the contract refuses name the capability and the issue", () =>
+it.effect("MCP validates parameters once and refuses invalid arguments before the callable", () =>
   Effect.gen(function* mcpParams() {
-    const session = yield* openMcpSession(mcp);
+    const session = yield* openMcpSession(mcp, { authorization: "Bearer fixture" });
     nameChecks = 0;
-    const { result } = yield* callMcpTool(mcp, session, "pick_thing", { name: "x" });
-    expect(result?.["isError"]).toBe(true);
-    const content = result?.["content"] as ReadonlyArray<{ text: string }>;
-    expect(JSON.parse(content[0]?.text ?? "")).toEqual({
-      capabilityName: "pick_thing",
-      field: "name",
-      issue: "invalid",
-      message: "name is not valid.",
-    });
+    const bad = yield* callMcpTool(mcp, session, "pick_thing", { name: "bad" });
+    expect(bad.result?.["isError"]).toBe(true);
+    expect(JSON.stringify(bad.result)).toContain("Invalid parameters");
+    nameChecks = 0;
+    const good = yield* callMcpTool(mcp, session, "pick_thing", { name: "x" });
+    expect(good.result?.["isError"]).toBe(false);
+    expect(nameChecks).toBe(1);
   }),
 );
 
@@ -202,68 +184,65 @@ it.effect("call(): an untrusted value names the capability and the issue", () =>
   Effect.gen(function* callInput() {
     const incoming = { headers: new Headers(), url: "https://app.example/" };
     const outcome = yield* Effect.promise(() =>
-      call(app, moveThing, { id: 1, to: "gone" as "todo" }, incoming),
+      call(app, moveThing, { id: 1, to: "gone" as "todo" }, incoming, { way: "web" }),
     );
     expect(outcome.ok).toBe(false);
     if (outcome.ok) return;
     expect(outcome.error).toMatchObject({
       _tag: "InputInvalid",
-      capabilityName: "move_thing",
+      feature: "move_thing",
       field: "to",
       issue: "invalid",
     });
   }),
 );
 
-it.effect("decodeInput names the contract it decodes for", () =>
+it.effect("decodeInput names the feature it decodes for", () =>
   Effect.gen(function* publicDecode() {
-    const error = yield* Effect.flip(decodeInput(moveThing.contract, { id: 1 }, "json"));
-    expect(error).toMatchObject({ capabilityName: "move_thing", field: "to", issue: "missing" });
+    const error = yield* Effect.flip(decodeInput(moveThing, { id: 1 }, "json"));
+    expect(error).toMatchObject({ feature: "move_thing", field: "to", issue: "missing" });
   }),
 );
 
-it.effect("a views table can word a message per capability and field", () =>
+it.effect("a way can word its message per feature and field", () =>
   Effect.gen(function* perCapability() {
     const messages: Readonly<Record<string, Readonly<Record<string, string>>>> = {
       list_things: { q: "Type something to search for." },
     };
-    const worded = composition({
-      layer: Layer.empty,
-      caller: nobody,
-      views: {
-        InputInvalid: (error: InputInvalid): View => ({
-          status: 422,
-          body: {
-            message:
-              error.issue === "invalid" || error.issue === "missing"
-                ? (messages[error.capabilityName]?.[error.field] ?? error.message)
-                : error.message,
-          },
-        }),
+    const worded = httpFixture([listThings, moveThing], {
+      endpoints: [
+        endpoint(listThings, "GET /things"),
+        endpoint(moveThing, "POST /things/:id/move"),
+      ],
+      overrides: {
+        InputInvalid: (error) =>
+          error.issue === "invalid" || error.issue === "missing"
+            ? (messages[error.feature]?.[error.field] ?? error.message)
+            : error.message,
       },
     });
-    const handler = toFetchHandler(worded, {
-      routes: [route(listThings, "GET /things"), route(moveThing, "POST /things/:id/move")],
-    });
+    const handler = worded.handler;
     const missing = yield* answer(handler, webRequest("https://app.example/things"));
     const twice = yield* answer(handler, webRequest("https://app.example/things?q=a&q=b"));
     const other = yield* answer(
       handler,
       webRequest("https://app.example/things/1/move", { method: "POST", body: "{}" }),
     );
-    yield* Effect.promise(() => handler.dispose().then(() => worded.dispose()));
-    expect(missing.body).toEqual({ message: "Type something to search for." });
-    expect(twice.body).toEqual({ message: "Give q once." });
-    expect(other.body).toEqual({ message: "to is required." });
+    yield* Effect.promise(worded.dispose);
+    expect(missing.body).toEqual({
+      error: { code: "invalid", message: "Type something to search for." },
+    });
+    expect(twice.body).toEqual({ error: { code: "invalid", message: "Give q once." } });
+    expect(other.body).toEqual({ error: { code: "invalid", message: "to is required." } });
   }),
 );
 
-it.effect("the default view keeps its body: code, message and field only", () =>
+it.effect("the default kind view exposes only code and message", () =>
   Effect.gen(function* defaultBody() {
     const r = yield* answer(plainHttp, webRequest("https://app.example/things?q=a&q=b"));
     expect(r.status).toBe(400);
     expect(r.body).toEqual({
-      error: { code: "invalid_input", message: "Give q once.", field: "q" },
+      error: { code: "invalid", message: "Give q once." },
     });
   }),
 );

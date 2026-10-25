@@ -1,15 +1,26 @@
+import { featureFixture } from "../../tests/feature-fixtures.ts";
 import { PgClient } from "@effect/sql-pg";
 import { MigrationsTesting } from "@house-rules/migrations";
 import { Cause, Context, Deferred, Effect, Exit, Fiber, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
-import { memoryUnitOfWork, NoOpenUnit, UnitOfWork } from "@house-rules/domain";
-import { defineContract, implement, sqlUnitOfWork } from "../../index.ts";
+import {
+  defineOperation,
+  errorKind,
+  memoryUnitOfWork,
+  NoOpenUnit,
+  UnitOfWork,
+} from "@house-rules/domain";
+import { sqlUnitOfWork } from "../../index.ts";
+import { bindFixture } from "../../tests/execution-fixtures.ts";
 
 class StoreUnavailable extends Schema.TaggedError<StoreUnavailable>()("StoreUnavailable", {
+  kind: errorKind("unavailable"),
   reason: Schema.String,
 }) {}
 
-export class WorkFailed extends Schema.TaggedError<WorkFailed>()("WorkFailed", {}) {}
+export class WorkFailed extends Schema.TaggedError<WorkFailed>()("WorkFailed", {
+  kind: errorKind("invalid"),
+}) {}
 
 type Store = Readonly<{
   put: (id: string) => Effect.Effect<void, NoOpenUnit | StoreUnavailable>;
@@ -123,17 +134,19 @@ export const contents = Effect.gen(function* contents() {
   return { alpha: yield* alpha.ids, beta: yield* beta.ids };
 });
 
-export const writeContract = <const Transactional extends boolean>(transactional: Transactional) =>
-  defineContract("write_both", {
-    description: "Write one row in each module.",
-    input: Schema.Struct({ fail: Schema.Boolean }),
-    output: Schema.Void,
-    failure: Schema.Union([WorkFailed, NoOpenUnit, StoreUnavailable]),
-    permission: "rows:write",
-    transactional,
-  });
+export const writeEntry = <const Transactional extends boolean>(transactional: Transactional) =>
+  featureFixture(
+    defineOperation("write_both", {
+      description: "Write one row in each module.",
+      input: Schema.Struct({ fail: Schema.Boolean }),
+      output: Schema.Void,
+      failure: Schema.Union([WorkFailed, NoOpenUnit, StoreUnavailable]),
+      permission: "rows:write",
+      transactional,
+    }),
+  );
 
-export const writeBothCapability = implement(writeContract(true), ({ fail }) =>
+export const writeBothEntry = bindFixture(writeEntry(true), ({ fail }) =>
   Effect.gen(function* writeBothHandler() {
     yield* writeBoth;
     if (fail) return yield* new WorkFailed();

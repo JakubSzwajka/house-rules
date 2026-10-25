@@ -21,6 +21,9 @@ const workspacePatterns = () => {
 
 export const workspaceDirectories = () =>
   fs
-    .globSync(workspacePatterns().map((pattern) => `${pattern}/package.json`))
+    .globSync(
+      workspacePatterns().map((pattern) => `${pattern}/package.json`),
+      { followSymlinks: true },
+    )
     .map((manifest) => path.dirname(manifest).split(path.sep).join("/"))
     .sort();

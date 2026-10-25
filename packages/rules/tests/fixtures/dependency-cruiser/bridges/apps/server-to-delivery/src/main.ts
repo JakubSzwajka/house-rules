@@ -1,1 +1,1 @@
-export { route } from "./delivery/route";
+export { route } from "./ways-in/route";

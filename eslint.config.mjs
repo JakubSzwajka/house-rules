@@ -1,4 +1,4 @@
-import houseRules, { capabilityConfig } from "@house-rules/rules";
+import houseRules, { featuresConfig } from "@house-rules/rules";
 import houseRulesMarkdown from "@house-rules/rules/markdown";
 
 export default [
@@ -14,9 +14,9 @@ export default [
     ],
   },
   ...houseRules.configs.recommended,
-  ...capabilityConfig({
-    appsDir: ["apps", "examples/*/apps"],
-    packagesDir: ["packages", "examples/*/packages"],
+  ...featuresConfig({
+    appsDir: ["apps", "examples/booking/apps"],
+    packagesDir: ["packages", "examples/booking/packages"],
   }),
   ...houseRulesMarkdown,
   {

@@ -1,7 +1,7 @@
 {
   "name": "@house-rules/application",
   "version": "0.2.0",
-  "description": "The application layer for Effect apps: contracts, capabilities, gates, composition, and HTTP and MCP delivery.",
+  "description": "Application graphs for Effect apps: bindings, entries, sockets, ways, HTTP and MCP routing, and typed clients.",
   "license": "MIT",
   "type": "module",
   "files": [
@@ -33,14 +33,14 @@
     "test": "varlock run --path ../../ -- vitest run"
   },
   "peerDependencies": {
-    "@house-rules/domain": "0.1.0",
+    "@house-rules/domain": "0.2.0",
     "effect": "4.0.3"
   },
   "devDependencies": {
     "@effect/sql-pg": "4.0.3",
     "@effect/vitest": "4.0.3",
-    "@house-rules/domain": "workspace:0.1.0",
-    "@house-rules/migrations": "workspace:0.3.0",
+    "@house-rules/domain": "workspace:0.2.0",
+    "@house-rules/migrations": "workspace:0.4.0",
     "effect": "4.0.3",
     "typescript": "7.0.2",
     "vitest": "5.0.1"

@@ -1,24 +1,12 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { PgClient } from "@effect/sql-pg";
-import { defineContract, Grant, implement } from "@house-rules/application";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { expect, layer } from "@effect/vitest";
-import { Context, Effect, Exit, Layer, Logger, Option, Schema } from "effect";
+import { Context, Effect, Exit, Layer, Logger, Option } from "effect";
 import { SqlClient } from "effect/sql/SqlClient";
 import { CallAudit } from "../../index.ts";
 
-class NameIsEmpty extends Schema.TaggedError<NameIsEmpty>()("NameIsEmpty", {}) {}
-
-const readGreeting = implement(
-  defineContract("read_greeting", {
-    description: "Greet someone by name.",
-    input: Schema.Struct({ name: Schema.String }),
-    output: Schema.String,
-    failure: NameIsEmpty,
-    permission: "greetings:read",
-  }),
-  ({ name }) => (name === "" ? Effect.fail(new NameIsEmpty()) : Effect.succeed(`Hello, ${name}`)),
-);
+import { readGreeting } from "../../tests/greeting-fixtures.ts";
 
 class Requester extends Context.Service<Requester, { readonly userId: string }>()(
   "test/Requester",
@@ -46,10 +34,7 @@ const migratedDatabase = Layer.effectDiscard(
   ),
 );
 
-const caller = Layer.mergeAll(
-  Layer.succeed(Requester, { userId: "user_ana" }),
-  Grant.layerFromPermissions(["greetings:read"]),
-);
+const caller = Layer.succeed(Requester, { userId: "user_ana" });
 
 const rows = SqlClient.use(
   (sql) => sql<Record<string, unknown>>`select * from call_audit order by id`,
@@ -84,6 +69,7 @@ layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
             "permission",
             "recorded_at",
             "request_id",
+            "target",
             "target_id",
             "viewer_id",
           ],
@@ -97,6 +83,7 @@ layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
             "permission",
             "recorded_at",
             "request_id",
+            "target",
             "target_id",
             "viewer_id",
           ],
@@ -104,6 +91,7 @@ layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
         expect(written).toMatchObject([
           {
             capability: "read_greeting",
+            target: "read_greeting",
             permission: "greetings:read",
             viewer_id: "user_ana",
             outcome: "success",

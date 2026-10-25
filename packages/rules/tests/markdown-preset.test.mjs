@@ -37,12 +37,7 @@ test("the package entry point does not load @eslint/markdown", async () => {
   }
   assert.ok(seen.has("no-broken-relative-links.mjs"));
   assert.equal(packages.has("@eslint/markdown"), false, [...packages].join(", "));
-  assert.deepEqual(Object.keys(plugin.configs), [
-    "recommended",
-    "testing",
-    "capability",
-    "nextHost",
-  ]);
+  assert.deepEqual(Object.keys(plugin.configs), ["recommended", "testing", "features", "nextHost"]);
 });
 
 test("ESLint reports exact findings for good, broken, and wrong-case links in a git repository", async () => {
@@ -83,8 +78,7 @@ test("ESLint reports exact findings for good, broken, and wrong-case links in a 
         messages: [
           {
             ruleId: RULE_ID,
-            message:
-              'Broken relative link "./Guide.md": no tracked file or directory at that path.',
+            message: 'Broken relative link "./Guide.md": no eligible file at that path.',
             line: 7,
             column: 5,
             endLine: 7,
@@ -92,8 +86,7 @@ test("ESLint reports exact findings for good, broken, and wrong-case links in a 
           },
           {
             ruleId: RULE_ID,
-            message:
-              'Broken relative link "../assets/diagram.png": no tracked file or directory at that path.',
+            message: 'Broken relative link "../assets/diagram.png": no eligible file at that path.',
             line: 7,
             column: 29,
             endLine: 7,
@@ -106,8 +99,7 @@ test("ESLint reports exact findings for good, broken, and wrong-case links in a 
         messages: [
           {
             ruleId: RULE_ID,
-            message:
-              'Broken relative link "./missing.md": no tracked file or directory at that path.',
+            message: 'Broken relative link "./missing.md": no eligible file at that path.',
             line: 5,
             column: 5,
             endLine: 5,

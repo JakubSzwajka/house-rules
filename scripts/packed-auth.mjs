@@ -2,70 +2,87 @@ const issuer = "https://issuer.packed.test";
 const audience = "https://api.packed.test";
 
 export const authConsumerFiles = {
-  "auth.mjs": [
-    'import assert from "node:assert/strict";',
-    'import { memoryUnitOfWork, UnitOfWork } from "@house-rules/domain";',
-    'import { CurrentActor, Grant, implement } from "@house-rules/application";',
-    'import { AuthJwt, AuthJwtTesting } from "@house-rules/auth-jwt";',
-    'import { Identity } from "@house-rules/identity";',
-    'import { Party } from "@house-rules/party";',
-    'import * as contract from "@house-rules/party/contract";',
-    'import { NodeRuntime } from "@effect/platform-node";',
-    'import { Context, Effect, Layer } from "effect";',
-    `const issuer = ${JSON.stringify(issuer)};`,
-    `const audience = ${JSON.stringify(audience)};`,
-    "const show = implement(contract.showPerson, ({ id }) => Effect.gen(function* () {",
-    "  return yield* (yield* Party).get(yield* CurrentActor, id);",
-    "}));",
-    'const caller = Identity.caller({ token: "bearer", audience, grant: () => Grant.fromPermissions(Object.values(contract.PartyPermissions)) });',
-    "const incoming = (token) => ({ headers: new Headers({ authorization: `Bearer ${token}` }), url: `${audience}/` });",
-    "NodeRuntime.runMain(Effect.gen(function* () {",
-    "  const keys = yield* AuthJwtTesting.keys;",
-    "  const signIn = Layer.mergeAll(AuthJwt.layer({ issuer, jwks: keys.jwks }), Identity.subject({ issuer }), Identity.refuse);",
-    '  const token = yield* keys.sign({ iss: issuer, sub: "packed-user", aud: audience });',
-    "  const context = yield* caller(incoming(token)).pipe(Effect.provide(signIn));",
-    "  const actor = Context.get(context, CurrentActor);",
-    '  assert.equal(actor.id, "packed-user");',
-    '  const foreign = yield* keys.sign({ iss: "https://other.packed.test", sub: "packed-user", aud: audience });',
-    '  for (const bad of ["not-a-jwt", foreign]) {',
-    "    const refused = yield* Effect.flip(caller(incoming(bad)).pipe(Effect.provide(signIn)));",
-    '    assert.equal(refused.code, "token_invalid");',
-    "  }",
-    "  const party = yield* Party;",
-    '  yield* UnitOfWork.atomic(party.createPerson({ id: actor.id, displayName: " Packed " }));',
-    "  const person = yield* show.handler({ id: actor.id }).pipe(",
-    "    Effect.provideService(CurrentActor, actor),",
-    "    Effect.provideService(Grant, Context.get(context, Grant)),",
-    "  );",
-    '  assert.equal(person.displayName, "Packed");',
-    '  yield* Effect.log("cold install: auth-jwt verifies a signed token, identity resolves the actor and refuses bad tokens, party serves the person");',
-    "}).pipe(Effect.provide(Layer.merge(Party.layerMemory, memoryUnitOfWork))));",
-    "",
-  ].join("\n"),
-  "auth.ts": [
-    'import { CurrentActor, Grant, implement, type Incoming, type Principal, tokenFrom } from "@house-rules/application";',
-    'import { AuthJwt, type AuthJwtOptions } from "@house-rules/auth-jwt";',
-    'import { Identity, type IdentityCallerOptions } from "@house-rules/identity";',
-    'import { Party, type PartyFailure } from "@house-rules/party";',
-    'import { PartyPermissions, type Person, renamePerson, showPerson } from "@house-rules/party/contract";',
-    'import { Effect } from "effect";',
-    `export const options: AuthJwtOptions = { issuer: ${JSON.stringify(issuer)}, audience: ${JSON.stringify(audience)} };`,
-    "export const authenticator = AuthJwt.layer(options);",
-    'export const clerk = AuthJwt.clerk({ publishableKey: "pk_test_Y2xlcmsuZXhhbXBsZS5jb20k" });',
-    'export const callerOptions: IdentityCallerOptions = { token: { cookie: "__session" }, grant: () => Grant.fromPermissions([PartyPermissions.read]) };',
-    "export const caller = Identity.caller(callerOptions);",
-    'export const token = (incoming: Incoming) => tokenFrom(incoming, "bearer");',
-    "export const subject = (principal: Principal): string => principal.subject;",
-    "export const show = implement(showPerson, ({ id }) => Effect.gen(function* () { return yield* (yield* Party).get(yield* CurrentActor, id); }));",
-    "export const rename = implement(renamePerson, ({ id, displayName }) => Effect.gen(function* () { return yield* (yield* Party).rename(yield* CurrentActor, id, displayName); }));",
-    "export const name = (person: Person): string => person.displayName;",
-    "export const failureTag = (failure: PartyFailure): string => failure._tag;",
-    "// @ts-expect-error Party.get needs the acting Actor",
-    'export const anonymous = Effect.gen(function* () { return yield* (yield* Party).get("packed-user"); });',
-    "",
-  ].join("\n"),
+  "auth.mjs": `import assert from "node:assert/strict";
+import { Actor, ActorId, memoryUnitOfWork, UnitOfWork } from "@house-rules/domain";
+import { Authenticator, CurrentActor, defineFeature, May, Runtime, runFeature, StepTrace } from "@house-rules/application";
+import { AuthJwt, AuthJwtLocal, AuthJwtTesting } from "@house-rules/auth-jwt";
+import { Identity } from "@house-rules/identity";
+import { Party, PartyMount } from "@house-rules/party";
+import * as contract from "@house-rules/party/contract";
+import { NodeRuntime as NodePlatform } from "@effect/platform-node";
+import { Effect, Layer } from "effect";
+assert.equal(contract.PartyOperations.showPerson.name, "Party.showPerson");
+assert.equal(contract.PartyOperations.showMe.name, "Party.showMe");
+assert.equal(contract.PartyOperations.renamePerson.name, "Party.renamePerson");
+const issuer = ${JSON.stringify(issuer)};
+const audience = ${JSON.stringify(audience)};
+const show = defineFeature("packed_show_person", { description: "Show a person.", input: contract.PartyOperations.showPerson.input, output: contract.PartyOperations.showPerson.output, failure: contract.PartyOperations.showPerson.failure, permission: null, flags: { readOnly: true }, edges: [contract.PartyOperations.showPerson], handler: (input, { call }) => call(contract.PartyOperations.showPerson, input) });
+const rename = defineFeature("packed_rename_person", { description: "Rename a person.", input: contract.PartyOperations.renamePerson.input, output: contract.PartyOperations.renamePerson.output, failure: contract.PartyOperations.renamePerson.failure, permission: null, edges: [contract.PartyOperations.renamePerson], handler: (input, { call }) => call(contract.PartyOperations.renamePerson, input) });
+const features = [show, rename];
+const who = Identity.who({ token: "bearer", audience });
+const incoming = (token) => ({ headers: new Headers({ authorization: \`Bearer \${token}\` }), url: \`\${audience}/\` });
+NodePlatform.runMain(Effect.gen(function* () {
+  const local = yield* AuthJwtLocal.make();
+  const localToken = yield* local.issue({ sub: "packed-local" });
+  const localPrincipal = yield* Effect.gen(function* () { return yield* (yield* Authenticator).verify(localToken); }).pipe(Effect.provide(local.layer));
+  assert.equal(localPrincipal.subject, "packed-local");
+  const keys = yield* AuthJwtTesting.keys;
+  const signIn = Layer.mergeAll(Identity.layerMemory({ providers: [Identity.oidc({ issuer, jwks: keys.jwks })] }), Identity.subject({ issuer }), Identity.refuse, Identity.everyoneActive);
+  const token = yield* keys.sign({ iss: issuer, sub: "packed-user", aud: audience });
+  const actor = yield* who.resolve(incoming(token)).pipe(Effect.provide(signIn));
+  assert.equal(actor.id, "packed-user");
+  const foreign = yield* keys.sign({ iss: "https://other.packed.test", sub: "packed-user", aud: audience });
+  const wrongAudience = yield* keys.sign({ iss: issuer, sub: "packed-user", aud: "https://other.packed.test" });
+  for (const bad of ["not-a-jwt", foreign, wrongAudience]) {
+    const refused = yield* Effect.flip(who.resolve(incoming(bad)).pipe(Effect.provide(signIn)));
+    assert.equal(refused.code, "token_invalid");
+  }
+  const party = yield* Party;
+  yield* UnitOfWork.atomic(party.createPerson({ id: actor.id, displayName: " Packed " }));
+  const runtime = Runtime.layer({ features, ways: [], mounts: [PartyMount] }).pipe(Layer.provide(Layer.succeed(Party, party)));
+  const may = Layer.succeedContext(May.context(May.fixed(Object.values(contract.PartyPermissions)), { features, system: [], via: "packed" }));
+  const as = (viewer) => Layer.mergeAll(runtime, StepTrace.layer(), may, Layer.succeed(CurrentActor, viewer));
+  const person = yield* runFeature(show, { id: actor.id }).pipe(Effect.provide(as(actor)));
+  assert.equal(person.displayName, "Packed");
+  const outsider = Actor.make({ id: ActorId.make("outsider") });
+  const denied = yield* Effect.flip(runFeature(rename, { id: actor.id, displayName: "Stolen" }).pipe(Effect.provide(as(outsider))));
+  assert.equal(denied._tag, "PersonUpdateRefused");
+  assert.equal((yield* party.get(actor, actor.id)).displayName, "Packed");
+  yield* Effect.log("cold install: signed JWT, issuer/audience refusals, Identity.who, bound Party app features and person policy pass");
+}).pipe(Effect.provide(Layer.merge(Party.layerMemory({ builtInRoles: {} }), memoryUnitOfWork))));
+`,
+  "auth.ts": `import { type Incoming, type Principal, tokenFrom } from "@house-rules/application";
+import { errorKind, defineOperation } from "@house-rules/domain/contract";
+import { AuthJwt, type AuthJwtOptions } from "@house-rules/auth-jwt";
+import { Identity, type IdentityWhoOptions } from "@house-rules/identity";
+import { Party, bindParty, type PartyFailure } from "@house-rules/party";
+import { type Person, PartyOperations } from "@house-rules/party/contract";
+import { Effect, Schema } from "effect";
+export const options: AuthJwtOptions = { issuer: ${JSON.stringify(issuer)}, audience: ${JSON.stringify(audience)} };
+export const authenticator = AuthJwt.layer(options);
+export const clerk = AuthJwt.clerk({ publishableKey: "pk_test_Y2xlcmsuZXhhbXBsZS5jb20k", authorizedParties: ["https://app.example.com"] });
+export const whoOptions: IdentityWhoOptions = { token: { cookie: "__session" } };
+export const who = Identity.who(whoOptions);
+export const token = (incoming: Incoming) => tokenFrom(incoming, "bearer");
+export const subject = (principal: Principal): string => principal.subject;
+export const bind = (service: Party["Service"]) => bindParty(service);
+export const operations = Object.values(PartyOperations);
+export const name = (person: Person): string => person.displayName;
+export const failureTag = (failure: PartyFailure): string => failure._tag;
+export class Missing extends Schema.TaggedError<Missing>()("Missing", { kind: errorKind("not_found") }) {}
+export const missing: Missing = new Missing();
+export const kind: "not_found" = missing.kind;
+export const proof = defineOperation("kind_proof", { description: "Packed kind declaration.", input: Schema.Struct({}), output: Schema.String, failure: Missing, permission: null });
+class Unkinded extends Schema.TaggedError<Unkinded>()("Unkinded", {}) {}
+// @ts-expect-error every failure needs an error kind
+ defineOperation("unkinded", { description: "Rejected.", input: Schema.Struct({}), output: Schema.String, failure: Unkinded, permission: null });
+// @ts-expect-error Party.get needs the acting Actor
+export const anonymous = Effect.gen(function* () { return yield* (yield* Party).get("packed-user"); });
+`,
 };
 
 export function assertPackedAuth(app, { run }) {
-  run(process.execPath, ["--no-experimental-strip-types", "auth.mjs"], app);
+  run(process.execPath, ["--no-experimental-strip-types", "auth.mjs"], app, {
+    env: { NODE_ENV: "test" },
+  });
 }

@@ -3,10 +3,10 @@ import test from "node:test";
 import { Linter } from "eslint";
 import plugin from "../src/index.mjs";
 
-const DELIVERY = "apps/api/src/delivery/mcp/tools.ts";
+const WAY = "apps/api/src/ways-in/mcp/tools.ts";
 
-function lint(code, filename = DELIVERY, options) {
-  const config = plugin.configs.capability.map((entry) => ({
+function lint(code, filename = WAY, options) {
+  const config = plugin.configs.features.map((entry) => ({
     ...entry,
     rules: entry.rules["house-rules/no-hand-rolled-surface"]
       ? { "house-rules/no-hand-rolled-surface": options ? ["error", options] : "error" }
@@ -81,12 +81,12 @@ Endpoint.post("f", "/f");`;
   ]);
 });
 
-test("passes toTool, Toolkit.make, other modules, and shadowed names", () => {
-  const code = `import { toTool } from "@house-rules/application";
+test("passes defineWay, Toolkit.make, other modules, and shadowed names", () => {
+  const code = `import { defineWay } from "@house-rules/application";
 import { Toolkit } from "effect/unstable/ai";
 import { Tool } from "./local-tool";
 import type { Rpc } from "effect/unstable/rpc";
-const ShowBooking = toTool(showBooking.contract, { title: "Show", idempotent: true, openWorld: false });
+const ShowBooking = defineWay({ entries: [showBookingEntry] });
 Toolkit.make(ShowBooking);
 Tool.make("local");
 function inner(HttpApiEndpoint) {
@@ -97,12 +97,12 @@ function inner(HttpApiEndpoint) {
 
 test("allows packages/application by default, and honours a custom allow list", () => {
   const code = 'import { Tool } from "effect/unstable/ai";\nTool.make("ping");';
-  assert.deepEqual(lint(code, "packages/application/src/contract/to-tool.ts"), []);
+  assert.deepEqual(lint(code, "packages/application/src/ways-in/tool.ts"), []);
   assert.deepEqual(
     lint(code, "packages/surfaces/src/tool.ts", { allow: ["packages/surfaces/**"] }),
     [],
   );
-  assert.deepEqual(lint(code, "packages/application/src/contract/to-tool.ts", { allow: [] }), [
+  assert.deepEqual(lint(code, "packages/application/src/ways-in/tool.ts", { allow: [] }), [
     ["Tool.make", 2],
   ]);
 });
@@ -116,18 +116,18 @@ test("the default allow list is the application package only, and refuses the re
   assert.deepEqual(lint(code, "packages/domain/src/module/define-module.ts"), [["Tool.make", 2]]);
 });
 
-test("the message points at toTool", () => {
+test("the message points at the router", () => {
   assert.match(
     plugin.rules["no-hand-rolled-surface"].meta.messages.handRolled,
-    /from its contract with toTool/,
+    /let the router build the surface/,
   );
 });
 
-test("the capability preset runs it on JavaScript files too", () => {
+test("the nodes preset runs it on JavaScript files too", () => {
   const code = 'import { Tool } from "effect/unstable/ai";\nTool.make("ping", {});';
   for (const extension of ["js", "jsx", "mjs", "cjs", "ts", "mts", "cts", "tsx"]) {
-    const messages = new Linter().verify(code, plugin.configs.capability, {
-      filename: `apps/api/src/delivery/mcp/tools.${extension}`,
+    const messages = new Linter().verify(code, plugin.configs.features, {
+      filename: `apps/api/src/ways-in/mcp/tools.${extension}`,
     });
     assert.deepEqual(
       messages.map(({ ruleId, line }) => [ruleId, line]),
@@ -137,13 +137,10 @@ test("the capability preset runs it on JavaScript files too", () => {
   }
 });
 
-test("the capability preset keeps use-case-is-capability on TypeScript files", () => {
+test("the features preset checks TypeScript feature files", () => {
   const code = "export const x = 1;";
   const ruleIds = (filename) =>
-    new Linter().verify(code, plugin.configs.capability, { filename }).map(({ ruleId }) => ruleId);
-  assert.deepEqual(ruleIds("apps/api/src/use-cases/bad.mjs"), []);
-  assert.deepEqual(ruleIds("apps/api/src/use-cases/bad.ts"), [
-    "house-rules/use-case-is-capability",
-    "house-rules/use-case-is-capability",
-  ]);
+    new Linter().verify(code, plugin.configs.features, { filename }).map(({ ruleId }) => ruleId);
+  assert.deepEqual(ruleIds("apps/api/src/features/bad/node.mjs"), ["house-rules/feature-file"]);
+  assert.deepEqual(ruleIds("apps/api/src/features/bad/index.ts"), ["house-rules/feature-file"]);
 });

@@ -21,6 +21,12 @@ const verifyWith = (
 const rejected = (reason: TokenRejected["reason"]) => Exit.fail(new TokenRejected({ reason }));
 
 describe("AuthJwt.layer", () => {
+  it("config errors supply their unavailable kind without a constructor argument", () => {
+    expect(new AuthJwtConfigInvalid({ option: "issuer", message: "Invalid issuer." }).kind).toBe(
+      "unavailable",
+    );
+  });
+
   it.effect("turns a valid token into a Principal", () =>
     Effect.gen(function* () {
       const keys = yield* AuthJwtTesting.keys;
@@ -241,13 +247,21 @@ describe("AuthJwt.clerk", () => {
     Effect.gen(function* () {
       const keys = yield* AuthJwtTesting.keys;
       const host = "clever-cat-12.clerk.accounts.dev";
-      const layer = AuthJwt.clerk({ publishableKey: clerkKey("pk_test_", host), jwks: keys.jwks });
+      const layer = AuthJwt.clerk({
+        publishableKey: clerkKey("pk_test_", host),
+        authorizedParties: ["https://app.example"],
+        jwks: keys.jwks,
+      });
       const token = yield* keys.sign({ iss: `https://${host}`, sub: "user_2abc" });
       expect(yield* verifyWith(layer, token)).toMatchObject({
         issuer: `https://${host}`,
         subject: "user_2abc",
       });
-      const bad = yield* Effect.exit(Layer.build(AuthJwt.clerk({ publishableKey: "nope" })));
+      const bad = yield* Effect.exit(
+        Layer.build(
+          AuthJwt.clerk({ publishableKey: "nope", authorizedParties: ["https://app.example"] }),
+        ),
+      );
       expect(Exit.isFailure(bad)).toBe(true);
     }).pipe(Effect.scoped),
   );

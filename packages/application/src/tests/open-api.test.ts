@@ -1,13 +1,8 @@
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation, errorKind } from "@house-rules/domain";
 import { expect, it } from "@effect/vitest";
 import { Schema } from "effect";
-import {
-  defineContract,
-  endpoint,
-  failureCodeHeader,
-  problemView,
-  route,
-  toOpenApi,
-} from "../index.ts";
+import { endpoint, failureCodeHeader, toOpenApi } from "../index.ts";
 import {
   BookingNotFound,
   cancelBooking,
@@ -18,36 +13,33 @@ import {
 } from "./delivery-fixtures.ts";
 
 class Overbooked extends Schema.TaggedError<Overbooked>()("Overbooked", {
+  kind: errorKind("conflict"),
   nights: Schema.Int,
 }) {}
 
-const reserve = defineContract("reserve", {
-  description: "Reserve nights.",
-  input: Schema.Struct({ nights: Schema.Int, note: Schema.optionalKey(Schema.String) }),
-  output: Schema.Struct({ id: Schema.String }).annotate({ identifier: "Reservation" }),
-  failure: Schema.Union([BookingNotFound, Overbooked]),
-  permission: "bookings:write",
-  transactional: true,
-});
+const reserve = featureFixture(
+  defineOperation("reserve", {
+    description: "Reserve nights.",
+    input: Schema.Struct({ nights: Schema.Int, note: Schema.optionalKey(Schema.String) }),
+    output: Schema.Struct({ id: Schema.String }).annotate({ identifier: "Reservation" }),
+    failure: Schema.Union([BookingNotFound, Overbooked]),
+    permission: "bookings:write",
+    transactional: true,
+  }),
+);
 
 const routes = [
-  route(showBooking, "GET /bookings/:id"),
-  route(findBookings, "GET /bookings"),
-  route(renameGuest, "PATCH /bookings/:id"),
-  route(cancelBooking, "POST /bookings/:id/cancel"),
-  route(crash),
+  endpoint(showBooking, "GET /bookings/:id"),
+  endpoint(findBookings, "GET /bookings"),
+  endpoint(renameGuest, "PATCH /bookings/:id"),
+  endpoint(cancelBooking, "POST /bookings/:id/cancel"),
+  endpoint(crash),
 ] as const;
-
-const views = {
-  BookingNotFound: problemView(404, "not_found", (error: BookingNotFound) => `No ${error.id}.`),
-  Overbooked: (error: Overbooked) => ({ status: error.nights > 30 ? 422 : 409, body: {} }),
-};
 
 const document = toOpenApi([...routes, endpoint(reserve, "POST /reservations", { status: 201 })], {
   title: "Booking example",
   version: "1.0.0",
   prefix: "/api",
-  views,
   security: { schemes: { session: { type: "apiKey", in: "cookie", name: "session" } } },
 });
 
@@ -79,7 +71,7 @@ it("names the version, the info and the mounted paths with the prefix", () => {
   expect(JSON.parse(JSON.stringify(document))).toEqual(document);
 });
 
-it("a GET takes path and query parameters from the contract's input", () => {
+it("a GET takes path and query parameters from the feature callable's input", () => {
   const show = operation("/api/bookings/{id}", "get");
   expect(show.operationId).toBe("show_booking");
   expect(show.parameters).toEqual([
@@ -116,15 +108,21 @@ it("a write takes the body from the input, without the path keys", () => {
 
 it("lists failures under the status their view always answers, and names no internal tag", () => {
   const show = operation("/api/bookings/{id}", "get").responses;
-  expect(Object.keys(show).sort()).toEqual(["200", "400", "403", "404", "default"]);
+  expect(Object.keys(show).sort()).toEqual(["200", "400", "403", "404", "503", "default"]);
   expect(show["404"]).toEqual({
-    description: "A failure its view answers with 404.",
+    description: "A failure mapped by kind to 404.",
     content: { "application/json": { schema: {} } },
   });
   const reserved = operation("/api/reservations", "post").responses;
-  // Overbooked picks its status per error, so it can only be documented under default.
-  expect(Object.keys(reserved).sort()).toEqual(["201", "400", "403", "404", "503", "default"]);
-  // A view may hide one failure behind another's status; the document must not undo that.
+  expect(Object.keys(reserved).sort()).toEqual([
+    "201",
+    "400",
+    "403",
+    "404",
+    "409",
+    "503",
+    "default",
+  ]);
   expect(JSON.stringify(document)).not.toMatch(
     /BookingNotFound|Forbidden|ApprovalDenied|Overbooked|Refused|InputInvalid|x-failure/u,
   );
@@ -132,39 +130,61 @@ it("lists failures under the status their view always answers, and names no inte
 
 it("names a declared code under the status of the view that exposes it", () => {
   const coded = toOpenApi(
-    [endpoint(showBooking.contract, "GET /bookings/:id", { codes: ["booking_not_found", "gone"] })],
+    [endpoint(showBooking, "GET /bookings/:id", { codes: ["not_found", "gone"] })],
     {
       title: "x",
       version: "1",
-      views: {
-        BookingNotFound: problemView(
-          404,
-          "booking_not_found",
-          (_error: BookingNotFound) => "No booking.",
-          { exposeCode: true },
-        ),
-      },
     },
   );
   const responses = (coded.paths["/bookings/{id}"]?.get as Json).responses as Record<string, Json>;
   expect(responses["404"]).toMatchObject({
-    headers: { [failureCodeHeader]: { schema: { enum: ["booking_not_found"] } } },
+    headers: { [failureCodeHeader]: { schema: { enum: ["not_found"] } } },
   });
-  // "gone" has no view with a fixed status, so only default can carry it.
-  expect(responses.default).toMatchObject({
-    headers: { [failureCodeHeader]: { schema: { enum: ["gone"] } } },
-  });
+  expect(responses.default?.headers).toBeUndefined();
+  expect(JSON.stringify(responses)).not.toContain("gone");
   expect(responses["403"]?.headers).toBeUndefined();
 });
 
-it("declares the caller's security schemes, and drops them for a public contract", () => {
+it("keeps Who security for every endpoint, including a null-permission root", () => {
   expect(document.components.securitySchemes).toEqual({
     session: { type: "apiKey", in: "cookie", name: "session" },
   });
   expect(document.security).toEqual([{ session: [] }]);
-  expect(operation("/api/crash", "post").security).toEqual([]);
+  expect(operation("/api/crash", "post").security).toBeUndefined();
   expect(operation("/api/bookings/{id}", "get").security).toBeUndefined();
   expect(toOpenApi(routes, { title: "x", version: "1" }).security).toBeUndefined();
+});
+
+it("inherits security for a null-permission root with a permissioned closure", () => {
+  const root = featureFixture(
+    defineOperation("show_reservation", {
+      description: "Show a reservation through its child.",
+      input: reserve.input,
+      output: reserve.output,
+      failure: Schema.Never,
+      permission: null,
+      edges: [reserve],
+    }),
+  );
+  const doc = toOpenApi([endpoint(root)], {
+    title: "Reservations",
+    version: "1",
+    security: { schemes: { bearer: { type: "http", scheme: "bearer" } } },
+  });
+  expect(root.closures.person).toEqual(["bookings:write"]);
+  expect(doc.security).toEqual([{ bearer: [] }]);
+  expect(doc.paths["/show_reservation"]?.post?.security).toBeUndefined();
+});
+
+it("rejects the removed OpenAPI wording option in types", () => {
+  const removed = () =>
+    toOpenApi(routes, {
+      title: "x",
+      version: "1",
+      // @ts-expect-error Wording belongs to ways, not OpenAPI generation.
+      overrides: { BookingNotFound: () => "No booking." },
+    });
+  expect(typeof removed).toBe("function");
 });
 
 it("every $ref points at a component", () => {
@@ -179,7 +199,7 @@ it("every $ref points at a component", () => {
 
 it("refuses two operations on one method and path", () => {
   expect(() =>
-    toOpenApi([route(showBooking, "GET /x"), route(showBooking, "GET /x")], {
+    toOpenApi([endpoint(showBooking, "GET /x"), endpoint(showBooking, "GET /x")], {
       title: "x",
       version: "1",
     }),

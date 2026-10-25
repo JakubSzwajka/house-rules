@@ -6,13 +6,14 @@ import {
   HttpClientRequest,
   type HttpClientResponse,
 } from "effect/http";
-import type { AnyContract } from "../contract/contract.ts";
+import type { AnyFeature } from "../feature/feature.ts";
 import {
-  type EndpointShape,
+  type Endpoint,
   failureCodeHeader,
   pathParamNames,
   writeMethods,
 } from "../contract/endpoint.ts";
+import { type BodyOf, bodySchemaOf, type SessionRole } from "../contract/session.ts";
 import { onBaseOrigin, pathStaysOn, type RequestBase, requestBaseOf } from "./base-origin.ts";
 
 export type ClientFailureCode<Code extends string> = Code | "Unknown";
@@ -25,18 +26,23 @@ export class HttpFailure extends Schema.TaggedError<HttpFailure>()("HttpFailure"
 
 export type HttpFailureOf<Code extends string> = HttpFailure & { readonly code: Code };
 
-export type ClientCall<C extends AnyContract, Code extends string = never> = (
-  input: C["input"]["Type"],
+export type ClientCall<
+  E extends AnyFeature,
+  Code extends string = never,
+  Session extends SessionRole = "none",
+> = (
+  input: E["input"]["Type"],
 ) => Effect.Effect<
-  C["output"]["Type"],
+  BodyOf<E, Session>,
   HttpFailureOf<ClientFailureCode<Code>> | HttpClientError.HttpClientError,
   HttpClient.HttpClient
 >;
 
-export type HttpClientOf<Endpoints extends ReadonlyArray<EndpointShape>> = {
-  readonly [E in Endpoints[number] as E["contract"]["name"]]: ClientCall<
-    E["contract"],
-    E["codes"][number]
+export type HttpClientOf<Endpoints extends ReadonlyArray<Endpoint>> = {
+  readonly [E in Endpoints[number] as E["feature"]["name"]]: ClientCall<
+    E["feature"],
+    E["codes"][number],
+    E["session"]
   >;
 };
 
@@ -80,12 +86,14 @@ export type CallOptions = Readonly<{
   base: () => RequestBase | undefined;
 }>;
 
-export const callOf = (shape: EndpointShape, options: CallOptions) => {
-  const { contract, method, path, status, codes } = shape;
+export const callOf = (shape: Endpoint, options: CallOptions) => {
+  const { feature, method, path, status, codes } = shape;
+  const contract = feature;
   const params = pathParamNames(shape);
   const json = Schema.toCodecJson(contract.input) as unknown as Codec;
   const strings = Schema.toCodecStringTree(contract.input) as unknown as Codec;
-  const output = Schema.toCodecJson(contract.output) as unknown as Codec;
+  // A session issue route answers without the token, which went into the cookie.
+  const output = Schema.toCodecJson(bodySchemaOf(feature, shape.session)) as unknown as Codec;
   const write = writeMethods.has(method);
   // Nothing went out: the same status 0 a network failure has.
   const unsent = (reason: string) =>
@@ -161,18 +169,18 @@ export const callOf = (shape: EndpointShape, options: CallOptions) => {
     });
 };
 
-export const toHttpClient = <const Endpoints extends ReadonlyArray<EndpointShape>>(
+export const toHttpClient = <const Endpoints extends ReadonlyArray<Endpoint>>(
   endpoints: Endpoints,
   options: HttpClientOptions = {},
 ): HttpClientOf<Endpoints> => {
   const base = requestBaseOf("toHttpClient", options.baseUrl);
   const client: Record<string, unknown> = {};
   for (const shape of endpoints) {
-    if (Object.hasOwn(client, shape.contract.name)) {
+    if (Object.hasOwn(client, shape.feature.name)) {
       // Build time, not a call: two endpoints under one name would make one of them unreachable.
-      throw new TypeError(`toHttpClient: ${shape.contract.name} is listed twice`);
+      throw new TypeError(`toHttpClient: ${shape.feature.name} is listed twice`);
     }
-    client[shape.contract.name] = callOf(shape, {
+    client[shape.feature.name] = callOf(shape, {
       ...(options.prefix === undefined ? {} : { prefix: options.prefix }),
       base,
     });

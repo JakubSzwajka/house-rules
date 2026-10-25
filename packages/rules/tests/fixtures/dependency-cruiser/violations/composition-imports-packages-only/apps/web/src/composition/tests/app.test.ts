@@ -1,2 +1,2 @@
-import { show } from "../../use-cases/show";
+import { show } from "../../features/show/handler";
 export const checked = show;

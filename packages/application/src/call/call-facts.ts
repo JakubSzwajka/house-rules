@@ -1,11 +1,12 @@
 import { Context, Effect, Option } from "effect";
 import { McpSchema } from "effect/ai";
-import type { AnyContract } from "../contract/contract.ts";
+import type { AnyFeature } from "../feature/feature.ts";
 
 export type CallKind = "read" | "write";
 
 export type CallFacts = Readonly<{
   kind: CallKind;
+  target: string;
   targetId: string | null;
   channel: string;
   requestId: string | null;
@@ -37,22 +38,15 @@ export const mcpChannel = (clientName: string | undefined): string => {
 export const isMcpChannel = (channel: string): boolean =>
   channel === "mcp" || channel.startsWith("mcp:");
 
-export const unknownCallFacts = (contract: AnyContract): CallFacts => ({
-  kind: contract.annotations.readOnly ? "read" : "write",
+export const unknownCallFacts = (feature: AnyFeature): CallFacts => ({
+  kind: feature.readOnly ? "read" : "write",
+  target: feature.name,
   targetId: null,
   channel: "unknown",
   requestId: null,
 });
 
-const targetIdOf = (contract: AnyContract, input: unknown): string | null => {
-  const field = contract.audit?.target;
-  if (field === undefined || typeof input !== "object" || input === null) return null;
-  if (!Object.hasOwn(input, field)) return null;
-  const value: unknown = (input as Record<string, unknown>)[field];
-  return typeof value === "string" ? value.slice(0, maxTargetIdLength) : null;
-};
-
-export const callFactsOf = (contract: AnyContract, input: unknown): Effect.Effect<CallFacts> =>
+export const callFactsOf = (feature: AnyFeature): Effect.Effect<CallFacts> =>
   Effect.gen(function* callFacts() {
     // The MCP server provides McpRequestContext to every tool call, so an MCP call wins over the app's channel.
     const mcp = yield* Effect.serviceOption(McpSchema.McpRequestContext);
@@ -60,8 +54,9 @@ export const callFactsOf = (contract: AnyContract, input: unknown): Effect.Effec
       ? mcpChannel(mcp.value.clientInfo?.name)
       : yield* CallChannel;
     return {
-      kind: contract.annotations.readOnly ? "read" : "write",
-      targetId: targetIdOf(contract, input),
+      kind: feature.readOnly ? "read" : "write",
+      target: feature.name,
+      targetId: null,
       channel,
       requestId: yield* CallRequestId,
     };

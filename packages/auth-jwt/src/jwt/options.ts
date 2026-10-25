@@ -6,10 +6,14 @@ export type AuthJwtOptions = Readonly<{
   jwksUrl?: string;
   clockTolerance?: number;
   jwks?: JSONWebKeySet;
+  authorizedParties?: ReadonlyArray<string>;
+  rejectPending?: boolean;
 }>;
 
 export type ClerkOptions = Readonly<{
   publishableKey: string;
+  authorizedParties: ReadonlyArray<string>;
+  rejectPending?: boolean;
   audience?: string;
   clockTolerance?: number;
   jwks?: JSONWebKeySet;

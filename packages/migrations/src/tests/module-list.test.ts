@@ -32,6 +32,22 @@ layer(NodeServices.layer)("Migrations, the module list", (it) => {
     }),
   );
 
+  it.effect("rejects removed folder locations, including mixed package entries", () =>
+    Effect.gen(function* () {
+      for (const entry of [
+        { folder: "local/orders" },
+        { folder: "local/orders", workspace: "packages/alpha" },
+      ]) {
+        const error = yield* listError({
+          "migrations.json": JSON.stringify({ modules: [entry] }),
+        });
+        expect(error.message).toContain(
+          '"folder" locations are not supported; domain modules are packages',
+        );
+      }
+    }),
+  );
+
   it.effect("refuses an entry with both workspace and package", () =>
     Effect.gen(function* both() {
       const error = yield* listError({
@@ -40,7 +56,7 @@ layer(NodeServices.layer)("Migrations, the module list", (it) => {
           modules: [{ workspace: "packages/alpha", package: "@vendor/beta" }],
         }),
       });
-      expect(error.message).toContain('exactly one of "workspace" or "package"');
+      expect(error.message).toContain('exactly one non-empty "workspace" or "package"');
     }),
   );
 
@@ -105,6 +121,7 @@ layer(NodeServices.layer)("Migrations, the module list", (it) => {
         "packages/gamma/package.json": JSON.stringify({
           houseRules: { migrations: "./migrations" },
         }),
+        "packages/gamma/migrations/0001_gamma.sql": "create table gamma (id integer);\n",
       });
       const modules = yield* Migrations.readModuleList(app.list);
       expect(modules.map((module) => module.name)).toEqual(["gamma"]);

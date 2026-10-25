@@ -1,29 +1,22 @@
-import { afterAll, expect, it } from "@effect/vitest";
-import { Effect, Schema } from "effect";
+import { featureFixture } from "./feature-fixtures.ts";
+import { afterAll, expect, expectTypeOf, it } from "@effect/vitest";
+import { defineOperation, errorKind, NoInput } from "@house-rules/domain";
+import { Effect, Logger, References, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import {
+  defineWay,
   endpoint,
   failureCodeHeader,
-  type Forbidden,
   HttpFailure,
-  problem,
-  problemView,
-  route,
-  toFetchHandler,
+  Refused,
   toHttpClient,
+  type WordingOverrides,
 } from "../index.ts";
-import {
-  answer,
-  bearerCallerFor,
-  type BookingNotFound,
-  makeApp,
-  renameGuest,
-  webRequest,
-} from "./delivery-fixtures.ts";
-
-const t = makeApp();
-afterAll(() => t.dispose());
-
+import { answer, BookingNotFound, makeApp, renameGuest, webRequest } from "./delivery-fixtures.ts";
+import { bindFixture } from "./execution-fixtures.ts";
+import { httpFixture } from "./router-fixtures.ts";
+const disposers: Array<() => Promise<void>> = [];
+afterAll(() => Promise.all(disposers.map((dispose) => dispose())));
 const answerOf = (handler: (request: Request) => Promise<Response>, token: string, id: string) =>
   answer(
     handler,
@@ -39,142 +32,208 @@ const answerOf = (handler: (request: Request) => Promise<Response>, token: strin
       body,
     })),
   );
-
 it.effect(
-  "a view that hides Forbidden as a 404 sends nothing that tells it from a missing record",
+  "object privacy sends the same 404 for another person's record and a missing record",
   () =>
-    Effect.gen(function* concealed() {
-      const notFound = (_error: unknown) => "Not found.";
-      const api = toFetchHandler(t.app, {
-        caller: bearerCallerFor(t.work),
-        views: {
-          Forbidden: problemView(404, "not_found", (error: Forbidden) => notFound(error)),
-          BookingNotFound: problemView(404, "not_found", (error: BookingNotFound) =>
-            notFound(error),
-          ),
-        },
-        routes: [route(renameGuest, "PATCH /bookings/:id")],
+    Effect.gen(function* () {
+      const fixture = makeApp({
+        path: "/",
+        endpoints: [endpoint(renameGuest, "PATCH /bookings/:id")],
+        overrides: { BookingNotFound: () => "Not found." },
       });
-      const forbidden = yield* answerOf(api, "tok-ada-read", "b-1");
-      const missing = yield* answerOf(api, "tok-ada", "missing");
-      yield* Effect.promise(() => api.dispose());
-      expect(forbidden.status).toBe(404);
-      expect(forbidden).toEqual(missing);
-      expect(Object.keys(forbidden.headers).filter((name) => name.startsWith("x-failure"))).toEqual(
-        [],
+      disposers.push(fixture.dispose);
+      const other = yield* answerOf(fixture.router, "tok-ada", "b-3");
+      const missing = yield* answerOf(fixture.router, "tok-ada", "missing");
+      expect(other.status).toBe(404);
+      expect(other).toEqual(missing);
+      expect(Object.keys(other.headers).filter((name) => name.startsWith("x-failure"))).toEqual([]);
+      expect(JSON.stringify(other)).not.toContain("BookingNotFound");
+    }),
+);
+const renameAt = endpoint(renameGuest, "PATCH /bookings/:id", { codes: ["not_found"] });
+it.effect("only a kind code declared by the endpoint is disclosed", () =>
+  Effect.gen(function* () {
+    const fixture = makeApp({
+      path: "/",
+      endpoints: [renameAt],
+      overrides: { BookingNotFound: () => "Not found." },
+    });
+    disposers.push(fixture.dispose);
+    const missing = yield* answerOf(fixture.router, "tok-ada", "missing");
+    const denied = yield* answerOf(fixture.router, "tok-ada-read", "b-1");
+    expect(missing.headers[failureCodeHeader]).toBe("not_found");
+    expect(denied.status).toBe(403);
+    expect(denied.headers[failureCodeHeader]).toBeUndefined();
+  }),
+);
+it.effect(
+  "a forged object-returning wording override is a generic logged 500, never a new body",
+  () =>
+    Effect.gen(function* () {
+      const logs: Array<{
+        message: unknown;
+        cause: unknown;
+        annotations: Readonly<Record<string, unknown>>;
+      }> = [];
+      const missingBooking = bindFixture(
+        featureFixture(
+          defineOperation("missing_booking", {
+            description: "Report a missing booking.",
+            input: Schema.Struct({ id: Schema.String, guestName: Schema.String }),
+            output: Schema.Struct({ id: Schema.String }),
+            failure: BookingNotFound,
+            permission: "bookings:write",
+          }),
+        ),
+        ({ id }) => Effect.fail(new BookingNotFound({ id })),
+      );
+      const broken = httpFixture([missingBooking], {
+        endpoints: [endpoint(missingBooking, "PATCH /bookings/:id", { codes: ["not_found"] })],
+        extra: Logger.layer([
+          Logger.make(({ message, cause, fiber }) => {
+            logs.push({
+              message,
+              cause,
+              annotations: fiber.getRef(References.CurrentLogAnnotations),
+            });
+          }),
+        ]),
+        overrides: {
+          BookingNotFound: (() => ({
+            status: 500,
+            code: "secret_reason",
+            body: "secret",
+          })) as unknown as (error: BookingNotFound) => string,
+        },
+      });
+      disposers.push(broken.dispose);
+      const result = yield* answer(
+        broken.handler,
+        webRequest("https://app.example/bookings/missing", {
+          method: "PATCH",
+          headers: { authorization: "Bearer tok-ada", "x-request-id": "view-500" },
+          body: JSON.stringify({ guestName: "Mallory" }),
+        }),
+      );
+      expect(result.status).toBe(500);
+      expect(result.body).toEqual({
+        error: { code: "internal_error", message: "Something went wrong on the server." },
+      });
+      expect(JSON.stringify(result.body)).not.toMatch(/secret_reason|secret/u);
+      expect(result.headers.get(failureCodeHeader)).toBeNull();
+      expect(result.headers.get("x-request-id")).toBe("view-500");
+      expect(logs).toContainEqual(
+        expect.objectContaining({
+          message: expect.arrayContaining(["A wording override failed"]),
+          cause: expect.objectContaining({
+            reasons: expect.arrayContaining([
+              expect.objectContaining({
+                _tag: "Die",
+                defect: new TypeError("A wording override must return a string"),
+              }),
+            ]),
+          }),
+          annotations: expect.objectContaining({ requestId: "view-500" }),
+        }),
       );
     }),
 );
-
-const renameAt = endpoint(renameGuest.contract, "PATCH /bookings/:id", {
-  codes: ["booking_not_found"],
-});
-
-it.effect("a view opts in to a public code, and only a code the endpoint declares goes out", () =>
-  Effect.gen(function* optIn() {
-    const api = toFetchHandler(t.app, {
-      caller: bearerCallerFor(t.work),
-      views: {
-        Forbidden: problemView(403, "forbidden", (_error: Forbidden) => "No.", {
-          exposeCode: true,
-        }),
-        BookingNotFound: problemView(
-          404,
-          "booking_not_found",
-          (_error: BookingNotFound) => "Not found.",
-          { exposeCode: true },
-        ),
-      },
-      routes: [route(renameGuest, renameAt)],
-    });
-    const missing = yield* answerOf(api, "tok-ada", "missing");
-    const forbidden = yield* answerOf(api, "tok-ada-read", "b-1");
-    yield* Effect.promise(() => api.dispose());
-    expect(missing.headers[failureCodeHeader]).toBe("booking_not_found");
-    // The view exposes "forbidden", but the endpoint does not declare it, so it stays home.
-    expect(forbidden.status).toBe(403);
-    expect(forbidden.headers[failureCodeHeader]).toBeUndefined();
-  }),
+class Offline extends Schema.TaggedError<Offline>()("Offline", { kind: errorKind("unavailable") }) {
+  override get message(): string {
+    return "Temporarily offline.";
+  }
+}
+const offline = bindFixture(
+  featureFixture(
+    defineOperation("offline", {
+      description: "Report unavailability.",
+      input: NoInput,
+      output: Schema.Void,
+      failure: Offline,
+      permission: null,
+    }),
+  ),
+  () => Effect.fail(new Offline()),
 );
-
-const secretAt = endpoint(renameGuest.contract, "PATCH /bookings/:id", {
-  codes: ["secret_reason"],
-});
-
-const secretView = (status: number) => ({
-  BookingNotFound: problemView(status, "secret_reason", (_error: BookingNotFound) => "Not found.", {
-    exposeCode: true,
-  }),
-});
-
-const missingAnswer = (status: number, requestId: string) =>
-  Effect.gen(function* missingWith() {
-    const api = toFetchHandler(t.app, {
-      caller: bearerCallerFor(t.work),
-      views: secretView(status),
-      routes: [route(renameGuest, secretAt)],
+it.effect("an unavailable kind keeps 503 and a string override, but sends no code header", () =>
+  Effect.gen(function* () {
+    const fixture = httpFixture([offline], {
+      endpoints: [endpoint(offline, "POST /offline", { codes: ["unavailable"] })],
+      overrides: { Offline: () => "Try again." },
     });
-    const r = yield* answer(
-      api,
-      webRequest("https://app.example/bookings/missing", {
-        method: "PATCH",
-        headers: {
-          authorization: "Bearer tok-ada",
-          "content-type": "application/json",
-          "x-request-id": requestId,
-        },
-        body: JSON.stringify({ guestName: "Mallory" }),
-      }),
+    disposers.push(fixture.dispose);
+    const result = yield* answer(
+      fixture.handler,
+      webRequest("https://app.example/offline", { method: "POST", body: "{}" }),
     );
-    yield* Effect.promise(() => api.dispose());
-    return r;
-  });
-
-it.effect("a view that answers 500 sends the generic internal_error and logs its own body", () =>
-  Effect.gen(function* reserved500() {
-    const r = yield* missingAnswer(500, "view-500");
-    expect(r.status).toBe(500);
-    expect(r.body).toEqual({
-      error: { code: "internal_error", message: "Something went wrong on the server." },
-    });
-    expect(JSON.stringify(r.body)).not.toMatch(/secret_reason/u);
-    expect(r.headers.get(failureCodeHeader)).toBeNull();
-    expect(r.headers.get("x-request-id")).toBe("view-500");
-    expect(t.logs).toContainEqual({
-      message: expect.arrayContaining([
-        expect.stringContaining("A view answered 500"),
-        expect.objectContaining({
-          body: { error: { code: "secret_reason", message: "Not found." } },
-        }),
-      ]),
-      annotations: expect.objectContaining({ requestId: "view-500" }),
-    });
+    expect(result.status).toBe(503);
+    expect(result.body).toEqual({ error: { code: "unavailable", message: "Try again." } });
+    expect(result.headers.get(failureCodeHeader)).toBeNull();
   }),
 );
-
-it.effect("a view's other 5xx keeps the body its author wrote", () =>
-  Effect.gen(function* other5xx() {
-    const r = yield* missingAnswer(503, "view-503");
-    expect(r.status).toBe(503);
-    expect(r.body).toEqual({ error: { code: "secret_reason", message: "Not found." } });
-    expect(r.headers.get(failureCodeHeader)).toBeNull();
-  }),
-);
-
-it("the types refuse a literal 500 in a view", () => {
-  // @ts-expect-error status 500 is reserved for defects
-  expect(() => problemView(500, "x", () => "x")).not.toThrow();
-  // @ts-expect-error status 500 is reserved for defects
-  expect(problem(500, "x", "x").status).toBe(500);
-  // @ts-expect-error a union that holds 500 is refused too
-  expect(problem(500 as 404 | 500, "x", "x").status).toBe(500);
-  expect(problem(503, "unavailable", "x").status).toBe(503);
+it("wording override types refuse status, code, unknown tags and the wrong error", () => {
+  const fixture = httpFixture([offline], { endpoints: [endpoint(offline)] });
+  disposers.push(fixture.dispose);
+  const object = () =>
+    defineWay({
+      ...fixture.way,
+      overrides: {
+        // @ts-expect-error An override returns only message text, never status or code.
+        Offline: () => ({ status: 500, code: "secret" }),
+      },
+    });
+  const unknown = () =>
+    defineWay({
+      ...fixture.way,
+      overrides: {
+        // @ts-expect-error No reachable failure has this tag.
+        Other: () => "x",
+      },
+    });
+  expectTypeOf<(error: BookingNotFound) => string>().not.toExtend<
+    NonNullable<WordingOverrides<Offline>["Offline"]>
+  >();
+  expect([typeof object, typeof unknown]).toEqual(["function", "function"]);
 });
+it.effect("a callable cannot use a transport Refused to replace its kind status or code", () =>
+  Effect.gen(function* () {
+    const feature = bindFixture(
+      featureFixture(
+        defineOperation("node_refusal", {
+          description: "Refuse as a callable.",
+          input: NoInput,
+          output: Schema.Void,
+          failure: Refused,
+          permission: null,
+        }),
+      ),
+      () =>
+        Effect.fail(
+          new Refused({
+            status: 418,
+            code: "private_code",
+            message: "No.",
+            challenge: "private challenge",
+          }),
+        ),
+    );
+    const fixture = httpFixture([feature], {
+      endpoints: [endpoint(feature, "POST /refuse", { codes: ["forbidden"] })],
+    });
+    disposers.push(fixture.dispose);
+    const result = yield* answer(
+      fixture.handler,
+      webRequest("https://app.example/refuse", { method: "POST", body: "{}" }),
+    );
+    expect(result.status).toBe(403);
+    expect(result.body).toEqual({ error: { code: "forbidden", message: "No." } });
+    expect(result.headers.get(failureCodeHeader)).toBe("forbidden");
+    expect(result.headers.has("www-authenticate")).toBe(false);
+  }),
+);
 
 const reply = (status: number, headers: Record<string, string>): Response =>
-  // This workspace loads two @types/node versions, so the Response constructor and type differ.
   new Response("{}", { status, headers }) as Response;
-
 const clientAnswering = (response: () => Response) =>
   Effect.flip(
     toHttpClient([renameAt], { baseUrl: "https://app.example" }).rename_guest({
@@ -185,21 +244,23 @@ const clientAnswering = (response: () => Response) =>
     Effect.provide(FetchHttpClient.layer),
     Effect.provideService(FetchHttpClient.Fetch, () => Promise.resolve(response())),
   );
-
-it.effect("the client keeps a declared code, and calls a foreign code or a 5xx Unknown", () =>
-  Effect.gen(function* normalised() {
-    const declared = yield* clientAnswering(() =>
-      reply(404, { [failureCodeHeader]: "booking_not_found" }),
-    );
-    expect(Schema.is(HttpFailure)(declared)).toBe(true);
-    expect(declared).toMatchObject({ code: "booking_not_found", status: 404 });
-    const foreign = yield* clientAnswering(() => reply(404, { [failureCodeHeader]: "ForeignTag" }));
-    expect(foreign).toMatchObject({ code: "Unknown", status: 404 });
-    const crashed = yield* clientAnswering(() =>
-      reply(500, { [failureCodeHeader]: "booking_not_found" }),
-    );
-    expect(crashed).toMatchObject({ code: "Unknown", status: 500 });
-    const legacy = yield* clientAnswering(() => reply(403, { "x-failure-tag": "Forbidden" }));
-    expect(legacy).toMatchObject({ code: "Unknown", status: 403 });
-  }),
+it.effect(
+  "the client accepts a declared 4xx code but ignores foreign, legacy and 5xx headers",
+  () =>
+    Effect.gen(function* () {
+      const declared = yield* clientAnswering(() =>
+        reply(404, { [failureCodeHeader]: "not_found" }),
+      );
+      expect(Schema.is(HttpFailure)(declared)).toBe(true);
+      expect(declared).toMatchObject({ code: "not_found", status: 404 });
+      expect(
+        yield* clientAnswering(() => reply(404, { [failureCodeHeader]: "ForeignTag" })),
+      ).toMatchObject({ code: "Unknown", status: 404 });
+      expect(
+        yield* clientAnswering(() => reply(500, { [failureCodeHeader]: "not_found" })),
+      ).toMatchObject({ code: "Unknown", status: 500 });
+      expect(
+        yield* clientAnswering(() => reply(403, { "x-failure-tag": "Forbidden" })),
+      ).toMatchObject({ code: "Unknown", status: 403 });
+    }),
 );

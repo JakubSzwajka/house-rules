@@ -1,20 +1,16 @@
 import { afterAll, expect, it, vi } from "@effect/vitest";
 import { Effect, Schema } from "effect";
 import {
-  type CallEntry,
+  type CallReport,
   defineApi,
   endpoint,
   HttpFailure,
-  mount,
   type PromiseClientOptions,
   type PromiseFailureOf,
-  problemView,
   toFetchHandler,
   toPromiseClient,
 } from "../index.ts";
 import {
-  bearerCallerFor,
-  type BookingNotFound,
   crash,
   findBookings,
   makeApp,
@@ -26,26 +22,15 @@ import {
 const api = defineApi(
   { prefix: "/api" },
   {
-    showBooking: endpoint(showBooking.contract, "GET /bookings/:id", { codes: ["not_found"] }),
-    findBookings: endpoint(findBookings.contract, "GET /bookings"),
-    renameGuest: endpoint(renameGuest.contract, "PATCH /bookings/:id"),
-    crash: endpoint(crash.contract),
+    showBooking: endpoint(showBooking, "GET /bookings/:id", { codes: ["not_found"] }),
+    findBookings: endpoint(findBookings, "GET /bookings"),
+    renameGuest: endpoint(renameGuest, "PATCH /bookings/:id"),
+    crash: endpoint(crash),
   },
 );
 
-const t = makeApp();
-const handler = toFetchHandler(t.app, {
-  caller: bearerCallerFor(t.work),
-  views: {
-    BookingNotFound: problemView(
-      404,
-      "not_found",
-      (error: BookingNotFound) => `Booking ${error.id} was not found.`,
-      { exposeCode: true },
-    ),
-  },
-  routes: mount(api, { showBooking, findBookings, renameGuest, crash }),
-});
+const t = makeApp({ endpoints: Object.values(api.endpoints) });
+const handler = toFetchHandler(t.app);
 afterAll(() => handler.dispose().then(t.dispose));
 
 const seen: Array<Headers> = [];
@@ -148,13 +133,13 @@ it.effect("the token goes out as Authorization: Bearer, and none goes out withou
 
 it.effect("onCall reports every call, with its failure code", () =>
   Effect.gen(function* report() {
-    const entries: Array<CallEntry> = [];
-    const client = clientWith({ onCall: (entry) => entries.push(entry) });
+    const features: Array<CallReport> = [];
+    const client = clientWith({ onCall: (feature) => features.push(feature) });
     yield* Effect.promise(() => client.showBooking({ id: "b 1" }).catch(() => undefined));
     yield* Effect.promise(() => client.findBookings({ by: "guest", guest: "Ada" }));
     yield* failureOf(() => client.showBooking({ id: "missing" }));
     yield* failureOf(() => client.crash({}));
-    expect(entries.map(({ ms: _ms, ...entry }) => entry)).toEqual([
+    expect(features.map(({ ms: _ms, requestId: _id, ...feature }) => feature)).toEqual([
       {
         name: "show_booking",
         method: "GET",
@@ -177,7 +162,7 @@ it.effect("onCall reports every call, with its failure code", () =>
       },
       { name: "crash", method: "POST", path: "/api/crash", status: 500, code: "Unknown" },
     ]);
-    expect(entries.every((entry) => Number.isInteger(entry.ms) && entry.ms >= 0)).toBe(true);
+    expect(features.every((feature) => Number.isInteger(feature.ms) && feature.ms >= 0)).toBe(true);
   }),
 );
 

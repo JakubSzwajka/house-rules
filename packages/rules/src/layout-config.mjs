@@ -11,7 +11,7 @@ export function layoutConfigPath(workspace) {
 
 export function loadLayoutConfig(workspace) {
   const configPath = layoutConfigPath(workspace);
-  const config = createRequire(import.meta.url)(configPath);
+  const config = createRequire(path.join(workspace, "package.json"))("./.dependency-cruiser.cjs");
   if (!Array.isArray(config?.forbidden) || typeof config.options !== "object") {
     throw new Error(`${configPath} must export a Dependency Cruiser layout config`);
   }

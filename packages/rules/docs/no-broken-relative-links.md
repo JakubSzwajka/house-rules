@@ -2,15 +2,15 @@
 
 Rule ID: `house-rules/no-broken-relative-links`
 
-The rule runs on the `@eslint/markdown` language. It reports a Markdown link, image, or link reference definition when its relative target is not a path that git tracks in the repository that holds the linted file. Use the `@house-rules/rules/markdown` preset to enable it.
+The rule runs on the `@eslint/markdown` language. A relative Markdown link, image or link reference definition must name an existing regular file inside the repository. Tracked files and non-ignored untracked files count. Missing files, ignored paths, outside-repository targets and directories fail. Use the `@house-rules/rules/markdown` preset to enable it.
 
 ```md
-See the [setup guide](./setup.md).        <!-- passes when docs/setup.md is tracked -->
-See the [old guide](./old-setup.md).      <!-- reported: no tracked docs/old-setup.md -->
+See the [setup guide](./setup.md).        <!-- passes when tracked or non-ignored untracked -->
+See the [old guide](./old-setup.md).      <!-- reported: docs/old-setup.md is missing -->
 See the [setup guide](./SETUP.md).        <!-- reported: case differs from docs/setup.md -->
 ```
 
-The message names the target as written: `Broken relative link "./old-setup.md": no tracked file or directory at that path.` The report covers the whole link, image, or definition node.
+The message names the target as written: `Broken relative link "./old-setup.md": no eligible file at that path.` The report covers the whole link, image, or definition node.
 
 ## What the rule checks
 
@@ -29,27 +29,27 @@ For every other target, the rule drops the `#fragment` and `?query`, decodes per
 - A target starting with `/` resolves from the repository root.
 - Any other target resolves from the linted file's directory.
 - A target that climbs out of the repository root is broken.
-- A directory target passes, with or without a trailing slash, when git tracks at least one file under it.
+- A directory target fails, with or without a trailing slash, even when it contains tracked files.
+- A file symlink passes only when every alias and its final regular file are eligible, with exact case, inside the repository and the configured link root. Dangling links, cycles and aliases to ignored or outside targets fail. Children reached through a directory symlink are not listed candidates and fail.
 
 The rule does not check fragments against headings. Raw HTML `href` and `src` attributes are not checked either.
 
-## Why only tracked paths count
+## Check before commit
 
-The rule reads `git ls-files` for the repository, not the disk. Two cases make the disk misleading:
+The rule gets candidates from `git ls-files --cached --others --exclude-standard`. It also removes tracked paths matched by Git's ignore rules. A candidate must still exist on disk as a regular file. Listing a deleted file in the index does not make it pass.
 
-1. macOS file systems are case-insensitive by default, so `./SETUP.md` opens `setup.md` locally and then fails on a Linux CI runner.
-2. CI checks out committed files only, so a link to a file you have not added yet works on your machine and breaks everywhere else.
+New non-ignored guides can pass before staging. This proves the links in the working checkout, not that every target is committed. CI and `pnpm acceptance`, which checks a clean clone of committed HEAD, catch links to files left out of the commit. Commit each linked file with its caller.
 
-The rule uses the index, so a file you `git add` counts before you commit it. The comparison is exact and case-sensitive.
+Path comparisons are exact and case-sensitive, even on a case-insensitive disk. So `./SETUP.md` cannot pass for `setup.md` locally and then fail on Linux.
 
-The rule finds the repository with `git rev-parse --show-toplevel` from the linted file's directory. It runs `git ls-files` once per repository root and caches the result. Before each lookup it checks the index file, found with `git rev-parse --git-path index`, so worktrees and submodules work too. When the index changes, the rule runs `git ls-files` again. So in a long-running process such as an editor language server, `git add`, `git mv` and `git rm` take effect on the next lint without a restart. Before the first `git add` there is no index, and every target counts as broken.
+The rule finds the repository with `git rev-parse --show-toplevel` from the linted file's directory, including linked worktrees. It refreshes candidates and tracked ignores once per linted file. Creating, renaming or deleting a file, or changing ignore rules, takes effect on the next lint without staging or restarting the editor. No index is needed. A failed listing in a known Git repository fails closed, with no filesystem fallback.
 
 ## Outside a git repository
 
 When the linted file is not inside a git repository, or `git` is not installed, the rule does not crash. It falls back to the file system:
 
 - `/` targets resolve from ESLint's working directory (`cwd`).
-- A target counts when it exists on disk with the exact case of every path segment.
+- A target counts when it exists on disk with the exact case of every path segment. This existing fallback still accepts directories and does not apply Git ignore rules.
 - A target that climbs out of `cwd` is broken.
 - A file outside `cwd` is not checked.
 

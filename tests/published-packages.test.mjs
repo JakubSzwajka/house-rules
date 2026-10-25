@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { assertPackedComments } from "../scripts/packed-comments.mjs";
+import { parseWorkflow, PR_PATHS } from "./publish-workflow-assertions.mjs";
 
 const BUILT = [
   "domain",
@@ -13,8 +14,23 @@ const BUILT = [
   "call-audit",
   "comments",
   "node-host",
+  "work-items",
+  "notes",
+  "relations",
+  "event-log",
+  "contacts",
+  "notifications",
+  "push",
+  "email",
+  "projects",
 ];
-const WITH_MIGRATIONS = ["call-audit", "comments", "identity", "party"];
+const WITH_MIGRATIONS = [
+  "call-audit",
+  "comments",
+  "identity",
+  "party",
+  ...BUILT.slice(9).filter((folder) => folder !== "email"),
+];
 const PUBLISHED = [...BUILT, "rules"];
 const DOCS = new Set(["AGENTS.md", "README.md"]);
 
@@ -58,8 +74,8 @@ describe("published packages", () => {
   }
 
   it("the kits and the additions peer on exact kit versions and Effect 4.0.3", () => {
-    const kits = { "@house-rules/application": "0.2.0", "@house-rules/domain": "0.1.0" };
-    assert.equal(manifest("domain").version, "0.1.0");
+    const kits = { "@house-rules/application": "0.2.0", "@house-rules/domain": "0.2.0" };
+    assert.equal(manifest("domain").version, "0.2.0");
     assert.equal(manifest("application").version, "0.2.0");
     assert.equal(manifest("comments").version, "0.2.0");
     assert.equal(manifest("call-audit").version, "0.7.0");
@@ -68,7 +84,7 @@ describe("published packages", () => {
     }
     assert.deepEqual(manifest("domain").peerDependencies, { effect: "4.0.3" });
     assert.deepEqual(manifest("application").peerDependencies, {
-      "@house-rules/domain": "0.1.0",
+      "@house-rules/domain": "0.2.0",
       effect: "4.0.3",
     });
     for (const folder of ["comments", "auth-jwt", "identity", "party"]) {
@@ -123,7 +139,47 @@ describe("published packages", () => {
     );
   });
 
-  it("CI runs the packed consumer", () => {
-    assert.match(read(".github/workflows/ci.yml"), /^\s+- run: pnpm run packed-consumer$/mu);
+  it("every PR keeps the full CI gate without a duplicate publish verification", () => {
+    const ci = parseWorkflow(read(".github/workflows/ci.yml"));
+    assert.deepEqual(ci.on, { pull_request: null, push: { branches: ["main"] } });
+    assert.deepEqual(ci.concurrency, {
+      group: "ci-${{ github.ref }}",
+      "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
+    });
+    assert.equal(ci.jobs.check["timeout-minutes"], 30);
+    const steps = ci.jobs.check.steps;
+    for (const command of [
+      "pnpm check",
+      "pnpm test",
+      "pnpm run packed-consumer",
+      "pnpm --filter @example/api build",
+      "pnpm --filter @house-rules/site build",
+    ]) {
+      const matches = steps.filter((step) => step.run === command);
+      assert.equal(matches.length, 1, command);
+      assert.equal(matches[0].if, undefined, command);
+      assert.equal(matches[0]["continue-on-error"], undefined, command);
+    }
+    assert.deepEqual(steps.find((step) => step.run === "pnpm test").env, {
+      TURBO_CONCURRENCY: "2",
+    });
+    assert.deepEqual(
+      parseWorkflow(read(".github/workflows/publish.yml")).on.pull_request.paths,
+      PR_PATHS,
+    );
+  });
+
+  it("CI and publish verification always report slow tests without failing the job", () => {
+    for (const [file, job] of [
+      ["ci", "check"],
+      ["publish", "verify"],
+    ]) {
+      const steps = parseWorkflow(read(`.github/workflows/${file}.yml`)).jobs[job].steps;
+      const summary = steps.filter((step) => step.run === "node scripts/slow-tests.mjs");
+      assert.equal(summary.length, 1);
+      assert.equal(summary[0].if, "always()");
+      assert.equal(summary[0]["continue-on-error"], true);
+      assert.ok(steps.indexOf(summary[0]) > steps.findIndex((step) => step.run === "pnpm test"));
+    }
   });
 });

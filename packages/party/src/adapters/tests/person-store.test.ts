@@ -102,6 +102,42 @@ for (const { name, layer: world } of stores) {
           expect(yield* store.find(erased.id)).toEqual(erased);
         }),
       );
+      it.effect("restores handle ownership on rollback and releases it on erase", () =>
+        Effect.gen(function* () {
+          const store = yield* PersonStore;
+          const original = {
+            ...record("handle-original"),
+            kind: "person" as const,
+            handle: "reusable-handle",
+            createdBy: null,
+            disabledAt: null,
+          };
+          const replacement = { ...original, id: ActorId.make("handle-replacement") };
+          yield* UnitOfWork.atomic(store.insertPrincipal(original));
+          expect(
+            yield* Effect.flip(
+              UnitOfWork.atomic(
+                Effect.gen(function* () {
+                  yield* store.erase(original.id);
+                  expect(yield* store.insertPrincipal(replacement)).toBe(true);
+                  yield* store.rename(replacement.id, "Changed");
+                  yield* store.disable(replacement.id, 1234);
+                  return yield* new Rollback();
+                }),
+              ),
+            ),
+          ).toBeInstanceOf(Rollback);
+          expect(yield* store.principalByHandle(original.handle)).toEqual(original);
+          expect(yield* store.principal(replacement.id)).toBeUndefined();
+          expect(yield* UnitOfWork.atomic(store.insertPrincipal(replacement))).toBe(false);
+          yield* UnitOfWork.atomic(store.erase(original.id));
+          expect(yield* store.principalByHandle(original.handle)).toBeUndefined();
+          expect(yield* UnitOfWork.atomic(store.insertPrincipal(replacement))).toBe(true);
+          expect(yield* UnitOfWork.atomic(store.lockPrincipal(original.handle))).toEqual(
+            replacement,
+          );
+        }),
+      );
       it.effect("reads return independent data", () =>
         Effect.gen(function* () {
           const store = yield* PersonStore;

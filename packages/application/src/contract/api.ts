@@ -1,5 +1,8 @@
 import type { Endpoint } from "./endpoint.ts";
 
+const prefixes = new WeakMap<Endpoint, string>();
+export const prefixOf = (endpoint: Endpoint): string | undefined => prefixes.get(endpoint);
+
 export type ApiEndpoints = Readonly<Record<string, Endpoint>>;
 
 export type ApiOptions = Readonly<{ prefix?: "" | `/${string}` }>;
@@ -15,6 +18,7 @@ const routeKey = (shape: Endpoint): string =>
   `${shape.method} ${shape.path.replace(/\/:[^/]+/gu, "/:")}`;
 
 const plainPrefix = /^(?:\/[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)*$/u;
+export const isPlainPrefix = (prefix: string): boolean => plainPrefix.test(prefix);
 
 const checkedPrefix = (prefix: string | undefined): "" | `/${string}` => {
   if (prefix === undefined) return "";
@@ -27,7 +31,7 @@ const checkedPrefix = (prefix: string | undefined): "" | `/${string}` => {
 
 const plainSegment = /^(?::[A-Za-z_][A-Za-z0-9_]*|[A-Za-z0-9._~-]+)$/u;
 
-const plainPath = (path: string): boolean =>
+export const isPlainPath = (path: string): boolean =>
   path === "/" ||
   (path.startsWith("/") &&
     path
@@ -37,7 +41,7 @@ const plainPath = (path: string): boolean =>
 
 const checkedPath = (key: string, path: string): void => {
   // Definition time, not a request: a URL parser rewrites controls, `\\`, `%` and dot segments, so only plain ones pass.
-  if (!plainPath(path)) {
+  if (!isPlainPath(path)) {
     throw new TypeError(
       `defineApi: ${key} path ${JSON.stringify(path)} is not "/<plain segments>" (letters, digits, . _ ~ - or :name)`,
     );
@@ -54,8 +58,8 @@ export const defineApi = <const Endpoints extends Record<string, Endpoint>>(
   for (const [key, shape] of Object.entries(endpoints)) {
     checkedPath(key, shape.path);
     const at = routeKey(shape);
-    const name = shape.contract.name;
-    // Definition time, not a request: two entries on one address, or one contract twice, cannot both be served.
+    const name = shape.feature.name;
+    // Definition time, not a request: two features on one address, or one contract twice, cannot both be served.
     const route = routes.get(at);
     if (route !== undefined) {
       throw new TypeError(
@@ -64,7 +68,7 @@ export const defineApi = <const Endpoints extends Record<string, Endpoint>>(
     }
     const named = names.get(name);
     if (named !== undefined) {
-      throw new TypeError(`defineApi: ${key} and ${named} both name the contract ${name}`);
+      throw new TypeError(`defineApi: ${key} and ${named} both name the feature ${name}`);
     }
     routes.set(at, key);
     names.set(name, key);
@@ -72,6 +76,14 @@ export const defineApi = <const Endpoints extends Record<string, Endpoint>>(
   return Object.freeze({
     _tag: "Api",
     prefix,
-    endpoints: Object.freeze({ ...endpoints }),
+    endpoints: Object.freeze(
+      Object.fromEntries(
+        Object.entries(endpoints).map(([key, shape]) => {
+          const copy = { ...shape };
+          prefixes.set(copy, prefix);
+          return [key, copy];
+        }),
+      ),
+    ) as Readonly<Endpoints>,
   });
 };

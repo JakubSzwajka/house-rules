@@ -1,1 +1,1 @@
-export { runtime } from "./server/runtime";
+export { runtime } from "@acme/web-runtime";

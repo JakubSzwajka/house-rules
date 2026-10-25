@@ -56,7 +56,12 @@
 	redir /rules/eslint/design-css-layers/ /rules/#design-css-layers 301
 	redir /rules/eslint/design-no-raw-element/ /rules/#design-no-raw-element 301
 	redir /rules/eslint/shadcn/ /rules/#shadcn 301
-	redir /rules/eslint/use-case-is-capability/ /rules/#use-case-is-capability 301
+	redir /rules/eslint/use-case-is-capability/ /rules/#retired-rules 301
+	redir /rules/eslint/node-file/ /rules/#retired-rules 301
+	redir /rules/eslint/entry-from-app-node/ /rules/#retired-rules 301
+	redir /rules/eslint/feature-file/ /rules/#feature-file 301
+	redir /rules/eslint/feature-builders/ /rules/#feature-builders 301
+	redir /rules/eslint/esm-only-effect/ /rules/#esm-only-effect 301
 	redir /rules/eslint/no-hand-rolled-surface/ /rules/#no-hand-rolled-surface 301
 	redir /rules/eslint/no-hand-run-effect/ /rules/#no-hand-run-effect 301
 	redir /rules/eslint/no-computed-import/ /rules/#no-computed-import 301
@@ -67,24 +72,43 @@
 	redir /rules/dependency-cruiser/packages-imported-by-name/ /rules/#packages-imported-by-name 301
 	redir /rules/dependency-cruiser/packages-public-entry-only/ /rules/#packages-public-entry-only 301
 	redir /rules/dependency-cruiser/contract-entry-is-browser-safe/ /rules/#contract-entry-is-browser-safe 301
-	redir /rules/dependency-cruiser/delivery-does-not-import-server/ /rules/#delivery-does-not-import-server 301
-	redir /rules/dependency-cruiser/server-does-not-import-delivery/ /rules/#server-does-not-import-delivery 301
-	redir /rules/dependency-cruiser/use-cases-do-not-import-outer-layers/ /rules/#use-cases-do-not-import-outer-layers 301
-	redir /rules/dependency-cruiser/composition-imports-packages-only/ /rules/#composition-imports-packages-only 301
-	redir /rules/dependency-cruiser/use-cases-do-not-import-composition/ /rules/#use-cases-do-not-import-composition 301
+	redir /rules/dependency-cruiser/delivery-does-not-import-server/ /rules/#retired-v1-rules 301
+	redir /rules/dependency-cruiser/server-does-not-import-delivery/ /rules/#retired-v1-rules 301
+	redir /rules/dependency-cruiser/use-cases-do-not-import-outer-layers/ /rules/#retired-v1-rules 301
+	redir /rules/dependency-cruiser/composition-imports-packages-only/ /rules/#retired-v1-rules 301
+	redir /rules/dependency-cruiser/use-cases-do-not-import-composition/ /rules/#retired-v1-rules 301
 	redir /rules/dependency-cruiser/no-unresolved-deep-package-imports/ /rules/#no-unresolved-deep-package-imports 301
 	redir /rules/dependency-cruiser/production-does-not-import-tests/ /rules/#production-does-not-import-tests 301
 	redir /rules/dependency-cruiser/tests-live-in-tests-dir/ /rules/#tests-live-in-tests-dir 301
 	redir /rules/dependency-cruiser/tests-do-not-import-internals/ /rules/#tests-do-not-import-internals 301
 	redir /rules/dependency-cruiser/no-unresolved-imports/ /rules/#no-unresolved-imports 301
-	redir /rules/dependency-cruiser/app-code-in-layers/ /rules/#app-code-in-layers 301
-	redir /rules/dependency-cruiser/use-cases-do-not-import-use-cases/ /rules/#use-cases-do-not-import-use-cases 301
+	redir /rules/dependency-cruiser/app-code-in-layers/ /rules/#retired-v1-rules 301
+	redir /rules/dependency-cruiser/use-cases-do-not-import-use-cases/ /rules/#retired-v1-rules 301
 	redir /rules/dependency-cruiser/no-ownerless-files/ /rules/#no-ownerless-files 301
 	redir /rules/dependency-cruiser/package-root-files/ /rules/#package-root-files 301
 	redir /rules/dependency-cruiser/domain-does-not-import-adapters/ /rules/#domain-does-not-import-adapters 301
 	redir /rules/dependency-cruiser/subjects-do-not-import-package-root/ /rules/#subjects-do-not-import-package-root 301
 	redir /rules/node/no-subject-folder-cycles/ /rules/#no-subject-folder-cycles 301
 	redir /rules/node/no-package-cycles/ /rules/#no-package-cycles 301
+	redir /rules/node/no-folder-module-cycles/ /rules/#retired-v1-rules 301
+	redir /rules/node/no-app-node-cycles/ /rules/#no-app-feature-cycles 301
+	redir /rules/node/no-app-feature-cycles/ /rules/#no-app-feature-cycles 301
+	redir /rules/dependency-cruiser/domain-imports-no-house-rules/ /rules/#domain-imports-no-house-rules 301
+	redir /rules/dependency-cruiser/application-does-not-import-event-log/ /rules/#application-does-not-import-event-log 301
+	redir /rules/dependency-cruiser/nodes-do-not-import-outer-folders/ /rules/#features-do-not-import-outer-folders 301
+	redir /rules/dependency-cruiser/features-do-not-import-outer-folders/ /rules/#features-do-not-import-outer-folders 301
+	redir /rules/dependency-cruiser/modules-import-modules-and-packages-only/ /rules/#retired-v1-rules 301
+	redir /rules/dependency-cruiser/modules-import-other-modules-through-index/ /rules/#retired-v1-rules 301
+	redir /rules/dependency-cruiser/read-models-import-packages-only/ /rules/#read-models-import-packages-only 301
+	redir /rules/dependency-cruiser/ways-in-import-app-folders-only/ /rules/#ways-in-import-app-folders-only 301
+	redir /rules/dependency-cruiser/ways-in-do-not-import-module-values/ /rules/#ways-in-do-not-import-read-model-values 301
+	redir /rules/dependency-cruiser/ways-in-do-not-import-read-model-values/ /rules/#ways-in-do-not-import-read-model-values 301
+	redir /rules/dependency-cruiser/ways-in-import-contracts-only/ /rules/#ways-in-import-contracts-only 301
+	redir /rules/dependency-cruiser/ways-in-do-not-import-other-ways/ /rules/#ways-in-do-not-import-other-ways 301
+	redir /rules/dependency-cruiser/composition-does-not-import-ways-in/ /rules/#composition-does-not-import-ways-in 301
+	redir /rules/dependency-cruiser/folder-modules-public-entry-only/ /rules/#read-models-public-entry-only 301
+	redir /rules/dependency-cruiser/read-models-public-entry-only/ /rules/#read-models-public-entry-only 301
+	redir /rules/dependency-cruiser/app-folders/ /rules/#app-folders 301
 	redir /rules/dependency-cruiser/adapter-imports-only-in-adapters/ /rules/#adapter-imports-only-in-adapters 301
 	redir /rules/typescript/strict-compiler-flags/ /rules/#strict-compiler-flags 301
 	redir /rules/typescript/effect-diagnostics/ /rules/#effect-diagnostics 301

@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { defineContract, Grant, implement } from "@house-rules/application";
+import { CallWatch, defineFeature } from "@house-rules/application";
 import { Cause, Effect, Exit, Layer, Result } from "effect";
 import { CallAudit, memoryAuditLog } from "../index.ts";
 import {
@@ -30,10 +30,7 @@ const failingWho = Effect.die("who died") as Effect.Effect<string | null>;
 it.effect("a who that throws cannot change a successful call, and the line says null", () =>
   Effect.gen(function* brokenWhoSuccess() {
     const log = memoryAuditLog();
-    const layer = Layer.mergeAll(
-      CallAudit.layerMemory(log, { who: brokenWho }),
-      Grant.layerFromPermissions(["greetings:read"]),
-    );
+    const layer = Layer.mergeAll(CallAudit.layerMemory(log, { who: brokenWho }));
     const exit = yield* readGreeting
       .handler({ name: "Ada" })
       .pipe(Effect.provide(layer), Effect.exit);
@@ -62,21 +59,25 @@ it.effect("a who that dies leaves a typed failure the same failure", () =>
 it.effect("records the caller who entered, even when the handler swaps the Requester", () =>
   Effect.gen(function* entryCaller() {
     const log = memoryAuditLog();
-    const swapping = implement(
-      defineContract("swapping_greeting", { ...base, permission: "public" }),
-      () =>
-        Effect.updateServiceScoped(Requester, () => ({ userId: "user_bob" })).pipe(
-          Effect.as("original"),
-        ),
-    );
+    const entry = defineFeature("swapping_greeting", {
+      ...base,
+      permission: null,
+      handler: () => Effect.succeed("original"),
+    });
     const result = yield* Effect.scoped(
-      swapping
-        .handler({ name: "Ada" })
-        .pipe(
-          Effect.provide(
-            Layer.mergeAll(CallAudit.layerMemory(log, { who }), Layer.succeed(Requester, ANA)),
+      CallWatch.use((watch) =>
+        watch.around(
+          entry,
+          { name: "Ada" },
+          Effect.updateServiceScoped(Requester, () => ({ userId: "user_bob" })).pipe(
+            Effect.as("original"),
           ),
         ),
+      ).pipe(
+        Effect.provide(
+          Layer.mergeAll(CallAudit.layerMemory(log, { who }), Layer.succeed(Requester, ANA)),
+        ),
+      ),
     );
     expect(result).toBe("original");
     expect(log.entries()).toMatchObject([{ viewerId: "user_ana", outcome: "success" }]);

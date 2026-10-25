@@ -28,8 +28,8 @@ const clearRows = SqlClient.use((sql) => sql`delete from call_audit`);
 
 const insert = (capability: string, viewerId: string | null, outcome: string, ms: number) =>
   SqlClient.use(
-    (sql) => sql`insert into call_audit (capability, permission, viewer_id, outcome, ms)
-      values (${capability}, 'trips:read', ${viewerId}, ${outcome}, ${ms})`,
+    (sql) => sql`insert into call_audit (capability, target, permission, viewer_id, outcome, ms)
+      values (${capability}, ${capability}, 'trips:read', ${viewerId}, ${outcome}, ${ms})`,
   );
 
 layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
@@ -51,6 +51,7 @@ layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
         expect(found.map((row) => row.capability)).toEqual(["second", "first"]);
         expect(found[0]).toMatchObject({
           capability: "second",
+          target: "second",
           permission: "trips:read",
           viewerId: null,
           outcome: "Forbidden",
@@ -68,6 +69,7 @@ layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
           "permission",
           "recordedAt",
           "requestId",
+          "target",
           "targetId",
           "viewerId",
         ]);
@@ -89,8 +91,8 @@ layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
       Effect.gen(function* limitBounds() {
         yield* clearRows;
         yield* SqlClient.use(
-          (sql) => sql`insert into call_audit (capability, permission, outcome, ms)
-            select 'bulk', 'trips:read', 'success', 1 from generate_series(1, 1100)`,
+          (sql) => sql`insert into call_audit (capability, target, permission, outcome, ms)
+            select 'bulk', 'bulk', 'trips:read', 'success', 1 from generate_series(1, 1100)`,
         );
         expect(yield* CallAudit.readRows()).toHaveLength(100);
         expect(yield* CallAudit.readRows({ limit: 5000 })).toHaveLength(1000);
@@ -117,11 +119,13 @@ layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
       Effect.gen(function* timestampFirst() {
         yield* clearRows;
         yield* SqlClient.use(
-          (sql) => sql`insert into call_audit (capability, permission, outcome, ms, recorded_at)
-            values ('newer_low_id', 'trips:read', 'success', 1, '2026-10-07T12:00:00Z'),
-                   ('older_high_id', 'trips:read', 'success', 1, '2026-10-06T12:00:00Z'),
-                   ('tie_first', 'trips:read', 'success', 1, '2026-10-05T12:00:00Z'),
-                   ('tie_second', 'trips:read', 'success', 1, '2026-10-05T12:00:00Z')`,
+          (
+            sql,
+          ) => sql`insert into call_audit (capability, target, permission, outcome, ms, recorded_at)
+            values ('newer_low_id', 'newer_low_id', 'trips:read', 'success', 1, '2026-10-07T12:00:00Z'),
+                   ('older_high_id', 'older_high_id', 'trips:read', 'success', 1, '2026-10-06T12:00:00Z'),
+                   ('tie_first', 'tie_first', 'trips:read', 'success', 1, '2026-10-05T12:00:00Z'),
+                   ('tie_second', 'tie_second', 'trips:read', 'success', 1, '2026-10-05T12:00:00Z')`,
         );
         const newest = yield* CallAudit.readRows({ limit: 1 });
         expect(newest.map((row) => row.capability)).toEqual(["newer_low_id"]);
@@ -157,7 +161,8 @@ layer(migratedDatabase, { excludeTestServices: true, timeout: "30 seconds" })(
         );
         expect(failure).toBeInstanceOf(AuditReadFailed);
         expect(failure._tag).toBe("AuditReadFailed");
-        expect(failure.message).toContain("ms");
+        expect(failure.message).toBe("The audit store could not be read.");
+        expect(String(failure.cause)).toContain("ms");
       }),
     );
 

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/ways-in/web/page/styles.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@/ways-in/web/page/components",
+    "ui": "@/ways-in/web/page/components/ui",
+    "utils": "@/ways-in/web/page/components/class-names",
+    "lib": "@/ways-in/web/page/components",
+    "hooks": "@/ways-in/web/page/components"
+  }
+}

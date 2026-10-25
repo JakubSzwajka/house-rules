@@ -1,27 +1,36 @@
-import type { AnyContract } from "./contract.ts";
+import type { AnyFeature } from "../feature/feature.ts";
+
+export type CsrfOptOut = Readonly<{ skip: true; reason: string }>;
+import { checkSessionPlace, type SessionOption, type SessionRole } from "./session.ts";
 
 export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
-export type EndpointOptions<Code extends string = never> = Readonly<{
+export type EndpointOptions<
+  Code extends string = never,
+  Session extends "issue" | "clear" = "issue" | "clear",
+> = Readonly<{
   status?: number;
   codes?: ReadonlyArray<Code>;
+  session?: Session;
+  csrf?: CsrfOptOut;
 }>;
 
-export type EndpointShape<
-  C extends AnyContract = AnyContract,
+export type Endpoint<
+  E extends AnyFeature = AnyFeature,
   Code extends string = string,
+  Session extends SessionRole = SessionRole,
 > = Readonly<{
-  contract: C;
+  _tag: "Endpoint";
+  feature: E;
   method: Method;
   path: `/${string}`;
   status: number;
   codes: ReadonlyArray<Code>;
+  session: Session;
+  csrf: "check" | CsrfOptOut;
 }>;
 
-export type Endpoint<
-  C extends AnyContract = AnyContract,
-  Code extends string = string,
-> = EndpointShape<C, Code> & Readonly<{ _tag: "Endpoint" }>;
+type SessionOf<S> = [S] extends [never] ? "none" : S;
 
 export const failureCodeHeader = "x-failure-code";
 
@@ -56,21 +65,35 @@ export const parseAt = (
   return { method: method as Method, path: path as `/${string}` };
 };
 
-export const endpoint = <C extends AnyContract, const Code extends string = never>(
-  contract: C,
+export const endpoint = <
+  E extends AnyFeature,
+  const Code extends string = never,
+  const Session extends SessionOption<E> = never,
+>(
+  feature: E,
   at?: `${Method} /${string}`,
-  options: EndpointOptions<Code> = {},
-): Endpoint<C, NoInfer<Code>> => ({
-  _tag: "Endpoint",
-  contract,
-  ...parseAt(contract.name, at),
-  status: options.status ?? 200,
-  codes: checkedCodes(contract.name, options.codes ?? []),
-});
+  options: EndpointOptions<Code, Session> = {},
+): Endpoint<E, NoInfer<Code>, SessionOf<Session>> => {
+  const place = parseAt(feature.name, at);
+  const session = (options.session ?? "none") as SessionOf<Session>;
+  checkSessionPlace(feature.name, place.method, session, feature.output);
+  if (options.csrf !== undefined && (options.csrf.reason.trim() === "" || session !== "none")) {
+    throw new TypeError(`${feature.name}: CSRF opt-out needs a reason and cannot set a session`);
+  }
+  return {
+    _tag: "Endpoint",
+    feature,
+    ...place,
+    status: options.status ?? 200,
+    codes: checkedCodes(feature.name, options.codes ?? []),
+    session,
+    csrf: options.csrf ?? "check",
+  };
+};
 
 const paramSegment = /^:([A-Za-z_][A-Za-z0-9_]*)$/u;
 
-export const pathParamNames = (shape: EndpointShape): ReadonlyArray<string> =>
+export const pathParamNames = (shape: Endpoint): ReadonlyArray<string> =>
   shape.path
     .split("/")
     .slice(1)
@@ -79,7 +102,7 @@ export const pathParamNames = (shape: EndpointShape): ReadonlyArray<string> =>
       if (param !== undefined) return [param];
       if (/[:*?]/u.test(segment)) {
         throw new TypeError(
-          `${shape.contract.name}: path segment ${JSON.stringify(segment)} is not a plain :name`,
+          `${shape.feature.name}: path segment ${JSON.stringify(segment)} is not a plain :name`,
         );
       }
       return [];

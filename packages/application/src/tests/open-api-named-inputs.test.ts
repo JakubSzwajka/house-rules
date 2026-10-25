@@ -1,6 +1,8 @@
+import { featureFixture } from "./feature-fixtures.ts";
+import { defineOperation } from "@house-rules/domain";
 import { expect, it } from "@effect/vitest";
 import { Schema } from "effect";
-import { defineContract, endpoint, failureCodeHeader, problemView, toOpenApi } from "../index.ts";
+import { endpoint, failureCodeHeader, toOpenApi } from "../index.ts";
 
 type Json = Record<string, unknown>;
 type Operation = Json & { operationId: string; parameters: Array<Json>; requestBody?: Json };
@@ -11,26 +13,32 @@ const integer = {
   maximum: Number.MAX_SAFE_INTEGER,
 };
 
-const lookup = defineContract("lookup", {
-  description: "A named Struct input.",
-  input: Schema.Struct({ id: Schema.Int, limit: Schema.Int }).annotate({ identifier: "Lookup" }),
-  output: Schema.Struct({ ok: Schema.Boolean }),
-  failure: Schema.Never,
-  permission: "public",
-});
+const lookup = featureFixture(
+  defineOperation("lookup", {
+    description: "A named Struct input.",
+    input: Schema.Struct({ id: Schema.Int, limit: Schema.Int }).annotate({ identifier: "Lookup" }),
+    output: Schema.Struct({ ok: Schema.Boolean }),
+    failure: Schema.Never,
+    permission: null,
+  }),
+);
 
-const search = defineContract("search", {
-  description: "A named Union input.",
-  input: Schema.Union([
-    Schema.Struct({ id: Schema.Int, by: Schema.Literal("guest"), guest: Schema.String }).annotate({
-      identifier: "ByGuest",
-    }),
-    Schema.Struct({ id: Schema.Int, by: Schema.Literal("nights"), minNights: Schema.Int }),
-  ]).annotate({ identifier: "Search" }),
-  output: Schema.Struct({ ok: Schema.Boolean }),
-  failure: Schema.Never,
-  permission: "public",
-});
+const search = featureFixture(
+  defineOperation("search", {
+    description: "A named Union input.",
+    input: Schema.Union([
+      Schema.Struct({ id: Schema.Int, by: Schema.Literal("guest"), guest: Schema.String }).annotate(
+        {
+          identifier: "ByGuest",
+        },
+      ),
+      Schema.Struct({ id: Schema.Int, by: Schema.Literal("nights"), minNights: Schema.Int }),
+    ]).annotate({ identifier: "Search" }),
+    output: Schema.Struct({ ok: Schema.Boolean }),
+    failure: Schema.Never,
+    permission: null,
+  }),
+);
 
 const document = toOpenApi(
   [
@@ -92,15 +100,15 @@ it("a response names no failure header when the endpoint declares no public code
   const plain = toOpenApi([endpoint(lookup, "GET /lookup/:id")], {
     title: "probe",
     version: "1",
-    views: { Refused: problemView(401, "refused", () => "Sign in.") },
   });
   expect(JSON.stringify(plain)).not.toContain("x-failure");
-  const coded = toOpenApi([endpoint(lookup, "GET /lookup/:id", { codes: ["gone"] })], {
+  const coded = toOpenApi([endpoint(lookup, "GET /lookup/:id", { codes: ["invalid"] })], {
     title: "probe",
     version: "1",
   });
   const responses = (coded.paths["/lookup/{id}"]?.get as Json).responses as Record<string, Json>;
-  expect(responses.default).toMatchObject({
-    headers: { [failureCodeHeader]: { schema: { type: "string", enum: ["gone"] } } },
+  expect(responses["400"]).toMatchObject({
+    headers: { [failureCodeHeader]: { schema: { type: "string", enum: ["invalid"] } } },
   });
+  expect(responses.default?.headers).toBeUndefined();
 });

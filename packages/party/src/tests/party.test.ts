@@ -13,7 +13,7 @@ import {
 
 const ada = Actor.make({ id: ActorId.make("ada") });
 const grace = Actor.make({ id: ActorId.make("grace") });
-const world = Party.layerMemory.pipe(Layer.provideMerge(memoryUnitOfWork));
+const world = Party.layerMemory({ builtInRoles: {} }).pipe(Layer.provideMerge(memoryUnitOfWork));
 
 it.effect("the who × action table lets anyone read and only the person update", () =>
   Effect.sync(() => {
@@ -21,7 +21,11 @@ it.effect("the who × action table lets anyone read and only the person update",
       self: { "party:read": true, "party:update": true },
       other: { "party:read": true, "party:update": false },
     });
-    expect(PartyPermissions).toEqual({ read: "party:read", update: "party:update" });
+    expect(PartyPermissions).toEqual({
+      read: "party:read",
+      update: "party:update",
+      admin: "party:admin",
+    });
   }),
 );
 
@@ -35,6 +39,16 @@ it.layer(world)("Party", (test) => {
       expect(created.id).toBe(ada.id);
       expect(created.displayName).toBe("Ada Lovelace");
       expect(yield* party.get(grace, ada.id)).toEqual(created);
+    }),
+  );
+  test.effect("me reads the actor's own person, and fails when the actor has none", () =>
+    Effect.gen(function* () {
+      const party = yield* Party;
+      const id = ActorId.make("me-myself");
+      const me = Actor.make({ id });
+      expect(yield* Effect.flip(party.me(me))).toBeInstanceOf(PersonNotFound);
+      const created = yield* UnitOfWork.atomic(party.createPerson({ id, displayName: "Me" }));
+      expect(yield* party.me(me)).toEqual(created);
     }),
   );
   test.effect("generates a new id when none is given", () =>

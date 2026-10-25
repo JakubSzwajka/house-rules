@@ -1,2 +1,2 @@
-export { route } from "./delivery/route";
-export { cancel } from "./use-cases/cancel";
+export { route } from "./ways-in/route";
+export { cancel } from "./features/cancel/handler";

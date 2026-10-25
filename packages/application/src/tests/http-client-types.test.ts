@@ -5,9 +5,9 @@ import { endpoint, type HttpFailureOf, toHttpClient } from "../index.ts";
 import { findBookings, renameGuest, showBooking } from "./delivery-fixtures.ts";
 
 const client = toHttpClient([
-  endpoint(showBooking.contract, "GET /bookings/:id", { codes: ["not_found"] }),
-  endpoint(findBookings.contract, "GET /bookings"),
-  endpoint(renameGuest.contract, "PATCH /bookings/:id"),
+  endpoint(showBooking, "GET /bookings/:id", { codes: ["not_found"] }),
+  endpoint(findBookings, "GET /bookings"),
+  endpoint(renameGuest, "PATCH /bookings/:id"),
 ]);
 
 type ShowFailure = HttpFailureOf<"not_found" | "Unknown">;

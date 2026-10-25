@@ -9,6 +9,14 @@ export const commentsConsumerFiles = {
       { package: "@house-rules/comments" },
       { package: "@house-rules/identity" },
       { package: "@house-rules/party" },
+      { package: "@house-rules/work-items" },
+      { package: "@house-rules/notes" },
+      { package: "@house-rules/relations" },
+      { package: "@house-rules/event-log" },
+      { package: "@house-rules/contacts" },
+      { package: "@house-rules/notifications" },
+      { package: "@house-rules/push" },
+      { package: "@house-rules/projects" },
     ],
   },
   "browser-contract.json": {
@@ -31,7 +39,7 @@ export const commentsConsumerFiles = {
         severity: "error",
         from: {},
         to: {
-          path: "(?:^|/)(?:adapters|server)/|node_modules/@effect/(?:sql-|platform-node)|node_modules/@house-rules/(?:comments|party|application|domain)/dist/(?:index|facade|storage|delivery/(?:composition|fetch-handler|mcp-handler|invoke))\\.js$",
+          path: "(?:^|/)(?:adapters|server)/|node_modules/@effect/(?:sql-|platform-node)|node_modules/@house-rules/(?:comments|party|identity|application|domain)/dist/(?:index|facade|storage|node/binding|ways-in/(?:composition|fetch-handler|mcp-handler|invoke))\\.js$",
         },
       },
     ],
@@ -43,80 +51,91 @@ export const commentsConsumerFiles = {
       },
     },
   },
-  "comments.mjs": [
-    'import assert from "node:assert/strict";',
-    'import path from "node:path";',
-    'import { Actor, ActorId, defineModule, memoryUnitOfWork } from "@house-rules/domain";',
-    'import { CurrentActor, Grant, implement } from "@house-rules/application";',
-    'import { Comments, CommentTargets, CommentTargetNotFound } from "@house-rules/comments";',
-    'import * as contract from "@house-rules/comments/contract";',
-    'import { Migrations } from "@house-rules/migrations";',
-    'import { NodeRuntime, NodeServices } from "@effect/platform-node";',
-    'import { Effect, FileSystem, Layer } from "effect";',
-    'const actor = Actor.make({ id: ActorId.make("owner") });',
-    'const outsider = Actor.make({ id: ActorId.make("outsider") });',
-    'class Probe extends defineModule()("cold_probe", { make: Effect.succeed({ echo: (actor) => Effect.succeed(actor.id) }) }) {}',
-    'const targets = Layer.succeed(CommentTargets, CommentTargets.of({ relation: (viewer) => Effect.succeed(viewer.id === actor.id ? "owner" : "none") }));',
-    'const comments = Comments.layerMemory({ ...Comments.presets.default, targets: ["item"] }).pipe(Layer.provide(targets));',
-    "const world = Layer.mergeAll(comments, Probe.layer, memoryUnitOfWork, Layer.succeed(CurrentActor, actor), Layer.succeed(Grant, Grant.fromPermissions(Object.values(contract.CommentPermissions))), NodeServices.layer);",
-    "const add = implement(contract.addComment, ({ target, body }) => Effect.gen(function* () {",
-    "  return yield* (yield* Comments).add(yield* CurrentActor, target, body);",
-    "}));",
-    "const list = implement(contract.listComments, ({ target, page }) => Effect.gen(function* () {",
-    "  return yield* (yield* Comments).list(yield* CurrentActor, target, page);",
-    "}));",
-    "NodeRuntime.runMain(Effect.gen(function* () {",
-    "  assert.equal(yield* (yield* Probe).echo(yield* CurrentActor), actor.id);",
-    '  const target = { kind: "item", id: "packed" };',
-    '  const added = yield* add.handler({ target, body: "Packed comment" });',
-    "  assert.equal(added.authorId, actor.id);",
-    "  const page = yield* list.handler({ target, page: { size: 10 } });",
-    "  assert.deepEqual(page.items, [added]);",
-    "  assert.equal(page.next, undefined);",
-    "  const denied = yield* Effect.flip(list.handler({ target, page: { size: 10 } }).pipe(Effect.provideService(CurrentActor, outsider)));",
-    "  assert.ok(denied instanceof CommentTargetNotFound);",
-    '  const modules = yield* Migrations.readModuleList("migrations.json");',
-    '  assert.deepEqual(modules.map(({ name, table }) => ({ name, table })), [{ name: "call_audit", table: "call_audit_migrations" }, { name: "comments", table: "comments_migrations" }, { name: "identity", table: "identity_migrations" }, { name: "party", table: "party_migrations" }]);',
-    "  const fs = yield* FileSystem.FileSystem;",
-    "  for (const module of modules) {",
-    '    assert.equal(module.directory, path.resolve(`node_modules/@house-rules/${module.name.replaceAll("_", "-")}/migrations`));',
-    "    const files = yield* fs.readDirectory(module.directory);",
-    '    assert.ok(files.some((file) => file.endsWith(".sql")));',
-    "  }",
-    '  yield* Effect.log("cold install: defineModule, Actor/CurrentActor, memory comments use-cases, denied actor and installed migration resolution pass");',
-    "}).pipe(Effect.provide(world)));",
-    "",
-  ].join("\n"),
-  "comments.ts": [
-    'import { Actor, ActorId, defineModule } from "@house-rules/domain";',
-    'import { CurrentActor, implement } from "@house-rules/application";',
-    'import { Comments, type CommentFailure, CommentTargets, type CommentRelation, CommentsOptions } from "@house-rules/comments";',
-    'import { addComment, listComments, type Comment, type CommentTarget, type CommentPage, type CommentCursor, type CommentList, type CommentPermission, CommentPermissions } from "@house-rules/comments/contract";',
-    'import { Effect } from "effect";',
-    'export class Probe extends defineModule<Probe, { echo: (actor: Actor) => Effect.Effect<ActorId> }>()("cold_probe", { make: Effect.succeed({ echo: (actor: Actor) => Effect.succeed(actor.id) }) }) {}',
-    'export const actor: Actor = Actor.make({ id: ActorId.make("owner") });',
-    'export const options: CommentsOptions = { ...Comments.presets.default, targets: ["item"] };',
-    'export const target: CommentTarget = { kind: "item", id: "packed" };',
-    'export const cursor: CommentCursor = { createdAt: 1, id: "packed" };',
-    "export const page: CommentPage = { size: 10, after: cursor };",
-    "export const permission: CommentPermission = CommentPermissions.write;",
-    'export const relations = CommentTargets.of({ relation: () => Effect.succeed<CommentRelation>("owner") });',
-    "export const failureTag = (failure: CommentFailure): string => failure._tag;",
-    "export const body = (comment: Comment): string => comment.body;",
-    "export const items = (list: CommentList): ReadonlyArray<Comment> => list.items;",
-    "export const add = implement(addComment, ({ target, body }) => Effect.gen(function* () { return yield* (yield* Comments).add(yield* CurrentActor, target, body); }));",
-    "export const list = implement(listComments, ({ target, page }) => Effect.gen(function* () { return yield* (yield* Comments).list(yield* CurrentActor, target, page); }));",
-    "// The shipped declarations keep the per-request marker: a module may not capture CurrentActor.",
-    'export const captures = () => defineModule<Probe, { echo: (actor: Actor) => Effect.Effect<ActorId> }>()("cold_captures", {',
-    "  // @ts-expect-error defineModule refuses a make that requires CurrentActor",
-    "  make: Effect.map(CurrentActor, (current) => ({ echo: (_actor: Actor) => Effect.succeed(current.id) })),",
-    "});",
-    "// @ts-expect-error ActorId is branded",
-    'export const invalidActor: Actor = { id: "unbranded" };',
-    "// @ts-expect-error CommentPage requires a numeric size",
-    'export const invalidPage: CommentPage = { size: "10" };',
-    "",
-  ].join("\n"),
+  "comments.mjs": `import assert from "node:assert/strict";
+import path from "node:path";
+import { Actor, ActorId, defineModule, memoryUnitOfWork } from "@house-rules/domain";
+import { CurrentActor, defineFeature, May, Runtime, runFeature, StepTrace } from "@house-rules/application";
+import { Comments, CommentsMount, CommentTargets, CommentTargetNotFound } from "@house-rules/comments";
+import * as contract from "@house-rules/comments/contract";
+import { Migrations } from "@house-rules/migrations";
+import { NodeRuntime as NodePlatform, NodeServices } from "@effect/platform-node";
+import { Effect, FileSystem, Layer } from "effect";
+for (const name of ["listComments", "addComment", "editComment", "removeComment"]) assert.equal(contract.CommentsOperations[name].name, "Comments." + name);
+const actor = Actor.make({ id: ActorId.make("owner") });
+const outsider = Actor.make({ id: ActorId.make("outsider") });
+class Probe extends defineModule()("cold_probe", { make: Effect.succeed({ echo: (actor) => Effect.succeed(actor.id) }) }) {}
+const targets = Layer.succeed(CommentTargets, CommentTargets.of({ relation: (viewer) => Effect.succeed(viewer.id === actor.id ? "owner" : "none") }));
+const comments = Comments.layerMemory({ ...Comments.presets.default, targets: ["item"] }).pipe(Layer.provide(targets));
+const add = defineFeature("packed_add", { description: "Add a comment.", input: contract.CommentsOperations.addComment.input, output: contract.CommentsOperations.addComment.output, failure: contract.CommentsOperations.addComment.failure, permission: null, edges: [contract.CommentsOperations.addComment], handler: (input, { call }) => call(contract.CommentsOperations.addComment, input) });
+const list = defineFeature("packed_list", { description: "List comments.", input: contract.CommentsOperations.listComments.input, output: contract.CommentsOperations.listComments.output, failure: contract.CommentsOperations.listComments.failure, permission: null, flags: { readOnly: true }, edges: [contract.CommentsOperations.listComments], handler: (input, { call }) => call(contract.CommentsOperations.listComments, input) });
+const features = [add, list];
+const runtime = Layer.unwrap(Effect.gen(function* () {
+  return Runtime.layer({ features, ways: [], mounts: [CommentsMount] });
+})).pipe(Layer.provide(comments));
+const world = Layer.mergeAll(runtime, Probe.layer, memoryUnitOfWork, StepTrace.layer(), NodeServices.layer);
+const as = (viewer) => Layer.merge(Layer.succeed(CurrentActor, viewer), Layer.succeedContext(May.context(May.fixed(Object.values(contract.CommentPermissions)), { features, system: [], via: "packed" })));
+NodePlatform.runMain(Effect.gen(function* () {
+  assert.equal(yield* (yield* Probe).echo(actor), actor.id);
+  const target = { kind: "item", id: "packed" };
+  const added = yield* runFeature(add, { target, body: "Packed comment" }).pipe(Effect.provide(as(actor)));
+  assert.equal(added.authorId, actor.id);
+  const page = yield* runFeature(list, { target, page: { size: 10 } }).pipe(Effect.provide(as(actor)));
+  assert.deepEqual(page.items, [added]);
+  assert.equal(page.next, undefined);
+  const denied = yield* Effect.flip(runFeature(list, { target, page: { size: 10 } }).pipe(Effect.provide(as(outsider))));
+  assert.ok(denied instanceof CommentTargetNotFound);
+  const modules = yield* Migrations.readModuleList("migrations.json");
+  assert.deepEqual(modules.map(({ name, table }) => ({ name, table })), [
+    { name: "call_audit", table: "call_audit_migrations" },
+    { name: "comments", table: "comments_migrations" },
+    { name: "identity", table: "identity_migrations" },
+    { name: "party", table: "party_migrations" },
+    { name: "work_items", table: "work_items_migrations" },
+    { name: "notes", table: "notes_migrations" },
+    { name: "relations", table: "relations_migrations" },
+    { name: "event_log", table: "event_log_migrations" },
+    { name: "contacts", table: "contacts_migrations" },
+    { name: "notifications", table: "notifications_migrations" },
+    { name: "push", table: "push_migrations" },
+    { name: "projects", table: "projects_migrations" },
+  ]);
+  const fs = yield* FileSystem.FileSystem;
+  for (const module of modules) {
+    assert.equal(module.directory, path.resolve(\`node_modules/@house-rules/\${module.name.replaceAll("_", "-")}/migrations\`));
+    const files = yield* fs.readDirectory(module.directory);
+    assert.ok(files.some((file) => file.endsWith(".sql")));
+  }
+  yield* Effect.log("cold install: bound comment operations through app features, memory, A/B privacy and installed migrations pass");
+}).pipe(Effect.provide(world)));
+`,
+  "comments.ts": `import { Actor, ActorId, defineModule } from "@house-rules/domain";
+import { CurrentActor } from "@house-rules/application";
+import { Comments, CommentsMount, bindComments, type CommentFailure, CommentTargets, type CommentRelation, CommentsOptions } from "@house-rules/comments";
+import { CommentsOperations, type Comment, type CommentTarget, type CommentPage, type CommentCursor, type CommentList, type CommentPermission, CommentPermissions } from "@house-rules/comments/contract";
+import { Effect } from "effect";
+export class Probe extends defineModule<Probe, { echo: (actor: Actor) => Effect.Effect<ActorId> }>()("cold_probe", { make: Effect.succeed({ echo: (actor: Actor) => Effect.succeed(actor.id) }) }) {}
+export const actor: Actor = Actor.make({ id: ActorId.make("owner") });
+export const options: CommentsOptions = { ...Comments.presets.default, targets: ["item"] };
+export const target: CommentTarget = { kind: "item", id: "packed" };
+export const cursor: CommentCursor = { createdAt: 1, id: "packed" };
+export const page: CommentPage = { size: 10, after: cursor };
+export const permission: CommentPermission = CommentPermissions.write;
+export const relations = CommentTargets.of({ relation: () => Effect.succeed<CommentRelation>("owner") });
+export const failureTag = (failure: CommentFailure): string => failure._tag;
+export const body = (comment: Comment): string => comment.body;
+export const items = (list: CommentList): ReadonlyArray<Comment> => list.items;
+export const bindings = (service: Comments["Service"]) => bindComments(service);
+export const operations = Object.values(CommentsOperations);
+export const mount = CommentsMount;
+export const captures = () => defineModule<Probe, { echo: (actor: Actor) => Effect.Effect<ActorId> }>()("cold_captures", {
+  // @ts-expect-error defineModule refuses a make that requires CurrentActor
+  make: Effect.map(CurrentActor, (current) => ({ echo: (_actor: Actor) => Effect.succeed(current.id) })),
+});
+// @ts-expect-error ActorId is branded
+export const invalidActor: Actor = { id: "unbranded" };
+// @ts-expect-error CommentPage requires a numeric size
+export const invalidPage: CommentPage = { size: "10" };
+`,
 };
 
 export function assertFrameworkContents(source, packed, files) {
@@ -139,14 +158,18 @@ export function assertPackedComments(app, { run, write, failure }) {
     app,
     { capture: true },
   );
-  assert.match(migrationCheck, /owned by 4 package\(s\).*4 module\(s\) listed/u);
+  assert.match(migrationCheck, /owned by 12 module\(s\).*12 module\(s\) listed/u);
   console.log(migrationCheck.trim());
   assertBrowserGraph(app, { run, write, failure });
 }
 
-const CONTRACT_ENTRIES = ["comments", "party", "application", "domain"].map(
+const CONTRACT_ENTRIES = ["comments", "party", "application", "domain", "identity"].map(
   (name) => `node_modules/@house-rules/${name}/dist/contract.js`,
 );
+const APP_ENTRIES = [
+  "apps/web/src/features/show-owner/index.ts",
+  "apps/web/src/ways-in/web/endpoints.ts",
+];
 
 function assertBrowserGraph(app, { run, write, failure }) {
   const [entry] = CONTRACT_ENTRIES;
@@ -162,17 +185,22 @@ function assertBrowserGraph(app, { run, write, failure }) {
       "--output-to",
       "browser-graph.json",
       ...CONTRACT_ENTRIES,
+      ...APP_ENTRIES,
     ],
     app,
   );
   const graph = JSON.parse(readFileSync(path.join(app, "browser-graph.json"), "utf8"));
   assert.equal(graph.summary.error, 0, JSON.stringify(graph.summary.violations));
-  for (const expected of [...CONTRACT_ENTRIES, "node_modules/effect/dist/Schema.js"])
+  for (const expected of [
+    ...CONTRACT_ENTRIES,
+    ...APP_ENTRIES,
+    "node_modules/effect/dist/Schema.js",
+  ])
     assert.ok(
       graph.modules.some(({ source }) => source === expected),
       `browser graph skipped ${expected}`,
     );
-  for (const kitEntry of CONTRACT_ENTRIES.slice(1)) {
+  for (const kitEntry of [...CONTRACT_ENTRIES.slice(1), ...APP_ENTRIES]) {
     const kitOriginal = readFileSync(path.join(app, kitEntry), "utf8");
     try {
       write(app, { [kitEntry]: `${kitOriginal}\nimport "node:fs";\n` });
@@ -221,30 +249,26 @@ function assertBrowserGraph(app, { run, write, failure }) {
     write(app, { [transitive]: original });
   }
   console.log(
-    `cold install: browser graph traverses ${graph.modules.length} packed modules from the comments, party, application and domain contract entries; unsafe imports fail despite contract trust`,
+    `cold install: browser graph traverses ${graph.modules.length} packed modules from five contract doors, feature indexes and endpoints.ts; direct and transitive poisons fail`,
   );
 }
 
 export function assertContractRuleIsLive(app, { write, failure }) {
-  // A clean run proves nothing unless the same rule still refuses the server entry.
   write(app, {
     "packages/catalogue/src/contract.ts":
-      'export { showItemContract } from "./item/show-item.ts";\nexport { addComment } from "@house-rules/comments";\nexport { implement } from "@house-rules/application";\n',
+      'export { showItem } from "./item/show-item.ts";\nexport { addComment } from "@house-rules/comments";\nexport { bindOperation } from "@house-rules/application";\n',
   });
-  assert.match(
-    failure(
-      path.join(app, "node_modules/.bin/depcruise"),
-      ["--config", ".dependency-cruiser.cjs", "--output-type", "err", "apps", "packages"],
-      app,
-    ),
-    /contract-entry-is-browser-safe: packages\/catalogue\/src\/contract\.ts → node_modules\/@house-rules\/application\/dist\/index\.js/u,
-  );
-  assert.match(
-    failure(
-      path.join(app, "node_modules/.bin/depcruise"),
-      ["--config", ".dependency-cruiser.cjs", "--output-type", "err", "apps", "packages"],
-      app,
-    ),
-    /contract-entry-is-browser-safe: packages\/catalogue\/src\/contract\.ts → node_modules\/@house-rules\/comments\/dist\/index\.js/u,
-  );
+  for (const name of ["application", "comments"]) {
+    assert.match(
+      failure(
+        path.join(app, "node_modules/.bin/depcruise"),
+        ["--config", ".dependency-cruiser.cjs", "--output-type", "err", "apps", "packages"],
+        app,
+      ),
+      new RegExp(
+        `contract-entry-is-browser-safe: packages/catalogue/src/contract\\.ts → node_modules/@house-rules/${name}/dist/index\\.js`,
+        "u",
+      ),
+    );
+  }
 }

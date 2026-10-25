@@ -1,2 +1,2 @@
-import { start } from "../server/main";
+import { start } from "../composition/main";
 export const bridge = start;

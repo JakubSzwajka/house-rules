@@ -10,12 +10,22 @@ it("only the plain Node host uses strict.json; Effect app code still fails nodeB
     "@house-rules/rules/tsconfig/strict.json",
   );
   assert.equal(
-    read("../examples/booking-platform/apps/api/tsconfig.json").extends,
+    read("../tests/fixtures/node-builtin/tsconfig.json").extends,
+    "../../../tsconfig.base.json",
+  );
+  assert.equal(
+    read("../examples/booking/apps/api/tsconfig.json").extends,
     "../../../../tsconfig.base.json",
   );
+  for (const module of ["bookings", "billing"]) {
+    assert.equal(
+      read(`../examples/booking/packages/${module}/tsconfig.json`).extends,
+      "../../../../tsconfig.base.json",
+    );
+  }
   const result = spawnSync(
-    "pnpm",
-    ["exec", "tsc", "--project", "tests/fixtures/node-builtin/tsconfig.json"],
+    "node_modules/.bin/tsc",
+    ["--project", "tests/fixtures/node-builtin/tsconfig.json"],
     {
       cwd: new URL("..", import.meta.url),
       encoding: "utf8",

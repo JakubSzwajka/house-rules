@@ -34,7 +34,14 @@ async function stubPackage(workspace, manifest, files, store) {
 export async function cruiseFixture(fixture, config, inspect) {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "house-rules-depcruise-"));
   try {
-    await cp(path.join(FIXTURES, fixture), workspace, { recursive: true });
+    if (typeof fixture === "string")
+      await cp(path.join(FIXTURES, fixture), workspace, { recursive: true });
+    else
+      for (const [file, text] of Object.entries(fixture)) {
+        const target = path.join(workspace, file);
+        await mkdir(path.dirname(target), { recursive: true });
+        await writeFile(target, text);
+      }
     await mkdir(path.join(workspace, "node_modules/test-runner"), { recursive: true });
     await writeFile(
       path.join(workspace, "node_modules/test-runner/package.json"),
@@ -50,6 +57,8 @@ export async function cruiseFixture(fixture, config, inspect) {
         name: "effect",
         exports: {
           ".": "./dist/index.js",
+          // effect 4.0.3 ships SQL as ./sql, with modules under ./*; RCs used ./unstable/sql.
+          "./sql": "./dist/sql/index.js",
           "./unstable/sql": "./dist/unstable/sql/index.js",
           "./unstable/http": "./dist/unstable/http/index.js",
           "./unstable/process": "./dist/unstable/process/index.js",
@@ -61,6 +70,9 @@ export async function cruiseFixture(fixture, config, inspect) {
         "dist/Schema.js": "export const Schema = {};\n",
         "dist/unstable/http/index.js": "export const HttpClient = {};\n",
         "dist/unstable/http/HttpClient.js": "export const HttpClient = {};\n",
+        "dist/sql/index.js": "export const sql = {};\n",
+        "dist/sql/SqlClient.js": "export const SqlClient = {};\n",
+        "dist/sql/SqlError.js": "export class SqlError {}\n",
         "dist/unstable/sql/index.js": "export const sql = {};\n",
         "dist/unstable/sql/SqlClient.js": "export const SqlClient = {};\n",
         // The real module imports SqlClient; node_modules is not followed, so the rule never sees that.
@@ -71,21 +83,34 @@ export async function cruiseFixture(fixture, config, inspect) {
     );
     // Installed contract entries: the framework's own, built as the registry ships it, and a
     // source one, as a git dependency ships it, that nobody vouched for.
+    if (!existsSync(path.join(workspace, "packages/application/package.json")))
+      await stubPackage(
+        workspace,
+        {
+          name: "@house-rules/application",
+          exports: {
+            ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
+            "./contract": { types: "./dist/contract.d.ts", default: "./dist/contract.js" },
+          },
+        },
+        {
+          "dist/index.js": 'export * from "./facade.js";\n',
+          "dist/facade.js": 'export * from "node:fs";\n',
+          "dist/contract.js": 'export * from "./facade.js";\n',
+        },
+        "@house-rules+application@0.13.1",
+      );
     await stubPackage(
       workspace,
       {
-        name: "@house-rules/application",
-        exports: {
-          ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
-          "./contract": { types: "./dist/contract.d.ts", default: "./dist/contract.js" },
-        },
+        name: "@house-rules/identity",
+        exports: { ".": "./dist/index.js", "./contract": "./dist/contract.js" },
       },
       {
-        "dist/index.js": 'export * from "./facade.js";\n',
-        "dist/facade.js": 'export * from "node:fs";\n',
-        "dist/contract.js": 'export * from "./facade.js";\n',
+        "dist/index.js": "export const bindLogin = {};",
+        "dist/contract.js": "export const bindLogin = {};",
       },
-      "@house-rules+application@0.13.1",
+      "@house-rules+identity@0.3.0",
     );
     await stubPackage(
       workspace,
@@ -138,7 +163,7 @@ export async function cruiseFixture(fixture, config, inspect) {
       outputType: "json",
     });
     const report = JSON.parse(output);
-    if (inspect) return inspect({ ...report, workspace });
+    if (inspect) return await inspect({ ...report, workspace });
     return report;
   } finally {
     await rm(workspace, { recursive: true, force: true });

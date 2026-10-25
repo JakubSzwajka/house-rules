@@ -1,12 +1,16 @@
 import { Cause, Context, Effect, Exit, Schema } from "effect";
+import { errorKind } from "../error/error-kind.ts";
 
-export class NoOpenUnit extends Schema.TaggedError<NoOpenUnit>()("NoOpenUnit", {}) {
+export class NoOpenUnit extends Schema.TaggedError<NoOpenUnit>()("NoOpenUnit", {
+  kind: errorKind("unavailable"),
+}) {
   override get message(): string {
-    return "This write must run inside an open unit of work. Open one with UnitOfWork.atomic or a transactional contract.";
+    return "This write must run inside an open unit of work. Open one with UnitOfWork.atomic or a transactional feature.";
   }
 }
 
 export class UnitOfWorkFailed extends Schema.TaggedError<UnitOfWorkFailed>()("UnitOfWorkFailed", {
+  kind: errorKind("unavailable"),
   reason: Schema.String,
 }) {
   override get message(): string {

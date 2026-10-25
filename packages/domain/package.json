@@ -1,7 +1,7 @@
 {
   "name": "@house-rules/domain",
-  "version": "0.1.0",
-  "description": "Domain modules for Effect apps: defineModule, Actor, permissions and policies, and the unit of work.",
+  "version": "0.2.0",
+  "description": "Domain graphs and modules for Effect apps: nodes, caller data, error kinds, policies, and the unit of work.",
   "license": "MIT",
   "type": "module",
   "files": [

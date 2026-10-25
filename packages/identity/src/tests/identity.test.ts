@@ -4,7 +4,7 @@ import { Effect, Layer, Option } from "effect";
 import { BindingInvalid, BindingTaken, Identity } from "../index.js";
 
 const issuer = "https://issuer.test";
-const world = Identity.layerMemory.pipe(Layer.provideMerge(memoryUnitOfWork));
+const world = Identity.layerMemory().pipe(Layer.provideMerge(memoryUnitOfWork));
 
 it.layer(world)("Identity", (test) => {
   test.effect("binds a login and resolves it, keeping only issuer and subject", () =>

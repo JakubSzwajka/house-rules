@@ -1,15 +1,6 @@
 import { expect, it } from "@effect/vitest";
-import {
-  Effect,
-  Layer,
-  Option,
-  Predicate,
-  Schema,
-  SchemaGetter,
-  SchemaTransformation,
-} from "effect";
-import { McpSchema, McpServer, Tool, Toolkit } from "effect/ai";
-import { defineContract, implement, type InputSchema, toTool } from "../index.ts";
+import { Effect, Option, Predicate, Schema, SchemaGetter, SchemaTransformation } from "effect";
+import { mcpProbe, wireValue } from "./mcp-probe.ts";
 
 const forms = {
   optionalKey: Schema.optionalKey(Schema.FiniteFromString),
@@ -146,19 +137,6 @@ const candidates: ReadonlyArray<Record<string, unknown>> = [
   { kind: "probe", value: "12", extra: true },
 ];
 
-const client = McpSchema.McpServerClient.of({
-  clientId: 1,
-  protocolVersion: "2025-11-25",
-  clientCapabilities: new McpSchema.ClientCapabilities({}),
-  clientInfo: { name: "test-client", version: "1.0.0" },
-  initializePayload: {
-    protocolVersion: "2025-11-25",
-    capabilities: new McpSchema.ClientCapabilities({}),
-    clientInfo: { name: "test-client", version: "1.0.0" },
-  },
-  getClient: Effect.die("getClient is not used"),
-});
-
 const Value = Schema.Union([
   Schema.Literals(["12", "bad", " abc ", "fallback"]),
   Schema.String,
@@ -181,92 +159,51 @@ const outcome = <A, E>(result: Effect.Effect<A, E>) =>
   );
 
 for (const [form, field] of Object.entries(forms) as Array<[FormName, Field]>) {
-  const name: string = form;
+  const name = form;
   const input = Schema.Union([
     Schema.Struct({ kind: Schema.Literal("probe"), value: field }),
     Schema.Struct({ kind: Schema.Literal("text"), value: Schema.String }),
   ]);
-  const calls: Array<unknown> = [];
-  const capability = implement(
-    defineContract(name, {
-      description: "A Union input with one codec form.",
-      input,
-      output: Schema.String,
-      failure: Schema.Never,
-      permission: "public",
-    }),
-    (decoded) =>
-      Effect.sync(() => {
-        calls.push(decoded);
-        return "ok";
+  const probe = mcpProbe(name, input);
+  const real = (raw: unknown) => outcome(Schema.decodeUnknownEffect(input, strict)(wireValue(raw)));
+  const served = (raw: unknown) => outcome(probe.decode(raw));
+
+  it.effect(
+    `${name}: advertises value as optional only when a member visibly takes it missing`,
+    () =>
+      Effect.gen(function* () {
+        const required = (yield* probe.schema).inputSchema["required"] as
+          | readonly string[]
+          | undefined;
+        expect(required?.includes("value") ?? false).toBe(advertisedRequired[form]);
+        expect(required).toContain("kind");
       }),
   );
-  const tool = toTool(capability.contract, { title: name, idempotent: true, openWorld: false });
-  const real = (raw: unknown, options?: typeof strict) =>
-    outcome(Schema.decodeUnknownEffect(input, options)(raw));
-  const merged = (raw: unknown, options?: typeof strict) =>
-    outcome(Schema.decodeUnknownEffect(tool.parametersSchema, options)(raw));
 
-  it(`${name}: advertises value as optional only when a member visibly takes it missing`, () => {
-    const required = Tool.getJsonSchema(tool).required as ReadonlyArray<string> | undefined;
-    expect(required?.includes("value") ?? false).toBe(advertisedRequired[form]);
-    expect(required).toContain("kind");
-  });
-
-  it.effect(`${name}: the tool parameters decode like the real Union`, () =>
-    Effect.gen(function* matrix() {
-      for (const raw of candidates) {
-        expect(yield* merged(raw, strict), JSON.stringify(raw)).toEqual(yield* real(raw, strict));
-      }
+  it.effect(`${name}: served parameters decode like the real Union on the wire`, () =>
+    Effect.gen(function* () {
+      for (const raw of candidates)
+        expect(yield* served(raw), JSON.stringify(raw)).toEqual(yield* real(raw));
     }),
   );
 
   it.effect.prop(
-    `${name}: the tool parameters accept exactly what the real Union accepts`,
+    `${name}: served parameters accept exactly what the JSON Union accepts`,
     [RawInput],
     ([raw]) =>
-      Effect.gen(function* property() {
-        expect(yield* merged(raw, strict)).toEqual(yield* real(raw, strict));
-        // Without strict parsing the Union drops unknown keys; the gate refuses them on purpose.
-        if (!("extra" in raw)) expect(yield* merged(raw)).toEqual(yield* real(raw));
+      Effect.gen(function* () {
+        expect(yield* served(raw)).toEqual(yield* real(raw));
       }),
   );
 
-  const toolkit = Toolkit.make(tool);
-  const server = McpServer.toolkit(toolkit).pipe(
-    Layer.provide(
-      toolkit.toLayer({
-        [name]: (decoded: InputSchema["Type"]) => capability.handler(decoded as typeof input.Type),
-      }),
-    ),
-    Layer.provideMerge(McpServer.McpServer.layer),
+  it.effect(`${name}: an MCP handler runs only for what the real Union accepts`, () =>
+    Effect.gen(function* () {
+      for (const raw of candidates) {
+        const expected = yield* real(raw);
+        const result = yield* served(raw);
+        expect(result.accepts, JSON.stringify(raw)).toBe(expected.accepts);
+        expect(probe.calls, JSON.stringify(raw)).toEqual(expected.accepts ? [expected.value] : []);
+      }
+    }),
   );
-
-  it.layer(server)(`${name}: an MCP server`, (test) => {
-    test.effect("runs the handler only for what the real Union accepts", () =>
-      Effect.gen(function* overMcp() {
-        const mcp = yield* McpServer.McpServer;
-        for (const raw of candidates) {
-          calls.length = 0;
-          const expected = yield* real(raw, strict);
-          const result = yield* Effect.result(
-            mcp
-              .callTool({ name, arguments: raw })
-              .pipe(Effect.provideService(McpSchema.McpServerClient, client)),
-          );
-          if (expected.accepts) {
-            expect(result._tag === "Success" && !result.success.isError, JSON.stringify(raw)).toBe(
-              true,
-            );
-            expect(calls).toEqual([expected.value]);
-          } else {
-            expect(result._tag === "Failure" ? result.failure : result.success).toBeInstanceOf(
-              McpSchema.InvalidParams,
-            );
-            expect(calls).toEqual([]);
-          }
-        }
-      }),
-    );
-  });
 }

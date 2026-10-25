@@ -1,0 +1,664 @@
+{
+  "modules": [
+    {
+      "name": "audit-trail",
+      "service": "@example/api/read-models/audit-trail/AuditTrail",
+      "kind": "read-model",
+      "package": "@example/api",
+      "path": "src/read-models/audit-trail",
+      "operations": [
+        {
+          "name": "AuditTrail.mine",
+          "permission": null,
+          "readOnly": true
+        },
+        {
+          "name": "AuditTrail.recent",
+          "permission": "audit:read",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "name": "billing",
+      "service": "@example/billing/Billing",
+      "kind": "package",
+      "package": "@example/billing",
+      "path": "examples/booking/packages/billing",
+      "operations": [
+        {
+          "name": "Billing.duePayments",
+          "permission": "billing:expire",
+          "readOnly": true
+        },
+        {
+          "name": "Billing.expireOne",
+          "permission": "billing:expire",
+          "transactional": true
+        },
+        {
+          "name": "Billing.initPayment",
+          "permission": "billing:charge",
+          "transactional": true
+        },
+        {
+          "name": "Billing.refund",
+          "permission": "billing:refund",
+          "destructive": true,
+          "transactional": true
+        }
+      ]
+    },
+    {
+      "name": "bookings",
+      "service": "@example/bookings/Bookings",
+      "kind": "package",
+      "package": "@example/bookings",
+      "path": "examples/booking/packages/bookings",
+      "operations": [
+        {
+          "name": "Bookings.book",
+          "permission": "bookings:write",
+          "transactional": true,
+          "edges": ["Party.isRelated", "Party.canAdminOrganisation"]
+        },
+        {
+          "name": "Bookings.cancel",
+          "permission": "bookings:cancel",
+          "destructive": true,
+          "transactional": true,
+          "needsApproval": true,
+          "edges": ["Party.isRelated", "Party.canAdminOrganisation"]
+        },
+        {
+          "name": "Bookings.get",
+          "permission": "bookings:read",
+          "readOnly": true,
+          "edges": ["Party.isRelated"]
+        }
+      ]
+    },
+    {
+      "name": "identity",
+      "service": "identity",
+      "kind": "package",
+      "package": "@house-rules/identity",
+      "path": "packages/identity",
+      "operations": [
+        {
+          "name": "Identity.bindLogin",
+          "permission": "identity:bind",
+          "transactional": true
+        },
+        {
+          "name": "Identity.changePassword",
+          "permission": "identity:update",
+          "transactional": true
+        },
+        {
+          "name": "Identity.endSessions",
+          "permission": "identity:sessions-end",
+          "transactional": true,
+          "destructive": true,
+          "needsApproval": true
+        },
+        {
+          "name": "Identity.issueToken",
+          "permission": "identity:tokens-issue",
+          "transactional": true
+        },
+        {
+          "name": "Identity.listTokens",
+          "permission": "identity:tokens-read",
+          "readOnly": true
+        },
+        {
+          "name": "Identity.recordTokenUse",
+          "permission": "identity:tokens-use",
+          "transactional": true
+        },
+        {
+          "name": "Identity.revokeToken",
+          "permission": "identity:tokens-revoke",
+          "transactional": true,
+          "destructive": true,
+          "needsApproval": true
+        },
+        {
+          "name": "Identity.signIn",
+          "permission": "identity:sign-in",
+          "transactional": true
+        },
+        {
+          "name": "Identity.signUp",
+          "permission": "identity:create",
+          "transactional": true
+        }
+      ]
+    },
+    {
+      "name": "my-bookings",
+      "service": "@example/api/read-models/my-bookings/MyBookings",
+      "kind": "read-model",
+      "package": "@example/api",
+      "path": "src/read-models/my-bookings",
+      "operations": [
+        {
+          "name": "MyBookings.myBookings",
+          "permission": "bookings:read",
+          "readOnly": true
+        }
+      ]
+    },
+    {
+      "name": "party",
+      "service": "party",
+      "kind": "package",
+      "package": "@house-rules/party",
+      "path": "packages/party",
+      "operations": [
+        {
+          "name": "Party.acceptInvitation",
+          "permission": "party:read",
+          "transactional": true
+        },
+        {
+          "name": "Party.assignRole",
+          "permission": "party:admin",
+          "transactional": true
+        },
+        {
+          "name": "Party.canAdminOrganisation",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.createInvitation",
+          "permission": "party:admin",
+          "transactional": true
+        },
+        {
+          "name": "Party.createOrganisation",
+          "permission": "party:create-organisation",
+          "transactional": true
+        },
+        {
+          "name": "Party.createPerson",
+          "permission": "party:create",
+          "transactional": true
+        },
+        {
+          "name": "Party.createPrincipal",
+          "permission": "party:create",
+          "transactional": true
+        },
+        {
+          "name": "Party.defineRole",
+          "permission": "party:admin",
+          "transactional": true
+        },
+        {
+          "name": "Party.deleteRole",
+          "permission": "party:admin",
+          "destructive": true,
+          "transactional": true,
+          "needsApproval": true
+        },
+        {
+          "name": "Party.disable",
+          "permission": "party:update",
+          "destructive": true,
+          "transactional": true,
+          "needsApproval": true
+        },
+        {
+          "name": "Party.findPrincipal",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.holdersOf",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.isRelated",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.listInvitations",
+          "permission": "party:admin",
+          "readOnly": true
+        },
+        {
+          "name": "Party.listMembers",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.listPeople",
+          "permission": "party:admin",
+          "readOnly": true
+        },
+        {
+          "name": "Party.listRoles",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.lockActive",
+          "permission": "party:read",
+          "transactional": true
+        },
+        {
+          "name": "Party.myAccess",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.myOrganisations",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.principalsByIds",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.relate",
+          "permission": "party:admin",
+          "transactional": true
+        },
+        {
+          "name": "Party.renamePerson",
+          "permission": "party:update",
+          "transactional": true
+        },
+        {
+          "name": "Party.revokeInvitation",
+          "permission": "party:admin",
+          "destructive": true,
+          "transactional": true,
+          "needsApproval": true
+        },
+        {
+          "name": "Party.revokeRole",
+          "permission": "party:admin",
+          "destructive": true,
+          "transactional": true,
+          "needsApproval": true
+        },
+        {
+          "name": "Party.rolesOf",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.showMe",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.showOrganisation",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.showPerson",
+          "permission": "party:read",
+          "readOnly": true
+        },
+        {
+          "name": "Party.unrelate",
+          "permission": "party:admin",
+          "destructive": true,
+          "transactional": true,
+          "needsApproval": true
+        }
+      ]
+    }
+  ],
+  "features": [
+    {
+      "name": "accept_invitation",
+      "path": "src/features/accept-invitation/index.ts",
+      "permission": null,
+      "transactional": true,
+      "edges": [
+        "Party.acceptInvitation",
+        {
+          "target": "Party.assignRole",
+          "reason": "role delegated by organisation invitation"
+        }
+      ]
+    },
+    {
+      "name": "assign_role",
+      "path": "src/features/assign-role/index.ts",
+      "permission": null,
+      "edges": ["Party.assignRole"]
+    },
+    {
+      "name": "cancel_booking",
+      "path": "src/features/cancel-booking/index.ts",
+      "permission": null,
+      "edges": [
+        "Bookings.cancel",
+        {
+          "target": "Billing.refund",
+          "reason": "refund after cancel"
+        }
+      ]
+    },
+    {
+      "name": "change_password",
+      "path": "src/features/change-password/index.ts",
+      "permission": null,
+      "transactional": true,
+      "edges": ["Identity.changePassword"]
+    },
+    {
+      "name": "create_invitation",
+      "path": "src/features/create-invitation/index.ts",
+      "permission": null,
+      "transactional": true,
+      "edges": ["Party.createInvitation"]
+    },
+    {
+      "name": "create_organisation",
+      "path": "src/features/create-organisation/index.ts",
+      "permission": null,
+      "transactional": true,
+      "edges": [
+        "Party.createOrganisation",
+        {
+          "target": "Party.assignRole",
+          "reason": "creator of organisation"
+        }
+      ]
+    },
+    {
+      "name": "define_role",
+      "path": "src/features/define-role/index.ts",
+      "permission": null,
+      "edges": ["Party.defineRole"]
+    },
+    {
+      "name": "delete_role",
+      "path": "src/features/delete-role/index.ts",
+      "permission": null,
+      "transactional": true,
+      "edges": ["Party.deleteRole"]
+    },
+    {
+      "name": "due_payments",
+      "path": "src/features/due-payments/index.ts",
+      "permission": null,
+      "readOnly": true,
+      "start": {
+        "reason": "nightly cleanup",
+        "startedBy": "schedule:nightly-cleanup"
+      },
+      "edges": ["Billing.duePayments"]
+    },
+    {
+      "name": "expire_payment",
+      "path": "src/features/expire-payment/index.ts",
+      "permission": null,
+      "start": {
+        "reason": "nightly cleanup",
+        "startedBy": "schedule:nightly-cleanup"
+      },
+      "edges": ["Billing.expireOne"]
+    },
+    {
+      "name": "first_sign_in",
+      "path": "src/features/first-sign-in/index.ts",
+      "permission": null,
+      "start": {
+        "reason": "new login",
+        "startedBy": "hook:new-login"
+      },
+      "edges": [
+        "Party.createPerson",
+        "Identity.bindLogin",
+        {
+          "target": "Party.assignRole",
+          "reason": "default role on first sign-in"
+        }
+      ]
+    },
+    {
+      "name": "list_invitations",
+      "path": "src/features/list-invitations/index.ts",
+      "permission": null,
+      "readOnly": true,
+      "edges": ["Party.listInvitations"]
+    },
+    {
+      "name": "list_members",
+      "path": "src/features/list-members/index.ts",
+      "permission": null,
+      "readOnly": true,
+      "edges": ["Party.listMembers"]
+    },
+    {
+      "name": "list_people",
+      "path": "src/features/list-people/index.ts",
+      "permission": null,
+      "readOnly": true,
+      "edges": ["Party.listPeople"]
+    },
+    {
+      "name": "list_permissions",
+      "path": "src/features/list-permissions/index.ts",
+      "permission": null,
+      "readOnly": true,
+      "edges": ["Party.myAccess"]
+    },
+    {
+      "name": "list_roles",
+      "path": "src/features/list-roles/index.ts",
+      "permission": null,
+      "readOnly": true,
+      "edges": ["Party.listRoles"]
+    },
+    {
+      "name": "make_booking",
+      "path": "src/features/make-booking/index.ts",
+      "permission": null,
+      "edges": ["Bookings.book", "Billing.initPayment"]
+    },
+    {
+      "name": "my_activity",
+      "path": "src/features/my-activity/index.ts",
+      "permission": null,
+      "readOnly": true,
+      "edges": ["AuditTrail.mine"]
+    },
+    {
+      "name": "my_bookings",
+      "path": "src/features/my-bookings/index.ts",
+      "permission": null,
+      "readOnly": true,
+      "edges": ["MyBookings.myBookings"]
+    },
+    {
+      "name": "my_organisations",
+      "path": "src/features/my-organisations/index.ts",
+      "permission": null,
+      "readOnly": true,
+      "edges": ["Party.myOrganisations"]
+    },
+    {
+      "name": "my_profile",
+      "path": "src/features/my-profile/index.ts",
+      "permission": null,
+      "readOnly": true,
+      "edges": ["Party.showMe", "Party.myAccess"]
+    },
+    {
+      "name": "recent_audit",
+      "path": "src/features/recent-audit/index.ts",
+      "permission": null,
+      "readOnly": true,
+      "edges": ["AuditTrail.recent"]
+    },
+    {
+      "name": "remove_member",
+      "path": "src/features/remove-member/index.ts",
+      "permission": null,
+      "transactional": true,
+      "edges": ["Party.unrelate"]
+    },
+    {
+      "name": "revoke_invitation",
+      "path": "src/features/revoke-invitation/index.ts",
+      "permission": null,
+      "transactional": true,
+      "edges": ["Party.revokeInvitation"]
+    },
+    {
+      "name": "revoke_role",
+      "path": "src/features/revoke-role/index.ts",
+      "permission": null,
+      "edges": ["Party.revokeRole"]
+    },
+    {
+      "name": "show_booking",
+      "path": "src/features/show-booking/index.ts",
+      "permission": null,
+      "readOnly": true,
+      "edges": ["Bookings.get"]
+    },
+    {
+      "name": "sign_in",
+      "path": "src/features/sign-in/index.ts",
+      "permission": null,
+      "transactional": true,
+      "start": {
+        "reason": "public sign_in",
+        "startedBy": "public sign_in"
+      },
+      "edges": ["Identity.signIn"]
+    },
+    {
+      "name": "sign_out",
+      "path": "src/features/sign-out/index.ts",
+      "permission": null
+    },
+    {
+      "name": "sign_up",
+      "path": "src/features/sign-up/index.ts",
+      "permission": null,
+      "transactional": true,
+      "start": {
+        "reason": "public sign_up",
+        "startedBy": "public sign_up"
+      },
+      "edges": ["Identity.signUp"]
+    }
+  ],
+  "ways": [
+    {
+      "name": "mcp",
+      "protocol": "mcp",
+      "path": "/mcp",
+      "mean": "elicitation",
+      "source": "src/ways-in/mcp/way.ts",
+      "features": ["my_bookings", "show_booking"]
+    },
+    {
+      "name": "new-login",
+      "protocol": "hook",
+      "slot": "@house-rules/identity/FirstSignIn",
+      "mean": "allow",
+      "source": "src/ways-in/hooks/first-sign-in.ts",
+      "features": ["first_sign_in"]
+    },
+    {
+      "name": "nightly-cleanup",
+      "protocol": "schedule",
+      "clock": {
+        "cron": "0 3 * * *",
+        "timeZone": "UTC"
+      },
+      "mean": "allow",
+      "source": "src/ways-in/schedules/nightly-cleanup.ts",
+      "features": ["due_payments", "expire_payment"]
+    },
+    {
+      "name": "web",
+      "protocol": "http",
+      "path": "/api",
+      "mean": "allow",
+      "source": "src/ways-in/web/way.ts",
+      "features": [
+        "accept_invitation",
+        "assign_role",
+        "cancel_booking",
+        "change_password",
+        "create_invitation",
+        "create_organisation",
+        "define_role",
+        "delete_role",
+        "list_invitations",
+        "list_members",
+        "list_people",
+        "list_permissions",
+        "list_roles",
+        "make_booking",
+        "my_activity",
+        "my_bookings",
+        "my_organisations",
+        "my_profile",
+        "recent_audit",
+        "remove_member",
+        "revoke_invitation",
+        "revoke_role",
+        "show_booking",
+        "sign_in",
+        "sign_out",
+        "sign_up"
+      ],
+      "public": ["sign_in", "sign_up"]
+    }
+  ],
+  "plugs": [
+    {
+      "name": "CallAudit.record",
+      "package": "@house-rules/call-audit",
+      "fills": "Record"
+    },
+    {
+      "name": "Identity.who",
+      "package": "@house-rules/identity",
+      "fills": "Who",
+      "ways": ["mcp", "web"]
+    },
+    {
+      "name": "Mean.allow",
+      "package": "@house-rules/application",
+      "fills": "Mean",
+      "ways": ["new-login", "nightly-cleanup", "web"]
+    },
+    {
+      "name": "Mean.elicitation",
+      "package": "@house-rules/application",
+      "fills": "Mean",
+      "ways": ["mcp"]
+    },
+    {
+      "name": "Party.may",
+      "package": "@house-rules/party",
+      "fills": "May"
+    },
+    {
+      "name": "hook:new-login",
+      "fills": "@house-rules/identity/FirstSignIn",
+      "ways": ["new-login"]
+    }
+  ]
+}

@@ -1,20 +1,82 @@
 # @house-rules/domain
 
-The domain kit. A package uses it to define its domain module: one root service, the `Actor` its methods act for, the permissions and policy it checks on its own data, and the unit of work its writes join. It knows nothing about requests, contracts, gates or delivery. Those belong to [`@house-rules/application`](../application/README.md), which depends on this package. This package depends on no other house-rules package.
+The domain kit describes what a system can do. It owns operations and their edges, caller data, error kinds and pure graph checks. Modules use the same kit for their root service, object policy and unit of work. Execution belongs to [the application kit](../application/README.md). Domain imports no house-rules package.
 
-```text
-@house-rules/domain          define domain modules
-  module      defineModule
-  identity    Actor, ActorId
-  access      Permission, definePolicy            object-level authorization
-  data        UnitOfWork, CurrentUnit, NoOpenUnit, UnitOfWorkFailed, memoryUnitOfWork
-  marker      PerRequest                          defineModule refuses to capture it
-  /contract   Actor, ActorId, Permission, UnitOfWorkFailed   browser-safe
+## Describe operations
+
+```ts
+import { defineOperation, errorKind, NoInput } from "@house-rules/domain/contract";
+import { Schema } from "effect";
+
+class ItemNotFound extends Schema.TaggedError<ItemNotFound>()("ItemNotFound", {
+  kind: errorKind("not_found"),
+  id: Schema.String,
+}) {
+  override get message(): string { return "Item not found."; }
+}
+
+export const showItem = defineOperation("Items.show", {
+  description: "Read one item visible to the caller.",
+  input: Schema.Struct({ id: Schema.String }),
+  output: Schema.Struct({ title: Schema.String }),
+  failure: ItemNotFound,
+  permission: "items:read",
+  readOnly: true,
+});
 ```
 
-## Root modules
+`new ItemNotFound({ id })` needs no kind argument. A operation failure schema accepts only errors with `_tag`, `kind` and `message`; a Union with even one unkinded member fails types. `Schema.Never` describes no expected domain failure.
 
-A package's root module uses `defineModule`. It declares one stable service id and the methods callers may use. It is still an ordinary `Context.Service` class.
+`Callable` is the shared descriptor type for edge targets. `AnyCallable` erases its concrete schemas and flags. `Operation` describes a module or read-model operation.
+
+Each operation has a name, description, optional title and schemas for input, output and failure. Permission is a `resource:action` string or an explicit `null`. Its edges and flags default to `[]` and literal `false`. The flags are independent: `readOnly`, `destructive`, `transactional`, `needsApproval`. Set them directly or in a `flags` object. An explicit top-level flag takes precedence over the same flag in `flags`. Schemas require no services. Input is a Struct, a Union of Structs or `NoInput`. The latter accepts an empty object, not arbitrary fields.
+
+Operation descriptors contain no handlers, services or place markers. Put reusable module descriptors in that module's browser-safe contract door. An app feature lives in `features/<name>/index.ts`. Application’s `defineFeature` includes its handler and makes it directly exposed.
+
+## Edges and callers
+
+A plain edge is the target descriptor. `asSystem(target, reason)` is a system edge:
+
+```ts
+const cancel = defineOperation("cancel_booking", {
+  description: "Cancel a booking and request its refund.",
+  input: NoInput,
+  output: Schema.Void,
+  failure: Schema.Never,
+  permission: null,
+  edges: [cancelBooking, asSystem(refundPayment, "refund after cancel")],
+});
+```
+
+`asSystem` comes from this kit too. It rejects literal `""` in types. Dynamic empty or whitespace-only reasons are plain data until graph validation refuses them. Neither constructor throws.
+
+Caller data has two forms:
+
+```text
+Caller
+  PersonCaller { kind: "person", actor: Actor, via: string }
+  SystemCaller { kind: "system", reason: string, startedBy: string }
+```
+
+A system edge switches a person path to system mode for that call and every descendant. A later system edge keeps the original system caller. The application runtime sets `startedBy` to `<feature> · <actor.id>` on the first switch. Hooks and schedules supply their own short start text. `targetOf(edge)`, `Target<E>` and `Targets<N>` recover target descriptors without losing their types.
+
+## Pure graph checks and closures
+
+`buildGraph(roots)` returns a result rather than throwing:
+
+```ts
+const result = buildGraph([cancel]);
+if (result._tag === "Invalid") console.error(result.reason);
+else console.log(result.graph.callables.map((operation) => operation.name));
+```
+
+It refuses cycles, distinct descriptors with the same name, repeated target edges in either mode, blank system reasons and read-only operations calling writes. Dispatch uses descriptor identity. Application wraps an invalid result in its typed acquisition error; invalid metadata is never executable.
+
+`permissionClosures(operation, startsAs?)` returns `{ person, system }`. The person closure stops at the first system edge; the system closure includes everything below that edge. A system start puts every reachable permission in the system closure. Permissions are deduplicated within each closure. The walk visits each `(operation, mode)` pair once and terminates even on a forged cycle.
+
+## Modules and policy
+
+A root module is an Effect service declared with one stable id:
 
 ```ts
 import { type Actor, defineModule } from "@house-rules/domain";
@@ -24,126 +86,40 @@ class Greetings extends defineModule<
   Greetings,
   { readonly greet: (actor: Actor) => Effect.Effect<string> }
 >()("app/Greetings", {
-  make: (options: { readonly prefix: string }) =>
-    Effect.succeed({
-      greet: (actor: Actor) => Effect.succeed(options.prefix + actor.id),
-    }),
+  make: (options: { readonly prefix: string }) => Effect.succeed({
+    greet: (actor: Actor) => Effect.succeed(options.prefix + actor.id),
+  }),
 }) {
   static readonly presets = { default: { prefix: "Hello " } };
 }
-
-const greetings = Greetings.layer(Greetings.presets.default);
 ```
 
-`Greetings.id` equals its service key. An Effect `make` gives a Layer value; a function `make(options)` gives `layer(options)`. Presets stay plain data. Adapter statics such as `layerPostgres`, `layerMemory` and `fromRecords` belong in the class body, composed with `Layer.provide`.
+An Effect `make` gives `layer`; an options function gives `layer(options)`. Acquisition is lazy. Effect owns memoization and scoped cleanup, and the layer retains missing ports and typed acquisition failures. Each declared method returns an Effect with no requirements. Capture long-lived dependencies once, not a request's identity. A service marked `PerRequest` cannot enter a module make.
 
-Every declared method returns `Effect<Success, Failure, never>`. Construction captures long-lived dependencies once within a Layer build. For example, Bookings captures BookingStore; `Bookings.layer` still requires that port until the composition root provides an adapter. Acquisition failures remain in the Layer's error type. Scope requirements are handled by Effect's Layer scope. Construction is lazy, including options functions, and scoped finalizers run when that scope closes. Two `Layer.build` runs build twice. There is no singleton, global registry, private nesting or Entity constructor. One module per package stays the rule.
+`Actor` is a schema with `id: ActorId`, a branded non-empty string. Construct it with `Actor.make({ id: ActorId.make("user-1") })`. Methods that act for someone take that Actor explicitly.
 
-## Actor and the per-request marker
-
-`Actor` is a schema with one field, `id: ActorId`, a branded non-empty string. Build it with `ActorId.make(id)`, not an arbitrary string. A module method that acts for a user takes the Actor as an explicit argument and checks access itself:
+Object access stays inside the module:
 
 ```ts
-const actor = Actor.make({ id: ActorId.make("user-1") });
-const greeting = Effect.flatMap(Greetings, (greetings) => greetings.greet(actor));
+const policy = definePolicy({ owner: ["items:read", "items:write"], shared: ["items:read"] });
+policy.allows("shared", "items:write"); // false
+policy.table();
 ```
 
-A module never stores request identity at build time. `PerRequest` is a generic marker for that rule. A service that holds one request's value declares it, and `defineModule` fails `tsc` for a `make` that requires a marked service, in either form:
-
-```ts
-class RequestLocale extends Context.Service<RequestLocale, string>()("app/RequestLocale") {
-  declare readonly [PerRequest]: typeof PerRequest;
-}
-```
-
-The application kit's `CurrentActor` carries this marker. This package never names it, so it stays free of application concepts.
-
-## Permissions and policy
-
-A `Permission` is a `resource:action` string, such as `trips:delete`. The module that owns the resource names its permissions next to its data. A contract in the application kit declares one, and the application's `Grant` checks it before any data is read: that is action-level authorization. Whether this caller may act on this one object is object-level authorization, and the module answers it from its own data.
-
-A relation is how the caller stands to one object, such as owner or shared. `definePolicy` gives the shape:
-
-```ts
-import { definePolicy } from "@house-rules/domain";
-
-export const tripPolicy = definePolicy({
-  owner: ["trips:read", "trips:write", "trips:delete", "trips:share"],
-  shared: ["trips:read", "trips:write"],
-});
-
-tripPolicy.allows("shared", "trips:delete"); // false
-tripPolicy.table(); // { owner: { "trips:read": true, ... }, shared: { ..., "trips:delete": false } }
-```
-
-`table()` is pure, so a test compares the whole who × action table to a literal. A permission no relation holds does not appear in the table.
-
-An object also has a state, such as a Trip that is active or frozen. `withStates` adds that dimension and leaves the relation-only policy as it was:
-
-```ts
-export const tripPolicy = definePolicy({
-  owner: ["trips:read", "trips:write", "trips:delete", "trips:share"],
-  shared: ["trips:read", "trips:write"],
-}).withStates({
-  active: ["trips:read", "trips:write", "trips:delete", "trips:share"],
-  frozen: ["trips:read", "trips:delete"],
-});
-
-tripPolicy.allows("owner", "frozen", "trips:write"); // false: the state does not carry it
-tripPolicy.allows("owner", "frozen", "trips:delete"); // true: both carry it
-```
-
-`allows(relation, state, permission)` is true only when the relation's list and the state's list both hold the permission. `table()` covers relation × state × permission. A state can only list permissions the relations name, and an unknown state or permission does not compile. The types are `StatefulPolicy<Relation, State, P>` and `StatefulPolicyTable`. `Policy<Relation, P>` stays the four-field shape (`relations`, `permissions`, `allows`, `table`), so a hand-written one still type-checks. `definePolicy` returns `PolicyBuilder<Relation, P>`, a `Policy` plus `withStates`.
-
-A plan, such as free or paid, is a fact about the caller, so it feeds the application's Grant. The state of an object goes in the stateful policy. A quota, such as five trips at most, needs a count, so the module counts inside the unit of work its write runs in.
+`withStates({ active: [...], frozen: [...] })` adds object state. A permission must be present in the relation list and the state list. `table()` is pure and covers relation, state and permission. Composition declares built-in roles; Party stores custom roles and assignments. The app-level `Party.may()` plug resolves their permissions. A plan or quota check needs the module's own data.
 
 ## Units of work
 
-A use-case owns the transaction, not the module. `UnitOfWork` is a slot; this package defines it and ships the memory adapter. `sqlUnitOfWork`, the Postgres adapter, lives in the application kit.
+A feature owns the unit, not a module. A module write calls `UnitOfWork.required`; a memory adapter calls `UnitOfWork.onRollback(undo)` before changing its records. Without a live unit, both fail with `NoOpenUnit`. The app provides `memoryUnitOfWork` here or `sqlUnitOfWork` from application.
 
-| Adapter | Package | Use |
-| --- | --- | --- |
-| `memoryUnitOfWork` | domain | memory stores: runs the effect, and on failure runs the rollback hooks the stores registered; one unit at a time |
-| `sqlUnitOfWork` | application | Postgres: one `SqlClient.withTransaction` per unit |
+Nested atomic work joins the open unit without a savepoint. Memory units run top-level work one at a time per adapter instance and run every rollback hook newest first. A failed undo does not skip later undo hooks. A detached fiber cannot use a unit after it closes. `UnitOfWorkFailed({ reason })` means opening, committing or rolling back failed; both unit errors have kind `unavailable`.
 
-A module never opens a unit. Its write path checks for one, with no requirement added to the service method:
+`UnitOfWork.make(transaction)` is the adapter constructor. `CurrentUnit`, `Atomic`, `OpenUnit`, `UnitOfWorkService` and `UnitOfWork.holdsClosedUnit` support adapter authors. Memory does not model concurrent database transactions.
 
-```ts
-// In a module's Postgres store: fails with NoOpenUnit when no unit is open.
-put: (booking) => UnitOfWork.required.pipe(Effect.andThen(sql`insert into booking ...`)),
+## Package doors
 
-// In a module's memory store: register the undo, then change the map.
-put: (booking) =>
-  UnitOfWork.onRollback(Effect.sync(() => rows.delete(booking.id))).pipe(
-    Effect.andThen(Effect.sync(() => rows.set(booking.id, booking))),
-  ),
-```
+Install exact `@house-rules/domain` 0.2.0 with `effect` 4.0.3. Published packages load built JavaScript and declarations from `dist/`; this workspace reads `src/`.
 
-A use-case opens one with `transactional: true` on its contract, or with `UnitOfWork.atomic(effect)` around the part that must be atomic. A nested `atomic` joins the open unit: no new transaction, no savepoint. `UnitOfWorkFailed({ reason })` means the unit could not begin, commit or roll back. The work's own errors and defects pass through unchanged.
+The browser door, `@house-rules/domain/contract`, exports operation/edge/schema types and constructors, caller data, kinds, graph/closure functions, `Actor`, `ActorId`, `Permission`, `NoOpenUnit` and `UnitOfWorkFailed`.
 
-`CurrentUnit` is a `Context.Reference` holding the open unit, `undefined` by default, so reading it adds no requirement. Memory stores have no row locks, so `memoryUnitOfWork` runs top-level units one at a time, per layer instance. A nested `atomic` never waits, so it cannot deadlock. A fiber that outlives its unit gets `NoOpenUnit` from `required` and `onRollback`, and should open its own unit. On rollback every undo hook runs, newest first, even when one fails or dies. The memory adapter is for tests and scripts; it does not model concurrent transactions.
-
-`UnitOfWork.make(transaction)` builds another adapter from a function that wraps an effect in a transaction. `UnitOfWork.holdsClosedUnit` lets such an adapter tell a fiber that outlived its unit from a nested call. `UnitOfWorkService`, `OpenUnit` and `Atomic` are the support types for adapter authors.
-
-## Install in another app
-
-```json
-{
-  "dependencies": {
-    "@house-rules/domain": "0.1.0",
-    "effect": "4.0.3"
-  }
-}
-```
-
-1. [ ] Pin it and `effect` to exact versions. `effect` is an exact peer.
-2. [ ] The package ships built JavaScript and `.d.ts` files in `dist/`. Plain `node` loads it. Browser code imports `@house-rules/domain/contract`.
-3. [ ] An app that also uses contracts and delivery installs [`@house-rules/application`](../application/README.md) 0.2.0, which peers on this exact version.
-
-This package and `@house-rules/application` replace `@house-rules/capability`, which stays at 0.16.0 on npm and gets no new versions. See [Upgrading from capability](../application/README.md#upgrading-from-house-rulescapability).
-
-## Exports
-
-Root entry: `defineModule`, `Actor`, `ActorId`, `PerRequest`, `definePolicy`, `UnitOfWork`, `CurrentUnit`, `memoryUnitOfWork`, the `NoOpenUnit` and `UnitOfWorkFailed` errors, and the types `ModuleClass`, `ModuleDeclaration`, `ModuleLayer`, `ModuleMethod`, `ModuleShape`, `NoPerRequest`, `Permission`, `Policy`, `PolicyBuilder`, `PolicyTable`, `StatefulPolicy`, `StatefulPolicyTable`, `Atomic`, `OpenUnit` and `UnitOfWorkService`.
-
-Contract entry, `@house-rules/domain/contract`: `Actor`, `ActorId`, `UnitOfWorkFailed` and the `Permission` type.
+The main door adds `defineModule`, its module support types, `PerRequest`, `NoPerRequest`, `definePolicy` and policy support types, `UnitOfWork`, `CurrentUnit`, `memoryUnitOfWork` and unit support types. There is no layer or migration registration for the kit itself. See [AGENTS.md](AGENTS.md) for the API table and module rules.

@@ -2,45 +2,39 @@
 
 ## What it does
 
-A domain addition: a public support module for flat, plain-text comments on an app's targets. `Comments` uses `defineModule` from `@house-rules/domain`, captures storage and the host port, and takes an explicit Actor on user methods. It ships four browser-safe contracts at `@house-rules/comments/contract`, built with `@house-rules/application/contract`. Version 0.2.0 is ready for release, not yet published; 0.1.0 is on npm. It peers on exact `@house-rules/domain` 0.1.0, `@house-rules/application` 0.2.0 and Effect 4.0.3, and ships built JavaScript and declarations in `dist/`.
+Comments owns flat, plain-text comments on the app's targets. `Comments` captures its storage and the required `CommentTargets` host port. User methods take an explicit Actor and return Effects with no requirements. Version 0.2.0 peers on exact domain 0.2.0, application 0.2.0 and Effect 4.0.3. Published packages load built `dist/`; this workspace loads source.
 
-## How an app mounts it
+## Mount and bind
 
-1. [ ] Fill `CommentTargets` in the composition root with a layer that calls your own module's relation method. Map its failures to `CommentTargetsUnavailable`. There is no default host port.
-2. [ ] Provide that layer to the module, beside the app's SQL client:
+1. [ ] Fill `CommentTargets` in composition with a layer that calls the host module's relation method. Map host failures to `CommentTargetsUnavailable`. There is no default host port.
+2. [ ] In `composition/modules.ts`, import `CommentsMount` from the package main and add `{ ...CommentsMount, layer: chosenCommentsLayer }` to the module plan. Choose `Comments.layerPostgres({ ...Comments.presets.default, targets: ["your-kind"] })` with the host-port layer and shared SQL client. Tests use `layerMemory(options)`; raw `layer(options)` also needs `CommentStore`.
+3. [ ] Register `{ "package": "@house-rules/comments" }` in `migrations.json`, or `{ "workspace": "packages/comments" }` in this repo.
+4. [ ] Let composition acquire `Comments` and call the mount's `bindComments` binder once to build `Runtime`. App features declare edges to `CommentsOperations`. Only features are exposed.
+5. [ ] Share the app's unit adapter. Call `comments.removeTarget(ref)` in the target-deletion unit and `comments.erase(authorId)` in the account-deletion unit.
+6. [ ] Test allowed and denied actors. Do not expose a write or destructive MCP tool without the owner's approval.
 
-   ```ts
-   const comments = Comments.layerPostgres({ ...Comments.presets.default, targets: ["your-kind"] }).pipe(
-     Layer.provide(targetRelations), Layer.provide(database),
-   );
-   ```
+The browser-safe `./contract` door exports schemas, errors, permissions and `CommentsOperations`, never bindings or application values. `defineOperation` declares each operation; `bindComments` uses `bindOperation`. `CommentsMount` is a plain value with `service`, `operations` and `bind`. Composition chooses its layer, host port, storage and policy.
 
-   Tests and apps with no database use `Comments.layerMemory(options)`. The raw `Comments.layer(options)` needs `CommentStore` too. Both adapters are exported.
+| CommentsOperations member / name | Permission | Flags |
+| --- | --- | --- |
+| `listComments` / `Comments.listComments` | `comments:read` | readOnly |
+| `addComment` / `Comments.addComment` | `comments:write` | transactional |
+| `editComment` / `Comments.editComment` | `comments:write` | transactional |
+| `removeComment` / `Comments.removeComment` | `comments:write` | transactional, destructive |
 
-3. [ ] Add the module to the root `migrations.json`:
+Each has empty edges and no approval flag. All require a person; non-person calls fail with `CommentTargetNotFound`, revealing no target. Binders capture the service once and never open a unit.
 
-   ```json
-   { "package": "@house-rules/comments" }
-   ```
+## Options and fixed rules
 
-   Use `{ "workspace": "packages/comments" }` only for this repo's source workspace.
+All options are required: allowed `targets`, positive integer `maxBodyLength` and `maxPageSize`. The partial default preset supplies 4000 UTF-16 code units and page size 100, never target kinds. Times and cursors use epoch milliseconds. Lists sort oldest first by createdAt then id and return an exclusive `next` cursor.
 
-   On rules 0.17.0, a consumer contract that imports this package needs `trustedContractPackages: ["@house-rules/comments"]` in its existing `layout(...)` options. Only `/contract` is trusted; the packed-consumer check verifies its transitive browser safety.
+- Owners read, write and moderate. Members read and write. No relation, missing rows and denied access all fail with `CommentTargetNotFound`.
+- Only authors edit. Authors remove their own comments while still owner or member; only owners remove someone else's. `comments:moderate` remains available for separate app policy.
+- Unknown target kinds fail decoding before the host port runs. Descriptors accept kind strings because the mount owns the allowed set.
+- Writes require an open unit and fail `NoOpenUnit` outside one. The module never opens it.
+- Targets are plain kind/id columns, with no cross-module foreign keys. The host owns deletion hooks and target access.
+- Errors carry not_found, invalid or unavailable kinds at definition. Ways can override messages, never status or code.
+- Module user-facing errors keep their messages; unavailable and plumbing errors use fixed public text, with diagnostic details kept in separate fields or causes.
+- Body text is plain text, never rendered as markdown here. Deletes are hard. No threads, history, events or notifications.
 
-4. [ ] Use `implement(contract, handler)` from `@house-rules/application` in thin use-cases. Yield `CurrentActor` and pass the Actor to `Comments`. Keep the app's Grant at the request boundary.
-5. [ ] Give `Comments` the same `SqlClient` layer, and the same `sqlUnitOfWork`, as the app's other stores. One unit then covers all their writes.
-6. [ ] Add a view for each failure tag the shipped contracts declare, such as `CommentTargetNotFound`, and for `CommentTargetsUnavailable`. A missing view fails `tsc`.
-7. [ ] Call `Comments.removeTarget(ref)` when the app deletes a target, in the same unit. Call `Comments.erase(authorId)` when it deletes a user.
-8. [ ] Test through the composition with an allowed and a denied actor, and check that leaving `CommentTargets` unfilled fails the app layer's type check. Add no route or tool until the app has real identity and the owner approves it.
-
-`Comments.presets.default` is partial data: body length 4000 UTF-16 code units and page size 100. Spread it and supply `targets`; the app must choose its kinds. All options are required, with positive integer limits. Times and cursors use epoch milliseconds. Lists sort oldest first by createdAt then id and return an exclusive `next` cursor.
-
-## Fixed rules
-
-- `CommentTargets` is a host port: the app fills it in the composition root. The module checks object-level access with it; the app's Grant checks the action.
-- No cross-module foreign keys. Targets are plain kind/id columns. The app owns target access and deletion hooks.
-- Owners read, write and moderate. Members read and write. No relation, a missing target or comment, and denied object access all fail with `CommentTargetNotFound`.
-- Only authors edit. Authors remove their own comments while still owner or member; only owners remove someone else's. `removeComment` needs `comments:write` at the Grant. The module checks moderation per target. `comments:moderate` is exported for an app's separate moderator contract.
-- Writes join an open unit; none starts one. Every write fails with `NoOpenUnit` outside it. The shipped write contracts set `transactional: true`.
-- Body text is never rendered as markdown here. Deletes are hard. No threads, history, events or notifications.
-- Unknown target kinds fail schema decoding at the module boundary, before the host port runs. The static contracts accept kind strings because only the mount knows the allowed set.
+Consumers whose rules preset needs explicit contract trust add `@house-rules/comments` to `trustedContractPackages`; only `/contract` is trusted. Run package `typecheck`, `test` and `build`. The shared store suite uses memory and real Postgres.

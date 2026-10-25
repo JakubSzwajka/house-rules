@@ -1,12 +1,15 @@
+import { featureFixture } from "./feature-fixtures.ts";
+import { bindFixture, fixtureLayer, testActor } from "./execution-fixtures.ts";
+import { defineOperation } from "@house-rules/domain";
 import { afterAll, expect, it } from "@effect/vitest";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { FetchHttpClient } from "effect/http";
 import {
   composition,
-  defineContract,
+  defineWay,
+  May,
+  Mean,
   endpoint,
-  implement,
-  route,
   toFetchHandler,
   toHttpClient,
   toOpenApi,
@@ -15,58 +18,80 @@ import { answer, webRequest } from "./delivery-fixtures.ts";
 
 const Status = Schema.Literals(["todo", "doing", "done"]);
 
-const listTasks = implement(
-  defineContract("list_tasks", {
-    description: "List tasks by status and tag.",
-    input: Schema.Struct({
-      status: Schema.optionalKey(Schema.Array(Status)),
-      tags: Schema.optionalKey(Schema.Array(Schema.String)),
-      limit: Schema.optionalKey(Schema.Int),
-      profile: Schema.Literals(["free", "strict"]).pipe(
-        Schema.withDecodingDefaultKey(Effect.succeed("free" as const)),
-      ),
+const listTasks = bindFixture(
+  featureFixture(
+    defineOperation("list_tasks", {
+      description: "List tasks by status and tag.",
+      input: Schema.Struct({
+        status: Schema.optionalKey(Schema.Array(Status)),
+        tags: Schema.optionalKey(Schema.Array(Schema.String)),
+        limit: Schema.optionalKey(Schema.Int),
+        profile: Schema.Literals(["free", "strict"]).pipe(
+          Schema.withDecodingDefaultKey(Effect.succeed("free" as const)),
+        ),
+      }),
+      output: Schema.Struct({
+        status: Schema.optionalKey(Schema.Array(Status)),
+        tags: Schema.optionalKey(Schema.Array(Schema.String)),
+        limit: Schema.optionalKey(Schema.Int),
+        profile: Schema.String,
+      }),
+      failure: Schema.Never,
+      permission: null,
+      readOnly: true,
     }),
-    output: Schema.Struct({
-      status: Schema.optionalKey(Schema.Array(Status)),
-      tags: Schema.optionalKey(Schema.Array(Schema.String)),
-      limit: Schema.optionalKey(Schema.Int),
-      profile: Schema.String,
-    }),
-    failure: Schema.Never,
-    permission: "public",
-    annotations: { readOnly: true },
-  }),
+  ),
   (input) => Effect.succeed(input),
 );
 
-const searchTasks = implement(
-  defineContract("search_tasks", {
-    description: "Search by text or by owner, both with a status list.",
-    input: Schema.Union([
-      Schema.Struct({ by: Schema.Literal("text"), q: Schema.String, status: Schema.Array(Status) }),
-      Schema.Struct({
-        by: Schema.Literal("owner"),
-        owner: Schema.String,
-        status: Schema.Array(Status),
-      }),
-    ]),
-    output: Schema.Struct({ status: Schema.Array(Status) }),
-    failure: Schema.Never,
-    permission: "public",
-    annotations: { readOnly: true },
-  }),
+const searchTasks = bindFixture(
+  featureFixture(
+    defineOperation("search_tasks", {
+      description: "Search by text or by owner, both with a status list.",
+      input: Schema.Union([
+        Schema.Struct({
+          by: Schema.Literal("text"),
+          q: Schema.String,
+          status: Schema.Array(Status),
+        }),
+        Schema.Struct({
+          by: Schema.Literal("owner"),
+          owner: Schema.String,
+          status: Schema.Array(Status),
+        }),
+      ]),
+      output: Schema.Struct({ status: Schema.Array(Status) }),
+      failure: Schema.Never,
+      permission: null,
+      readOnly: true,
+    }),
+  ),
   (input) => Effect.succeed({ status: input.status }),
 );
 
 const at = {
-  list: endpoint(listTasks.contract, "GET /tasks"),
-  search: endpoint(searchTasks.contract, "GET /tasks/search"),
+  list: endpoint(listTasks, "GET /tasks"),
+  search: endpoint(searchTasks, "GET /tasks/search"),
 } as const;
 
-const app = composition({ layer: Layer.empty, caller: () => Effect.succeed(Context.empty()) });
-const http = toFetchHandler(app, {
-  routes: [route(listTasks, at.list), route(searchTasks, at.search)],
+const features = [listTasks, searchTasks] as const;
+const way = defineWay({
+  name: "web",
+  path: "/",
+  protocol: "http",
+  features,
+  endpoints: [at.list, at.search],
+  who: { resolve: () => Effect.succeed(testActor) },
+  mean: Mean.no,
 });
+const app = composition({
+  modules: { mounts: [], layer: fixtureLayer(features) },
+  features: features,
+  ways: [way],
+  may: Effect.succeed(May.fixed([])),
+  system: [],
+});
+const http = toFetchHandler(app);
 afterAll(() => http.dispose().then(() => app.dispose()));
 
 const get = (query: string, path = "/tasks") =>
@@ -93,7 +118,7 @@ it.effect("a repeated key on a field that is not a list stays refused", () =>
     const r = yield* get("limit=5&limit=6");
     expect(r.status).toBe(400);
     expect(r.body).toEqual({
-      error: { code: "invalid_input", message: "Give limit once.", field: "limit" },
+      error: { code: "invalid", message: "Give limit once." },
     });
   }),
 );
@@ -102,7 +127,7 @@ it.effect("a comma is data: a comma list is one item, never split", () =>
   Effect.gen(function* commaKept() {
     const statuses = yield* get("status=todo,doing");
     expect(statuses.status).toBe(400);
-    expect(statuses.body).toMatchObject({ error: { field: "status.0" } });
+    expect(statuses.body).toMatchObject({ error: { message: "status.0 is not valid." } });
     const tags = yield* get("tags=a,b&tags=c");
     expect(tags.status).toBe(200);
     expect(tags.body).toEqual({ tags: ["a,b", "c"], profile: "free" });
@@ -113,7 +138,7 @@ it.effect("an unknown key stays refused next to array fields", () =>
   Effect.gen(function* unknownKey() {
     const r = yield* get("status=todo&state=todo");
     expect(r.status).toBe(400);
-    expect(r.body).toMatchObject({ error: { field: "state" } });
+    expect(r.body).toMatchObject({ error: { message: "state is not a field here." } });
   }),
 );
 
@@ -174,7 +199,7 @@ it.effect("the client sends no key for an empty list", () =>
 );
 
 it("OpenAPI marks an array query parameter form and exploded, and no other", () => {
-  const document = toOpenApi([route(listTasks, at.list)], { title: "Tasks", version: "1" });
+  const document = toOpenApi([at.list], { title: "Tasks", version: "1" });
   const operation = (document.paths["/tasks"] as Record<string, Record<string, unknown>>)[
     "get"
   ] as { parameters: ReadonlyArray<Record<string, unknown>> };

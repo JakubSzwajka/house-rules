@@ -1,58 +1,50 @@
 ---
 title: Start
-description: What House Rules is, how to make a repo from the template, and what happens when you commit.
+description: Create a TypeScript workspace with shared checks, exact pins and commit hooks.
 sidebar:
   order: 0
 ---
 
 ## What it is
 
-House Rules is a GitHub template for TypeScript monorepos. Every repo made from it gets the same checks, the same pins and the same hooks, and nobody sets them up by hand. Agents take the shortest path, so every rule a tool can check lives in `pnpm check`, and a git hook runs it before each commit.
+House Rules is a GitHub template. It gives each project the same checks and hooks. Agents read the repo's `AGENTS.md` as law; people can use [the rules page](../rules/index.md) to find each check and its docs.
 
 ## Make the repo
 
-You need:
-
-- the GitHub CLI, signed in;
-- Node 24.21 or later;
-- pnpm through Corepack. Run `corepack enable` once per machine.
-
-Make a private repo from the template and clone it. For a public one, pass `--public` instead of `--private`.
+Use the Node version in `.nvmrc` and pnpm through Corepack. The template pins the pnpm version in `package.json`. With the GitHub CLI signed in, run:
 
 ```sh
 gh repo create my-app --private --clone --template JakubSzwajka/house-rules
-```
-
-Then install and run the checks:
-
-```sh
 cd my-app
-pnpm install
+corepack enable
+pnpm install --frozen-lockfile
+docker compose up -d
 pnpm check
+pnpm test
 ```
 
-`pnpm install` also sets up the pre-commit hook. In the new repo, `AGENTS.md` is the law. Your agents read it there.
+Use `--public` instead of `--private` for a public repo. Install sets up the pre-commit hook. Postgres is needed for database tests; each suite creates and drops its own database.
 
-## The example module
+## Read the example
 
-The template keeps one module per package. [Bookings](../../../../../examples/booking-platform/packages/bookings/src/facade.ts) declares its root service with `defineModule` from the domain kit, `@house-rules/domain`, captures a storage port when its Layer builds, and has memory and Postgres adapters. Effect owns lazy build and scoped cleanup; two builds construct twice, with no global cache.
+The [booking guide](../../../../../examples/booking/README.md) gives a reading order. The app joins booking and payment operations into features. It includes a system refund edge, Party and Identity operations, and a read model over published views. Its Vite/React dashboard uses the web API at `/api`; read-only MCP is at `/mcp`. Every new login gets the member role. The payment provider is a fake. Its [MAP.md](../../../../../examples/booking/apps/api/MAP.md) shows actual ways, feature closures and operation owners. Run `pnpm --filter @example/api map --write` to regenerate it; the freshness test compares without writing.
 
-The [example guide](../../../../../examples/booking-platform/README.md) maps each framework concept to the file that shows it. The example lives in `examples/booking-platform`, laid out like a regular project; a new project deletes `examples/` and keeps its own code in `apps/` and `packages/`.
+Production requires ACCOUNTS_SIGNING_KEY, a private P-256 JWK. Set APP_ORIGIN to the public HTTPS origin for Secure cookies. Optional MCP_AUTH_ISSUER adds the real OIDC MCP provider; unset MCP stays closed. The devLocal test issuer is mounted only in development/test.
 
-`Actor` is an id, and `yield* CurrentActor`, from the application kit, `@house-rules/application`, returns the Actor for one request. Delivery provides `CurrentActor`; module methods take the Actor explicitly. `Bookings.create(actor, input)` sets the owner, and `relation(actor, id)` returns `"owner"` or `"none"`. Legacy rows remain unowned. The example API still lets visitors read bookings, without sending the owner id. See the [domain kit guide](../../../../../packages/domain/README.md) for options, plain-data presets and adapter statics, and the [application kit guide](../../../../../packages/application/README.md) for contracts, gates and delivery.
+A feature is one app action and its own entry. Application's `defineFeature` puts its contract and handler in `features/<name>/index.ts`. The handler only calls declared edges. `features/index.ts` exports only Features. Composition declares built-in roles and system permissions. One `Party.may()` plug resolves roles for HTTP and MCP; MCP exposes read features only.
+
+Domain's `defineOperation` describes module or read-model work. Modules publish `<Module>Operations` through `./contract`. Application's `bindOperation` captures their services in composition. A way exposes features over HTTP or MCP, or runs system features through hooks and UTC schedules. Ways never expose module operations. One record, one approval decision and one unit surround the graph when needed. Only the feature runtime opens a production unit.
+
+All domain modules are packages, including app-owned ones under `examples/booking/packages/`. Each owns its tables, migrations and object rules. Stored modules ship memory and Postgres adapters. Read models stay in the app and select published views, filtering by person in SQL.
+
+App source has `features/`, `read-models/`, `ways-in/`, `composition/` and `main.ts`. Ways import package contracts, not domain values. The composition root builds plugs and receives the ways from main. See the [domain guide](../../../../../packages/domain/README.md) and [application guide](../../../../../packages/application/README.md) for the APIs.
+
+In a new project, remove `examples/` and its roots from the workspace and configs. Keep your own apps in `apps/` and domain modules in `packages/`. Write your own `VISION.md`.
 
 ## What happens on commit
 
-Two hooks stand between a change and a commit.
+The agent hook checks commands before they run. Pi uses [the git interceptor](../../../../../.pi/extensions/git-interceptor.ts). It blocks `--no-verify`, `git commit -n`, `core.hooksPath` and `LEFTHOOK=0`. [The shared settings](../../../../../.agents/settings.json) hold the same hook in Claude format, but Claude must load it from `.claude/settings.json`.
 
-1. The agent hook runs first. In Pi, [`.pi/extensions/git-interceptor.ts`](../../../../../.pi/extensions/git-interceptor.ts) checks each command before it runs. A command with `--no-verify`, `git commit -n`, `core.hooksPath` or `LEFTHOOK=0` gets this answer:
+Then [lefthook](../../../../../lefthook.yml) runs `pnpm check`, followed by `pnpm test`. A failure blocks the commit. Warnings fail Biome and ESLint too. Fix the finding; never skip the hook or turn off the rule.
 
-   ```text
-   Blocked hook bypass. Do not use --no-verify, git commit -n, core.hooksPath, or LEFTHOOK=0. Fix the hook failure, or ask before changing the hook policy.
-   ```
-
-   [`.agents/settings.json`](../../../../../.agents/settings.json) holds the same hook in Claude Code format.
-
-2. The pre-commit hook runs next. [lefthook](../../../../../lefthook.yml) runs `pnpm check`, then `pnpm test`. If either one fails, the commit fails.
-
-When a check fails, it names a rule. [The rules page](../rules/index.md) lists every rule with a link to its docs. Fix the code. Do not switch the rule off or skip the hook.
+CI runs frozen install, check, test, the packed-consumer proof, the booking API build and the site build. The packed proof loads the built files npm users get, not workspace source. Local acceptance clones committed HEAD, so it does not test uncommitted edits.

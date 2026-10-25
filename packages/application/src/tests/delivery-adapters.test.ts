@@ -1,185 +1,222 @@
+import { featureFixture } from "./feature-fixtures.ts";
 import { afterAll, expect, it } from "@effect/vitest";
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { defineOperation } from "@house-rules/domain";
+import { Effect, Layer, Schema } from "effect";
 import {
   Approval,
   CallRequestId,
   composition,
-  defineContract,
-  implement,
-  route,
+  defineWay,
+  endpoint,
+  May,
+  Mean,
+  protectedResource,
   toFetchHandler,
-  toMcpHandler,
-  tool,
 } from "../index.ts";
-import { bearerCallerFor, makeApp, showBooking, webRequest } from "./delivery-fixtures.ts";
+import { makeApp, showBooking, webRequest } from "./delivery-fixtures.ts";
+import { bindFixture, fixtureLayer, testActor } from "./execution-fixtures.ts";
+import { mcpFixture } from "./router-fixtures.ts";
 import { callMcpTool, mcpInitialize, mcpPost, openMcpSession } from "./delivery-mcp-client.ts";
-
 const t = makeApp();
-
-const status = (handler: (request: Request) => Promise<Response>, request: Request) =>
-  Effect.promise(() => handler(request)).pipe(Effect.map((response) => response.status));
-
-const noteInput = Schema.Struct({ note: Schema.optionalKey(Schema.String) });
-
+const one = makeApp({ path: "/one", endpoints: [endpoint(showBooking, "GET /bookings/:id")] });
+const two = makeApp({ path: "/two", endpoints: [endpoint(showBooking, "GET /bookings/:id")] });
 let approvedRuns = 0;
-const approved = implement(
-  defineContract("approved_action", {
-    description: "Needs a human's yes.",
-    input: noteInput,
-    output: Schema.Struct({ ran: Schema.Boolean }),
-    failure: Schema.Never,
-    permission: "public",
-    needsApproval: true,
-  }),
+const approved = bindFixture(
+  featureFixture(
+    defineOperation("approved_action", {
+      description: "Needs a human's yes.",
+      input: Schema.Struct({ note: Schema.optionalKey(Schema.String) }),
+      output: Schema.Struct({ ran: Schema.Boolean }),
+      failure: Schema.Never,
+      permission: null,
+      needsApproval: true,
+    }),
+  ),
   () =>
     Effect.sync(() => {
       approvedRuns += 1;
       return { ran: true };
     }),
 );
-
-const yesMan = composition({
-  layer: Layer.empty,
-  caller: () => Effect.succeed(Context.make(Approval, { approve: () => Effect.void })),
+const features = [approved] as const;
+const plugs = {
+  features,
+  who: { resolve: () => Effect.succeed(testActor) },
+};
+const http = defineWay({
+  ...plugs,
+  name: "http",
+  path: "/http",
+  protocol: "http",
+  endpoints: [endpoint(approved)],
+  mean: Mean.no,
 });
-const yesManHttp = toFetchHandler(yesMan, { routes: [route(approved)] });
-const yesManTrusted = toFetchHandler(yesMan, {
-  approval: "fromCaller",
-  routes: [route(approved, "POST /trusted")],
+const trusted = defineWay({
+  ...plugs,
+  name: "trusted",
+  path: "/trusted",
+  protocol: "http",
+  endpoints: [endpoint(approved)],
+  mean: Mean.allow,
 });
-const yesManMcp = toMcpHandler(yesMan, {
+const mcp = defineWay({
+  ...plugs,
+  name: "mcp",
   path: "/mcp",
-  name: "approval",
-  version: "1",
-  tools: [tool(approved, { title: "Approved", idempotent: false, openWorld: false })],
-});
-
-const admissionIds: Array<string> = [];
-const echo = implement(
-  defineContract("echo_request_id", {
-    description: "Answers with the request id the tool ran under.",
-    input: noteInput,
-    output: Schema.Struct({ requestId: Schema.String }),
-    failure: Schema.Never,
-    permission: "public",
-    annotations: { readOnly: true },
+  protocol: "mcp",
+  mean: Mean.elicitation,
+  resource: protectedResource({
+    resource: "https://app.example/mcp",
+    authorizationServers: ["https://issuer.example"],
   }),
-  () =>
-    Effect.serviceOption(CallRequestId).pipe(
-      Effect.map((id) => ({ requestId: Option.getOrUndefined(id) ?? "none" })),
-    ),
+  server: { name: "approval", version: "1" },
+  tools: [{ feature: approved, title: "Approved", idempotent: false, openWorld: false }],
+});
+const yesMan = composition({
+  modules: {
+    mounts: [],
+    layer: fixtureLayer(features).pipe(Layer.provideMerge(Approval.allowAll)),
+  },
+  features: features,
+  ways: [http, trusted, mcp],
+  may: Effect.succeed(May.fixed([])),
+  system: [],
+});
+const yesManRouter = toFetchHandler(yesMan);
+const admissionIds: Array<string | null> = [];
+const echo = bindFixture(
+  featureFixture(
+    defineOperation("echo_request_id", {
+      description: "Echo the id seen by the tool.",
+      input: Schema.Struct({ note: Schema.optionalKey(Schema.String) }),
+      output: Schema.Struct({ requestId: Schema.String }),
+      failure: Schema.Never,
+      permission: null,
+      readOnly: true,
+    }),
+  ),
+  () => Effect.map(CallRequestId, (id) => ({ requestId: id ?? "none" })),
 );
-const echoApp = composition({
-  layer: Layer.empty,
-  caller: () =>
-    Effect.serviceOption(CallRequestId).pipe(
-      Effect.map((id) => {
-        admissionIds.push(Option.getOrUndefined(id) ?? "none");
-        return Context.empty();
+const echoApp = mcpFixture([echo], {
+  tools: [{ feature: echo, title: "Echo", idempotent: true, openWorld: false }],
+  who: {
+    resolve: () =>
+      Effect.gen(function* () {
+        admissionIds.push(yield* CallRequestId);
+        return testActor;
       }),
-    ),
+  },
 });
-const echoMcp = toMcpHandler(echoApp, {
-  path: "/mcp",
-  name: "echo",
-  version: "1",
-  tools: [tool(echo, { title: "Echo", idempotent: true, openWorld: false })],
-});
-
-const sameOne = toFetchHandler(t.app, {
-  caller: bearerCallerFor(t.work),
-  routes: [route(showBooking, "GET /same/:id")],
-});
-const sameTwo = toFetchHandler(t.app, {
-  caller: bearerCallerFor(t.work),
-  routes: [route(showBooking, "GET /same/:id")],
-});
-
+const sameOne = toFetchHandler(t.app);
+const sameTwo = toFetchHandler(t.app);
 afterAll(() =>
-  Promise.all(
-    [yesManHttp, yesManTrusted, yesManMcp, echoMcp, sameOne, sameTwo].map((h) => h.dispose()),
-  )
-    .then(() => Promise.all([yesMan.dispose(), echoApp.dispose()]))
+  Promise.all([
+    sameOne.dispose(),
+    sameTwo.dispose(),
+    one.dispose(),
+    two.dispose(),
+    echoApp.dispose(),
+    yesManRouter.dispose(),
+  ])
+    .then(() => yesMan.dispose())
     .then(t.dispose),
 );
-
-it.effect("the HTTP handler never answers MCP, not even an unauthenticated initialize", () =>
-  Effect.gen(function* noMcpOverHttp() {
-    const before = { ...t.work };
-    const initialize = yield* mcpPost(t.api, {}, mcpInitialize);
-    expect(initialize.status).toBe(404);
-    expect(initialize.messages).toEqual([]);
-    expect(t.work).toEqual(before);
+const status = (handler: (request: Request) => Promise<Response>, request: Request) =>
+  Effect.map(
+    Effect.promise(() => handler(request)),
+    (response) => response.status,
+  );
+it.effect(
+  "the router dispatches MCP itself and refuses an unauthenticated initialize before callables",
+  () =>
+    Effect.gen(function* () {
+      const before = { ...t.work };
+      const result = yield* mcpPost(t.router, {}, mcpInitialize);
+      expect(result.status).toBe(401);
+      expect(result.headers.get("www-authenticate")).toContain("resource_metadata");
+      expect(t.work).toEqual(before);
+    }),
+);
+it.effect("each composition's router serves only its configured ways", () =>
+  Effect.gen(function* () {
+    expect(
+      yield* status(
+        one.router,
+        webRequest("https://app.example/two/bookings/b-1", {
+          headers: { authorization: "Bearer tok-ada" },
+        }),
+      ),
+    ).toBe(404);
+    expect(
+      yield* status(
+        two.router,
+        webRequest("https://app.example/one/bookings/b-1", {
+          headers: { authorization: "Bearer tok-ada" },
+        }),
+      ),
+    ).toBe(404);
   }),
 );
-
-it.effect("an HTTP handler serves only its own routes", () =>
-  Effect.gen(function* ownRoutesOnly() {
-    const webRoute = webRequest("https://app.example/web/bookings/b-1", {
-      headers: { cookie: "session=s-ada" },
-    });
-    expect(yield* status(t.api, webRoute)).toBe(404);
-    const apiRoute = webRequest("https://app.example/api/bookings/b-1", {
-      headers: { authorization: "Bearer tok-ada" },
-    });
-    expect(yield* status(t.web, apiRoute)).toBe(404);
-  }),
+it.effect(
+  "two routers on one composition can serve the same path without a global route table",
+  () =>
+    Effect.gen(function* () {
+      for (const handler of [sameOne, sameTwo])
+        expect(
+          yield* status(
+            handler,
+            webRequest("https://app.example/api/bookings/b-1", {
+              headers: { authorization: "Bearer tok-ada" },
+            }),
+          ),
+        ).toBe(200);
+    }),
 );
-
-it.effect("two handlers on one composition may mount the same path", () =>
-  Effect.gen(function* samePath() {
-    const get = () =>
-      webRequest("https://app.example/same/b-1", { headers: { authorization: "Bearer tok-ada" } });
-    expect(yield* status(sameOne, get())).toBe(200);
-    expect(yield* status(sameTwo, get())).toBe(200);
-  }),
-);
-
-it.effect("a caller's own Approval does not beat HTTP's denyAll", () =>
-  Effect.gen(function* httpApprovalHolds() {
+it.effect("a root Approval allow plug cannot beat an HTTP way's Mean.no", () =>
+  Effect.gen(function* () {
     const before = approvedRuns;
-    const r = yield* Effect.promise(() =>
-      yesManHttp(webRequest("https://app.example/approved_action", { method: "POST", body: "{}" })),
+    const result = yield* Effect.promise(() =>
+      yesManRouter(
+        webRequest("https://app.example/http/approved_action", { method: "POST", body: "{}" }),
+      ),
     );
-    expect(r.status).toBe(403);
-    expect(yield* Effect.promise(() => r.json())).toMatchObject({
-      error: { code: "approval_denied" },
+    expect(result.status).toBe(403);
+    expect(yield* Effect.promise(() => result.json())).toMatchObject({
+      error: { code: "forbidden" },
     });
     expect(approvedRuns).toBe(before);
   }),
 );
-
-it.effect("approval: fromCaller lets the caller's Approval decide, by name", () =>
-  Effect.gen(function* optedIn() {
-    const r = yield* status(
-      yesManTrusted,
-      webRequest("https://app.example/trusted", { method: "POST", body: "{}" }),
-    );
-    expect(r).toBe(200);
+it.effect("an explicitly trusted way supplies its own Mean.allow", () =>
+  Effect.gen(function* () {
+    expect(
+      yield* status(
+        yesManRouter,
+        webRequest("https://app.example/trusted/approved_action", { method: "POST", body: "{}" }),
+      ),
+    ).toBe(200);
   }),
 );
-
-it.effect("a caller's own Approval does not beat MCP elicitation", () =>
-  Effect.gen(function* mcpApprovalHolds() {
+it.effect("a root Approval allow plug cannot beat MCP elicitation", () =>
+  Effect.gen(function* () {
     const before = approvedRuns;
-    const session = yield* openMcpSession(yesManMcp);
-    const { result } = yield* callMcpTool(yesManMcp, session, "approved_action", {});
+    const session = yield* openMcpSession(yesManRouter, { authorization: "Bearer fixture" });
+    const { result } = yield* callMcpTool(yesManRouter, session, "approved_action", {});
     expect(result?.["isError"]).toBe(true);
-    expect(JSON.stringify(result)).toMatch(/approval_denied/u);
+    expect(JSON.stringify(result)).toContain("forbidden");
     expect(approvedRuns).toBe(before);
   }),
 );
-
-it.effect("MCP keeps one request id from admission to the tool and the response", () =>
-  Effect.gen(function* mcpRequestIds() {
-    const session = yield* openMcpSession(echoMcp);
-    const fresh = yield* callMcpTool(echoMcp, session, "echo_request_id", {});
-    const freshId = fresh.answer.headers.get("x-request-id");
-    expect(freshId).toMatch(/^[0-9a-f]{32}$/u);
-    expect(fresh.result?.["structuredContent"]).toEqual({ requestId: freshId });
-    expect(admissionIds.at(-1)).toBe(freshId);
+it.effect("MCP keeps one request id from Who through the tool and response", () =>
+  Effect.gen(function* () {
+    const session = yield* openMcpSession(echoApp.handler, { authorization: "Bearer fixture" });
+    const fresh = yield* callMcpTool(echoApp.handler, session, "echo_request_id", {});
+    const id = fresh.answer.headers.get("x-request-id");
+    expect(id).toMatch(/^[0-9a-f]{32}$/u);
+    expect(fresh.result?.["structuredContent"]).toEqual({ requestId: id });
+    expect(admissionIds.at(-1)).toBe(id);
     const kept = yield* callMcpTool(
-      echoMcp,
+      echoApp.handler,
       { ...session, "x-request-id": "mcp-kept-1" },
       "echo_request_id",
       {},

@@ -3,6 +3,8 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 
+import { healthHandler, type HealthOptions } from "./health.ts";
+
 const drainTimeoutMs = 5_000;
 
 const requestOf = (incoming: IncomingMessage, signal: AbortSignal): Request => {
@@ -27,7 +29,7 @@ const requestOf = (incoming: IncomingMessage, signal: AbortSignal): Request => {
       headers.append(key, value);
     }
   }
-  const method = incoming.method ?? "GET";
+  const method = incoming.method === "TRACE" ? "GET" : (incoming.method ?? "GET");
   const init: RequestInit & { duplex?: "half" } = { method, headers, signal };
   if (method !== "GET" && method !== "HEAD") {
     init.body = Readable.toWeb(incoming) as ReadableStream<Uint8Array>;
@@ -50,6 +52,7 @@ const respond = async (
   incoming: IncomingMessage,
   outgoing: ServerResponse,
   controller: AbortController,
+  health: ReturnType<typeof healthHandler> | undefined,
 ): Promise<void> => {
   const abort = () => controller.abort();
   const disconnected = () => {
@@ -59,11 +62,7 @@ const respond = async (
   incoming.once("aborted", abort);
   outgoing.once("close", disconnected);
   try {
-    if (
-      incoming.method === "TRACE" ||
-      incoming.method === "CONNECT" ||
-      (incoming.method === "OPTIONS" && incoming.url === "*")
-    ) {
+    if (incoming.method === "CONNECT" || (incoming.method === "OPTIONS" && incoming.url === "*")) {
       rejectRequest(outgoing, 501);
       return;
     }
@@ -74,7 +73,12 @@ const respond = async (
       rejectRequest(outgoing, 400);
       return;
     }
-    const response = await handler(request);
+    const probe = await health?.(request, incoming.method);
+    if (probe === undefined && incoming.method === "TRACE") {
+      rejectRequest(outgoing, 501);
+      return;
+    }
+    const response = probe ?? (await handler(request));
     if (outgoing.destroyed) {
       await response.body?.cancel();
       return;
@@ -137,13 +141,15 @@ export const serve = async (
     hostname?: string;
     onClose?: () => Promise<void>;
     handleSignals?: boolean;
+    health?: HealthOptions;
   },
 ): Promise<{ url: URL; close(): Promise<void> }> => {
+  const health = options.health === undefined ? undefined : healthHandler(options.health);
   const active = new Map<Promise<void>, AbortController>();
   let closing: Promise<void> | undefined;
   const server = createServer({ requireHostHeader: false }, (incoming, outgoing) => {
     const controller = new AbortController();
-    const task = respond(handler, incoming, outgoing, controller);
+    const task = respond(handler, incoming, outgoing, controller, health);
     active.set(task, controller);
     void task.finally(() => {
       active.delete(task);

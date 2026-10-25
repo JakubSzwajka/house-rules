@@ -1,98 +1,70 @@
 import { expect, it } from "@effect/vitest";
-import { Effect, Layer, Schema, SchemaGetter } from "effect";
-import { McpSchema, McpServer, Tool, Toolkit } from "effect/ai";
-import { defineContract, type InputSchema, toTool } from "../index.ts";
+import { Effect, Schema, SchemaGetter } from "effect";
+import { McpSchema } from "effect/ai";
+import { decodeInput } from "../index.ts";
+import { mcpProbe, wireValue } from "./mcp-probe.ts";
 
 const strict = { onExcessProperty: "error" } as const;
-
-const options = { title: "Probe", idempotent: true, openWorld: false };
-
-const makeTool = <Input extends InputSchema>(name: string, input: Input) =>
-  toTool(
-    defineContract(name, {
-      description: "A Union input probe.",
-      input,
-      output: Schema.String,
-      failure: Schema.Never,
-      permission: "public",
-    }),
-    options,
-  );
-
 const outcome = <A, E>(result: Effect.Effect<A, E>) =>
   Effect.map(Effect.result(result), (settled) =>
     settled._tag === "Success" ? { accepts: true, value: settled.success } : { accepts: false },
   );
-
 const prototypeKeys = ["__proto__", "constructor", "toString", "hasOwnProperty"] as const;
-
 for (const key of prototypeKeys) {
   const input = Schema.Union([
     Schema.Struct({ kind: Schema.Literal("key"), [key]: Schema.String }),
     Schema.Struct({ kind: Schema.Literal("other") }),
   ]);
-
-  it.effect(`a member key named ${key} builds a tool and decodes like the real Union`, () =>
-    Effect.gen(function* prototypeKey() {
-      const tool = makeTool(`key_${key}`, input);
-      const json = Tool.getJsonSchema(tool);
-      expect(Object.keys(json.properties ?? {})).toEqual(["kind", key]);
-      expect(json.required).toEqual(["kind"]);
+  const probe = mcpProbe(`key_${key}`, input);
+  it.effect(`a member key named ${key} lists and decodes like the real Union`, () =>
+    Effect.gen(function* () {
+      const json = (yield* probe.schema).inputSchema;
+      expect(Object.keys(json["properties"] ?? {})).toEqual(["kind", key]);
+      expect(json["required"]).toEqual(["kind"]);
       for (const raw of [
         JSON.parse(`{"kind":"key","${key}":"valid"}`),
         { kind: "other" },
         { kind: "key" },
         JSON.parse(`{"kind":"other","${key}":"valid"}`),
       ]) {
-        const real = yield* outcome(Schema.decodeUnknownEffect(input, strict)(raw));
-        const merged = yield* outcome(
-          Schema.decodeUnknownEffect(tool.parametersSchema, strict)(raw),
+        expect(yield* outcome(probe.decode(raw))).toEqual(
+          yield* outcome(Schema.decodeUnknownEffect(input, strict)(raw)),
         );
-        expect(merged, JSON.stringify(raw)).toEqual(real);
       }
-      const decoded = yield* Schema.decodeUnknownEffect(
-        tool.parametersSchema,
-        strict,
-      )(JSON.parse(`{"kind":"key","${key}":"valid"}`));
-      expect(Object.hasOwn(decoded, key)).toBe(true);
+      expect(
+        Object.hasOwn(yield* probe.decode(JSON.parse(`{"kind":"key","${key}":"valid"}`)), key),
+      ).toBe(true);
     }),
   );
 }
-
-it.effect("a non-enumerable declared field is still a known key", () =>
-  Effect.gen(function* nonEnumerable() {
+it.effect("a non-enumerable declared schema field is still a known key", () =>
+  Effect.gen(function* () {
     const fields = { kind: Schema.Literal("probe"), value: Schema.String };
     Object.defineProperty(fields, "value", { enumerable: false });
     const input = Schema.Union([
       Schema.Struct(fields),
       Schema.Struct({ kind: Schema.Literal("other") }),
     ]);
-    const tool = makeTool("non_enumerable", input);
+    const probe = mcpProbe("non_enumerable", input);
     const raw = { kind: "probe", value: "valid" };
-    expect(yield* Schema.decodeUnknownEffect(tool.parametersSchema, strict)(raw)).toEqual(
-      yield* Schema.decodeUnknownEffect(input, strict)(raw),
-    );
-    expect(Tool.getJsonSchema(tool).properties).toHaveProperty("value");
+    expect(yield* probe.decode(raw)).toEqual(yield* Schema.decodeUnknownEffect(input, strict)(raw));
+    expect((yield* probe.schema).inputSchema["properties"]).toHaveProperty("value");
   }),
 );
 
 const Nested = Schema.Struct({ list: Schema.Array(Schema.Unknown), raw: Schema.Unknown }).annotate({
   identifier: "Nested",
 });
-
 const AnyValue = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("nested"), value: Nested }),
   Schema.Struct({ kind: Schema.Literal("raw"), value: Schema.Unknown }),
 ]);
-
-const AnyValueTool = makeTool("any_value", AnyValue);
-
+const anyValue = mcpProbe("any_value", AnyValue);
 const manyUnknownKeys = Object.fromEntries([
   ["kind", "raw"],
   ["value", 1],
   ...Array.from({ length: 100_000 }, (_, index) => [`x${index}`, index]),
 ]);
-
 const adversarial: ReadonlyArray<readonly [string, unknown]> = [
   ["nested", { kind: "nested", value: { list: [null, [], { constructor: 7 }], raw: { n: 1 } } }],
   ["nested unknown key", { kind: "nested", value: { list: [], raw: null, extra: 1 } }],
@@ -121,163 +93,129 @@ const adversarial: ReadonlyArray<readonly [string, unknown]> = [
   ["null prototype", Object.assign(Object.create(null), { kind: "raw", value: { deep: [1] } })],
   ["inherited known keys", Object.create({ kind: "raw", value: 1 })],
 ];
-
 for (const [name, raw] of adversarial) {
-  it.effect(`strict decoding matches the real Union: ${name}`, () =>
-    Effect.gen(function* parity() {
-      const expected = yield* outcome(Schema.decodeUnknownEffect(AnyValue, strict)(raw));
-      expect(
-        yield* outcome(Schema.decodeUnknownEffect(AnyValueTool.parametersSchema, strict)(raw)),
-      ).toEqual(expected);
-      expect(
-        yield* outcome(
-          Schema.decodeUnknownEffect(
-            Schema.toCodecJson(AnyValueTool.parametersSchema),
-            strict,
-          )(raw),
-        ),
-      ).toEqual(expected);
-    }),
+  it.effect(
+    `served JSON decoding matches the real Union: ${name}`,
+    () =>
+      Effect.gen(function* () {
+        // 100k-key and 1MB cases are size probes, not speed tests; 5s flakes under the parallel root run.
+        const wire = wireValue(raw);
+        const expected = yield* outcome(Schema.decodeUnknownEffect(AnyValue, strict)(wire));
+        expect(yield* outcome(anyValue.decode(raw))).toEqual(expected);
+        expect(anyValue.calls).toEqual(expected.accepts ? [expected.value] : []);
+      }),
+    30_000,
   );
 }
-
 for (const key of ["0", "Symbol(value)"]) {
   it.effect(`a declared key ${key} in one member decodes like the real Union`, () =>
-    Effect.gen(function* oddKey() {
+    Effect.gen(function* () {
       const input = Schema.Union([
         Schema.Struct({ kind: Schema.Literal("key"), [key]: Schema.String }),
         Schema.Struct({ kind: Schema.Literal("other") }),
       ]);
+      const probe = mcpProbe("odd_key", input);
       const raw = { kind: "key", [key]: "yes" };
-      const merged = Schema.decodeUnknownEffect(
-        makeTool("odd_key", input).parametersSchema,
-        strict,
+      expect(yield* probe.decode(raw)).toEqual(
+        yield* Schema.decodeUnknownEffect(input, strict)(raw),
       );
-      expect(yield* merged(raw)).toEqual(yield* Schema.decodeUnknownEffect(input, strict)(raw));
     }),
   );
 }
-
-it.effect("the gate neither reads nor replaces a known value before the Union decodes it", () =>
-  Effect.gen(function* identity() {
-    const seen: Array<unknown> = [];
-    const capture = Schema.Unknown.pipe(
-      Schema.decodeTo(Schema.Unknown, {
-        decode: SchemaGetter.transform((value) => {
-          seen.push(value);
-          return value;
+it.effect(
+  "the gate preserves the known value's identity between transport decoding and feature decoding",
+  () =>
+    Effect.gen(function* () {
+      const seen: unknown[] = [];
+      const capture = Schema.Unknown.pipe(
+        Schema.decodeTo(Schema.Unknown, {
+          decode: SchemaGetter.transform((value) => {
+            seen.push(value);
+            return value;
+          }),
+          encode: SchemaGetter.passthrough(),
         }),
-        encode: SchemaGetter.passthrough(),
-      }),
-    );
-    const input = Schema.Union([
-      Schema.Struct({ kind: Schema.Literal("yes"), value: capture }),
-      Schema.Struct({ kind: Schema.Literal("no"), value: Schema.String }),
-    ]);
-    const value = Object.freeze({ nested: Object.freeze([null, { a: 1 }]) });
-    const decoded = yield* Schema.decodeUnknownEffect(
-      makeTool("capture", input).parametersSchema,
-      strict,
-    )(Object.freeze({ kind: "yes", value }));
-    expect(seen).toEqual([value]);
-    expect(seen[0]).toBe(value);
-    expect(decoded.value).toBe(value);
-  }),
+      );
+      const input = Schema.Union([
+        Schema.Struct({ kind: Schema.Literal("yes"), value: capture }),
+        Schema.Struct({ kind: Schema.Literal("no"), value: Schema.String }),
+      ]);
+      const probe = mcpProbe("capture", input);
+      const decoded = yield* probe.decode(
+        Object.freeze({
+          kind: "yes",
+          value: Object.freeze({ nested: Object.freeze([null, { a: 1 }]) }),
+        }),
+      );
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen.every((value) => value === decoded.value)).toBe(true);
+      expect(probe.calls).toHaveLength(1);
+    }),
 );
-
-it.effect("an empty Struct member: the gate still refuses arguments that are not an object", () =>
-  Effect.gen(function* emptyMember() {
+it.effect("an empty Struct member still rejects non-object MCP arguments", () =>
+  Effect.gen(function* () {
     const input = Schema.Union([
       Schema.Struct({}),
       Schema.Struct({ kind: Schema.Literal("object") }),
     ]);
-    const tool = makeTool("empty_member", input);
+    const probe = mcpProbe("empty_member", input);
     for (const raw of [1, false, "text", [], [1]]) {
-      // Effect's empty Struct takes any non-nullish value; MCP arguments are always a JSON object.
       expect((yield* outcome(Schema.decodeUnknownEffect(input, strict)(raw))).accepts).toBe(true);
-      expect(
-        (yield* outcome(Schema.decodeUnknownEffect(tool.parametersSchema, strict)(raw))).accepts,
-      ).toBe(false);
+      expect((yield* outcome(probe.decode(raw))).accepts, JSON.stringify(raw)).toBe(false);
     }
-    for (const raw of [null, undefined]) {
-      expect(
-        (yield* outcome(Schema.decodeUnknownEffect(tool.parametersSchema, strict)(raw))).accepts,
-      ).toBe(false);
-    }
-    expect(yield* Schema.decodeUnknownEffect(tool.parametersSchema, strict)({})).toEqual({});
+    yield* Effect.flip(probe.decode(null));
+    yield* Effect.flip(
+      Schema.decodeUnknownEffect(Schema.toCodecJson(McpSchema.CallTool.payloadSchema))({
+        name: "empty_member",
+        arguments: null,
+      }),
+    );
+    const normalized = yield* Schema.decodeUnknownEffect(
+      Schema.toCodecJson(McpSchema.CallTool.payloadSchema),
+    )({ name: "empty_member" });
+    expect(normalized.arguments).toEqual({});
+    expect(yield* probe.decode(undefined)).toEqual({});
+    for (const raw of [null, undefined])
+      yield* Effect.flip(decodeInput(probe.feature, raw, "json"));
+    expect(yield* probe.decode({})).toEqual({});
   }),
 );
-
-const client = McpSchema.McpServerClient.of({
-  clientId: 1,
-  protocolVersion: "2025-11-25",
-  clientCapabilities: new McpSchema.ClientCapabilities({}),
-  clientInfo: { name: "test-client", version: "1.0.0" },
-  initializePayload: {
-    protocolVersion: "2025-11-25",
-    capabilities: new McpSchema.ClientCapabilities({}),
-    clientInfo: { name: "test-client", version: "1.0.0" },
-  },
-  getClient: Effect.die("getClient is not used"),
-});
-
-const calls: Array<unknown> = [];
-
-const Tools = Toolkit.make(AnyValueTool);
-
-const server = McpServer.toolkit(Tools).pipe(
-  Layer.provide(
-    Tools.toLayer({
-      any_value: (input) =>
-        Effect.sync(() => {
-          calls.push(input);
-          return "ok";
-        }),
-    }),
-  ),
-  Layer.provideMerge(McpServer.McpServer.layer),
+const localRefs = (callable: unknown): readonly string[] =>
+  typeof callable !== "object" || callable === null
+    ? []
+    : [
+        ...("$ref" in callable && typeof callable.$ref === "string" ? [callable.$ref] : []),
+        ...Object.values(callable).flatMap(localRefs),
+      ];
+it.effect("the MCP server lists a closed object with resolving local refs", () =>
+  Effect.gen(function* () {
+    const listed = (yield* anyValue.schema).inputSchema;
+    expect(listed).toMatchObject({
+      type: "object",
+      required: ["kind", "value"],
+      additionalProperties: false,
+    });
+    const refs = localRefs(listed);
+    expect(refs.length).toBeGreaterThan(0);
+    for (const ref of refs) {
+      expect(ref.startsWith("#/$defs/")).toBe(true);
+      expect(listed["$defs"]).toHaveProperty([ref.slice("#/$defs/".length)]);
+    }
+  }),
 );
-
-const localRefs = (node: unknown): ReadonlyArray<string> => {
-  if (typeof node !== "object" || node === null) return [];
-  const own = "$ref" in node && typeof node.$ref === "string" ? [node.$ref] : [];
-  return [...own, ...Object.values(node).flatMap(localRefs)];
-};
-
-it.layer(server)("an MCP server with adversarial arguments", (test) => {
-  test.effect("lists a closed object whose $defs references resolve", () =>
-    Effect.gen(function* listing() {
-      const mcp = yield* McpServer.McpServer;
-      const listed = mcp.tools.find(({ tool }) => tool.name === "any_value")?.tool.inputSchema;
-      expect(listed).toMatchObject({
-        type: "object",
-        required: ["kind", "value"],
-        additionalProperties: false,
-      });
-      const refs = localRefs(listed);
-      expect(refs.length).toBeGreaterThan(0);
-      for (const ref of refs) {
-        expect(ref.startsWith("#/$defs/")).toBe(true);
-        expect(listed?.$defs).toHaveProperty([ref.slice("#/$defs/".length)]);
-      }
-    }),
-  );
-
-  test.effect("runs the handler exactly when the real Union accepts the object", () =>
-    Effect.gen(function* overMcp() {
-      const mcp = yield* McpServer.McpServer;
+it.effect(
+  "the MCP server runs the handler exactly for objects the wire Union accepts",
+  () =>
+    Effect.gen(function* () {
+      // 100k-key and 1MB cases are size probes, not speed tests; 5s flakes under the parallel root run.
       for (const [name, raw] of adversarial) {
         if (typeof raw !== "object" || raw === null || Array.isArray(raw)) continue;
-        calls.length = 0;
-        const expected = yield* outcome(Schema.decodeUnknownEffect(AnyValue, strict)(raw));
-        const result = yield* Effect.result(
-          mcp
-            .callTool({ name: "any_value", arguments: raw as Record<string, unknown> })
-            .pipe(Effect.provideService(McpSchema.McpServerClient, client)),
+        const expected = yield* outcome(
+          Schema.decodeUnknownEffect(AnyValue, strict)(wireValue(raw)),
         );
-        expect(result._tag, name).toBe(expected.accepts ? "Success" : "Failure");
-        expect(calls, name).toEqual(expected.accepts ? [expected.value] : []);
+        expect(yield* outcome(anyValue.decode(raw)), name).toEqual(expected);
+        expect(anyValue.calls, name).toEqual(expected.accepts ? [expected.value] : []);
       }
     }),
-  );
-});
+  30_000,
+);

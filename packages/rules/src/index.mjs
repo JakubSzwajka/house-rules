@@ -13,13 +13,15 @@ import { noComputedImportRule } from "./no-computed-import.mjs";
 import { noHandRolledSurfaceRule } from "./no-hand-rolled-surface.mjs";
 import { noHandRunEffectRule } from "./no-hand-run-effect.mjs";
 import { testingExportsOnlyInTestsRule } from "./testing-exports-only-in-tests.mjs";
-import { useCaseIsCapabilityRule } from "./use-case-is-capability.mjs";
+import { featureFileRule } from "./feature-file.mjs";
+import { featureBuildersRule } from "./feature-builders.mjs";
+import { esmOnlyEffectRule } from "./esm-only-effect.mjs";
 import { ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL } from "./rule-docs.mjs";
 
 const plugin = {
   meta: {
     name: "@house-rules/rules",
-    version: "0.18.0",
+    version: "0.19.0",
   },
   rules: {
     "comment-discipline": commentDisciplineRule,
@@ -30,7 +32,9 @@ const plugin = {
     "design-no-unknown-token": designNoUnknownTokenRule,
     "design-scale-value": designScaleValueRule,
     "design-css-layers": designCssLayersRule,
-    "use-case-is-capability": useCaseIsCapabilityRule,
+    "feature-file": featureFileRule,
+    "feature-builders": featureBuildersRule,
+    "esm-only-effect": esmOnlyEffectRule,
     "no-hand-rolled-surface": noHandRolledSurfaceRule,
     "no-hand-run-effect": noHandRunEffectRule,
     "no-computed-import": noComputedImportRule,
@@ -84,26 +88,13 @@ plugin.configs.testing = [
   },
 ];
 
-// The same roots for the whole preset: pass the appsDir and packagesDir layout() gets, a path or a list,
-// so no-computed-import covers the package source contract-entry-is-browser-safe follows, and
-// use-case-is-capability the use-cases the layer rules check.
-function capabilityConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
-  const caller = "capabilityConfig()";
+// Use the same roots as layout(), including app descriptor dependency trees.
+function featuresConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
+  const caller = "featuresConfig()";
   const packageRoots = layoutOptions.rootsOption(packagesDir, "packagesDir", caller);
   const appRoots = layoutOptions.rootsOption(appsDir, "appsDir", caller);
   layoutOptions.disjointRoots(appRoots, packageRoots, caller);
-  // The rule's own default covers apps/, so the default preset keeps its plain "error".
-  const useCases =
-    appRoots.entries.length === 1 && appRoots.entries[0] === "apps"
-      ? "error"
-      : [
-          "error",
-          {
-            include: appRoots.entries.map(
-              (root) => `${root}/*/src/use-cases/**/*.{ts,tsx,mts,cts}`,
-            ),
-          },
-        ];
+  const appOptions = { appsDir: appRoots.entries };
   return [
     {
       files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
@@ -124,9 +115,17 @@ function capabilityConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
       },
     },
     {
-      files: ["**/*.{ts,tsx,mts,cts}"],
+      files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
       rules: {
-        "house-rules/use-case-is-capability": useCases,
+        "house-rules/feature-file": ["error", appOptions],
+        "house-rules/esm-only-effect": [
+          "error",
+          { ...appOptions, packagesDir: packageRoots.entries },
+        ],
+        "house-rules/feature-builders": [
+          "error",
+          { ...appOptions, packagesDir: packageRoots.entries },
+        ],
       },
     },
     {
@@ -140,7 +139,7 @@ function capabilityConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
     },
     // Package source a contract entry may reach. Dependency Cruiser records no edge for import(at).
     {
-      files: packageRoots.entries.map(
+      files: [...packageRoots.entries, ...appRoots.entries].map(
         (root) => `${root}/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}`,
       ),
       ignores: ["**/{tests,test,__tests__}/**", "**/*.{test,spec}.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
@@ -151,12 +150,12 @@ function capabilityConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
   ];
 }
 
-plugin.configs.capability = capabilityConfig();
+plugin.configs.features = featuresConfig();
 
 // A block with only `name` and `ignores` is a global ignore: ESLint never reads those paths.
 plugin.configs.nextHost = [
   { name: "house-rules/next-host", ignores: [...hosts.HOSTS.next.eslintIgnores] },
 ];
 
-export { capabilityConfig, plugin, ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL };
+export { featuresConfig, plugin, ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL };
 export default plugin;

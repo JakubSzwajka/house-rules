@@ -4,9 +4,14 @@ import { memoryUnitOfWork } from "@house-rules/domain";
 import { sqlUnitOfWork } from "@house-rules/application";
 import { Migrations, MigrationsTesting } from "@house-rules/migrations";
 import { Layer } from "effect";
-import { memoryBindingStore, postgresBindingStore } from "../../index.js";
+import {
+  Identity,
+  type IdentityOptions,
+  memoryBindingStore,
+  postgresBindingStore,
+} from "../../index.js";
 
-const migratedDatabase = Layer.effectDiscard(
+export const identityDatabaseTesting = Layer.effectDiscard(
   Migrations.run([
     {
       name: "identity",
@@ -26,11 +31,26 @@ const migratedDatabase = Layer.effectDiscard(
   ),
 );
 
+export const identityWorldsTesting = (
+  options: IdentityOptions,
+  ports: Parameters<typeof Identity.layerMemory>[1] = {},
+) =>
+  [
+    {
+      name: "postgres",
+      layer: Identity.layerPostgres(options, ports).pipe(
+        Layer.provideMerge(sqlUnitOfWork),
+        Layer.provideMerge(identityDatabaseTesting),
+      ),
+    },
+    { name: "memory", layer: Layer.merge(Identity.layerMemory(options, ports), memoryUnitOfWork) },
+  ] as const;
+
 export const stores = [
   {
     name: "postgres",
     layer: Layer.merge(postgresBindingStore, sqlUnitOfWork).pipe(
-      Layer.provideMerge(migratedDatabase),
+      Layer.provideMerge(identityDatabaseTesting),
     ),
   },
   { name: "memory", layer: Layer.merge(memoryBindingStore(), memoryUnitOfWork) },

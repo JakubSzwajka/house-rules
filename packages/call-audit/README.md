@@ -1,26 +1,42 @@
 # @house-rules/call-audit
 
+For a reader with no per-call SQL requirement, mount `CallAudit.reader.postgres` with the shared SQL client, or `CallAudit.reader.memory(log)` with the same memory log as Record. Capture `AuditReader`; call `reader.readRows({ viewerId, limit: 50 })` behind an app permission gate. Both filter by viewer before limiting. Omitting viewerId is a trusted all-row read, never a public endpoint default.
+
 Version 0.7.0 peers on exact `effect` 4.0.3 and `@house-rules/application` 0.2.0, which replaces the retired capability package. Pin the Node platform and SQL driver to 4.0.3 too. Stable SQL imports use `effect/sql`.
 
-An audit trail for every capability call. It plugs into the `CallWatch` hook of `@house-rules/application`, so it sees calls from every surface, `Forbidden` and `ApprovalDenied` included. An `AuditPolicy` decides which calls it keeps and how long their rows live. `AGENTS.md` in this package is the short mounting guide.
+An audit trail for every feature call. It plugs into the `CallWatch` hook of `@house-rules/application`, so it sees HTTP, MCP and hook features, `Forbidden` and `ApprovalDenied` included. Inner operation and feature calls do not add rows. An `AuditPolicy` decides which calls it keeps and how long their rows live. `AGENTS.md` in this package is the short mounting guide.
 
-An entry holds these fields and nothing else:
+An `AuditRecord` holds these fields and nothing else. Columns, migrations and stored text values stay unchanged.
 
 | Field | Meaning |
 | --- | --- |
-| `capability` | the contract name |
-| `permission` | the contract permission, or `"public"` |
+| `capability` | the feature name, kept for schema continuity |
+| `target` | the feature name, required |
+| `permission` | the feature permission, or the empty string for null |
 | `viewerId` | the caller id from `who`, or `null` |
 | `outcome` | `success`, the typed failure `_tag` (`failure` when it has none), `defect`, or `interrupted` |
 | `ms` | the duration of the whole call |
-| `kind` | `read` when the contract is `readOnly`, else `write` |
-| `targetId` | the input field the contract names in `audit: { target }`, when it is a string, else `null` |
+| `kind` | `read` when the lifted feature is `readOnly`, else `write` |
+| `targetId` | optional object id from explicit call facts, `null` by default; never selected from operation input |
 | `channel` | `mcp` or `mcp:<client>` for MCP calls, else the app's `CallChannel`, `unknown` by default |
 | `requestId` | the app's `CallRequestId`, set by `withRequestId` from `@house-rules/application`, or `null` |
 
 It never records the input, and never an error message. Input is often user data.
 
 Outcome precedence: any defect wins (`defect`), then a typed failure, then `interrupted`.
+
+## The Record socket
+
+`CallAudit.record.memory(log, options?)` returns a `RecordSocket` over the existing memory watch. Options contain `who`; omitting them records a null viewer. `CallAudit.record.postgres(options)` wraps the existing policy watch over Postgres and returns `RecordSocket<never, SqlClient>`. Its `.layer` requires the app's SQL client and outputs only `CallWatch`. No export is named `Record`, and this package adds no domain peer.
+
+```ts
+const record = CallAudit.record.postgres({ who, policy: CallAudit.presets.strict });
+const watch = record.layer.pipe(Layer.provide(database));
+```
+
+All Record layers await recording in `Effect.onExit` before `runFeature` returns, on success and failure. No flush is needed before reading rows. Policy filters and swallowed storage failures can still leave no row; recording never changes the feature's exit.
+
+Provide this watch once in the root, then capture it in hooks too. Strict keeps refusals. The socket does not expose AuditStore; mount `postgresAuditStore` separately for read/erase/retention scripts, or use the lower `layerPostgres` when both outputs are wanted.
 
 ## The policy layer
 
@@ -46,12 +62,12 @@ An `AuditPolicy` has four fields:
 
 | Field | Meaning |
 | --- | --- |
-| `keep(entry)` | `true` keeps the call. A `keep` that throws keeps it. |
+| `keep(record)` | `true` keeps the call. A `keep` that throws keeps it. |
 | `retention` | `{ read, write, failure }`, each a `Duration.Input`. `"Infinity"` never deletes that class. |
 | `onWriteFailure` | `"ignore"`, or `"log"`: a warning with the capability and the error tag, never the message |
 | `erasure` | `"delete"` |
 
-A call's class is `failure` when its outcome is not `success`, whatever its kind. Otherwise it is its kind. Rows from before migration `0002` have no kind and count as writes.
+A call's class is `failure` when its outcome is not `success`, whatever its kind. Strict keeps closure and approval refusals too. Otherwise it is its kind. Rows from before migration `0002` have no kind and count as writes.
 
 | Preset | Keeps | Retention | Write failure |
 | --- | --- | --- | --- |
@@ -65,7 +81,7 @@ A call's class is `failure` when its outcome is not `success`, whatever its kind
 
 The layer forks one fiber in its scope. It runs retention when the layer starts, then once per interval. A run deletes each class's rows older than its window, oldest first, in batches. On Postgres the run reserves one connection and takes the session advisory lock `pg_try_advisory_lock(hashtext('@house-rules/call-audit/retention'))`. When another replica holds it, the run skips. A failed run logs a warning and waits for the next tick. `CallAudit.runRetention(policy, { batchSize })` runs it once, for a script or a test, and returns `{ ran, deleted: { read, write, failure } }`.
 
-Retention cutoffs and `recorded_at` both come from the app's `Clock`, never from the database's `now()`. Replicas must keep synchronized clocks: skew between them shortens or extends the window by the skew. Rows written before migration `0002` were stamped by the database clock, so their `recorded_at` can differ from the app clock by that offset.
+Retention cutoffs and `recorded_at` both come from the app's `Clock`, never from the database's `now()`. Replicas must keep synchronized clocks: skew between them shortens or extends the window by the skew. Tests must use the same clock for calls and retention. When an app builds its own live-clock runtime, use `it.live` for direct calls too; epoch timestamps from `it.effect` can be deleted by live-clock startup retention. Rows written before migration `0002` were stamped by the database clock, so their `recorded_at` can differ from the app clock by that offset.
 
 `CallAudit.erase(viewerId)` deletes every row of one viewer and returns the count. It needs `AuditStore`. The app calls it where it deletes a user.
 
@@ -81,13 +97,13 @@ These keep working and record every call, with no policy and no retention.
 import { CallAudit, memoryAuditLog } from "@house-rules/call-audit";
 
 // Production: one physical log line per call.
-// capability call {"capability":"read_trip","permission":"trips:read","viewerId":"user_ana","outcome":"success","ms":3,"kind":"read","targetId":"t-1","channel":"web","requestId":null}
+// capability call {"capability":"read_trip","target":"read_trip","permission":"trips:read","viewerId":"user_ana","outcome":"success","ms":3,"kind":"read","targetId":null,"channel":"web","requestId":null}
 const production = CallAudit.layerLog({ who });
 
-// Tests: the same entries, in memory.
+// Tests: the same records, in memory.
 const log = memoryAuditLog();
 const test = CallAudit.layerMemory(log, { who });
-log.entries(); // ReadonlyArray<AuditEntry>
+log.entries(); // ReadonlyArray<AuditRecord>
 log.clear();
 ```
 
@@ -106,12 +122,13 @@ const production = CallAudit.layerTable({ who, log: true }).pipe(Layer.provide(d
 | --- | --- |
 | `id` | an identity, for ordering |
 | `recorded_at` | when the call ended, from the app's `Clock` |
-| `capability`, `permission`, `viewer_id`, `outcome`, `ms` | the first five entry fields |
+| `capability`, `permission`, `viewer_id`, `outcome`, `ms` | the first five record fields |
 | `kind`, `target_id`, `channel`, `request_id` | the call facts, added by `0002`, `null` on older rows |
+| `target` | required feature name, added by `0003` and backfilled from capability |
 
 The write is synchronous: it runs after the call, in the same `Effect.onExit` as the log line. `log: true` also writes the log line, so the table adds to the log instead of replacing it. Without it, only the row is written.
 
-The table comes from this package's own migrations, `migrations/0001_call_audit.sql` and `migrations/0002_call_audit_policy.sql`. The package declares the folder in its `package.json` as `"houseRules": { "migrations": "migrations" }` and ships it in `files`. An app runs it with `@house-rules/migrations` by adding one entry to its `migrations.json`:
+The table comes from this package's own migrations, `migrations/0001_call_audit.sql`, `migrations/0002_call_audit_policy.sql` and additive `migrations/0003_call_audit_target.sql`. The third adds target, backfills it from capability and requires it. The first two stay unchanged. The package declares the folder in its `package.json` as `"houseRules": { "migrations": "migrations" }` and ships it in `files`. An app runs it with `@house-rules/migrations` by adding one entry to its `migrations.json`:
 
 ```json
 { "package": "@house-rules/call-audit" }
@@ -135,7 +152,7 @@ const latest = CallAudit.readRows({ limit: 50, viewerId: "user_ana" });
 | `limit` | rows to return. Default 100, at most 1000. A value below 1 gives 1. |
 | `viewerId` | only the rows of this caller |
 
-Rows come back newest first, decoded with a `Schema`. An `AuditRow` has `capability`, `permission`, `viewerId` (`string | null`), `outcome`, `ms`, `kind`, `targetId`, `channel`, `requestId` (each `null` on rows from before `0002`) and `recordedAt` (a `Date`). The four fact fields are optional in the type, so an old `AuditRow` or `AuditEntry` literal without them still compiles; a row read back always carries them. It needs the `SqlClient` the app already provides, and fails with the typed `AuditReadFailed` when the SQL fails. Use it in tests and in a future audit screen.
+Rows come back newest first, decoded with a `Schema`. An `AuditRow` has required `target`, `capability`, `permission`, `viewerId` (`string | null`), `outcome`, `ms`, `kind`, `targetId`, `channel`, `requestId` (each `null` on rows from before `0002`) and `recordedAt` (a `Date`). The four optional fact fields may still be omitted in literals; target must be present. A row read back always carries the facts. It needs the `SqlClient` the app already provides, and fails with the unavailable-kind `AuditReadFailed` when the SQL fails. Use it for direct audit reads and tests. The booking app's `audit-trail` read model reads through `AuditReader` and supplies its web Audit screen.
 
 ## The `who` option
 
@@ -150,7 +167,7 @@ const who = Effect.serviceOption(CurrentActor).pipe(
 );
 ```
 
-`Effect.serviceOption` keeps `who` free of requirements, and a call with no actor logs `null`. `who` runs once, before the handler, in the context of the call, so the entry names the caller who entered the capability even if the handler swaps `CurrentActor` later. The column keeps its old name, `viewerId`.
+`Effect.serviceOption` keeps `who` free of requirements, and a call with no actor logs `null`. `who` runs once, before the handler, in the context of the call, so the record names the caller who started the feature even if the handler swaps `CurrentActor` later. The column keeps its old name, `viewerId`.
 
 ## A broken log cannot break a call
 

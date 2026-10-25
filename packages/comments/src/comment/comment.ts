@@ -1,3 +1,4 @@
+import { errorKind } from "@house-rules/domain/contract";
 import { Schema } from "effect";
 
 export const CommentTarget = Schema.Struct({
@@ -33,20 +34,28 @@ export type CommentList = typeof CommentList.Type;
 
 export class CommentTargetNotFound extends Schema.TaggedError<CommentTargetNotFound>()(
   "CommentTargetNotFound",
-  {},
+  { kind: errorKind("not_found") },
 ) {}
 
 export class CommentInputInvalid extends Schema.TaggedError<CommentInputInvalid>()(
   "CommentInputInvalid",
-  { message: Schema.String },
+  { kind: errorKind("invalid"), message: Schema.String },
 ) {}
 
 export class CommentStoreUnavailable extends Schema.TaggedError<CommentStoreUnavailable>()(
   "CommentStoreUnavailable",
-  { cause: Schema.Defect() },
-) {}
+  { kind: errorKind("unavailable"), cause: Schema.Defect() },
+) {
+  override get message(): string {
+    return "Comments are unavailable. Try again shortly.";
+  }
+}
 
 export class CommentTargetsUnavailable extends Schema.TaggedError<CommentTargetsUnavailable>()(
   "CommentTargetsUnavailable",
-  { cause: Schema.Defect() },
-) {}
+  { kind: errorKind("unavailable"), cause: Schema.Defect() },
+) {
+  override get message(): string {
+    return "Comment targets are unavailable. Try again shortly.";
+  }
+}

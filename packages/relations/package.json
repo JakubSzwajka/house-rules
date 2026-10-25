@@ -1,0 +1,65 @@
+{
+  "name": "@house-rules/relations",
+  "version": "0.1.0",
+  "description": "Typed, non-authority edges between opaque nodes.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "migrations",
+    "AGENTS.md",
+    "README.md"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./contract": "./src/contract.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./contract": {
+        "types": "./dist/contract.d.ts",
+        "default": "./dist/contract.js"
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JakubSzwajka/house-rules.git",
+    "directory": "packages/relations"
+  },
+  "bugs": {
+    "url": "https://github.com/JakubSzwajka/house-rules/issues"
+  },
+  "homepage": "https://github.com/JakubSzwajka/house-rules",
+  "houseRules": {
+    "migrations": "migrations"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "varlock run --path ../../ -- vitest run"
+  },
+  "peerDependencies": {
+    "@house-rules/application": "0.2.0",
+    "@house-rules/domain": "0.2.0",
+    "effect": "4.0.3"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "4.0.3",
+    "@effect/platform-node-shared": "4.0.3",
+    "@effect/sql-pg": "4.0.3",
+    "@effect/vitest": "4.0.3",
+    "@house-rules/application": "workspace:0.2.0",
+    "@house-rules/domain": "workspace:0.2.0",
+    "@house-rules/migrations": "workspace:0.4.0",
+    "effect": "4.0.3",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}

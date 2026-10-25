@@ -1,0 +1,19 @@
+{
+  "apps/web/package.json": "{\"name\":\"@acme/web\"}",
+  "apps/web/src/app/kanban/page.tsx": "import {redirect} from 'next/navigation'; import {Shell} from '../_components/shell.tsx'; export const page = {redirect, Shell};",
+  "apps/web/src/app/api/v1/tasks/route.ts": "import {NextResponse} from 'next/server'; export const GET = () => NextResponse.json({});",
+  "apps/web/src/app/(home)/layout.tsx": "import React from 'react'; export const layout = React;",
+  "apps/web/src/app/sitemap.ts": "import {NextResponse} from 'next/server'; export const GET = () => NextResponse.json({});",
+  "apps/web/src/app/_components/shell.tsx": "import {Icon} from 'lucide-react'; export const Shell = Icon;",
+  "node_modules/next/package.json": "{\"name\":\"next\",\"exports\":{\"./navigation\":\"./navigation.js\",\"./server\":\"./server.js\"}}",
+  "node_modules/next/navigation.js": "export const redirect = () => {};",
+  "node_modules/next/server.js": "export const NextResponse = {json: () => {}};",
+  "node_modules/react/package.json": "{\"name\":\"react\",\"exports\":\"./index.js\"}",
+  "node_modules/react/index.js": "export const React = {}; export default React;",
+  "node_modules/lucide-react/package.json": "{\"name\":\"lucide-react\",\"exports\":\"./index.js\"}",
+  "node_modules/lucide-react/index.js": "export const Icon = {};",
+  "packages/bookings/package.json": "{\"name\":\"@example/bookings\",\"exports\":{\".\":\"./src/index.ts\",\"./contract\":\"./src/contract.ts\"}}",
+  "packages/bookings/src/index.ts": "export const Bookings = {};",
+  "packages/bookings/src/contract.ts": "export const Booking = {};",
+  "apps/web/src/read-models/report/index.ts": "export const report = {};"
+}

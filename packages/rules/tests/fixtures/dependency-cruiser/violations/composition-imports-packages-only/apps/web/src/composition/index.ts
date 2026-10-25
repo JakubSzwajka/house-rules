@@ -1,4 +1,4 @@
-export { route } from "../delivery/route";
-export { loop } from "../server/loop";
-export { show } from "../use-cases/show";
+export { route } from "../ways-in/route";
+export { loop } from "./loop";
+export { show } from "../features/show/handler";
 export { views } from "./views";

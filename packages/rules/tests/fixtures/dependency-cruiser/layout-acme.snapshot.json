@@ -69,74 +69,211 @@
       "to": {
         "reachable": true,
         "pathNot": [
+          "^apps/[^/]+/src/features/(?:[^/]+/|)index[.]ts$",
+          "^apps/[^/]+/src/ways-in/[^/]+/endpoints[.]ts$",
+          "^apps/[^/]+/src/read-models/[^/]+/(?!adapters/|(?:index|facade|storage)[.]ts$|(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$).+",
           "^packages/[^/]+/(?!src/adapters(?:/|$)|(?:src/index[.]ts|src/facade[.]ts|src/storage[.]ts)$|src/(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$)src/",
           "(?:^|/)node_modules/effect/dist/(?:index|[A-Z][A-Za-z0-9]*|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js$",
-          "(?:^|/)node_modules/(?:@house-rules/application|@house-rules/domain)/(?:src/contract[.]ts|dist/contract[.](?:js|d[.]ts))$"
+          "(?:^|/)node_modules/(?:@house-rules/application|@house-rules/domain|@house-rules/identity)/(?:src/contract[.]ts|dist/contract[.](?:js|d[.]ts))$"
         ]
       }
     },
     {
-      "name": "delivery-does-not-import-server",
+      "name": "features-do-not-import-outer-folders",
       "severity": "error",
-      "comment": "See https://stack.kubaszwajka.com/rules/#delivery-does-not-import-server",
+      "comment": "See https://stack.kubaszwajka.com/rules/#features-do-not-import-outer-folders",
       "from": {
-        "path": "^apps/[^/]+/src/delivery(?:/|$)"
-      },
-      "to": {
-        "path": "^apps/[^/]+/src/server(?:/|$)",
-        "reachable": true
-      }
-    },
-    {
-      "name": "server-does-not-import-delivery",
-      "severity": "error",
-      "comment": "See https://stack.kubaszwajka.com/rules/#server-does-not-import-delivery",
-      "from": {
-        "path": "^apps/[^/]+/src/server(?:/|$)"
-      },
-      "to": {
-        "path": "^apps/[^/]+/src/delivery(?:/|$)",
-        "reachable": true
-      }
-    },
-    {
-      "name": "use-cases-do-not-import-outer-layers",
-      "severity": "error",
-      "comment": "See https://stack.kubaszwajka.com/rules/#use-cases-do-not-import-outer-layers",
-      "from": {
-        "path": "^apps/[^/]+/src/use-cases(?:/|$)"
+        "path": "^(apps/[^/]+/src/features/[^/]+)/",
+        "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
       },
       "to": {
         "path": [
-          "^apps/[^/]+/src/delivery(?:/|$)",
-          "^apps/[^/]+/src/server(?:/|$)"
+          "^apps/[^/]+/src/ways-in(?:/|$)",
+          "^apps/[^/]+/src/composition(?:/|$)"
         ],
         "reachable": true
       }
     },
     {
-      "name": "composition-imports-packages-only",
+      "name": "read-models-import-packages-only",
       "severity": "error",
-      "comment": "See https://stack.kubaszwajka.com/rules/#composition-imports-packages-only",
+      "comment": "See https://stack.kubaszwajka.com/rules/#read-models-import-packages-only",
+      "from": {
+        "path": "^(apps/[^/]+/src/read-models/[^/]+)/",
+        "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+      },
+      "to": {
+        "path": "^apps/[^/]+/",
+        "pathNot": "^$1/"
+      }
+    },
+    {
+      "name": "ways-in-import-app-folders-only",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#ways-in-import-app-folders-only",
+      "from": {
+        "path": "^apps/[^/]+/src/ways-in(?:/|$)",
+        "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+      },
+      "to": {
+        "path": "^apps/[^/]+/",
+        "pathNot": [
+          "^apps/[^/]+/src/ways-in(?:/|$)",
+          "^apps/[^/]+/src/features(?:/|$)",
+          "^apps/[^/]+/src/composition(?:/|$)",
+          "^apps/[^/]+/src/read-models(?:/|$)"
+        ]
+      }
+    },
+    {
+      "name": "ways-in-do-not-import-read-model-values",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#ways-in-do-not-import-read-model-values",
+      "from": {
+        "path": "^apps/[^/]+/src/ways-in(?:/|$)",
+        "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+      },
+      "to": {
+        "path": "^apps/[^/]+/src/read-models(?:/|$)",
+        "dependencyTypesNot": [
+          "type-only"
+        ]
+      }
+    },
+    {
+      "name": "ways-in-import-contracts-only",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#ways-in-import-contracts-only",
+      "from": {
+        "path": "^(apps/[^/]+/src)/ways-in(?:/|$)",
+        "pathNot": [
+          "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$",
+          "^(apps/[^/]+/src)/ways-in/[^/]+/page/"
+        ]
+      },
+      "to": {
+        "pathNot": [
+          "^$1/(?:features|composition|ways-in)/",
+          "^packages/[^/]+/src/contract[.]ts$",
+          "^packages/(?:application|domain)/src/index[.]ts$",
+          "(?:^|/)node_modules/(?:@[^/]+/|)[^/]+/(?:src/contract[.]ts|dist/contract[.](?:js|d[.]ts))$",
+          "(?:^|/)node_modules/@house-rules/(?:application|domain)/(?:src/index[.]ts|dist/index[.](?:js|d[.]ts))$",
+          "(?:^|/)node_modules/effect/",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)(?:unstable/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)unstable/sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/@effect/sql-[^/]*/",
+          "(?:^|/)node_modules/@effect/platform-[^/]*/"
+        ],
+        "dependencyTypesNot": [
+          "type-only"
+        ]
+      }
+    },
+    {
+      "name": "ways-in-import-contracts-only",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#ways-in-import-contracts-only",
+      "from": {
+        "path": "^(apps/[^/]+/src)/ways-in/[^/]+/page/",
+        "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+      },
+      "to": {
+        "pathNot": [
+          "^$1/(?:features|composition|ways-in)/",
+          "^packages/[^/]+/src/contract[.]ts$",
+          "^packages/(?:application|domain)/src/index[.]ts$",
+          "(?:^|/)node_modules/(?:@[^/]+/|)[^/]+/(?:src/contract[.]ts|dist/contract[.](?:js|d[.]ts))$",
+          "(?:^|/)node_modules/@house-rules/(?:application|domain)/(?:src/index[.]ts|dist/index[.](?:js|d[.]ts))$",
+          "(?:^|/)node_modules/effect/",
+          "(?:^|/)node_modules/(?![.]pnpm/|@house-rules/|@effect/sql-|@effect/platform-|effect/)[^/]+/",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)(?:unstable/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)unstable/sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/@effect/sql-[^/]*/",
+          "(?:^|/)node_modules/@effect/platform-[^/]*/"
+        ],
+        "dependencyTypesNot": [
+          "type-only"
+        ]
+      }
+    },
+    {
+      "name": "ways-in-import-contracts-only",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#ways-in-import-contracts-only",
+      "from": {
+        "path": "^(apps/[^/]+/src)/ways-in(?:/|$)",
+        "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+      },
+      "to": {
+        "path": [
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)(?:unstable/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)unstable/sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/@effect/sql-[^/]*/",
+          "(?:^|/)node_modules/@effect/platform-[^/]*/"
+        ]
+      }
+    },
+    {
+      "name": "ways-in-do-not-import-other-ways",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#ways-in-do-not-import-other-ways",
+      "from": {
+        "path": "^(apps/[^/]+/src/ways-in/[^/]+)/",
+        "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+      },
+      "to": {
+        "path": "^apps/[^/]+/src/ways-in(?:/|$)",
+        "pathNot": "^$1/",
+        "reachable": true
+      }
+    },
+    {
+      "name": "composition-does-not-import-ways-in",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#composition-does-not-import-ways-in",
       "from": {
         "path": "^apps/[^/]+/src/composition(?:/|$)"
       },
       "to": {
-        "path": "^apps/[^/]+/",
-        "pathNot": "^apps/[^/]+/src/composition(?:/|$)"
+        "path": "^apps/[^/]+/src/ways-in(?:/|$)",
+        "reachable": true
       }
     },
     {
-      "name": "use-cases-do-not-import-composition",
+      "name": "read-models-public-entry-only",
       "severity": "error",
-      "comment": "See https://stack.kubaszwajka.com/rules/#use-cases-do-not-import-composition",
+      "comment": "See https://stack.kubaszwajka.com/rules/#read-models-public-entry-only",
       "from": {
-        "path": "^apps/[^/]+/src/use-cases(?:/|$)",
-        "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+        "path": "(?:^(apps/[^/]+/src/read-models/[^/]+)/|^)"
       },
       "to": {
-        "path": "^apps/[^/]+/src/composition(?:/|$)",
-        "reachable": true
+        "path": "^apps/[^/]+/src/read-models/[^/]+/(?!(?:index|contract)[.]ts$)",
+        "pathNot": "^$1/"
+      }
+    },
+    {
+      "name": "domain-imports-no-house-rules",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#domain-imports-no-house-rules",
+      "from": {
+        "path": "^packages/domain/src/"
+      },
+      "to": {
+        "path": "(?:^@house-rules/|(?:^|/)node_modules/@house-rules/|^packages/(?!domain/)[^/]+/)"
+      }
+    },
+    {
+      "name": "application-does-not-import-event-log",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#application-does-not-import-event-log",
+      "from": {
+        "path": "^packages/application/src/"
+      },
+      "to": {
+        "path": "(?:^@house-rules/event-log(?:/|$)|(?:^|/)node_modules/@house-rules/event-log/|^packages/event-log/)"
       }
     },
     {
@@ -193,13 +330,13 @@
       }
     },
     {
-      "name": "app-code-in-layers",
+      "name": "app-folders",
       "severity": "error",
-      "comment": "See https://stack.kubaszwajka.com/rules/#app-code-in-layers",
+      "comment": "See https://stack.kubaszwajka.com/rules/#app-folders",
       "module": {
         "path": "^apps/[^/]+/src/",
         "pathNot": [
-          "^apps/[^/]+/src/(?:delivery|server|use-cases|composition)/",
+          "^apps/[^/]+/src/(?:features|read-models|ways-in|composition)/",
           "^apps/[^/]+/src/(?:main[.]ts|index[.]ts)$",
           "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
         ],
@@ -208,30 +345,28 @@
       "from": {}
     },
     {
-      "name": "use-cases-do-not-import-use-cases",
-      "severity": "error",
-      "comment": "See https://stack.kubaszwajka.com/rules/#use-cases-do-not-import-use-cases",
-      "from": {
-        "path": "^(apps/[^/]+/src/use-cases/[^/]+)",
-        "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
-      },
-      "to": {
-        "path": "^apps/[^/]+/src/use-cases/[^/]+",
-        "pathNot": [
-          "^$1(?:/|$)",
-          "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
-        ],
-        "reachable": true
-      }
-    },
-    {
       "name": "no-ownerless-files",
       "severity": "error",
       "comment": "See https://stack.kubaszwajka.com/rules/#no-ownerless-files",
       "module": {
         "path": [
           "^(?:apps|packages)/(?:.*/)?(?:utils|helpers|misc)(?:[.][^/]*)?(?:/|$)",
-          "^packages/[^/]+/(?:.*/)?(?:[tT][yY][pP][eE][sS]|[mM][oO][dD][eE][lL][sS]|[sS][cC][hH][eE][mM][aA][sS]|[dD][rR][aA][fF][tT][sS]|[eE][rR][rR][oO][rR][sS]|[vV][aA][lL][iI][dD][aA][tT][eE]|[vV][aA][lL][iI][dD][aA][tT][iI][oO][nN]|[cC][oO][nN][sS][tT][aA][nN][tT][sS]|[iI][nN][tT][eE][rR][fF][aA][cC][eE][sS]|[iI][nN][tT][eE][rR][nN][aA][lL])(?:[.][^/]*)?(?:/|$)"
+          "^packages/[^/]+/(?:.*/)?(?:[tT][yY][pP][eE][sS]|[mM][oO][dD][eE][lL][sS]|[sS][cC][hH][eE][mM][aA][sS]|[dD][rR][aA][fF][tT][sS]|[eE][rR][rR][oO][rR][sS]|[vV][aA][lL][iI][dD][aA][tT][eE]|[vV][aA][lL][iI][dD][aA][tT][iI][oO][nN]|[cC][oO][nN][sS][tT][aA][nN][tT][sS]|[iI][nN][tT][eE][rR][fF][aA][cC][eE][sS]|[iI][nN][tT][eE][rR][nN][aA][lL])(?:[.][^/]*)?(?:/|$)",
+          "^apps/[^/]+/src/read-models/[^/]+/(?:.*/)?(?:[tT][yY][pP][eE][sS]|[mM][oO][dD][eE][lL][sS]|[sS][cC][hH][eE][mM][aA][sS]|[dD][rR][aA][fF][tT][sS]|[eE][rR][rR][oO][rR][sS]|[vV][aA][lL][iI][dD][aA][tT][eE]|[vV][aA][lL][iI][dD][aA][tT][iI][oO][nN]|[cC][oO][nN][sS][tT][aA][nN][tT][sS]|[iI][nN][tT][eE][rR][fF][aA][cC][eE][sS]|[iI][nN][tT][eE][rR][nN][aA][lL])(?:[.][^/]*)?(?:/|$)"
+        ],
+        "numberOfDependentsLessThan": 100
+      },
+      "from": {}
+    },
+    {
+      "name": "package-root-files",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#package-root-files",
+      "module": {
+        "path": "^apps/[^/]+/src/read-models/[^/]+/[^/]+$",
+        "pathNot": [
+          "^apps/[^/]+/src/read-models/[^/]+/(?:index[.]ts|facade[.]ts|storage[.]ts|contract[.]ts)$",
+          "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
         ],
         "numberOfDependentsLessThan": 100
       },
@@ -311,6 +446,82 @@
         "pathNot": [
           "^packages/[^/]+/src/adapters(?:/|$)"
         ]
+      },
+      "to": {
+        "path": [
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)unstable/sql(?:[/.]|$)",
+          "(?:^|/)node_modules/effect/(?:[^/]+/|)sql(?:[/.]|$)",
+          "(?:^|/)node_modules/@effect/sql-[^/]*/",
+          "(?:^|/)node_modules/@effect/platform-[^/]*/"
+        ]
+      }
+    },
+    {
+      "name": "contract-entry-is-browser-safe",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#contract-entry-is-browser-safe",
+      "from": {
+        "path": "(?:^apps/[^/]+/src/read-models/[^/]+/contract[.]ts$|^apps/[^/]+/src/features/(?:[^/]+/|)index[.]ts$|^apps/[^/]+/src/ways-in/[^/]+/endpoints[.]ts$)"
+      },
+      "to": {
+        "reachable": true,
+        "pathNot": [
+          "^apps/[^/]+/src/features/(?:[^/]+/|)index[.]ts$",
+          "^apps/[^/]+/src/ways-in/[^/]+/endpoints[.]ts$",
+          "^apps/[^/]+/src/read-models/[^/]+/(?!adapters/|(?:index|facade|storage)[.]ts$|(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$).+",
+          "^packages/[^/]+/(?!src/adapters(?:/|$)|(?:src/index[.]ts|src/facade[.]ts|src/storage[.]ts)$|src/(?:.*/|)(?:tests?|__tests__)/|.*[.](?:test|spec)[.][^/]+$)src/",
+          "(?:^|/)node_modules/effect/dist/(?:index|[A-Z][A-Za-z0-9]*|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js$",
+          "(?:^|/)node_modules/(?:@house-rules/application|@house-rules/domain|@house-rules/identity)/(?:src/contract[.]ts|dist/contract[.](?:js|d[.]ts))$"
+        ]
+      }
+    },
+    {
+      "name": "domain-does-not-import-adapters",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#domain-does-not-import-adapters",
+      "from": {
+        "path": "^(apps/[^/]+/src/read-models/[^/]+)/",
+        "pathNot": "^apps/[^/]+/src/read-models/[^/]+/(?:adapters/|(?:index|facade)[.]ts$)"
+      },
+      "to": {
+        "path": "^$1/adapters/",
+        "pathNot": "^$1/adapters/tests/"
+      }
+    },
+    {
+      "name": "domain-does-not-import-adapters",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#domain-does-not-import-adapters",
+      "from": {
+        "path": "^(apps/[^/]+/src/read-models/[^/]+)/",
+        "pathNot": [
+          "^apps/[^/]+/src/read-models/[^/]+/(?:adapters/|(?:index|facade)[.]ts$)",
+          "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+        ]
+      },
+      "to": {
+        "path": "^$1/adapters/tests/"
+      }
+    },
+    {
+      "name": "subjects-do-not-import-package-root",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#subjects-do-not-import-package-root",
+      "from": {
+        "path": "^(apps/[^/]+/src/read-models/[^/]+)/(?!adapters/|(?:tests?|__tests__)/)[^/]+/",
+        "pathNot": "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$"
+      },
+      "to": {
+        "path": "^$1/(?:index|facade|contract)[.]ts$"
+      }
+    },
+    {
+      "name": "adapter-imports-only-in-adapters",
+      "severity": "error",
+      "comment": "See https://stack.kubaszwajka.com/rules/#adapter-imports-only-in-adapters",
+      "from": {
+        "path": "^apps/[^/]+/src/read-models/[^/]+/",
+        "pathNot": "^apps/[^/]+/src/read-models/[^/]+/adapters/"
       },
       "to": {
         "path": [

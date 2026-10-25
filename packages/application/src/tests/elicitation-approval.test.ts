@@ -1,13 +1,8 @@
+import { bindFixture, runFixture } from "./execution-fixtures.ts";
 import { expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { McpSchema } from "effect/ai";
-import {
-  ApprovalDenied,
-  ApprovalForm,
-  approvalMessage,
-  elicitationApproval,
-  implement,
-} from "../index.ts";
+import { ApprovalDenied, ApprovalForm, approvalMessage, elicitationApproval } from "../index.ts";
 import {
   accept,
   captureLogs,
@@ -66,7 +61,7 @@ it.effect("a declined form fails with ApprovalDenied", () =>
     );
 
     expect(error).toEqual(
-      new ApprovalDenied({ capabilityName: "share_trip", reason: "Approval was declined" }),
+      new ApprovalDenied({ feature: "share_trip", reason: "Approval was declined" }),
     );
     expect(ran).toEqual([]);
   }),
@@ -80,7 +75,7 @@ it.effect("a cancelled form fails with ApprovalDenied", () =>
     );
 
     expect(error).toEqual(
-      new ApprovalDenied({ capabilityName: "share_trip", reason: "Approval was cancelled" }),
+      new ApprovalDenied({ feature: "share_trip", reason: "Approval was cancelled" }),
     );
     expect(ran).toEqual([]);
   }),
@@ -136,17 +131,21 @@ it.effect("a call outside an MCP request is refused", () =>
   Effect.gen(function* noClient() {
     const ran: Array<string> = [];
     const error = yield* Effect.flip(
-      implement(shareContract, () =>
-        Effect.sync(() => {
-          ran.push("handler");
-          return "shared";
-        }),
-      )
-        .handler(input)
-        .pipe(Effect.provide(elicitationApproval)),
+      runFixture(
+        bindFixture(shareContract, () =>
+          Effect.sync(() => {
+            ran.push("handler");
+            return "shared";
+          }),
+        ),
+        input,
+      ).pipe(Effect.provide(elicitationApproval)),
     );
 
-    expect(error.reason).toBe("The MCP client cannot ask a human for approval");
+    expect(error).toMatchObject({
+      _tag: "ApprovalDenied",
+      reason: "The MCP client cannot ask a human for approval",
+    });
     expect(ran).toEqual([]);
   }),
 );
@@ -162,7 +161,7 @@ it.effect("logs one info line for an approval, with the client and no input", ()
     expect(lines[0]).toMatchObject({
       level: "Info",
       annotations: {
-        capability: "share_trip",
+        feature: "share_trip",
         outcome: "approved",
         clientName: "test-client",
         clientVersion: "1.0.0",
@@ -186,7 +185,7 @@ it.effect("logs one warning line for a denial, with the reason and no input", ()
     expect(lines[0]).toMatchObject({
       level: "Warn",
       annotations: {
-        capability: "share_trip",
+        feature: "share_trip",
         outcome: "denied",
         reason: "Approval was cancelled",
         clientName: "test-client",

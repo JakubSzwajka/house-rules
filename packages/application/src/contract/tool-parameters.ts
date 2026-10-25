@@ -1,5 +1,5 @@
 import { Schema, SchemaAST, SchemaIssue, SchemaTransformation } from "effect";
-import type { InputSchema, StructInput, UnionInput } from "./contract.ts";
+import type { InputSchema, StructInput, UnionInput } from "@house-rules/domain/contract";
 
 type KeysOf<Member> = Member extends Schema.Struct<infer Fields> ? keyof Fields & string : never;
 

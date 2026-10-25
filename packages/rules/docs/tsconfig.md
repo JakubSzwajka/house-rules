@@ -43,7 +43,7 @@ Every strict flag stays. It has no `plugins` block, so a framework plugin such a
 A web app splits its code across two tsconfig files:
 
 - `tsconfig.json` checks the whole app as UI code. It extends `web.json` and adds the framework's values.
-- `tsconfig.effect.json` checks the app's Effect code, `src/composition/`, `src/server/` and `src/use-cases/`. It extends `effect.json` first and `web.json` second, so the Effect diagnostics run with the same libs and resolution as the UI. Its `typecheck` script runs it with the patched `tsc`.
+- `tsconfig.effect.json` checks the app's Effect code in features, read models, ways and composition. It extends `effect.json` first and `web.json` second, so the Effect diagnostics run with the same libs and resolution as the UI. Its `typecheck` script runs it with the patched `tsc`.
 
 Order matters. In an `extends` array, a later file wins. `[effect.json, web.json]` keeps the plugin block, which only `effect.json` sets, and takes `web.json`'s libs and resolution. `packages/rules/tests/config-presets-effect.test.mjs` keeps this as a test: with the patched root `tsc`, DOM types resolve and a floating Effect still fails with TS377001. `[web.json, effect.json]` puts `strict.json`'s `NodeNext` and ES2023-only `lib` back, because `effect.json` extends `strict.json`.
 
@@ -69,7 +69,7 @@ Vite with React:
     "@house-rules/rules/tsconfig/effect.json",
     "@house-rules/rules/tsconfig/web.json"
   ],
-  "include": ["src/composition/**/*.ts", "src/server/**/*.ts", "src/use-cases/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
 }
 ```
 
@@ -118,7 +118,7 @@ The app still keeps `include`, `exclude` and `paths`: TypeScript resolves those 
     "@house-rules/rules/tsconfig/web.json"
   ],
   "compilerOptions": { "paths": { "@/*": ["./src/*"] } },
-  "include": ["src/composition/**/*.ts", "src/server/**/*.ts", "src/use-cases/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
 }
 ```
 
@@ -132,7 +132,7 @@ TypeScript resolves the `extends` specifier through this package's `exports` map
 
 | Tool | Version |
 | --- | --- |
-| `typescript` | 7.0.2 (this repository installs it as the `typescript-7` alias, so the ESLint parser keeps its TypeScript 6 peer) |
+| `typescript` | 7.0.2 (the root pins TypeScript directly; a package extension gives the ESLint parser TypeScript 6.0.3) |
 | `@effect/tsgo` | 0.45.0 (proven in a drunk-cat-stack copy: a floating Effect fails with `TS377001 ... effect(floatingEffect)`; proven again for `[effect.json, web.json]` in 0.12.0, where a file that uses `document` and a floating Effect fails only on `floatingEffect`) |
 
 `tsc --showConfig` omits `plugins`, so `tests/config-presets.test.mjs` checks the `[effect.json, web.json]` libs and resolution with plain TypeScript 7.0.2. `tests/config-presets-effect.test.mjs` checks the Effect diagnostics under that order with the patched root `tsc`.

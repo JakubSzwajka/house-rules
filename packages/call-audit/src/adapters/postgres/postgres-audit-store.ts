@@ -11,8 +11,8 @@ import {
 } from "../../audit/audit.ts";
 import { readRows } from "./read-rows.ts";
 
-const unavailable = (message: string) => (cause: { readonly message: string }) =>
-  new AuditStoreUnavailable({ message: `${message}: ${cause.message}`, cause });
+const unavailable = (cause: unknown) =>
+  new AuditStoreUnavailable({ message: "The audit store is unavailable.", cause });
 
 const retentionLock = "hashtext('@house-rules/call-audit/retention')";
 
@@ -85,23 +85,20 @@ export const postgresAuditStore: Layer.Layer<AuditStore, never, SqlClient> = Lay
           if (!held) return { ran: false, deleted: noneDeleted } satisfies RetentionRun;
           return yield* runOnLockedConnection(connection, cutoffs, clampBatchSize(batchSize));
         }),
-      ).pipe(Effect.mapError(unavailable("Deleting expired call_audit rows failed")));
+      ).pipe(Effect.mapError(unavailable));
     return AuditStore.of({
       record: (row) =>
         sql`insert into call_audit
-            (capability, permission, viewer_id, outcome, ms, kind, target_id, channel, request_id, recorded_at)
-          values (${row.capability}, ${row.permission}, ${row.viewerId}, ${row.outcome},
+            (capability, target, permission, viewer_id, outcome, ms, kind, target_id, channel, request_id, recorded_at)
+          values (${row.capability}, ${row.target}, ${row.permission}, ${row.viewerId}, ${row.outcome},
             ${Math.round(row.ms)}, ${row.kind ?? null}, ${row.targetId ?? null}, ${row.channel ?? null}, ${row.requestId ?? null},
-            ${row.recordedAt})`.pipe(
-          Effect.asVoid,
-          Effect.mapError(unavailable("Writing call_audit failed")),
-        ),
+            ${row.recordedAt})`.pipe(Effect.asVoid, Effect.mapError(unavailable)),
       read: (options) => readRows(options).pipe(Effect.provideService(SqlClient, sql)),
       deleteExpired,
       erase: (viewerId) =>
         sql`delete from call_audit where viewer_id = ${viewerId} returning id`.pipe(
           Effect.map((gone) => gone.length),
-          Effect.mapError(unavailable("Erasing call_audit rows failed")),
+          Effect.mapError(unavailable),
         ),
     });
   }),

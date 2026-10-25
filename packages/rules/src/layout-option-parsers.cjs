@@ -2,9 +2,9 @@
 
 // Option parsers for layout(). Each one validates a value and returns the Dependency Cruiser pattern for it.
 const DEFAULT_LAYERS = {
-  delivery: "delivery",
-  server: "server",
-  useCases: "use-cases",
+  features: "features",
+  readModels: "read-models",
+  waysIn: "ways-in",
   composition: "composition",
 };
 

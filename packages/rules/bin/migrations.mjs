@@ -4,31 +4,51 @@ import path from "node:path";
 import { LAYOUT_CONFIG_FILE, readAppsRoot } from "../src/layout-config.mjs";
 import { seeRuleLine } from "../src/rule-docs.mjs";
 import { checkModuleList, LIST_FILE } from "../src/module-list.mjs";
-import {
-  CREATE_TABLE,
-  blankSql,
-  lexSource,
-  REFERENCES,
-  sqlTexts,
-  tableName,
-  tableReferences,
-} from "../src/sql-text.mjs";
+import { lexSource, sqlTexts, tableName, tableReferences } from "../src/sql-text.mjs";
+import { readModels } from "../src/read-models.mjs";
+import { readModelSqlProblems } from "../src/read-model-sql.mjs";
+import { viewDdl } from "../src/sql-views.mjs";
+import { migrationOwnership } from "../src/migration-ownership.mjs";
+import { firstMatch, firstTransactionStart } from "../src/transaction-text.mjs";
 import { workspaceDirectories } from "../src/workspaces.mjs";
+import { migrationChunks } from "../src/migration-chunks.mjs";
+import { sqlTokens } from "../src/sql-tokens.mjs";
+
+const ownershipText = (chunk, nested = false) => {
+  try {
+    const tokens = sqlTokens(chunk, { asciiOnly: true });
+    const text = chunk.split("").map((character) => (character === "\n" ? "\n" : " "));
+    for (const token of tokens) {
+      let index = token.index;
+      let value = token.value;
+      if (token.kind === "string") {
+        if (chunk[index] !== "$") continue;
+        const delimiter = chunk.slice(index, chunk.indexOf("$", index + 1) + 1);
+        // Bodies get a lexical pass, not procedural or dynamic-SQL analysis.
+        const body = nested ? undefined : ownershipText(token.value, true);
+        if (body === undefined) value = `${delimiter}${token.value}${delimiter}`;
+        else {
+          index += delimiter.length;
+          value = body;
+        }
+      } else if (token.kind === "identifier") value = `"${value.replaceAll('"', '""')}"`;
+      for (let i = 0; i < value.length; i += 1) text[index + i] = value[i];
+    }
+    return text.join("");
+  } catch {
+    // Keep HEAD's raw-body heuristic when a procedural body cannot be lexed.
+    // Top-level lexical failures are reported by viewDdl.
+    return nested ? undefined : "";
+  }
+};
+const ownershipSql = (raw) =>
+  migrationChunks(raw)
+    .map((chunk) => ownershipText(chunk))
+    .join(";\n");
 
 const SOURCE_FILE = /\.(?:ts|tsx|mts|cts)$/u;
 const SKIPPED_DIRECTORY = (name) => name === "node_modules" || name.startsWith(".");
 const OPENS_TRANSACTION_CALL = /\bwithTransaction\b/u;
-// In SQL text, any statement that starts with begin or start transaction, in any case. The text is blanked
-// first, in one scan: comments, strings and dollar-quoted bodies, so the BEGIN of a DO $$ ... $$ block passes.
-const STARTS_TRANSACTION = /(?:^|;)\s*(begin|start\s+transaction)\b/iu;
-// SQL text: a template tagged like sql, or the text of a raw query call.
-const SQL_TAG = /[\w$]*sql[\w$]*\s*$/iu;
-const RAW_QUERY_CALL = /\.\s*(?:unsafe|execute|executeUnprepared|executeRaw|query)\s*\(\s*$/u;
-// In a use-case, any string that starts with begin fails, as before. Any other string fails only when
-// the whole string is a transaction statement, so UI text such as "Begin" or "Begin your trip" passes.
-const STARTS_WITH_TRANSACTION = /^\s*(?:begin|start\s+transaction)\b/iu;
-const WHOLE_TRANSACTION_STRING =
-  /^\s*(?:begin|BEGIN|start\s+transaction|START\s+TRANSACTION)(?:\s+(?:transaction|work|isolation|read|TRANSACTION|WORK|ISOLATION|READ)\b[^;]*)?\s*;?\s*$/u;
 const OPENS_UNIT = /\b[Uu]nitOfWork\s*\.\s*atomic\b/u;
 const TEST_SOURCE = /(?:^|\/)(?:tests?|__tests__)\/|\.(?:test|spec)\.[^/]+$/u;
 // A UnitOfWork adapter and the migration runner may open a raw transaction. --adapter-package adds more.
@@ -64,7 +84,7 @@ const relative = (file) => path.relative(process.cwd(), file).split(path.sep).jo
 const lineAt = (text, index) => text.slice(0, index).split("\n").length;
 
 const walk = (directory, keep) => {
-  if (!fs.existsSync(directory)) return [];
+  if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) return [];
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(directory, entry.name);
     if (entry.isDirectory()) return SKIPPED_DIRECTORY(entry.name) ? [] : walk(full, keep);
@@ -75,10 +95,35 @@ const walk = (directory, keep) => {
 const problems = [];
 const report = (file, line, message) => problems.push(`  ${relative(file)}:${line}: ${message}`);
 
+const APP_ROOT = (() => {
+  try {
+    return readAppsRoot(process.cwd());
+  } catch (error) {
+    console.error(
+      `migrations: cannot read the apps roots from ${LAYOUT_CONFIG_FILE}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    process.exit(1);
+  }
+})();
 const workspaces = workspaceDirectories();
-const migrationFolders = new Map(workspaces.map((dir) => [path.resolve(dir, "migrations"), dir]));
-const migrations = [];
 const moduleList = checkModuleList(workspaces);
+const folders = readModels(workspaces);
+const migrationFolders = new Map(
+  [...workspaces.map((dir) => [path.resolve(dir, "migrations"), dir])].map(([directory, owner]) => [
+    fs.existsSync(directory) ? fs.realpathSync(directory) : directory,
+    owner,
+  ]),
+);
+for (const { directory } of folders) {
+  if (fs.existsSync(path.join(directory, "migrations"))) {
+    report(
+      directory,
+      1,
+      "a read model has no migrations/ folder; modules publish the views it selects.",
+    );
+  }
+}
+const migrations = [];
 
 const TEST_FOLDERS = new Set(["fixtures", "tests"]);
 
@@ -94,7 +139,7 @@ const isTestData = (file) =>
   });
 
 for (const file of walk(process.cwd(), (name) => name.endsWith(".sql"))) {
-  const owner = migrationFolders.get(path.dirname(file));
+  const owner = migrationFolders.get(fs.realpathSync(path.dirname(file)));
   if (owner === undefined && isTestData(file)) continue;
   if (owner === undefined) {
     report(
@@ -103,58 +148,28 @@ for (const file of walk(process.cwd(), (name) => name.endsWith(".sql"))) {
       "this SQL file sits outside a `<package>/migrations/` folder. Move it into the migrations folder of the package that owns its tables.",
     );
   } else {
-    migrations.push({ file, owner, sql: blankSql(fs.readFileSync(file, "utf8")) });
+    const raw = fs.readFileSync(file, "utf8");
+    migrations.push({ file, owner, sql: ownershipSql(raw), ddl: viewDdl(raw) });
   }
 }
 
+const scanned = new Set(migrations.map(({ file }) => fs.realpathSync(file)));
+for (const [directory, owner] of migrationFolders) {
+  for (const file of walk(directory, (name) => name.endsWith(".sql"))) {
+    const real = fs.realpathSync(file);
+    if (scanned.has(real) || path.dirname(file) !== directory) continue;
+    const raw = fs.readFileSync(file, "utf8");
+    migrations.push({ file, owner, sql: ownershipSql(raw), ddl: viewDdl(raw) });
+    scanned.add(real);
+  }
+}
 for (const { file, owner } of moduleList.installedMigrations) {
-  migrations.push({ file, owner, sql: blankSql(fs.readFileSync(file, "utf8")) });
+  const raw = fs.readFileSync(file, "utf8");
+  migrations.push({ file, owner, sql: ownershipSql(raw), ddl: viewDdl(raw) });
 }
 for (const problem of moduleList.problems) report(path.resolve(LIST_FILE), 1, problem);
 
-migrations.sort((a, b) => a.file.localeCompare(b.file));
-const owners = new Map();
-for (const { file, owner, sql } of migrations) {
-  for (const match of sql.matchAll(CREATE_TABLE)) {
-    const table = tableName(match[1]);
-    const creators = owners.get(table) ?? [];
-    if (creators.length > 0 && !creators.includes(owner)) {
-      report(
-        file,
-        lineAt(sql, match.index),
-        `table "${table}" is already created by ${creators[0]}. A table has one owning package.`,
-      );
-    }
-    if (!creators.includes(owner)) owners.set(table, [...creators, owner]);
-  }
-}
-
-// A table that two packages create counts as owned by both, so the duplicate is the only report.
-const foreignOwner = (table, owner) => {
-  const creators = owners.get(tableName(table));
-  return creators !== undefined && !creators.includes(owner) ? creators[0] : undefined;
-};
-
-for (const { file, owner, sql } of migrations) {
-  for (const match of sql.matchAll(REFERENCES)) {
-    const other = foreignOwner(match[1], owner);
-    if (other === undefined) continue;
-    report(
-      file,
-      lineAt(sql, match.index),
-      `foreign key to "${tableName(match[1])}", a table ${other} owns. No cross-module foreign keys: keep the id as a plain column and ask ${other}'s service for the record.`,
-    );
-  }
-  for (const { name, index } of tableReferences(sql)) {
-    const other = foreignOwner(name, owner);
-    if (other === undefined) continue;
-    report(
-      file,
-      lineAt(sql, index),
-      `touches "${tableName(name)}", a table ${other} owns. A migration changes only its own package's tables.`,
-    );
-  }
-}
+const { owners, views, foreignOwner } = migrationOwnership(migrations, report);
 
 const packageName = (workspace) => {
   try {
@@ -164,53 +179,30 @@ const packageName = (workspace) => {
   }
 };
 
-// The source offset of the first match of pattern in parts, or undefined.
-const firstMatch = (parts, pattern) => {
-  for (const part of parts) {
-    const match = pattern.exec(part.text);
-    if (match !== null) return part.start + match.index;
+// Source belongs to the nearest module; only named plumbing may open raw transactions.
+const checkSource = (file, owner, { adapter, module, features, app = false }) => {
+  let source;
+  try {
+    source = fs.readFileSync(file, "utf8");
+  } catch {
+    report(file, 1, "cannot read SQL source.");
+    return;
   }
-  return undefined;
-};
-
-// The source offset of the first statement in SQL text that opens a transaction, or undefined.
-const firstTransactionStart = ({ strings, code }, inUseCase) => {
-  const codeBefore = new Map(code.map((part) => [part.start + part.text.length, part.text]));
-  const before = (part) => codeBefore.get(part.start - 1) ?? "";
-  const isQuery = (part) => SQL_TAG.test(before(part)) || RAW_QUERY_CALL.test(before(part));
-  // Only a template's first part sits right after its tag; later parts sit after a `${...}`.
-  const seen = new Set();
-  const tagged = new Set();
-  for (const part of strings) {
-    if (part.template === undefined || seen.has(part.template)) continue;
-    seen.add(part.template);
-    if (isQuery(part)) tagged.add(part.template);
+  const folder = folders
+    .filter(({ directory }) => file.startsWith(`${directory}${path.sep}`))
+    .sort((a, b) => b.directory.length - a.directory.length)[0];
+  if (folder) {
+    owner = folder.owner;
+    module = true;
+    adapter = false;
+    if (!TEST_SOURCE.test(relative(file))) {
+      for (const problem of readModelSqlProblems(source, views, { filename: file, workspaces }))
+        report(file, 1, problem);
+    }
   }
-  const isSql = (part) => (part.template === undefined ? isQuery(part) : tagged.has(part.template));
-  for (const { raw, at } of sqlTexts(strings.filter(isSql))) {
-    // Quoted identifiers are blanked for this scan only; the table checks still read them.
-    const match = STARTS_TRANSACTION.exec(
-      blankSql(raw, { dollarQuotes: true, identifiers: false }),
-    );
-    if (match !== null) return at[match.index + match[0].length - match[1].length];
-  }
-  // In a use-case, main's floor holds for every string, SQL text included: any template part that
-  // starts with begin after a `${...}` fails, even where the joined SQL text reads `?begin`.
-  return inUseCase
-    ? firstMatch(strings, STARTS_WITH_TRANSACTION)
-    : firstMatch(
-        strings.filter((part) => !isSql(part)),
-        WHOLE_TRANSACTION_STRING,
-      );
-};
-
-// SQL in one package's source may name only tables that package owns. Only an adapter package opens
-// a raw transaction, and a module's own code never opens a unit of work: the use-case does.
-const checkSource = (file, owner, { adapter, module, useCases }) => {
-  const source = fs.readFileSync(file, "utf8");
   const lexed = lexSource(source);
   const { sql, code } = lexed;
-  if (owners.size > 0) {
+  if (owners.size > 0 && !folder) {
     for (const { text, at } of sqlTexts(sql)) {
       for (const { name, index } of tableReferences(text)) {
         const other = foreignOwner(name, owner);
@@ -224,43 +216,34 @@ const checkSource = (file, owner, { adapter, module, useCases }) => {
     }
   }
   if (adapter) return;
-  const inUseCase = useCases !== undefined && file.startsWith(`${useCases}${path.sep}`);
-  const raw = firstMatch(code, OPENS_TRANSACTION_CALL) ?? firstTransactionStart(lexed, inUseCase);
+  const inNode = features !== undefined && file.startsWith(`${features}${path.sep}`);
+  const raw = firstMatch(code, OPENS_TRANSACTION_CALL) ?? firstTransactionStart(lexed, inNode);
   if (raw !== undefined) {
     report(
       file,
       lineAt(source, raw),
-      `opens a raw transaction. A use-case opens a unit of work instead: \`transactional: true\` on its contract, or \`UnitOfWork.atomic\` in its handler. Only a UnitOfWork adapter or a named adapter package (${ADAPTER_FLAG}) calls withTransaction or sends begin.`,
+      `opens a raw transaction. A transactional entry opens one unit around its graph. Only a UnitOfWork adapter or a named adapter package (${ADAPTER_FLAG}) calls withTransaction or sends begin.`,
     );
   }
   const unit =
-    module && !TEST_SOURCE.test(relative(file)) ? firstMatch(code, OPENS_UNIT) : undefined;
+    (module || inNode || app) && !TEST_SOURCE.test(relative(file))
+      ? firstMatch(code, OPENS_UNIT)
+      : undefined;
   if (unit !== undefined) {
     report(
       file,
       lineAt(source, unit),
-      "a module opens a unit of work. A module never opens one: its writes run in the unit the use-case opened, and fail with NoOpenUnit without one. Move UnitOfWork.atomic into the use-case.",
+      "a module opens a unit of work. Its writes join the entry's unit and fail with NoOpenUnit without one. Mark the app entry graph transactional instead.",
     );
   }
 };
-
-// Apps may open a unit of work; modules may not. The apps roots come from the layout config.
-const APP_ROOT = (() => {
-  try {
-    return readAppsRoot(process.cwd());
-  } catch (error) {
-    console.error(
-      `migrations: cannot read the apps roots from ${LAYOUT_CONFIG_FILE}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-    process.exit(1);
-  }
-})();
 
 for (const workspace of workspaces) {
   const options = {
     adapter: adapters.has(packageName(workspace)),
     module: !APP_ROOT.test(`${workspace}/`),
-    useCases: path.resolve(workspace, "src", "use-cases"),
+    app: APP_ROOT.test(`${workspace}/`),
+    features: path.resolve(workspace, "src", "features"),
   };
   for (const file of walk(path.resolve(workspace, "src"), (name) => SOURCE_FILE.test(name))) {
     checkSource(file, workspace, options);
@@ -287,5 +270,5 @@ const ownerCount = new Set([...owners.values()].flat()).size;
 console.log(
   migrations.length === 0
     ? "migrations: no SQL migrations found"
-    : `migrations: ${owners.size} table(s) owned by ${ownerCount} package(s); no cross-module foreign keys or SQL; ${moduleList.listed} module(s) listed in ${LIST_FILE}`,
+    : `migrations: ${owners.size} table/view object(s) owned by ${ownerCount} module(s); no cross-module foreign keys or SQL; ${moduleList.listed} module(s) listed in ${LIST_FILE}`,
 );

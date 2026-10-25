@@ -14,7 +14,20 @@ const FRAMEWORK_PACKAGES = [
   "migrations",
   "node-host",
 ];
-const SECTIONS = ["## What it does", "## How an app mounts it", "## Fixed rules"];
+const MOUNT_SECTION = {
+  domain: "## Mounting modules and storage",
+  application: "## Plug sockets and open ways",
+  comments: "## Mount and bind",
+  party: "## Mount and bind",
+  identity: "## Mount and bind",
+  "call-audit": "## Mount the Record socket",
+};
+const FIXED_SECTION = {
+  application: "## HTTP, clients and errors",
+  comments: "## Options and fixed rules",
+  party: "## Service and fixed rules",
+  identity: "## Service and fixed rules",
+};
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -33,7 +46,11 @@ describe("every framework package an app mounts ships an AGENTS.md", () => {
       );
       const guide = read(`${folder}/AGENTS.md`);
       assert.match(guide, new RegExp(`^# ${manifest.name.replace("/", "\\/")}`, "u"));
-      for (const section of SECTIONS) {
+      for (const section of [
+        "## What it does",
+        MOUNT_SECTION[name] ?? "## How an app mounts it",
+        FIXED_SECTION[name] ?? "## Fixed rules",
+      ]) {
         assert.ok(guide.includes(section), `${folder}/AGENTS.md needs "${section}"`);
       }
       const [packed] = JSON.parse(

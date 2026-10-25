@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect";
+import { errorKind } from "@house-rules/domain";
 
 export const Booking = Schema.Struct({
   id: Schema.String,
@@ -8,6 +9,7 @@ export const Booking = Schema.Struct({
 });
 
 export class BookingNotFound extends Schema.TaggedError<BookingNotFound>()("BookingNotFound", {
+  kind: errorKind("not_found"),
   id: Schema.String,
 }) {}
 

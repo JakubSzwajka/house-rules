@@ -1,49 +1,44 @@
 # @house-rules/domain: notes for agents
 
+Domain modules are packages. Apps keep one feature in `features/<name>/index.ts`, made with application’s `defineFeature`. Modules publish operations with `defineOperation`.
+
 ## What it does
 
-The domain kit. A package uses it to define its domain module: `defineModule` for the root service, `Actor` and `ActorId` for the user a method acts for, `Permission` and `definePolicy` for object-level access, and the `UnitOfWork` slot with `memoryUnitOfWork`. It knows nothing about requests, contracts or delivery; that is `@house-rules/application`. Version 0.1.0 peers on exact `effect` 4.0.3 and depends on no other house-rules package. The full guide is `README.md` in this package.
+The domain kit owns operation descriptors, edges, caller data, error kinds, pure graph checks and permission closures. It also owns modules, object policy and the unit of work. It imports no house-rules package. Version 0.2.0 peers on exact `effect` 4.0.3. Read `README.md` for examples.
 
-## How an app mounts it
+## Public API and doors
 
-There is no layer of its own. A package declares its module with it, and the app's composition root provides the module's layer and one `UnitOfWork` adapter:
+`@house-rules/domain/contract` is browser-safe. The main door exports these same domain-owned names:
+
+| Names | Contract |
+| --- | --- |
+| `defineOperation`, `Operation`, `Callable`, `AnyCallable` | `defineOperation(name, { description, title?, input, output, failure, permission, edges?, flags?, readOnly?, destructive?, transactional?, needsApproval? })`. Permission is `resource:action` or `null`; omitted flags are literal `false`. |
+| `asSystem`, `SystemEdge`, `Edge`, `Target`, `Targets`, `targetOf` | A plain edge is its target descriptor. `asSystem(target, reason)` switches the caller downward. Literal empty reasons fail types; blank dynamic reasons fail graph validation. |
+| `PersonCaller`, `SystemCaller`, `Caller` | `{ kind: "person", actor, via }` or `{ kind: "system", reason, startedBy }`. These are data, not services. |
+| `ErrorKind`, `KindedError`, `errorKind`, `CallableFailureSchema` | Kinds are `not_found`, `conflict`, `forbidden`, `unavailable`, `invalid`. Use `kind: errorKind("not_found")` in a `Schema.TaggedError` field. Its constructor supplies the kind. Every operation failure member must have a kind, tag and message. `Schema.Never` is valid. |
+| `PlainSchema`, `InputSchema`, `StructInput`, `UnionInput`, `NoInput` | Schemas need no encoding/decoding services. Input is a Struct, a Union of Structs, or `NoInput`, the empty string-keyed record. |
+| `buildGraph`, `Graph`, `GraphResult` | Returns `{ _tag: "Valid", graph: { callables } }` or `{ _tag: "Invalid", reason }`, never throws. Rejects cycles, conflicting names, repeated targets, blank system reasons and read-only edges into writes. |
+| `permissionClosures`, `Closures` | Returns deduplicated `person` and `system` permission arrays. Optional start mode is `"person"` or `"system"`. A system path never returns to person mode. Forged cycles terminate. |
+| `Actor`, `ActorId`, `Permission`, `NoOpenUnit`, `UnitOfWorkFailed` | Shared identity, permission and unit errors. Both unit errors have kind `unavailable`. |
+
+Main-only exports are `defineModule` and its support types, `PerRequest`/`NoPerRequest`, `definePolicy` and its policy types, `UnitOfWork`, `CurrentUnit`, `memoryUnitOfWork`, `Atomic`, `OpenUnit` and `UnitOfWorkService`. Application owns operation bindings, features and execution. Never add an application import here, including a type-only import.
+
+## Mounting modules and storage
+
+There is no kit-wide layer or `migrations.json` registration. Declare a module with `defineModule<Self, Shape>()(id, { make })`. An Effect make gives `layer`; an options function gives `layer(options)`. The app root provides its ports and one unit adapter:
 
 ```ts
-// packages/<name>/src/facade.ts
-export class Bookings extends defineModule<Bookings, Shape>()("@acme/bookings/Bookings", { make }) {}
-
-// apps/<app>/src/composition/app-layer.ts
-Layer.mergeAll(Bookings.layer.pipe(Layer.provide(store)), memoryUnitOfWork); // or sqlUnitOfWork from application
+Layer.mergeAll(Bookings.layer.pipe(Layer.provide(store)), memoryUnitOfWork);
 ```
 
-No `migrations.json` line: this package owns no tables.
+1. [ ] Keep each module method's requirements `never`. Capture long-lived ports during layer acquisition, never a service marked `PerRequest`.
+2. [ ] Pass an explicit `Actor` into a method that acts for a person. Object access belongs inside the module, next to its data.
+3. [ ] Stored modules ship memory and Postgres adapters plus a shared store suite. Memory registers undo before changing state; Postgres checks `UnitOfWork.required` before writing.
+4. [ ] Modules never open units. An application feature lifts transactional flags and opens one unit around its graph. Tests and tooling in repository-root scripts/ or the workspace's own top-level scripts/ beside package.json may call `UnitOfWork.atomic`. Nested production scripts have no exception.
+5. [ ] Register a stored module's own migrations in the app's module list. This kit owns no tables.
 
-| Export | Use |
-| --- | --- |
-| `defineModule<Self, Shape>()(id, { make })` | A root module. An Effect `make` gives `layer`; `make(options)` gives `layer(options)`. Presets are plain data; adapter statics stay in the class body. |
-| `Actor`, `ActorId` | `Actor.make({ id: ActorId.make("u1") })`. A method that acts for a user takes it as an argument. |
-| `Permission`, `definePolicy` | `resource:action` strings and the relation × state table a module checks on its own data. |
-| `UnitOfWork`, `CurrentUnit`, `NoOpenUnit`, `UnitOfWorkFailed` | `UnitOfWork.required` and `UnitOfWork.onRollback` in a module's store; `UnitOfWork.atomic` in a use-case only. |
-| `memoryUnitOfWork` | The memory adapter for tests and scripts. `sqlUnitOfWork` lives in `@house-rules/application`. |
-| `PerRequest` | The per-request marker. A per-request service declares it; `defineModule` refuses a `make` that requires one. |
-| `./contract` | `Actor`, `ActorId`, `Permission`, `UnitOfWorkFailed`. Browser-safe. |
-
-`UnitOfWorkService` is a support type for adapter authors: the shape `UnitOfWork.make(transaction)` returns.
-
-## Defining a module
-
-1. [ ] Name the module's permissions next to its data, as `resource:action` strings: `export const BookingPermissions = { read: "bookings:read" } as const`. Export them from `src/index.ts`. A contract's `permission` uses them.
-2. [ ] If the module has storage, put the data behind a storage port: a `Context.Service` in `storage.ts` with an error the module owns. The port answers facts. It never decides a permission, a standing or a limit.
-3. [ ] A module with storage writes two adapters. Memory, in `src/adapters/memory/`, calls `UnitOfWork.onRollback` with an undo before it changes a row. Postgres, in `src/adapters/postgres/`, calls `UnitOfWork.required` on each write, then runs plain SQL on the injected `SqlClient` and decodes each row with a `Schema`. Reads may run outside a unit; only writes need one. Export the port and both adapters from `src/index.ts`.
-4. [ ] A method that acts for a user takes an `Actor`. The module reads its own data to decide the relation, such as `relation(actor, id)` returning `"owner"` or `"none"`, so no adapter can skip the check.
-5. [ ] A module with storage has one shared store suite in `src/adapters/tests/` runs every case on both adapters: a write with no open unit fails with `NoOpenUnit`, a failure inside the unit leaves no row, and each read and write works. Policy and validation tests may run on memory only.
-6. [ ] A module with migrations is listed in `migrations.json` at the repo root, as `{ "workspace": "packages/<name>" }`. A module with no tables has no entry.
+`UnitOfWork.required` and `onRollback` fail with `NoOpenUnit` outside a live unit. Nested atomic work joins its unit. A fiber that outlives a unit cannot keep using it. Memory rollback runs every undo newest first, including after a failed undo. `definePolicy` checks object relations; `withStates` intersects relation permissions with object-state permissions.
 
 ## Fixed rules
 
-- It imports no `@house-rules/*` package. `@house-rules/application` depends on it, never the other way.
-- It never names `CurrentActor` or any other request concept. The generic `PerRequest` marker is the only link: `CurrentActor` carries it, and `defineModule` fails `tsc` for a `make` that requires a marked service.
-- Every Shape member returns `Effect<Success, Failure, never>`. Construction captures long-lived ports, never a request's identity.
-- A module never opens a unit of work. Its writes call `UnitOfWork.required` or `UnitOfWork.onRollback` and fail with `NoOpenUnit` without one. `house-rules-migrations` exempts this package only because it defines `UnitOfWork.atomic`.
-- Policy is object-level authorization: the module answers it from its own data. Action-level checks (`Grant`) and consent (`Approval`) belong to the application kit.
-- `src/contract.ts` is the browser entry. Anything it reaches must stay browser-safe; `contract-entry-is-browser-safe` checks it.
+Descriptors are browser-safe data. Defining an operation or edge never throws. Descriptor identity, not just its name, identifies a target. There is no location marker or permission invented for a feature. Module construction stays lazy and scoped through Effect Layers, with no global module cache. Run tests through `@effect/vitest`.

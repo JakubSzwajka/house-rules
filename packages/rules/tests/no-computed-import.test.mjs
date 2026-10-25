@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Linter } from "eslint";
-import plugin, { capabilityConfig } from "../src/index.mjs";
+import plugin, { featuresConfig } from "../src/index.mjs";
 
 function lint(
   code,
   filename = "packages/bookings/src/booking/loader.ts",
-  config = plugin.configs.capability,
+  config = plugin.configs.features,
 ) {
   const messages = new Linter().verify(code, config, { filename });
   assert.equal(
@@ -19,8 +19,6 @@ function lint(
     .map(({ line }) => line);
 }
 
-// Dependency Cruiser records no edge for import(at), so contract-entry-is-browser-safe cannot see
-// where it leads. This rule keeps every import a package makes visible to the graph checks.
 test("flags an import() or require() whose specifier is computed", () => {
   const code = `const at = "./facade.ts";
 await import(at);
@@ -33,22 +31,26 @@ require("./booking.ts");`;
   assert.deepEqual(lint(code), [2, 3, 4, 5]);
 });
 
-test("covers every package source file, and leaves tests and apps alone", () => {
+test("covers package and app descriptor trees, but not tests", () => {
   const code = "const at = './x.ts';\nawait import(at);";
-  assert.deepEqual(lint(code, "packages/bookings/src/contract.ts"), [2]);
-  assert.deepEqual(lint(code, "packages/bookings/src/adapters/postgres/booking.ts"), [2]);
+  for (const filename of [
+    "packages/bookings/src/contract.ts",
+    "packages/bookings/src/adapters/postgres/booking.ts",
+    "apps/web/src/features/show/node.ts",
+    "apps/web/src/modules/books/contract.ts",
+    "apps/web/src/ways-in/web/endpoints.ts",
+  ])
+    assert.deepEqual(lint(code, filename), [2]);
   assert.deepEqual(lint(code, "packages/bookings/src/booking/tests/booking.test.ts"), []);
-  assert.deepEqual(lint(code, "apps/web/src/delivery/pages.ts"), []);
 });
 
-// layout({ packagesDir: "libs" }) follows contract entries under libs/, so the lint rule must too.
-test("capabilityConfig({ packagesDir }) covers the same packages root layout() does", () => {
+test("featuresConfig roots match layout roots", () => {
   const code = "const at = './x.ts';\nawait import(at);";
-  const libs = capabilityConfig({ packagesDir: "libs" });
+  const libs = featuresConfig({ packagesDir: "libs" });
   assert.deepEqual(lint(code, "libs/a/src/contract.ts", libs), [2]);
   assert.deepEqual(lint(code, "libs/a/src/tests/a.test.ts", libs), []);
   assert.deepEqual(lint(code, "packages/a/src/contract.ts", libs), []);
   assert.deepEqual(lint(code, "libs/a/src/contract.ts"), []);
-  assert.throws(() => capabilityConfig({ packagesDir: "/libs" }), /packagesDir/u);
-  assert.throws(() => capabilityConfig({ packagesDir: "libs/*" }), /packagesDir/u);
+  assert.throws(() => featuresConfig({ packagesDir: "/libs" }), /packagesDir/u);
+  assert.throws(() => featuresConfig({ packagesDir: "libs/*" }), /packagesDir/u);
 });

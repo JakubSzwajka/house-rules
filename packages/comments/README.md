@@ -1,11 +1,22 @@
 # @house-rules/comments
 
-A domain addition: a public support module for flat comments on an app's objects. Its module comes from `@house-rules/domain`, and its shipped contracts from `@house-rules/application/contract`. `Comments` exposes `list`, `add`, `edit`, `remove`, `removeTarget` and `erase`. User methods take an Actor. Writes need an open unit of work.
+Comments owns flat, plain-text comments on an app's objects. It exposes `list`, `add`, `edit`, `remove`, `removeTarget` and `erase`. User methods take an explicit Actor. Writes join an open unit of work; they never open one.
 
-Version 0.2.0 is release-ready, not yet live on npm; 0.1.0 is. Pin `@house-rules/domain` 0.1.0, `@house-rules/application` 0.2.0 and Effect 4.0.3 exactly. The package ships built JavaScript and declarations in `dist/`, this guide, `AGENTS.md` and its SQL migrations. The workspace still imports `src/`; the packed package exports `dist/` with no bundler or type-stripping loader needed.
+Import `CommentsMount` from the package main and add `{ ...CommentsMount, layer: chosenCommentsLayer }` to the app's module plan in `composition/modules.ts`. Choose `Comments.layerPostgres(options)` or `Comments.layerMemory(options)` there and fill the required `CommentTargets` host port. Options name allowed target kinds and cap body length and page size. `Comments.presets.default` supplies limits of 4000 UTF-16 code units and 100 items, but never chooses target kinds. Register the package in `migrations.json`.
 
-Mount `Comments.layerPostgres(options)` or `Comments.layerMemory(options)` in composition and fill the required `CommentTargets` host port. Options name allowed target kinds and cap body length and page size. The partial `Comments.presets.default` supplies limits but never chooses targets.
+`CommentsMount` holds the service key, operation descriptors and `bindComments` binder. Composition acquires the service and calls the binder once when building `Runtime`. App features call `CommentsOperations` through declared edges. `defineOperation` declares each operation; `bindComments` uses `bindOperation`:
 
-For a consumer on rules 0.17.0 whose own contract entry imports comments, add `trustedContractPackages: ["@house-rules/comments"]` to its existing `layout(...)` options. This trusts only the installed `/contract` entry, not the server entry. The packed-consumer check traverses its actual dependencies, including the domain and application contract entries and Effect, and rejects built-ins, direct contract imports of SQL, SQL drivers, storage adapters, server entries and unresolved imports without a bundler. Effect\'s root entry also reaches pure SQL abstractions through its own persistence exports. Those contain no drivers or Node imports and remain browser-loadable; this is not blanket trust for `@effect/*`.
+```text
+listComments   comments:read    readOnly
+addComment     comments:write   transactional
+editComment    comments:write   transactional
+removeComment  comments:write   transactional + destructive
+```
 
-The browser-safe `/contract` entry exports `listComments`, `addComment`, `editComment` and `removeComment`, their schemas, errors and permissions. The module knows no contracts. See `AGENTS.md` for mounting and deletion hooks.
+All four have empty edges and require a person. No approval flag is added. Only features are exposed. The browser-safe `./contract` door exports these descriptors as `CommentsOperations` with schemas, errors and permissions, not the service or bindings.
+
+Object policy stays in the module. Owners read, write and moderate; members read and write. Only authors edit. Missing targets, missing comments and denied access all look like `CommentTargetNotFound`, including calls from a system caller. Expected errors carry kinds at definition; a way may change their message, not their status or code.
+
+The app must call `removeTarget` when deleting a target and `erase` when deleting an author, in the same unit. Targets have no cross-module foreign keys. Comments stores plain text and hard-deletes rows; it adds no rendering, threads or history.
+
+Version 0.2.0 is prepared for release. Pin domain 0.2.0, application 0.2.0 and Effect 4.0.3 exactly. Published packages load built `dist/`; the workspace loads `src/`. Consumers whose rules preset requires a contract trust list add `@house-rules/comments` to `trustedContractPackages`, trusting only `/contract`. See [AGENTS.md](AGENTS.md) for mounting and checks.
