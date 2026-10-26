@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import type { Socket } from "node:net";
 
 import type { HealthOptions } from "./health.ts";
 import { createNodeRequestHandler } from "./node-request-handler.ts";
@@ -20,9 +21,15 @@ export const serve = async (
       if (closing !== undefined) server.closeIdleConnections();
     });
   });
+  const sockets = new Set<Socket>();
+  server.on("connection", (socket) => {
+    sockets.add(socket);
+    socket.once("close", () => sockets.delete(socket));
+  });
   server.on("connect", (_incoming, socket) => {
     socket.end(
       "HTTP/1.1 501 Not Implemented\r\ncontent-type: text/plain; charset=utf-8\r\ncontent-length: 15\r\nconnection: close\r\n\r\nNot Implemented",
+      () => socket.destroy(),
     );
   });
   await new Promise<void>((resolve, reject) => {
@@ -52,19 +59,32 @@ export const serve = async (
   const close = (): Promise<void> => {
     if (closing !== undefined) return closing;
     closing = (async () => {
+      const expires = performance.now() + 5_000;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const deadline = new Promise<undefined>((resolve) => {
+        timer = setTimeout(() => {
+          // CONNECT sockets are detached from Node's HTTP connection list.
+          for (const socket of sockets) socket.destroy();
+          resolve(undefined);
+        }, 5_000);
+      });
       try {
-        const stopped = new Promise<void>((resolve, reject) => {
-          server.close((error) => (error ? reject(error) : resolve()));
+        const stopped = new Promise<Error | undefined>((resolve) => {
+          server.close((error) => resolve(error));
           server.closeIdleConnections();
         });
-        await bridge.drain(5_000);
-        server.closeAllConnections();
-        await stopped;
-        await options.onClose?.();
+        await bridge.drain(Math.max(0, expires - performance.now()));
+        const error = await Promise.race([stopped, deadline]);
+        if (error !== undefined) throw error;
       } finally {
-        if (options.handleSignals === true) {
-          process.off("SIGTERM", signal);
-          process.off("SIGINT", signal);
+        clearTimeout(timer);
+        try {
+          await options.onClose?.();
+        } finally {
+          if (options.handleSignals === true) {
+            process.off("SIGTERM", signal);
+            process.off("SIGINT", signal);
+          }
         }
       }
     })();

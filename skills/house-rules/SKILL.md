@@ -16,7 +16,7 @@ In an app, guides live at `node_modules/@house-rules/<pkg>/AGENTS.md`. In this r
 | Job | Read |
 | --- | --- |
 | Design or change an app's shape | [Processes and events](references/processes-and-events.md), then [house-rules-design](../house-rules-design/SKILL.md) for a plan, approval view and built-map proof. Declare module roles and show owner-approved system grants. |
-| Start an app | The checklist below, then application and node-host guides |
+| Start an app | The checklist below, then application and the chosen node-host or optional express-host guide |
 | Add a domain module | [Processes and events](references/processes-and-events.md) for capability/process roles and dependency direction, then Domain guide, root law's "Inside a module" and "Modules own data; projections consume views", then migrations guide |
 | Add a read query | Application guide for defineReadModel. Compose declared read-only domain/projection operations, never entry points. Use ReadModels registry; register/expose directly. Graph checks reject transitive process/system writes. No SQL is required. |
 | Add a feature | [Processes and events](references/processes-and-events.md), then Application guide for `defineFeature` and tests. Every feature is exposed on a way. Keep one feature and handler in features/<name>/index.ts. Call operation edges only, never features or services. Set flags.transactional on writes, or inherit it from operations. Only the runtime and kit event driver open production units; handlers and modules never call `UnitOfWork.atomic`. Keep object policy in the module. |
@@ -25,11 +25,11 @@ In an app, guides live at `node_modules/@house-rules/<pkg>/AGENTS.md`. In this r
 | Mount a module or plug | The mounted package's guide for operations, binders, layers, ports and migrations. EventLog.source fills application-owned EventSource. |
 | Sign users in | Auth-jwt guide for token checks, then Identity guide for `Identity.who`, ActorResolver and FirstSignIn |
 | Add a browser client | Application README, "Shared endpoints and clients". Use contract doors and shared endpoint descriptors. |
-| Serve a page | Node Host guide for `staticFiles`; application guide for CORS on a separate origin. Cookie writes still need CSRF. |
+| Serve a page | Node Host or optional Express Host guide for `staticFiles`; application guide for CORS on a separate origin. Cookie writes still need CSRF. |
 | Generate an app map | Application guide for appMap/renderMap, then rules README for literal source facts. The map script writes MAP.md; its freshness test compares without writing. |
 | Fix a check | Rules README table, then the row's Docs link. Fix the code, not the rule. |
 
-The kits are domain and application. Migrations, Node Host and rules are wiring. Comments, Party and Identity are modules; auth-jwt and call-audit supply plugs. A plug must pass the pull-out test. Removing it and its `Layer.provide` line leaves the rest building and passing.
+The kits are domain and application. Migrations, Node Host, optional Express Host and rules are wiring. Both hosts share one tracked Node bridge; Express owns its own app and listener. Comments, Party and Identity are modules; auth-jwt and call-audit supply plugs. A plug must pass the pull-out test. Removing it and its `Layer.provide` line leaves the rest building and passing.
 
 `examples/booking/` shows the current shape. Read it, but never depend on it from a framework package.
 
@@ -41,7 +41,7 @@ The kits are domain and application. Migrations, Node Host and rules are wiring.
 4. [ ] In composition, mount module layers, storage, one unit adapter, trace and record. Capture services and bind operations. Declare mount map roles and package identity. Acquire Runtime, then hooks that capture it, then scoped schedule and event drivers. Use `composition({ modules, features, ways, may, system })`.
 5. [ ] Build Who/Mean plugs in composition and pass them to ways. Declare built-in roles and owner-approved system permissions in composition, mount Party with those roles, and plug Party.may() once at app level. Derive PermissionCatalogue from mounts before modules build; Runtime.permissions exposes the same catalogue. Ways carry no permission lists. MCP gets the person's roles and exposes read entry points, including staged legacy read-only features. Ways import values only from kits, effect, package contract doors, feature/read-model indexes, composition and their own folder. Other package main entries allow types only. The root receives ways from main; it never imports them.
 6. [ ] Declare error kinds where errors are defined. Ways may override message text only. Keep driver details and other private values out of public messages.
-7. [ ] In `src/main.ts`, pass `toFetchHandler(app)` to Node Host's `serve`. Dispose the router before the composition. Next already has a Host. Under host next, `src/app` is one way area; only Next convention files and files inside `_`-prefixed folders get the third-party npm allowance. Hooks, schedules and events use the kit's Effect-returning `runFeature` with captured services, never a second runtime or Who call.
+7. [ ] In `src/main.ts`, pass `toFetchHandler(app)` to `serve` from Node Host or optional Express Host. Do not add a second Express router or app executor. Dispose the router before the composition. Next already has a Host. Under host next, `src/app` is one way area; only Next convention files and files inside `_`-prefixed folders get the third-party npm allowance. Hooks, schedules and events use the kit's Effect-returning `runFeature` with captured services, never a second runtime or Who call.
 8. [ ] List modules with migrations in root `migrations.json`, using workspace or package entries. Folder entries are rejected. Run the migration runner before startup. Optional SQL projections in projections/ select published views, filter by person in SQL and need an A/B privacy test.
 9. [ ] Declare every variable in `.env.schema`, without secrets. Store local secret values only in ignored local env files.
 

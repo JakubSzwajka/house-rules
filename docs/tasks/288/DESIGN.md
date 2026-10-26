@@ -2,6 +2,10 @@
 
 Reviewed implementation contract. Based on framework `aef491a` and Trainer `7fff32b`, with Trainer task 288's specification and manual flow. This task is local only; registry publication requires a later gate.
 
+## Release gate
+
+Do not merge this host change to main or publish Express Host with its current stable pin. npm `@house-rules/node-host@0.2.0` lacks `createNodeRequestHandler`; the new export exists only in this task's source and local tarballs. A future owner-approved release must assign a new Node Host version and move all exact workspace/consumer pins, including Express Host's dependency, together before main or public release. No stable bump is approved here. A localhost batch also requires accepted transport re-review and fresh clean-commit packed proof, with exact HEAD, command/exit and tarball hashes/integrity recorded outside Git. Packing both local packages does not prove the old npm release has the bridge.
+
 ## Package and ownership
 
 Add `packages/express-host`, imported as `@house-rules/express-host`. It is optional wiring, plain TypeScript with the strict preset, no Effect dependency and no contract door. Installing application/domain must not install Express.
@@ -69,7 +73,11 @@ Both hosts call that bridge. Express Host depends on node-host only for this hel
 - Pump Web response bodies through Node streams with backpressure, not whole-body buffering or unchecked writes. For `text/event-stream`, flush headers immediately, even if the first event has not arrived. Do not compress, concatenate events or wait for EOF. Ordinary streams retain the existing first-read safeguard for a fixed 500 before headers; an SSE failure after its header flush, or any later stream failure, closes the connection.
 - Client upload abort or response close before `writableFinished` aborts the Web Request and cancels/destroys response streams. Normal upload completion must not abort a still-live MCP response. Remove listeners on completion. No host-side MCP sessions, heartbeat policy or token cache. The router authenticates every session request and owns session termination.
 
-`close()` and optional SIGINT/SIGTERM hooks share one promise. Stop accepting via the Express-created server's `close()`, close idle connections and drain active middleware/requests/streams for at most five seconds. At the deadline, abort active bridge signals and destroy remaining HTTP connections, then await `onClose` exactly once. An uncooperative handler must not block that deadline. Disposal itself is not time-bounded. Keep signal hooks until disposal ends, remove them even on failure, and set exit code 1 on failed signal shutdown. Startup failure must leave no listener or signal hooks. No WebSocket/HTTP2 upgrade support is introduced.
+`close()` and optional SIGINT/SIGTERM hooks share one promise. Stop accepting via the Express-created server's `close()`, close idle connections and drain active middleware/requests/streams for at most five seconds. At the same deadline, abort active bridge signals and destroy every remaining socket, including detached CONNECT sockets, without an unbounded listener-close wait. CONNECT rejection flushes its 501 before destroying the socket. Successful responses, including HEAD/empty/204, flush before leaving active tracking; shutdown does not force-close them early. Requests arriving on kept-alive connections after draining starts receive fixed 503 with `Connection: close`.
+
+Then await `onClose` exactly once, even when the listener close callback reports an error. An uncooperative handler must not block that deadline. Disposal itself is not time-bounded. Keep signal hooks until disposal ends, remove them even on failure, and set exit code 1 on failed signal shutdown. Startup failure must leave no listener or signal hooks. No WebSocket/HTTP2 upgrade support is introduced.
+
+An omitted hostname keeps Node's all-interface IPv6-to-IPv4 fallback, rather than explicitly binding `::`. Express 5 retains its one-shot listen-error callback after startup; later server error events are consumed by that already-settled callback, unlike Node Host's default unhandled-error behavior. No new post-listen error reporting API is introduced.
 
 ## Static files, probes and security
 
@@ -108,6 +116,7 @@ sha512-sKYVuV7Sv9fbPIt/442koC7+IIwK5olP1KWeD88e/idgoJqDm3JV/YUiPwkoKK92ylff2MGxS
 - `packages/node-host/src/{index.ts,host/serve.ts,host/node-request-handler.ts,tests/}` and its `README.md`/`AGENTS.md`. Extract rather than duplicate the socket bridge; retain every existing test and document the new export and SSE flush behavior.
 - Root `AGENTS.md` sections "Kits, wiring and additions", "Workspace and package doors" and "Ways, web and agent access"; `CONTEXT.md` "Kits and wiring"/"Ways and sockets"; root `README.md` package list. Replace the sole-Node-bridge prose with two sanctioned framework hosts sharing one bridge. Keep Host calls in `main.ts` and the ban on `node:http` in Effect app code.
 - `packages/rules/docs/dependency-cruiser.md#composition` and `packages/application/README.md` host guidance. No new `host: "express"` layout mode is needed: `packages/rules/src/hosts.cjs` only models Next-owned layout files. No lint/dependency-cruiser exemption or thin-config weakening is needed.
+- `skills/house-rules/SKILL.md` host guide routing and main wiring; `docs/release.md` and `docs/local-registry.md` for the 21-package inventory and release gate.
 - `tests/node-host-policy.test.mjs`: explicitly allow both strict host packages while preserving the negative `nodeBuiltinImport` fixture. Add package/guide coverage in `tests/{published-packages,framework-agents}.test.mjs` and packed coverage in `scripts/packed-consumer.mjs` plus a focused Express consumer helper. Review new-package allowlists in `scripts/tag-published.mjs`, `tests/tag-published-inputs.test.mjs`, `tests/publish-workflow-assertions.mjs` and `.github/workflows/publish.yml`; registration is not permission to publish. `scripts/local-publish.mjs` already discovers public packages.
 - Later dependency installation touches only the new manifest and necessary lockfile entries, plus exact internal pins if a reviewed version changes. This document does not choose or execute a local package batch.
 

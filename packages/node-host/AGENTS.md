@@ -58,7 +58,7 @@ For Next, create `healthRoutes({ wayPaths, checks })` once in server-only wiring
 - This package and Express Host use the strict TypeScript preset for Node transport. Keep Effect app code on the Effect preset with `nodeBuiltinImport: error`.
 - Never buffer whole bodies here. Body limits belong to the HTTP way's `maxBodyBytes` option.
 - Build the request's HTTP origin from Host, not forwarded headers. Behind a TLS proxy the app sets its public `origins` on the HTTP way.
-- Drain for at most five seconds before disposing the app. Repeated closes and signals share one promise; keep signal hooks until disposal ends.
+- Use one five-second deadline for request drain and listener closure, including detached CONNECT sockets. Flush HEAD/empty responses before active tracking ends; force-close only at the deadline. Requests arriving after drain starts receive fixed 503 with `Connection: close`. Repeated closes and signals share one promise; await onClose once even on listener-close error and keep signal hooks until disposal ends.
 - Reject malformed Host and non-origin-form request targets with plain 400 before the handler; OPTIONS *, TRACE and CONNECT answer 501, except TRACE on health paths answers 405. Keep IPv6 authorities working.
 - A thrown handler or ordinary stream failure before its first byte returns a plain 500 without details. SSE headers flush immediately, so SSE failures destroy the connection.
 - `createNodeRequestHandler(handler, { health? })` opens no listener. It returns `handle(incoming, outgoing)` and once-only bounded `drain(timeoutMs)`, owning active request tracking, aborts and stream cleanup. Both framework hosts use it.

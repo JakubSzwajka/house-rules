@@ -136,7 +136,7 @@ const host = await serve(async (request) => (await site(request)) ?? api(request
 
 ## Closing
 
-`close()` stops accepting connections, waits up to a fixed five-second deadline for requests and response streams to finish, then awaits `onClose`. The drain timeout is not an option. At the deadline it aborts the request signals and destroys the remaining HTTP connections. An uncooperative handler cannot hold shutdown open; use `onClose` to dispose the app's resources. The deadline bounds draining, not `onClose`.
+`close()` stops accepting connections, waits up to a fixed five-second deadline for requests and response streams to finish, then awaits `onClose`. The drain timeout is not an option. The same deadline bounds listener closure. At the deadline it aborts the request signals and destroys every remaining socket, including detached CONNECT sockets. Successful HEAD/empty/204 responses flush before leaving active tracking and are not force-closed early. Requests arriving on existing connections after draining starts receive plain 503 `Service Unavailable` with `Connection: close`. An uncooperative handler cannot hold shutdown open; use `onClose` to dispose the app's resources. The deadline bounds draining, not `onClose`. Disposal still runs exactly once if the listener close callback reports an error; `close()` then rejects.
 
 Repeated calls return the same shutdown promise. With `handleSignals: true`, SIGTERM and SIGINT use that same close operation. Signal hooks stay installed through `onClose`, then are removed. A failed signal-triggered close sets the process exit code to 1. By default the Host installs no signal hooks.
 

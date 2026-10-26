@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -94,7 +95,22 @@ function checkTarball(folder, tarball) {
   assert.ok(!files.some((file) => /(?:^|\/)tests\//u.test(file)), `${source.name} ships tests`);
 }
 
+const sourceState = () => ({
+  head: run("git", ["rev-parse", "HEAD"], root, { capture: true }).trim(),
+  status: run("git", ["status", "--porcelain=v1", "--untracked-files=all"], root, {
+    capture: true,
+  }).trim(),
+});
 const work = mkdtempSync(path.join(os.tmpdir(), "house-rules-consumer-"));
+const proof = {
+  command: `${process.env.KEEP === "1" ? "KEEP=1 " : ""}pnpm run packed-consumer`,
+  cwd: root,
+  node: process.version,
+  startedAt: new Date().toISOString(),
+  source: sourceState(),
+  tarballs: {},
+  exitCode: 1,
+};
 try {
   const packs = path.join(work, "packs");
   const tarballs = {};
@@ -108,7 +124,14 @@ try {
     const tarball = out.trim().split("\n").pop().trim();
     assert.match(tarball, /\.tgz$/u, `pnpm pack printed no tarball for ${folder}:\n${out}`);
     checkTarball(folder, tarball);
-    tarballs[readJson(path.join(root, "packages", folder, "package.json")).name] = tarball;
+    const name = readJson(path.join(root, "packages", folder, "package.json")).name;
+    tarballs[name] = tarball;
+    const bytes = readFileSync(tarball);
+    proof.tarballs[name] = {
+      path: tarball,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+      integrity: `sha512-${createHash("sha512").update(bytes).digest("base64")}`,
+    };
   }
 
   const pins = readJson(path.join(root, "package.json")).devDependencies;
@@ -300,7 +323,14 @@ NodePlatform.runMain(Effect.gen(function* () {
   assertNextHost(app, tsc, { run, write, readJson, failure });
   assertTarballRulesAreLive(work, root);
   console.log("packed consumer: tarballs, plain node, tsc, layout rules and the Next host pass");
+  proof.exitCode = 0;
 } finally {
+  proof.finishedAt = new Date().toISOString();
+  proof.sourceAfter = sourceState();
+  write(work, { "proof.json": proof });
+  console.log(
+    `packed consumer exit: ${proof.exitCode}; metadata: ${path.join(work, "proof.json")}`,
+  );
   if (process.env.KEEP === "1") console.log(`kept ${work}`);
   else rmSync(work, { recursive: true, force: true });
 }

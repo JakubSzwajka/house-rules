@@ -41,7 +41,9 @@ pnpm run local-publish --since origin/main
 pnpm run local-publish --allow-dirty
 ```
 
-For board development, use the default: it publishes all 20 public packages with one shared timestamp so the consumer can move every framework pin together. Named packages are useful for quick single-package checks. Named packages and `--since` also include their internal dependencies so their packed pins resolve. The publisher orders dependencies before dependents, so a failed batch cannot publish a dependent before its local pins exist. `--since` compares the given commit with the working tree; a change outside `packages/` selects all packages conservatively. Untracked files require `--allow-dirty` but are not part of Git's changed-since comparison. Use a named package or publish all when adding untracked code.
+For board development, use the default: it publishes all 21 public packages with one shared timestamp so the consumer can move every framework pin together. Named packages are useful for quick single-package checks. Named packages and `--since` also include their internal dependencies so their packed pins resolve. The publisher orders dependencies before dependents, so a failed batch cannot publish a dependent before its local pins exist. `--since` compares the given commit with the working tree; a change outside `packages/` selects all packages conservatively. Untracked files require `--allow-dirty` but are not part of Git's changed-since comparison. Use a named package or publish all when adding untracked code.
+
+An Express Host batch must include the bridge-bearing Node Host from the same source; named `express-host` selection includes it automatically. Task 288 requires a fresh accepted transport review and commit-bound packed proof before any localhost batch. No publication is authorized by this guide.
 
 Each run builds the TypeScript packages, packs with pnpm, then edits only temporary extracted manifests. Versions look like `0.1.0-local.20261025123456789`, with one UTC millisecond timestamp per run. Every internal dependency field gets an exact matching local version. Source `package.json` files stay unchanged, including on failure. The script neither commits nor creates Git tags. npm's `local` dist-tag points at the last local publication. Verdaccio can also initialize `latest` on a package's first publication, so consumers must use exact versions rather than either tag.
 
@@ -72,7 +74,7 @@ Use the actual version printed by your run, not this example. Do not save `@loca
 
 ## Switch back before merging a consumer to main
 
-- Replace every direct `-local` dependency with an exact real npm version that contains the needed changes. Wait for the framework's normal release workflow if needed.
+- Replace every direct `-local` dependency with an exact real npm version that contains the needed changes. Wait for the framework's normal release workflow if needed. Express Host cannot use npm Node Host 0.2.0: that release lacks the shared bridge. The [Express release gate](release.md#current-21-package-release-preparation) requires a future approved coordinated version/pin change before main or public release.
 - Remove the temporary framework `overrides`, the scope registry line, and the `@house-rules/*` release-age exclusion. Preserve unrelated settings.
 - Reinstall from npmjs. Check `package.json`, workspace config and the lockfile for local versions and `127.0.0.1:4873` URLs.
 - Run the consumer's full checks and tests. Merge only with green CI using real npm packages.

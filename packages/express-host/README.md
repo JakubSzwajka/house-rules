@@ -12,6 +12,7 @@ const site = staticFiles({
 });
 const host = await serve(async (request) => (await site(request)) ?? api(request), {
   port: 3000,
+  hostname: "127.0.0.1",
   health: { wayPaths: ["/api", "/mcp"] },
   handleSignals: true,
   onClose: async () => {
@@ -22,7 +23,7 @@ const host = await serve(async (request) => (await site(request)) ?? api(request
 
 Call this in `main.ts`. `toFetchHandler` and composition remain application-owned. All admission, HTTP/MCP routing, sessions, CSRF, origins, errors, audit and tracing stay in application. No Express business routes, body parsers or middleware customization API are exposed. Installing the kits does not install Express.
 
-`serve(handler, options)` returns `{ url: URL, close(): Promise<void> }`. Options are `port` (including 0), optional `hostname`, `health`, `onClose` and `handleSignals` (default false). The public declarations contain no Express types. `staticFiles`, `healthHandler`, `healthRoutes` and their types are re-exported unchanged from [Node Host](../node-host/README.md).
+`serve(handler, options)` returns `{ url: URL, close(): Promise<void> }`. Options are `port` (including 0), optional `hostname`, `health`, `onClose` and `handleSignals` (default false). Omitting `hostname` lets Node listen on all interfaces, trying IPv6 with IPv4 fallback when unavailable. The example binds loopback only. The public declarations contain no Express types. `staticFiles`, `healthHandler`, `healthRoutes` and their types are re-exported unchanged from [Node Host](../node-host/README.md).
 
 ## Transport and shutdown
 
@@ -30,7 +31,9 @@ The bridge preserves raw Host/path/query, repeated headers, semicolon-joined Coo
 
 Responses stream with backpressure. SSE headers flush immediately, including media types with case differences or parameters. Ordinary streams retain a plain 500 for errors before their first byte; errors after headers close the socket. Client disconnects abort the Web Request and cancel its response stream. Completing an upload does not abort its response.
 
-`close`, SIGINT and SIGTERM share one promise. Shutdown stops accepting, closes idle connections and waits at most five seconds for requests and streams, then aborts/destroys remaining connections. An idle MCP SSE stream therefore takes the full five seconds. `onClose` runs once after draining and has no time limit. Signal hooks remain until disposal ends and are removed even if it fails. Failed signal shutdown sets exit code 1.
+`close`, SIGINT and SIGTERM share one promise. Shutdown stops accepting, closes idle connections and waits at most five seconds for requests and streams, then aborts/destroys remaining connections. An idle MCP SSE stream therefore takes the full five seconds. The same deadline bounds listener closure, including half-open CONNECT sockets. Successful HEAD/empty/204 responses flush before drain completes; they are not force-closed early. Requests arriving on an existing connection after drain starts receive 503 with `Connection: close`. `onClose` runs once after draining, even if the listener close callback reports an error, and has no time limit. Signal hooks remain until disposal ends and are removed even if it fails. Failed signal shutdown sets exit code 1.
+
+Express 5 reports startup listen errors through its callback. It retains that one-shot error listener after startup, so later server errors are consumed by the already-settled callback rather than surfaced as Node Host's unhandled server errors. There is no post-listen error callback in this API.
 
 ## Static files and probes
 

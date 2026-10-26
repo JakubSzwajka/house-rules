@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
+import { finished, pipeline } from "node:stream/promises";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 
 import { healthHandler, type HealthOptions } from "./health.ts";
@@ -133,6 +133,8 @@ const respond = async (
     outgoing.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
     outgoing.end("Internal Server Error");
   } finally {
+    // Empty, HEAD and fixed-error responses must flush before leaving active tracking.
+    await finished(outgoing, { cleanup: true }).catch(() => {});
     incoming.off("aborted", abort);
     outgoing.off("close", disconnected);
     if (!incoming.destroyed) incoming.resume();
@@ -162,7 +164,7 @@ export const createNodeRequestHandler = (
           "content-type": "text/plain; charset=utf-8",
         });
         outgoing.end("Service Unavailable");
-        return Promise.resolve();
+        return finished(outgoing, { cleanup: true }).catch(() => {});
       }
       const controller = new AbortController();
       const task = respond(handler, incoming, outgoing, controller, health);
