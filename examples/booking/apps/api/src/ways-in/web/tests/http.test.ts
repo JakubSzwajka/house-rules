@@ -8,6 +8,7 @@ import { Context, Effect } from "effect";
 import { createApp, modulePlan } from "../../../composition/app.ts";
 import { testIssuers } from "../../../composition/sign-in.ts";
 import { Features } from "../../../features/index.ts";
+import { ReadModels } from "../../../read-models/index.ts";
 import { makeFakePaymentProvider } from "@example/billing";
 import { Bookings, BookingNotFound } from "@example/bookings";
 import { webWay } from "../way.ts";
@@ -105,11 +106,11 @@ it.live("shared features, one authenticated hook, HTTP closure refusal and appro
     if (!refused.ok) assert.strictEqual(refused.error?._tag, "Forbidden");
     assert.strictEqual(log.entries().filter((e) => e.capability === "first_sign_in").length, 1);
     assert.strictEqual(api.endpoints.makeBooking.feature, Features.makeBooking);
-    assert.strictEqual(api.endpoints.showBooking.feature, Features.showBooking);
-    assert.strictEqual(api.endpoints.myBookings.feature, Features.myBookings);
+    assert.strictEqual(api.endpoints.showBooking.feature, ReadModels.showBooking);
+    assert.strictEqual(api.endpoints.myBookings.feature, ReadModels.myBookings);
     assert.strictEqual(api.endpoints.cancelBooking.feature, Features.cancelBooking);
-    assert.strictEqual(mcpWay.features[0], Features.showBooking);
-    assert.strictEqual(mcpWay.features[1], Features.myBookings);
+    assert.strictEqual(mcpWay.features[0], ReadModels.showBooking);
+    assert.strictEqual(mcpWay.features[1], ReadModels.myBookings);
     assert.deepStrictEqual(webWay.features, [
       Features.createOrganisation,
       Features.myOrganisations,
@@ -130,8 +131,8 @@ it.live("shared features, one authenticated hook, HTTP closure refusal and appro
       Features.signOut,
       Features.changePassword,
       Features.makeBooking,
-      Features.showBooking,
-      Features.myBookings,
+      ReadModels.showBooking,
+      ReadModels.myBookings,
       Features.cancelBooking,
       Features.defineRole,
       Features.listRoles,
@@ -173,7 +174,7 @@ it.live(
         );
       for (const [entry, input] of [
         [Features.duePayments, {}],
-        [{ ...Features.showBooking }, { id: "one" }],
+        [{ ...ReadModels.showBooking }, { id: "one" }],
       ] as const) {
         const refused = yield* Effect.promise(() =>
           call(app, entry, input, incoming, { way: "web" }),

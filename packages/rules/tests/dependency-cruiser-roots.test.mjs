@@ -57,8 +57,8 @@ test("several roots become one alternation in every pattern that names them", ()
     [
       `^(${packages}/[^/]+)/src/`,
       `^(${packages}/[^/]+)/src/`,
-      `^(${apps}/[^/]+/src/read-models/[^/]+)/`,
-      `^(${apps}/[^/]+/src/read-models/[^/]+)/`,
+      `^(${apps}/[^/]+/src/(?:read-models|projections)/[^/]+)/`,
+      `^(${apps}/[^/]+/src/(?:read-models|projections)/[^/]+)/`,
     ],
   );
   assert.deepEqual(
@@ -67,7 +67,7 @@ test("several roots become one alternation in every pattern that names them", ()
       .map(({ from }) => from.path),
     [
       `^${packages}/[^/]+/src/contract[.]ts$`,
-      `(?:^${apps}/[^/]+/src/read-models/[^/]+/contract[.]ts$|^${apps}/[^/]+/src/features/(?:[^/]+/|)index[.]ts$|^${apps}/[^/]+/src/ways-in/[^/]+/endpoints[.]ts$)`,
+      `(?:^${apps}/[^/]+/src/projections/[^/]+/contract[.]ts$|^${apps}/[^/]+/src/read-models/(?:[^/]+/|)index[.]ts$|^${apps}/[^/]+/src/features/(?:[^/]+/|)index[.]ts$|^${apps}/[^/]+/src/ways-in/[^/]+/endpoints[.]ts$)`,
     ],
   );
   const declarations = byName(
@@ -80,6 +80,23 @@ test("several roots become one alternation in every pattern that names them", ()
   assert.equal(
     byName(layout({ scope: "@acme/", appsDir: "examples/*/apps" }))["app-folders"].module.path,
     "^examples/[^/]+/apps/[^/]+/src/",
+  );
+});
+
+test("MCP-only and system-only read-model indexes are independent browser-safety roots", async () => {
+  const tree = {
+    "apps/web/src/read-models/mcp-query/index.ts": 'import "node:fs"; export const query = {};',
+    "apps/web/src/read-models/system-query/index.ts": 'import "node:fs"; export const query = {};',
+    "apps/web/src/ways-in/mcp/way.ts": "export const way = {};",
+    "apps/web/src/ways-in/events/way.ts": "export const way = {};",
+  };
+  const violations = await violatedRules(tree, layout({ scope: "@acme/" }));
+  assert.deepEqual(
+    fromPaths(violations).filter((line) => line.startsWith("contract-entry-is-browser-safe:")),
+    [
+      "contract-entry-is-browser-safe: apps/web/src/read-models/mcp-query/index.ts -> fs",
+      "contract-entry-is-browser-safe: apps/web/src/read-models/system-query/index.ts -> fs",
+    ],
   );
 });
 

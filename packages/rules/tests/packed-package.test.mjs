@@ -156,7 +156,7 @@ for (const sibling of ["layout-option-parsers.cjs", "layout-patterns.cjs", "host
 }
 const dependencyCruiserConfig = createRequire(import.meta.url)("./.dependency-cruiser.cjs");
 assert.deepEqual(dependencyCruiserConfig, layout({ scope: "@acme/" }));
-assert.equal(dependencyCruiserConfig.forbidden.length, 36);
+assert.equal(dependencyCruiserConfig.forbidden.length, 37);
 assert.ok(dependencyCruiserConfig.forbidden.some(({ name, severity }) => name === "ways-in-import-contracts-only" && severity === "error"));
 assert.equal(dependencyCruiserConfig.options.parser, "swc");
 

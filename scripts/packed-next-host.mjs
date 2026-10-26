@@ -25,12 +25,12 @@ export function assertNextHost(app, tsc, { run, write, readJson, failure }) {
     "apps/web/.next/server/chunk.js": 'import "./missing-chunk.js";\n',
     [`${src}/composition/data.json`]: '{ "title": "Ready" }\n',
     [`${src}/composition/index.ts`]:
-      'import data from "./data.json";\nimport { title } from "../read-models/items/index";\nexport const app = { title: data.title + title };\n',
+      'import data from "./data.json";\nimport { title } from "../projections/items/index";\nexport const app = { title: data.title + title };\n',
     [`${src}/features/show-item/index.ts`]:
       'import { NoInput } from "@house-rules/domain/contract";\nimport { defineFeature } from "@house-rules/application/contract";\nimport { Effect, Schema } from "effect";\nexport const showItem = defineFeature("show_item", { description: "Show item.", input: NoInput, output: Schema.String, failure: Schema.Never, permission: null, flags: { readOnly: true }, handler: () => Effect.succeed("Ready") });\n',
-    [`${src}/read-models/items/item/item.ts`]: 'export const title = "Private module value";\n',
-    [`${src}/read-models/items/index.ts`]: 'export { title } from "./item/item";\n',
-    [`${src}/read-models/items/adapters/memory/item.ts`]:
+    [`${src}/projections/items/item/item.ts`]: 'export const title = "Private module value";\n',
+    [`${src}/projections/items/index.ts`]: 'export { title } from "./item/item";\n',
+    [`${src}/projections/items/adapters/memory/item.ts`]:
       'export const title = "Private adapter";\n',
     [`${src}/app/page.tsx`]: `${useComposition}import { showItem } from "../features/show-item/index";\nexport default function Page() {\n  return app.title + showItem.name;\n}\n`,
     [`${src}/app/global-error.tsx`]:
@@ -64,8 +64,8 @@ export function assertNextHost(app, tsc, { run, write, readJson, failure }) {
   // Findings make ESLint exit 1 and the negative twin lacks nextHost: only the linted files matter.
   const plain = lintedFiles("eslint.plain.config.mjs", "lint-plain.json");
   assert.ok(plain.includes("apps/web/.next/server/chunk.js"), plain.join());
-  // Reject each forbidden graph at its own edge; composition may import read-model values.
-  for (const target of ["read-models/items/index", "read-models/items/adapters/memory/item"]) {
+  // Reject each forbidden graph at its own edge; composition may import projection values.
+  for (const target of ["projections/items/index", "projections/items/adapters/memory/item"]) {
     for (const hop of ["proxy", "app/reexport"]) {
       write(next, {
         [`${src}/proxy.ts`]:
@@ -88,7 +88,7 @@ export function assertNextHost(app, tsc, { run, write, readJson, failure }) {
   write(next, {
     [`${src}/app/reexport.ts`]: 'export const title = "Ready";\n',
     [`${src}/app/page.tsx`]:
-      'import type { title } from "../read-models/items/index";\nexport default function Page(): typeof title { return "Private module value"; }\n',
+      'import type { title } from "../projections/items/index";\nexport default function Page(): typeof title { return "Private module value"; }\n',
   });
   run(...cruise("err-long"), next);
   run(tsc, ["--project", "tsconfig.json"], next);

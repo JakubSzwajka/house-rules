@@ -27,7 +27,7 @@ apps/                        your apps
 examples/booking/            private reference app and its domain packages
 packages/
   domain/                    descriptors, callers, graphs, modules and units
-  application/               features, bindings, execution, ways and clients
+  application/               entry points, bindings, execution, ways and clients
   auth-jwt/                  token verification plug
   call-audit/                feature audit plug
   comments/                  comments module
@@ -46,33 +46,34 @@ App source has these areas:
 ```text
 src/
   features/<name>/           index.ts with one feature and handler, tests/
-  read-models/<name>/        screen query over published views
+  read-models/<name>/        defineReadModel query and handler, tests/
+  projections/<name>/        optional published-view SQL query infrastructure
   ways-in/<name>/            HTTP/MCP endpoints, hooks or UTC schedules
   composition/              mount, link, plug, open ways, schedule
   main.ts                   join the root and ways, start the Host
 ```
 
-Domain modules are packages, including app-owned ones such as `examples/booking/packages/bookings`. A module owns its tables, migrations and object rules. Its public doors are `index.ts` and optional browser-safe `contract.ts`. A read model stays in the app and selects published views, never private tables.
+Domain modules are packages, including app-owned ones such as `examples/booking/packages/bookings`. A module owns its tables, migrations and object rules. Its public doors are `index.ts` and optional browser-safe `contract.ts`. A read model composes declared read-only module operations. Optional app projections select published views, never private tables.
 
 ## How a call runs
 
 ```text
-request -> way (Who, Mean) -> app feature -> app May role check
+request -> way (Who, Mean) -> app entry point -> app May role check
   record -> feature identity -> person/system closures -> approval -> one unit
-    handler -> declared edges -> module or read-model operations
+    handler -> declared edges -> module or projection operations
                |
             step trace
 ```
 
 Application's `defineFeature` puts one app action and its handler in `features/<name>/index.ts`. A feature is its own entry. Its handler only calls declared edges, so the file stays browser-safe. `features/index.ts` exports only Features. Composition declares built-in roles and system permissions, and plugs `Party.may()` once. Party owns custom roles and assignments. The runtime publishes the operation permission catalogue.
 
-Domain's `defineOperation` describes module or read-model work. Modules export `<Module>Operations` from `./contract`. Application's `bindOperation` captures their services in composition. Only features can be exposed through ways, hooks or schedules.
+Domain's `defineOperation` describes module or projection work. Modules export `<Module>Operations` from `./contract`. Application's `bindOperation` captures their services in composition. Features and read models are exposed directly through ways, hooks or schedules. defineReadModel lives in read-models/<name>/index.ts with its schemas and handler; ReadModels is its registry. Both kinds use the same executor. Explicit kind, not readOnly, distinguishes queries from commands. Existing read-only features remain commands for staged compatibility.
 
 A plain edge keeps the caller. `asSystem(target, reason)` switches that branch to the system and never back. A feature derives its permission closures and flags from the graph. Approval runs once. Only the feature runtime opens a production unit; handlers and modules join it. A failed write rolls back the graph's stored changes, not external provider effects.
 
 Every inner call rechecks its own permission against the permissions loaded at feature start.
 
-Ways import values from kits, `effect`, package contract doors, features, composition and their own folder. Other package main entries allow types only. Build concrete plugs in composition and pass them into ways. The root receives ways from `main.ts`; it never imports them.
+Ways import values from kits, `effect`, package contract doors, feature/read-model indexes, composition and their own folder. Other package main entries allow types only. Build concrete plugs in composition and pass them into ways. The root receives ways from `main.ts`; it never imports them.
 
 Expected errors declare a kind. Application maps that kind to a fixed status and code. Ways may change message text only. Unavailable and plumbing errors use fixed public messages; driver details stay internal. Defects answer generic 500.
 
@@ -136,7 +137,7 @@ Lefthook runs check then test before every commit. Pi's interceptor and `scripts
 
 Checks do not replace review. Review module boundaries, explicit Actor arguments, object policy, fixed public error messages and SQL ownership inside procedural bodies. A plug must pass the pull-out test: removing it and its `Layer.provide` line leaves the rest building and passing. Test each exposed agent tool for A/B access under fake actors. MCP stays read-only unless the owner approves writes.
 
-The reference [booking app](examples/booking/README.md) shows booking and payment writes in one feature, a system refund edge, shared Party/Identity operations and a private read model. [TESTS.md](examples/booking/TESTS.md) names its proof and remaining gaps. Its [app map](examples/booking/apps/api/MAP.md) is generated; the freshness test never writes it. Run `pnpm --filter @example/api map` for the app map, with `--json`, `--mermaid` or `--write` to select output or refresh MAP.md.
+The reference [booking app](examples/booking/README.md) shows booking and payment writes in one feature, a system refund edge, shared Party/Identity operations and an exposed read model backed by a private SQL projection. [TESTS.md](examples/booking/TESTS.md) names its proof and remaining gaps. Its [app map](examples/booking/apps/api/MAP.md) is generated; the freshness test never writes it. Run `pnpm --filter @example/api map` for the app map, with `--json`, `--mermaid` or `--write` to select output or refresh MAP.md.
 
 ## Change the template
 

@@ -18,14 +18,14 @@ Booking's map script is `scripts/map.mjs` in the app, run through `pnpm --filter
 
 ## Choose the owner
 
-Use the root [AGENTS.md](../../AGENTS.md), especially "Inside a module", "Modules own data; read models consume views", "Features, operations and execution" and "Kits, wiring and additions".
+Use the root [AGENTS.md](../../AGENTS.md), especially "Inside a module", "Modules own data; projections consume views", "Features, operations and execution" and "Kits, wiring and additions".
 
 | Question | Home and reason |
 | --- | --- |
 | Does it own data, invariants, object access or a separate lifecycle? | A package module. Keep dependent children together when writes, SQL guards and deletion cascades share a boundary. Split by consistency, access and lifecycle, not nouns. |
 | Is it one thing a module can do? | An operation owned by that module, with a browser-safe descriptor and a service-capturing binder. Storage answers facts; domain code owns policy. |
-| Is it a screen query over published views? | An app read model with read operations. No migrations. Exactly one static SELECT or WITH...SELECT over known views, filtered by person in SQL and tested for A/B privacy. SQL functions are banned, so AVG, COUNT and other aggregates cannot live there. Compute them in a module operation, or in a view the owning module publishes. If the grammar does not fit, keep reads in module operations or compose them in a feature. |
-| Is it one thing the person or system can do in the app? | An exposed feature with operation edges, never calls to other features. Reuse goes through capability or process operations. Its handler never imports services or opens a unit. Only features enter ways. |
+| Does a query need published-view SQL? | An optional app projection with read operations. No migrations. Exactly one static SELECT or WITH...SELECT over known views, filtered by person in SQL and tested for A/B privacy. SQL functions are banned, so AVG, COUNT and other aggregates cannot live there. Compute them in a module operation, or in a view the owning module publishes. If the grammar does not fit, keep reads in module operations or compose declared read-only operations in a read model. |
+| Is it one thing the person or system can do in the app? | An exposed feature with operation edges, never calls to other features. Reuse goes through capability or process operations. Its handler never imports services or opens a unit. Both feature commands and read-model queries enter ways directly. Neither targets any entry point. |
 | Does it fill a caller-owned socket or port? | A plug. Name who owns the port and test removal of the plug and its Layer.provide line. It must leave the rest building and passing. A package may own data as a module and separately supply a plug, such as Party's May. |
 
 Ownership notes must name tables, published views, foreign ids, lifecycle and access checks. Plan has no fields for these. Do not use read models to bypass module data ownership, or plugs to hide domain work.
@@ -39,7 +39,7 @@ Party, Identity and CallAudit are the default base of every app, as booking show
 | `@house-rules/party` | module, plus the May plug `Party.may()` | people, organisations, relationships, built-in and custom roles, assignments, invitations | 24, `PartyOperations` in its `contract.ts` |
 | `@house-rules/identity` | module, plus the Who plug `Identity.who` | password and OIDC logins, login bindings, the `FirstSignIn` hook slot | 4, `IdentityOperations` |
 | `@house-rules/comments` | module; needs a `CommentTargets` host port | flat plain-text comments on the app's own targets | 4, `CommentsOperations`, see its AGENTS.md |
-| `@house-rules/call-audit` | Record plug `CallAudit.record` | one audit row per feature call, refusals included, with retention | none; booking reads it through its `audit-trail` read model |
+| `@house-rules/call-audit` | Record plug `CallAudit.record` | one audit row per feature call, refusals included, with retention | none; booking reads it through its `audit-trail` projection |
 | `@house-rules/auth-jwt` | Authenticator slot plug | JWT checks against a JSON Web Key Set | none |
 
 No package owns notifications, outbound messages or contact details. Party stores no email. Identity's `accountByEmail` is a facade method for trusted tooling, not an operation, so a feature cannot reach it. Payments, calendars and slots are app modules; booking's `billing` is an example, not a reusable package.
@@ -72,10 +72,10 @@ Full schema: [application README, Validate a plan](../../packages/application/RE
 
 | Section | Write |
 | --- | --- |
-| `modules[]` | `name`, unique `service`, `kind` package or read-model, optional `role` capability or process (default capability), `package` and `path`, nested `operations` |
+| `modules[]` | `name`, unique `service`, `kind` package or projection (read-model is a legacy projection kind), optional `role` capability or process (default capability), `package` and `path`, nested `operations` |
 | Operation | Unique callable `name`, explicit `permission` string or null; optional own `readOnly`, `transactional`, `destructive`, `needsApproval`, `edges` |
-| `features[]` | Callable fields plus optional `path`, `start`: person by default or `{ reason, startedBy }` |
-| Edge | Operation name, or `{ target, reason }` targeting an operation for a system edge. Features never target features. No authored closures. |
+| `features[]` | Callable fields plus explicit `kind: "feature" | "read-model"`, optional `path`, `start`: person by default or `{ reason, startedBy }` |
+| Edge | Operation name, or `{ target, reason }` targeting an operation for a system edge. Entry points never target entry points. No authored closures. |
 | `ways[]` | `name`, `protocol`, `features`, optional `source`, `mean`: allow, no or elicitation. Network `path`, hook `slot`, schedule `clock: { cron, timeZone: "UTC" }`, event `on: [kinds]`. Event ways require exactly one system-start feature and explicit mean, normally no. HTTP-only `public`. |
 | `plugs[]` | Optional `{ name, package?, fills, ways? }`. Who, Mean and hook fills name ways; May, Record and EventSource are app-level. |
 
@@ -92,14 +92,15 @@ Copy the spelling of the nearest existing sibling. `path` and `source` are pass-
 | New item | Spelling |
 | --- | --- |
 | Package module | `service: "@example/<pkg>/<Module>"`, `package: "@example/<pkg>"`, `path: "examples/booking/packages/<pkg>"` (root-relative) |
-| Read model | `service: "@example/api/read-models/<kebab>/<Pascal>"`, `package: "@example/api"`, `path: "src/read-models/<kebab>"` (app-relative) |
+| Projection | Service identity stays stable; new path `src/projections/<kebab>` (app-relative), kind projection |
+| Read model | kind read-model, path `src/read-models/<kebab>/index.ts`, defineReadModel with schemas and handler |
 | Operation | `<Module>.<verb>`, permission `<module>:<action>` |
 | Feature | snake_case name, `path: "src/features/<kebab>/index.ts"` |
 | Way | HTTP and MCP `source: "src/ways-in/<way>/way.ts"`; hook `src/ways-in/hooks/<name>.ts`; schedule `src/ways-in/schedules/<name>.ts`; event `src/ways-in/events/<name>.ts` |
 
 A new app in this repo lives in `apps/<app>` with package `@<scope>/<app>`; agree the scope with the owner, since booking's `@example` marks examples. Its modules are `packages/<pkg>` with package `@<scope>/<pkg>`. Module `path` is root-relative; feature, read-model and way paths are app-relative, as in booking.
 
-Flags. Write each flag as the code will declare it. Operations: readOnly for reads, transactional for writes, destructive and needsApproval for hard-to-undo work. A read feature must set `readOnly: true` itself, because readOnly lifts with AND; without it the feature reads as a write. The other three lift with OR from the graph, so a new feature may omit them. Booking's `sign_in`, `change_password` and other features declare `flags: { transactional: true }` in code, so its plan repeats it. Both forms are valid, and the diff cannot see a redundant OR flag.
+Flags. Write each flag as the code will declare it. Operations: readOnly for reads, transactional for writes, destructive and needsApproval for hard-to-undo work. A defineReadModel query fixes its own readOnly true. Existing defineFeature reads stay feature-kind and still set readOnly true explicitly. The other three lift with OR from the graph, so a new feature may omit them. Booking's `sign_in`, `change_password` and other features declare `flags: { transactional: true }` in code, so its plan repeats it. Both forms are valid, and the diff cannot see a redundant OR flag.
 
 ## Fix PlanInvalid
 
@@ -125,8 +126,8 @@ A valid plan does not prove every required socket is filled. Review Who, May, Me
 
 `plan diff` accepts map JSON as a side. It detects a map by the presence of both `layers` and `permissions`. `plan validate` and `plan view` reject map JSON. Keep the raw `current-map.json` and build a plan beside it:
 
-1. Copy `modules` with service, kind, role, package, path and nested operations. A missing role means capability. Map operations carry all four of their own flags as top-level booleans. Keep the true ones and drop the false ones.
-2. Copy feature names, permissions, paths and edges. A map feature's `flags` object holds lifted values. Write `readOnly: true` where it is true. Read each feature's `defineFeature` call for literal OR flags and write only those. Convert `{ kind: "system", reason, startedBy }` starts to `{ reason, startedBy }`; drop `"person"`.
+1. Copy `modules` with service, kind, role, package, path and nested operations. A missing role means capability. Map operations carry all four of their own flags as top-level booleans. Keep the true ones and drop the false ones. Query graph validation trusts readOnly declarations; keep handler effects and SQL ownership in review.
+2. Copy entry names, explicit kind, permissions, paths and edges. A map feature's `flags` object holds lifted values. Write `readOnly: true` where it is true. Read each entry's defineFeature/defineReadModel call for literal OR flags and write only those. Convert `{ kind: "system", reason, startedBy }` starts to `{ reason, startedBy }`; drop `"person"`.
 3. An edge record with no reason becomes its target name; one with a reason becomes `{ target, reason }`. Copy ways, sources, exposures and plugs. Map `mean` holds words: `allow` is allow, `deny approval` is no, `ask the human` is elicitation. Keep `public` only on HTTP ways that list features. Remove `layers`, `permissions`, feature `flags`, `closures` and `ways`, and edge and start `kind`; strict decoding rejects them.
 4. Run `pnpm --silent plan validate <plan>`, then `pnpm --silent plan diff "$D/current-map.json" <plan> --text`. Require `No changes: both maps describe the same app.` before you edit a candidate.
 

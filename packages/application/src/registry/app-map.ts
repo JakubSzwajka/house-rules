@@ -33,7 +33,7 @@ export const mapRegistry = (data: RegistrySnapshot): AppMapSnapshot => {
   const operations = data.mounts.flatMap((mount) => mount.operations);
   return {
     layers:
-      "ways-in → features → operations → modules / read models; composition wires (fixed header, not extracted from layout)",
+      "ways-in → entry points (feature / read-model) → operations → modules / projections; composition wires (fixed header, not extracted from layout)",
     modules: named(
       data.mounts.map((mount) => ({
         name:
@@ -61,6 +61,7 @@ export const mapRegistry = (data: RegistrySnapshot): AppMapSnapshot => {
     features: named(
       data.features.map((feature) => ({
         name: feature.name,
+        kind: feature.kind,
         start:
           feature.start === "person"
             ? ("person" as const)
@@ -153,7 +154,7 @@ const text = (data: AppMapSnapshot): string => {
   ): string[] => [
     ...wrap(
       branch,
-      `${feature.name}  ${feature.start === "person" ? "person" : `system (${feature.start.reason})`}${feature.path === undefined ? "" : `  ${feature.path}`}  needs ${feature.closures.person.join(" ") || "none"}${feature.closures.system.length === 0 ? "" : `; system needs ${feature.closures.system.join(" ")}`}`,
+      `${feature.name} [${feature.kind ?? "feature"}]  ${feature.start === "person" ? "person" : `system (${feature.start.reason})`}${feature.path === undefined ? "" : `  ${feature.path}`}  needs ${feature.closures.person.join(" ") || "none"}${feature.closures.system.length === 0 ? "" : `; system needs ${feature.closures.system.join(" ")}`}`,
       trunk,
     ),
     ...feature.edges.flatMap((edge, edgeIndex) => {

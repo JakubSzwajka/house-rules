@@ -1,5 +1,7 @@
 import * as fs from "node:fs";
 import path from "node:path";
+import { sourcePackages } from "./source-packages.mjs";
+import { objectProperty } from "./object-property.mjs";
 import { parseForESLint } from "@typescript-eslint/parser";
 import { unwrapExpression } from "./import-bindings.mjs";
 import { featureOptions } from "./feature-origin.mjs";
@@ -9,7 +11,7 @@ import {
   builderExportSources,
   kitBuilderOrigin,
 } from "./kit-builder-source.mjs";
-import { relativeSource } from "./relative-source.mjs";
+import { relativeSource, installedContractSource } from "./relative-source.mjs";
 export { relativeSource } from "./relative-source.mjs";
 
 export const sourceGraph = (
@@ -18,31 +20,9 @@ export const sourceGraph = (
   scopeManager,
   { cwd = process.cwd(), packagesDir = [], workspaces = [] } = {},
 ) => {
-  const packages = new Map();
-  for (const manifest of [
-    ...fs.globSync(
-      packagesDir.map((root) => `${root}/*/package.json`),
-      { cwd },
-    ),
-    ...workspaces.map((workspace) => path.join(workspace, "package.json")),
-  ]) {
-    try {
-      const file = path.resolve(cwd, manifest);
-      const json = JSON.parse(fs.readFileSync(file, "utf8"));
-      if (["@house-rules/domain", "@house-rules/application"].includes(json.name)) continue;
-      for (const [key, entry] of Object.entries(json.exports ?? { ".": "./src/index.ts" })) {
-        const target = typeof entry === "string" ? entry : (entry?.import ?? entry?.default);
-        if ([".", "./contract"].includes(key) && typeof target === "string")
-          packages.set(
-            json.name + (key === "." ? "" : "/contract"),
-            path.resolve(path.dirname(file), target),
-          );
-      }
-    } catch {
-      /* unresolved package source fails at its use */
-    }
-  }
-  const targetSource = (file, source) => relativeSource(file, source) ?? packages.get(source);
+  const packages = sourcePackages(cwd, packagesDir, workspaces);
+  const targetSource = (file, source) =>
+    relativeSource(file, source) ?? packages.get(source) ?? installedContractSource(file, source);
   const cache = new Map([[path.resolve(filename), program]]);
   const scopes = new Map([[path.resolve(filename), scopeManager]]);
   const load = (file) => {
@@ -176,10 +156,14 @@ export const sourceGraph = (
         )
           return { ...object, imported: name };
         if (object?.node?.type === "ObjectExpression") {
-          const property = object.node.properties.find(
-            (item) => item.type === "Property" && (item.key.name ?? item.key.value) === name,
+          return (
+            objectProperty(
+              (from, value) => resolve(from, value, seen, allowMutable),
+              object.file,
+              object.node,
+              name,
+            ) || undefined
           );
-          if (property) return resolve(object.file, property.value, seen, allowMutable);
         }
         if (object?.node?.type === "Program") {
           const found = named(object.file, name, true);

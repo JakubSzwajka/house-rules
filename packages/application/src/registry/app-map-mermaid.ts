@@ -19,7 +19,9 @@ export const mermaid = (data: AppMapSnapshot): string => {
   for (const name of nodes.filter(
     (name) => name.startsWith("way:") || data.features.some((feature) => feature.name === name),
   ))
-    lines.push(`  ${id(name)}["${escape(name)}"]`);
+    lines.push(
+      `  ${id(name)}["${escape(name)}${data.features.some((feature) => feature.name === name) ? ` [${data.features.find((feature) => feature.name === name)?.kind ?? "feature"}]` : ""}"]`,
+    );
   for (const [groupIndex, group] of moduleGroups(data).entries()) {
     if (group.modules.length === 0) continue;
     lines.push(`  subgraph g${groupIndex}["${group.title}"]`);

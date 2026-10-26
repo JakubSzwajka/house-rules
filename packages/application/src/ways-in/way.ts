@@ -2,7 +2,7 @@ import type { Context, Effect } from "effect";
 import type { SystemCaller } from "@house-rules/domain";
 import type { Endpoint } from "../contract/endpoint.ts";
 import type { EventInput } from "../contract/event.ts";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 import type { FeatureFailure } from "../execution/run-feature.ts";
 import type { ProtectedResource } from "../auth/protected-resource.ts";
 import type { MeanSocket } from "../socket/mean.ts";
@@ -13,13 +13,13 @@ import type { WordingOverrides } from "./views.ts";
 import type { InputInvalid } from "./input.ts";
 import type { CompositionClosed } from "./composition-closed.ts";
 
-export type WayFailure<Features extends readonly AnyFeature[]> =
+export type WayFailure<Features extends readonly AnyEntryPoint[]> =
   | FeatureFailure<Features[number]>
   | InputInvalid
   | CompositionClosed;
 export type WayOptions<
   R = never,
-  Features extends readonly AnyFeature[] = readonly AnyFeature[],
+  Features extends readonly AnyEntryPoint[] = readonly AnyEntryPoint[],
 > = Readonly<{
   name: string;
   path: `/${string}`;
@@ -32,7 +32,7 @@ export type WayOptions<
     | Readonly<{
         protocol: "http";
         endpoints: readonly Endpoint[];
-        public?: readonly AnyFeature[];
+        public?: readonly AnyEntryPoint[];
         origins?: readonly string[];
         cors?: CorsOptions;
         session?: SessionOptions;
@@ -44,7 +44,7 @@ export type WayOptions<
         allowedOrigins?: readonly string[];
         server: { name: string; version: string };
         tools: readonly Readonly<{
-          feature: AnyFeature;
+          feature: AnyEntryPoint;
           title: string;
           idempotent: boolean;
           openWorld: boolean;
@@ -52,7 +52,7 @@ export type WayOptions<
         resource: ProtectedResource;
       }>
   );
-export type SystemFeature = AnyFeature & { readonly start: SystemCaller };
+export type SystemFeature = AnyEntryPoint & { readonly start: SystemCaller };
 export type HookWay<I, Event, F extends SystemFeature, E> = Readonly<{
   protocol: "hook";
   name: string;
@@ -90,7 +90,7 @@ export function defineWay<const S extends SystemFeature, const F extends SystemF
       ? unknown
       : { readonly invalidSelectorOutput: never }),
 ): ScheduleWay<S, F>;
-export function defineWay<const Features extends readonly AnyFeature[], R = never>(
+export function defineWay<const Features extends readonly AnyEntryPoint[], R = never>(
   options: WayOptions<R, Features>,
 ): WayOptions<R, Features>;
 export function defineWay(options: unknown): unknown {

@@ -5,6 +5,7 @@ import { Party } from "@house-rules/party";
 import { Context, Effect, Layer } from "effect";
 import { createApp, modulePlan } from "../composition/app.ts";
 import { Features } from "../features/index.ts";
+import { ReadModels } from "../read-models/index.ts";
 import { resourceOf } from "../composition/sign-in.ts";
 import { databaseTesting } from "../composition/tests/database.ts";
 import { seedRoleTesting } from "../composition/tests/roles-testing.ts";
@@ -150,7 +151,7 @@ for (const backend of ["memory", "postgres"] as const)
         );
         assert.isTrue(
           (yield* Effect.promise(() =>
-            call(app, Features.showBooking, { id: "member-booking" }, incoming("member"), {
+            call(app, ReadModels.showBooking, { id: "member-booking" }, incoming("member"), {
               way: "mcp",
             }),
           )).ok,

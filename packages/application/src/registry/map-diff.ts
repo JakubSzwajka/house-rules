@@ -140,6 +140,7 @@ const facts = (
       {
         name: feature.name,
         fields: {
+          kind: item(feature.kind ?? "feature"),
           path: optional(feature.path),
           start:
             feature.start === "person"

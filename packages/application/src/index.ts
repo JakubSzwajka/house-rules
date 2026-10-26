@@ -21,6 +21,12 @@ export { GraphInvalid } from "./runtime/graph-invalid.ts";
 export {
   type Feature,
   type AnyFeature,
+  type AnyEntryPoint,
+  type EntryPoint,
+  type EntryPointKind,
+  type ReadModel,
+  type AnyReadModel,
+  defineReadModel,
   type FeatureFlags,
   defineFeature,
   systemStart,

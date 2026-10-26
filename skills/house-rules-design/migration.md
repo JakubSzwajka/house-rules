@@ -36,8 +36,8 @@ Protects one module's data, access or invariant?
   yes -> operation in that package, explicit Actor, storage answers facts
   no  -> ordering across operations belongs in an app feature
 Screen read across modules?
-  static SELECT over published views fits -> read-model operation + feature
-  grammar or remote data does not fit     -> module operations + feature
+  static SELECT over published views fits -> projection operation + defineReadModel
+  grammar or remote data does not fit     -> domain read operations + defineReadModel
 Credential admission?
   Who plug, with transport/session handling kept outside the feature
 ```

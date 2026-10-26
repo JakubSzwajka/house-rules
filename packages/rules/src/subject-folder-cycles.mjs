@@ -10,7 +10,7 @@ function subjectFolderFor(source, packageRoot, packagePattern, adapterPattern, t
   if (packageRootFor(source, packagePattern) !== packageRoot) return undefined;
   if (adapterPattern.test(source) || testPattern.test(source)) return undefined;
 
-  const sourceRoot = /\/src\/read-models\//u.test(packageRoot)
+  const sourceRoot = /\/src\/(?:read-models|projections)\//u.test(packageRoot)
     ? `${packageRoot}/`
     : `${packageRoot}/src/`;
   if (!source.startsWith(sourceRoot)) return undefined;

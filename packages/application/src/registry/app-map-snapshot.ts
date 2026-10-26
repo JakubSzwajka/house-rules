@@ -15,7 +15,7 @@ export interface MapOperation {
 export interface MapModule {
   readonly name: string;
   readonly service: string;
-  readonly kind: "package" | "read-model";
+  readonly kind: "package" | "read-model" | "projection";
   readonly role?: "capability" | "process";
   readonly package?: string;
   readonly path?: string;
@@ -32,6 +32,7 @@ export interface AppMapSnapshot {
   readonly modules: readonly MapModule[];
   readonly features: readonly Readonly<{
     name: string;
+    kind?: "feature" | "read-model";
     path?: string;
     start: "person" | Readonly<{ kind: "system"; reason: string; startedBy: string }>;
     permission: string | null;

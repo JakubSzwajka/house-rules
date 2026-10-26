@@ -75,7 +75,7 @@ it.effect("a JSON plan decodes with the Plan schema and keeps source facts", () 
     );
     expect(snapshot.ways.find((way) => way.name === "web")?.source).toBe("src/ways-in/web.ts");
     expect(renderMap(snapshot, "text")).toContain(
-      "sign_up  system (public sign-up)  src/sign_up.ts",
+      "sign_up [feature]  system (public sign-up)  src/sign_up.ts",
     );
     const bad = yield* Schema.decodeUnknownEffect(Plan)({
       ...plan,
@@ -126,9 +126,9 @@ it.effect("the text map prints closures for in-process features like way feature
     );
     expect(section).toBe(
       "\nIN-PROCESS FEATURES\n" +
-        " hidden_purge  person  needs app:use; system needs items:remove\n" +
+        " hidden_purge [feature]  person  needs app:use; system needs items:remove\n" +
         "  └─ ⚙ Store.remove (purge old items)\n" +
-        " hidden_report  person  needs items:read\n" +
+        " hidden_report [feature]  person  needs items:read\n" +
         "  └─ Views.list\n",
     );
     for (const line of text.split("\n")) expect(line.length).toBeLessThanOrEqual(100);

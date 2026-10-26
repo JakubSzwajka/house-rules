@@ -1,12 +1,12 @@
 # @house-rules/application
 
-Application runs features and their declared edges. A feature can be exposed directly. Network, hook, schedule and event ways start features, never module operations. [Domain](../domain/README.md) owns operation descriptors, callers, kinds and pure graph checks.
+Application runs feature and read-model entry points and their declared operation edges. A feature can be exposed directly. Network, hook, schedule and event ways start either entry-point kind, never module operations. [Domain](../domain/README.md) owns operation descriptors, callers, kinds and pure graph checks.
 
 ```text
 HTTP / MCP / call
   way: Who + Mean + exposed features
     feature: watch -> app May -> closures -> approval -> one unit
-      handler -> declared edges -> bound operations or other features
+      handler -> declared edges -> bound operations only
                          |
                       step trace
 ```
@@ -62,7 +62,40 @@ export const showEndpoint = endpoint(showTitle, "GET /titles/:id");
 
 The options are `description`, optional `title`, `permission`, `input`, `output`, `failure`, optional `edges`, `flags`, `start` and `handler`. Permission is a `resource:action` string or explicit `null`. Omitted flags are literal false. `start` defaults to `"person"`. Use `systemStart("hook:first-sign-in")` for a system start. Its optional second argument sets `startedBy`; otherwise the reason supplies both fields.
 
-Export the app's features as one `Features` object in `features/index.ts`. Declare system permissions in composition. Module packages export operation descriptors from their contract doors, often as `<Module>Operations`. Read models also publish operations.
+Export the app's features as one `Features` object in `features/index.ts`. Declare system permissions in composition. Module packages export operation descriptors from their contract doors, often as `<Module>Operations`. Projections publish operations. Read models are exposed queries, not mounted services.
+
+## Define a read model
+
+`defineReadModel` is the read entry-point builder from application/contract. Its `kind` is `"read-model"`; defineFeature retains `"feature"` for commands, including idempotent commands and legacy read-only features. Names, verbs and readOnly never classify kind.
+
+Put one builder call with schemas and handler in `read-models/<name>/index.ts`, then export ReadModels from `read-models/index.ts`. The options match defineFeature, except own readOnly is fixed true and destructive may only be false. Transactional reads are supported. Edges accept read-only operation descriptors only, including system edges. Runtime and plan validation reject every declared transitive path into non-read-only work. Domain calculations remain in modules; SQL is not required.
+
+```ts
+import { defineReadModel } from "@house-rules/application/contract";
+import { ItemsOperations } from "@example/items/contract";
+export const showTitle = defineReadModel("show_title", {
+  description: "Show one title.", permission: null,
+  input: ItemsOperations.readTitle.input, output: ItemsOperations.readTitle.output,
+  failure: ItemsOperations.readTitle.failure, edges: [ItemsOperations.readTitle],
+  handler: (input, { call }) => call(ItemsOperations.readTitle, input),
+});
+```
+
+Register `[...Object.values(Features), ...Object.values(ReadModels)]` in composition's existing `features` field. Ways, endpoint, clients, May and runFeature accept either branded kind. Feature and ReadModel retain literal flags; AnyEntryPoint is the shared list type. AnyFeature remains command-only. There is one executor, including identity checks, admission, validation, refusal audit, closures, approval, units and trace. No entry-to-entry edges or pass-through feature wrappers are allowed.
+
+SQL query services are **projections**, in `projections/<name>/`. They keep their service/operations/binder mount, contracts and adapters. Use map kind `"projection"`; old mount kind `"read-model"` remains accepted as a legacy projection. Published-view SQL ownership, parameter proof, A/B tests and unavailable ports are unchanged. Projection contracts, never services/adapters, may be imported by entry points. Ways may import read-model indexes/registry, not projection values.
+
+Graph validation proves declared read-only reachability. It trusts operation metadata. Import/type/lint fences do not prove arbitrary JavaScript purity, and SQL tests do not provide a production SELECT-only database role.
+
+### Migrate an exposed read
+
+When upgrading to rules that enforce this layout, move legacy SQL/service folders under `src/read-models/` to `src/projections/`. Runtime compatibility for the old mount kind `read-model` is retained, but the new authoring rules reject SQL projection code in `read-models/`.
+
+1. Keep its name, input/output/failure schemas, permission, edges and handler. Move it to read-models/<name>/index.ts and use defineReadModel. Keep command features, even idempotent ones, unchanged.
+2. Move any old SQL/service mount out of read-models into projections. Update its contracts, composition mount imports and map kind, without changing domain logic or SQL.
+3. Add the query to ReadModels and register/expose that exact descriptor directly. Update endpoint imports and remove only its old wrapper feature. Keep existing features/exposure field names and endpoint methods/paths.
+4. Set kind read-model on its plan features entry, update paths and regenerate the map. Old missing kinds default to feature, never an inferred query. Widen generic consumer lists from AnyFeature to AnyEntryPoint only when they contain both kinds.
+5. Prove caller A/B access, refusal audit, identity and schemas, then require an empty built/plan diff and passing check/test before adoption.
 
 ## Bind operations and build the runtime
 
@@ -77,13 +110,13 @@ const app = composition({ modules, features: [showTitle], ways: [way],
   may: Effect.succeed(May.fixed(["items:read"])), system: [] });
 ```
 
-A package main exports a plain `<Module>Mount` value satisfying `MountDefinition<I, S>`: `{ service: Context.Key<I, S>, operations, bind: (service: S) => readonly Binding[] }`. Read models export theirs from index. Only modules.ts chooses a mount's layer. `ModuleMount` adds that layer; `ModulePlan` pairs the mount tuple with shared infrastructure and optional map-only `plugs`. Each layer must provide its mount's service. The kit checks each binder parameter against its service shape.
+A package main exports a plain `<Module>Mount` value satisfying `MountDefinition<I, S>`: `{ service: Context.Key<I, S>, operations, bind: (service: S) => readonly Binding[] }`. Projections export theirs from index. Only modules.ts chooses a mount's layer. `ModuleMount` adds that layer; `ModulePlan` pairs the mount tuple with shared infrastructure and optional map-only `plugs`. Each layer must provide its mount's service. The kit checks each binder parameter against its service shape.
 
 `planLayer(plan)` builds raw services from the same plan used by composition. It merges the mount layers, provides shared infrastructure and supplies PermissionCatalogue from the mount descriptors before either builds. Its Layer retains the plan's outputs, errors and uncovered inputs. Use it for service-level tests and tooling, not a second app assembly path. It never calls binders or installs way plugs.
 
 Composition supplies the kit-owned PermissionCatalogue before building modules, then acquires mount services and infrastructure in one memoization scope. It calls each binder once, acquires Runtime, resolves the effectful May, installs hook slots and starts scoped schedule clocks. Standalone `Runtime.layer({ mounts, features, ways })` requires the services but does not build mount layers. The root accepts ways from `main.ts`; it never imports the ways folder.
 
-`Runtime.layer` returns typed `GraphInvalid` on duplicate service keys, operation identities or names, missing/extra/duplicate binder descriptors, cycles, invalid system reasons and duplicate or unregistered exposures. Only `defineFeature` creates a branded feature. Runtime refuses structural forgeries, including spread copies, and recomputes permission closures and lifted flags from the declared graph at acquisition. Feature starts and closure lists are immutable. Composition repeats validation for its actual features and ways against the acquired bindings. Dispatch uses descriptor identity, not name equality.
+`Runtime.layer` returns typed `GraphInvalid` on duplicate service keys, operation identities or names, missing/extra/duplicate binder descriptors, cycles, invalid system reasons and duplicate or unregistered exposures. Only `defineFeature` and `defineReadModel` create branded entry points with explicit feature/read-model kinds. Runtime refuses structural forgeries, including spread copies, and recomputes permission closures and lifted flags from the declared graph at acquisition. Feature starts and closure lists are immutable. Composition repeats validation for its actual features and ways against the acquired bindings. Dispatch uses descriptor identity, not name equality.
 
 ## Run a feature
 
@@ -99,7 +132,7 @@ Only the feature runtime and kit-owned event driver open production units. Write
 
 ## Open ways and plug sockets
 
-`defineWay({ name, path, features, who, mean, ...protocol })` accepts only features in `features`. Ways carry no permissions. Holding permissions never exposes another way's feature.
+`defineWay({ name, path, features, who, mean, ...protocol })` accepts either branded entry-point kind in the shared `features` field. Ways carry no permissions. Holding permissions never exposes another way's feature.
 
 Plug May once with `composition({ modules: ModulePlan, features, ways, may, system })`. Pass an Effect such as Party.may(); composition resolves it after modules build, with no mutable cell. `MaySocket<E = never>` has `permissionsOf(caller: PersonCaller): Effect<readonly Permission[], E>`. Capture its long-lived services during mounting. `May.fixed(permissions)` gives every person the same list. A failed lookup is logged and becomes `MayUnavailable`, with fixed public 503 text.
 
@@ -132,7 +165,7 @@ const nightly = defineWay({
 });
 ```
 
-Both variants accept system-start features only. A hook has exactly one feature. Its caller-owned slot runs on a fresh context containing only composition-captured Runtime, StepTrace, UnitOfWork, CallWatch, the way's Approval, CallPermissions from May.system with the composition gate policy, and CallChannel. Hooks and schedule executions add fresh request ids, fresh log annotations and new root spans. Caller-provided services, log annotations and current spans are not inherited. Every hook invocation uses the hook:<name> channel; schedules use schedule:<name>. Neither calls Who or inherits CurrentActor or network request context. Hook results and mapped errors return to the slot caller; caller interruption still interrupts the hook. Internal causes are logged; only the mapped error reaches the slot. Duplicate slot providers fail GraphInvalid.
+Both variants accept system-start entry points only. A hook has exactly one feature. Its caller-owned slot runs on a fresh context containing only composition-captured Runtime, StepTrace, UnitOfWork, CallWatch, the way's Approval, CallPermissions from May.system with the composition gate policy, and CallChannel. Hooks and schedule executions add fresh request ids, fresh log annotations and new root spans. Caller-provided services, log annotations and current spans are not inherited. Every hook invocation uses the hook:<name> channel; schedules use schedule:<name>. Neither calls Who or inherits CurrentActor or network request context. Hook results and mapped errors return to the slot caller; caller interruption still interrupts the hook. Internal causes are logged; only the mapped error reaches the slot. Duplicate slot providers fail GraphInvalid.
 
 A schedule's selector output must be an array of item inputs. Composition parses its UTC cron and checks its next date at acquisition; invalid or impossible clocks fail GraphInvalid. Later next-date failures are also typed GraphInvalid, logged before the driver stops. Scoped drivers start after hooks and first wait for the next tick. Each tick runs the selector, then each item sequentially through runFeature, one unit per transactional item. Item failures are logged and processing continues. There is no startup run, catch-up or distributed lease. Item operations must be idempotent. Disposal interrupts the driver before closing infrastructure. System ways have no path, Who, endpoints or tools, and never enter fetch routing.
 
@@ -180,7 +213,7 @@ Every expected failure has a domain kind. Statuses are fixed: not_found 404, con
 
 `Runtime.permissions` is a frozen, sorted list of every unique permission declared by registered operations, including unused bound operations. It excludes null and permissions declared only by features. The kit-owned PermissionCatalogue has `{ permissions: () => Effect<readonly Permission[]> }` and exposes that same array before modules build.
 
-`appMap(app): Effect<AppMapSnapshot, E | CompositionClosed | GraphInvalid>` acquires the validated app and snapshots its mounts, registered features and actual ways as plain serialisable data. `renderMap(snapshot, "text" | "json" | "mermaid" | "html")` is pure and sorts each collection using code-point order. It includes mounted operations with `readOnly`, `destructive`, `transactional` and `needsApproval` from their descriptors, feature flags and closures, declared edges, exposures, public features and permission owners. Known Mean values are named by identity. It neither runs features nor reads files. New maps emit operation edges only; decoding keeps the legacy feature edge kind for old snapshots. Mounts can declare `map: { name, kind: "package" | "read-model", role?: "capability" | "process", package? }`; role defaults to capability and is emitted on each snapshot module. Older snapshots without role also mean capability; without metadata, the fallback name is the service key's last segment and the kind defaults to package. Resolve source ownership before publishing that fallback. Tooling can attach source paths with `appMapSources` from `@house-rules/rules/app-map`, which matches literal builder names to registry imports and package/read-model sources and rejects missing or ambiguous facts. The layers header is fixed and labels that limit. Use memory adapters and a frozen clock for reproducible acquisition. Install a fixed ConfigProvider inside the module plan with `Layer.provideMerge`, so infrastructure and mounted layers use it. Wrapping the caller alone does not configure the composition's separate ManagedRuntime. Text output marks final children with `└─` and wraps lists at 100 columns with aligned continuation lines, keeping identifiers intact. The app map script writes `MAP.md`; its freshness test compares without writing.
+`appMap(app): Effect<AppMapSnapshot, E | CompositionClosed | GraphInvalid>` acquires the validated app and snapshots its mounts, registered features and actual ways as plain serialisable data. `renderMap(snapshot, "text" | "json" | "mermaid" | "html")` is pure and sorts each collection using code-point order. It includes mounted operations with `readOnly`, `destructive`, `transactional` and `needsApproval` from their descriptors, feature flags and closures, declared edges, exposures, public features and permission owners. Known Mean values are named by identity. It neither runs features nor reads files. New maps emit operation edges only; decoding keeps the legacy feature edge kind for old snapshots. Mounts can declare `map: { name, kind: "package" | "projection" | "read-model", role?: "capability" | "process", package? }`; role defaults to capability and is emitted on each snapshot module. Older snapshots without role also mean capability; without metadata, the fallback name is the service key's last segment and the kind defaults to package. Resolve source ownership before publishing that fallback. Tooling can attach source paths with `appMapSources` from `@house-rules/rules/app-map`, which matches literal builder names to registry imports and package/read-model sources and rejects missing or ambiguous facts. The layers header is fixed and labels that limit. Use memory adapters and a frozen clock for reproducible acquisition. Install a fixed ConfigProvider inside the module plan with `Layer.provideMerge`, so infrastructure and mounted layers use it. Wrapping the caller alone does not configure the composition's separate ManagedRuntime. Text output marks final children with `└─` and wraps lists at 100 columns with aligned continuation lines, keeping identifiers intact. The app map script writes `MAP.md`; its freshness test compares without writing.
 
 Text lists capability packages under MODULES and process modules under PROCESS MODULES. HTML and Mermaid group process modules separately, with the real operation edges. Modules are marked framework when their package starts with `@house-rules/`, otherwise app-owned. A process composes modules through operation edges; it may be stateless or durable. Capability modules keep their own state, computation or outside effects and their rules.
 
@@ -206,7 +239,7 @@ Run package-local `pnpm exec tsc --project tsconfig.json --noEmit` and `pnpm exe
 
 ## See a map or a change as a page
 
-`renderMap(snapshot, "html")` returns one self-contained HTML document: inline CSS and script, no network, and the same bytes for the same snapshot. It shows ways in, features and operations grouped by module and read model, left to right. Hook, schedule and event ways sit under System. Operations and features show all four flags as badges when true. Each feature also shows its ways, its edges with system reasons, and its person and system closures. The permission catalogue and PLUGS follow as tables. Pointing at, focusing or selecting a way, feature or operation highlights what it reaches and draws its edges; Esc clears. Every name is real, focusable text, so the page reads without script and on a phone.
+`renderMap(snapshot, "html")` returns one self-contained HTML document: inline CSS and script, no network, and the same bytes for the same snapshot. It shows ways in, features and operations grouped by module and projection, left to right. Hook, schedule and event ways sit under System. Operations and features show all four flags as badges when true. Each feature also shows its ways, its edges with system reasons, and its person and system closures. The permission catalogue and PLUGS follow as tables. Pointing at, focusing or selecting a way, feature or operation highlights what it reaches and draws its edges; Esc clears. Every name is real, focusable text, so the page reads without script and on a phone.
 
 `diffMaps(before, after): MapDiff` is pure and ignores input order. For modules, operations, features, ways, plugs and permissions it lists `added` and `removed` names and `changed: { name, fields: { field, before, after, added?, removed? }[] }[]`. List fields also name the items that left and joined. Operation changes include all four flags, even when feature flags stay the same. Modules match by service, and a changed role is reported as `role: capability → process` or the reverse. `empty` is true when nothing differs, and `before`/`after` keep the sorted snapshots. `renderMapDiff(diff, "text" | "html")` starts with a summary in plain words, such as `new features: …` and `changed exposure: make_booking (now on mcp)`. The HTML page then draws the after map with removed items kept in place: green is added, red is removed and amber is changed, each with a text label.
 
@@ -232,9 +265,9 @@ const snapshot = yield* validatePlan(plan); // Effect<AppMapSnapshot, PlanInvali
 console.log(renderMap(snapshot, "text"));
 ```
 
-`Plan` rejects unknown keys at every depth and reports their paths. A copied snapshot's `flags`, `closures`, `layers` or `permissions` cannot silently disappear. Write each flag directly on a plan operation or feature, not inside `flags`; closures are derived. Snapshot JSON is accepted only as a `diff` side.
+`Plan` rejects unknown keys at every depth and reports their paths. A copied snapshot's `flags`, `closures`, `layers` or `permissions` cannot silently disappear. Write each flag directly on a plan operation or feature, not inside `flags`; closures are derived. Snapshot JSON is accepted only as a `diff` side. Entry kind is emitted by maps, displayed by every rendering and compared by diffs. Missing entry kinds in old plans/maps mean feature, including read-only features. Legacy mount kind read-model still means projection infrastructure; new mounts use projection.
 
-The plan holds modules `{ name, service, kind, role?, package?, path?, operations }`, where `role` is `"capability" | "process"` and defaults to capability, operations and features with permission, the four optional flags and edges, and ways `{ name, protocol, path | slot | clock | on, mean?, source?, features, public? }`, plus optional `plugs` with the snapshot's plug shape. A feature adds `start?: "person" | { reason, startedBy }`. An edge is an operation name or `{ target, reason }` targeting an operation for a system edge. Features never call features. Flags, edges and start default as the builders do. `path` and `source` are pass-through facts.
+The plan holds modules `{ name, service, kind, role?, package?, path?, operations }`, where `role` is `"capability" | "process"` and defaults to capability, operations and entry points with explicit `kind: "feature" | "read-model"`, permission, the four optional flags and edges, and ways `{ name, protocol, path | slot | clock | on, mean?, source?, features, public? }`, plus optional `plugs` with the snapshot's plug shape. A feature adds `start?: "person" | { reason, startedBy }`. An edge is an operation name or `{ target, reason }` targeting an operation for a system edge. Features never call features. Flags, edges and start default as the builders do. `path` and `source` are pass-through facts.
 
 `validatePlan` builds real descriptors with stub schemas and handlers, runs the runtime and way checks, and maps the result through the same code as `appMap`. Closures and lifted flags are derived, never authored. A capability module may not call a process module: any such operation edge, plain or system, fails at `modules[m].operations[o].edges[e]`. Process-to-capability and process-to-process edges are allowed; cycle checks still apply. A valid plan renders the same map as the built app.
 

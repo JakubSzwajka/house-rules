@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 import type { FeatureFailure } from "../execution/run-feature.ts";
 import { requestIdHeader } from "../call/request-id.ts";
 import { Mean } from "../socket/mean.ts";
@@ -18,7 +18,7 @@ import { isNetworkWay } from "./way-validation.ts";
 import { Refused as RefusedError } from "./caller.ts";
 
 export type CallOptions = Readonly<{ way: string; admitted?: Admitted }>;
-export const call = <A, AppBuildError, E extends AnyFeature>(
+export const call = <A, AppBuildError, E extends AnyEntryPoint>(
   app: Composition<A, AppBuildError>,
   feature: E,
   input: E["input"]["Type"],

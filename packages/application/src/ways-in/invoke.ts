@@ -5,7 +5,7 @@ import { executionContext } from "./execution-context.ts";
 import { CurrentActor } from "../actor/current-actor.ts";
 import { CallChannel } from "../call/call-facts.ts";
 import { newRequestId, requestIdOf, withRequestId } from "../call/request-id.ts";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 import { runFeature } from "../execution/run-feature.ts";
 import type { Approval } from "../gates/approval.ts";
 import { May } from "../socket/may.ts";
@@ -68,7 +68,7 @@ export const closedFailure = (
 export const invoke = <A>(
   app: Pick<Composition<A, unknown>, "may" | "system">,
   context: Context.Context<A>,
-  feature: AnyFeature,
+  feature: AnyEntryPoint,
   options: Readonly<{
     way: NetworkWay<A>;
     incoming: Incoming;
@@ -84,7 +84,7 @@ export const invoke = <A>(
   Effect.gen(function* () {
     // composition checks the feature requirements and Who inputs before storing these erased features.
     const execute = runFeature as unknown as (
-      feature: AnyFeature,
+      feature: AnyEntryPoint,
       input: unknown,
     ) => Effect.Effect<unknown, KindedError, A | CallPermissions | Approval>;
     let invokingFeature = false;

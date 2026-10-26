@@ -1,6 +1,6 @@
 import { Cause, Context, Effect, Exit, Fiber, Layer, ManagedRuntime } from "effect";
 import type { Permission, UnitOfWork } from "@house-rules/domain";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 import type { FeatureRequirements } from "../execution/run-feature.ts";
 import type { CurrentActor } from "../actor/current-actor.ts";
 import type { CallPermissions } from "../socket/permission-lists.ts";
@@ -32,7 +32,7 @@ import { systemWays } from "./system-ways.ts";
 export type Composition<A, E = never> = Readonly<{
   _tag: "Composition";
   runtime: ManagedRuntime.ManagedRuntime<A, E>;
-  features: readonly AnyFeature[];
+  features: readonly AnyEntryPoint[];
   ways: readonly AnyWay<A>[];
   may: Effect.Effect<MaySocket<MayUnavailable>, never, A>;
   system: readonly Permission[];
@@ -64,7 +64,7 @@ export const composition = <
   E,
   R,
   MayError,
-  const Features extends readonly AnyFeature[],
+  const Features extends readonly AnyEntryPoint[],
   const Ways extends readonly AnyWay<R>[],
 >(
   options: Readonly<{
@@ -129,7 +129,7 @@ export const resolvedPlugs = new WeakMap<object, readonly MapPlug[]>();
 const compositionFromLayer = <A, E>(
   options: Readonly<{
     layer: Layer.Layer<A, E>;
-    features: readonly AnyFeature[];
+    features: readonly AnyEntryPoint[];
     ways: readonly AnyWay<any>[];
     system: readonly Permission[];
   }>,

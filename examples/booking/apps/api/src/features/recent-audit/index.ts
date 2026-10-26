@@ -1,4 +1,4 @@
-import { AuditTrailOperations } from "../../read-models/audit-trail/contract.ts";
+import { AuditTrailOperations } from "../../projections/audit-trail/contract.ts";
 import { defineFeature } from "@house-rules/application/contract";
 const operation = AuditTrailOperations.recent;
 export const recentAudit = defineFeature("recent_audit", {

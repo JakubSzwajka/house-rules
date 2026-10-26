@@ -42,7 +42,7 @@ const cases = [
   [
     "way read-model value",
     "ways-in/web/way.ts",
-    "import {books} from '../../read-models/report/index.ts';",
+    "import {books} from '../../read-models/report/contract.ts';",
     "ways-in-do-not-import-read-model-values",
   ],
   [

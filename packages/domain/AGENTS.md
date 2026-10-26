@@ -1,6 +1,6 @@
 # @house-rules/domain: notes for agents
 
-Domain modules are packages. Apps keep one feature in `features/<name>/index.ts`, made with application’s `defineFeature`. Modules publish operations with `defineOperation`.
+Domain modules are packages. Apps keep commands in `features/<name>/index.ts` with application’s `defineFeature`, and queries in `read-models/<name>/index.ts` with `defineReadModel`. Both call operations only. Modules publish operations with `defineOperation`.
 
 ## What it does
 
@@ -21,7 +21,7 @@ The domain kit owns operation descriptors, edges, caller data, error kinds, pure
 | `permissionClosures`, `Closures` | Returns deduplicated `person` and `system` permission arrays. Optional start mode is `"person"` or `"system"`. A system path never returns to person mode. Forged cycles terminate. |
 | `Actor`, `ActorId`, `Permission`, `NoOpenUnit`, `UnitOfWorkFailed` | Shared identity, permission and unit errors. Both unit errors have kind `unavailable`. |
 
-Main-only exports are `defineModule` and its support types, `PerRequest`/`NoPerRequest`, `definePolicy` and its policy types, `UnitOfWork`, `CurrentUnit`, `memoryUnitOfWork`, `Atomic`, `OpenUnit` and `UnitOfWorkService`. Application owns operation bindings, features and execution. Never add an application import here, including a type-only import.
+Main-only exports are `defineModule` and its support types, `PerRequest`/`NoPerRequest`, `definePolicy` and its policy types, `UnitOfWork`, `CurrentUnit`, `memoryUnitOfWork`, `Atomic`, `OpenUnit` and `UnitOfWorkService`. Application owns operation bindings, both entry-point kinds and their shared execution. Never add an application import here, including a type-only import.
 
 ## Mounting modules and storage
 

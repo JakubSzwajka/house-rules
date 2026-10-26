@@ -1,96 +1,98 @@
 # App map
 
 ```text
-LAYERS   ways-in → features → operations → modules / read models; composition wires (fixed header,
-         not extracted from layout)
+LAYERS   ways-in → entry points (feature / read-model) → operations → modules / projections;
+         composition wires (fixed header, not extracted from layout)
 
 WAYS
  mcp  mcp /mcp  [2 features]  src/ways-in/mcp/way.ts
   Mean: ask the human
-  ├─ my_bookings  person  src/features/my-bookings/index.ts  needs bookings:read
+  ├─ my_bookings [read-model]  person  src/read-models/my-bookings/index.ts  needs bookings:read
   │   └─ MyBookings.myBookings
-  └─ show_booking  person  src/features/show-booking/index.ts  needs bookings:read party:read
+  └─ show_booking [read-model]  person  src/read-models/show-booking/index.ts  needs bookings:read
+      party:read
       └─ Bookings.get → Party.isRelated
  new-login  hook slot @house-rules/identity/FirstSignIn  [1 features]
  src/ways-in/hooks/first-sign-in.ts
   Mean: allow
-  └─ first_sign_in  system (new login)  src/features/first-sign-in/index.ts  needs none; system
-      needs identity:bind party:admin party:create
+  └─ first_sign_in [feature]  system (new login)  src/features/first-sign-in/index.ts  needs none;
+      system needs identity:bind party:admin party:create
       ├─ Identity.bindLogin
       ├─ ⚙ Party.assignRole (default role on first sign-in)
       └─ Party.createPerson
  nightly-cleanup  schedule 0 3 * * * UTC  [2 features]  src/ways-in/schedules/nightly-cleanup.ts
   Mean: allow
-  ├─ due_payments  system (nightly cleanup)  src/features/due-payments/index.ts  needs none; system
-  │   needs billing:expire
+  ├─ due_payments [feature]  system (nightly cleanup)  src/features/due-payments/index.ts  needs
+  │   none; system needs billing:expire
   │   └─ Billing.duePayments
-  └─ expire_payment  system (nightly cleanup)  src/features/expire-payment/index.ts  needs none;
-      system needs billing:expire
+  └─ expire_payment [feature]  system (nightly cleanup)  src/features/expire-payment/index.ts  needs
+      none; system needs billing:expire
       └─ Billing.expireOne
  web  http /api  [26 features]  src/ways-in/web/way.ts
   Mean: allow
   public: sign_in, sign_up
-  ├─ accept_invitation  person  src/features/accept-invitation/index.ts  needs party:read; system
-  │   needs party:admin
+  ├─ accept_invitation [feature]  person  src/features/accept-invitation/index.ts  needs party:read;
+  │   system needs party:admin
   │   ├─ Party.acceptInvitation
   │   └─ ⚙ Party.assignRole (role delegated by organisation invitation)
-  ├─ assign_role  person  src/features/assign-role/index.ts  needs party:admin
+  ├─ assign_role [feature]  person  src/features/assign-role/index.ts  needs party:admin
   │   └─ Party.assignRole
-  ├─ cancel_booking  person  src/features/cancel-booking/index.ts  needs bookings:cancel party:read;
-  │   system needs billing:refund
+  ├─ cancel_booking [feature]  person  src/features/cancel-booking/index.ts  needs bookings:cancel
+  │   party:read; system needs billing:refund
   │   ├─ ⚙ Billing.refund (refund after cancel)
   │   └─ Bookings.cancel → Party.canAdminOrganisation, Party.isRelated
-  ├─ change_password  person  src/features/change-password/index.ts  needs identity:update
+  ├─ change_password [feature]  person  src/features/change-password/index.ts  needs identity:update
   │   └─ Identity.changePassword
-  ├─ create_invitation  person  src/features/create-invitation/index.ts  needs party:admin
+  ├─ create_invitation [feature]  person  src/features/create-invitation/index.ts  needs party:admin
   │   └─ Party.createInvitation
-  ├─ create_organisation  person  src/features/create-organisation/index.ts  needs
+  ├─ create_organisation [feature]  person  src/features/create-organisation/index.ts  needs
   │   party:create-organisation; system needs party:admin
   │   ├─ ⚙ Party.assignRole (creator of organisation)
   │   └─ Party.createOrganisation
-  ├─ define_role  person  src/features/define-role/index.ts  needs party:admin
+  ├─ define_role [feature]  person  src/features/define-role/index.ts  needs party:admin
   │   └─ Party.defineRole
-  ├─ delete_role  person  src/features/delete-role/index.ts  needs party:admin
+  ├─ delete_role [feature]  person  src/features/delete-role/index.ts  needs party:admin
   │   └─ Party.deleteRole
-  ├─ list_invitations  person  src/features/list-invitations/index.ts  needs party:admin
+  ├─ list_invitations [feature]  person  src/features/list-invitations/index.ts  needs party:admin
   │   └─ Party.listInvitations
-  ├─ list_members  person  src/features/list-members/index.ts  needs party:read
+  ├─ list_members [feature]  person  src/features/list-members/index.ts  needs party:read
   │   └─ Party.listMembers
-  ├─ list_people  person  src/features/list-people/index.ts  needs party:admin
+  ├─ list_people [feature]  person  src/features/list-people/index.ts  needs party:admin
   │   └─ Party.listPeople
-  ├─ list_permissions  person  src/features/list-permissions/index.ts  needs party:read
+  ├─ list_permissions [feature]  person  src/features/list-permissions/index.ts  needs party:read
   │   └─ Party.myAccess
-  ├─ list_roles  person  src/features/list-roles/index.ts  needs party:read
+  ├─ list_roles [feature]  person  src/features/list-roles/index.ts  needs party:read
   │   └─ Party.listRoles
-  ├─ make_booking  person  src/features/make-booking/index.ts  needs billing:charge bookings:write
-  │   party:read
+  ├─ make_booking [feature]  person  src/features/make-booking/index.ts  needs billing:charge
+  │   bookings:write party:read
   │   ├─ Billing.initPayment
   │   └─ Bookings.book → Party.canAdminOrganisation, Party.isRelated
-  ├─ my_activity  person  src/features/my-activity/index.ts  needs none
+  ├─ my_activity [feature]  person  src/features/my-activity/index.ts  needs none
   │   └─ AuditTrail.mine
-  ├─ my_bookings  person  src/features/my-bookings/index.ts  needs bookings:read
+  ├─ my_bookings [read-model]  person  src/read-models/my-bookings/index.ts  needs bookings:read
   │   └─ MyBookings.myBookings
-  ├─ my_organisations  person  src/features/my-organisations/index.ts  needs party:read
+  ├─ my_organisations [feature]  person  src/features/my-organisations/index.ts  needs party:read
   │   └─ Party.myOrganisations
-  ├─ my_profile  person  src/features/my-profile/index.ts  needs party:read
+  ├─ my_profile [feature]  person  src/features/my-profile/index.ts  needs party:read
   │   ├─ Party.myAccess
   │   └─ Party.showMe
-  ├─ recent_audit  person  src/features/recent-audit/index.ts  needs audit:read
+  ├─ recent_audit [feature]  person  src/features/recent-audit/index.ts  needs audit:read
   │   └─ AuditTrail.recent
-  ├─ remove_member  person  src/features/remove-member/index.ts  needs party:admin
+  ├─ remove_member [feature]  person  src/features/remove-member/index.ts  needs party:admin
   │   └─ Party.unrelate
-  ├─ revoke_invitation  person  src/features/revoke-invitation/index.ts  needs party:admin
+  ├─ revoke_invitation [feature]  person  src/features/revoke-invitation/index.ts  needs party:admin
   │   └─ Party.revokeInvitation
-  ├─ revoke_role  person  src/features/revoke-role/index.ts  needs party:admin
+  ├─ revoke_role [feature]  person  src/features/revoke-role/index.ts  needs party:admin
   │   └─ Party.revokeRole
-  ├─ show_booking  person  src/features/show-booking/index.ts  needs bookings:read party:read
+  ├─ show_booking [read-model]  person  src/read-models/show-booking/index.ts  needs bookings:read
+  │   party:read
   │   └─ Bookings.get → Party.isRelated
-  ├─ sign_in  system (public sign_in)  src/features/sign-in/index.ts  needs none; system needs
-  │   identity:sign-in
+  ├─ sign_in [feature]  system (public sign_in)  src/features/sign-in/index.ts  needs none; system
+  │   needs identity:sign-in
   │   └─ Identity.signIn
-  ├─ sign_out  person  src/features/sign-out/index.ts  needs none
-  └─ sign_up  system (public sign_up)  src/features/sign-up/index.ts  needs none; system needs
-      identity:create
+  ├─ sign_out [feature]  person  src/features/sign-out/index.ts  needs none
+  └─ sign_up [feature]  system (public sign_up)  src/features/sign-up/index.ts  needs none; system
+      needs identity:create
       └─ Identity.signUp
 
 MODULES
@@ -121,11 +123,11 @@ MODULES
              list_invitations list_members list_people list_permissions list_roles my_organisations
              my_profile remove_member revoke_invitation revoke_role
 
-READ MODELS
- audit-trail  read-model [app-owned] @example/api  src/read-models/audit-trail
+PROJECTIONS
+ audit-trail  projection [app-owned] @example/api  src/projections/audit-trail
   ops: AuditTrail.mine AuditTrail.recent
   called by: my_activity recent_audit
- my-bookings  read-model [app-owned] @example/api  src/read-models/my-bookings
+ my-bookings  projection [app-owned] @example/api  src/projections/my-bookings
   ops: MyBookings.myBookings
   called by: my_bookings
 

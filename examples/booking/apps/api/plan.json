@@ -3,9 +3,9 @@
     {
       "name": "audit-trail",
       "service": "@example/api/read-models/audit-trail/AuditTrail",
-      "kind": "read-model",
+      "kind": "projection",
       "package": "@example/api",
-      "path": "src/read-models/audit-trail",
+      "path": "src/projections/audit-trail",
       "operations": [
         {
           "name": "AuditTrail.mine",
@@ -139,9 +139,9 @@
     {
       "name": "my-bookings",
       "service": "@example/api/read-models/my-bookings/MyBookings",
-      "kind": "read-model",
+      "kind": "projection",
       "package": "@example/api",
-      "path": "src/read-models/my-bookings",
+      "path": "src/projections/my-bookings",
       "operations": [
         {
           "name": "MyBookings.myBookings",
@@ -332,13 +332,15 @@
           "target": "Party.assignRole",
           "reason": "role delegated by organisation invitation"
         }
-      ]
+      ],
+      "kind": "feature"
     },
     {
       "name": "assign_role",
       "path": "src/features/assign-role/index.ts",
       "permission": null,
-      "edges": ["Party.assignRole"]
+      "edges": ["Party.assignRole"],
+      "kind": "feature"
     },
     {
       "name": "cancel_booking",
@@ -350,21 +352,24 @@
           "target": "Billing.refund",
           "reason": "refund after cancel"
         }
-      ]
+      ],
+      "kind": "feature"
     },
     {
       "name": "change_password",
       "path": "src/features/change-password/index.ts",
       "permission": null,
       "transactional": true,
-      "edges": ["Identity.changePassword"]
+      "edges": ["Identity.changePassword"],
+      "kind": "feature"
     },
     {
       "name": "create_invitation",
       "path": "src/features/create-invitation/index.ts",
       "permission": null,
       "transactional": true,
-      "edges": ["Party.createInvitation"]
+      "edges": ["Party.createInvitation"],
+      "kind": "feature"
     },
     {
       "name": "create_organisation",
@@ -377,20 +382,23 @@
           "target": "Party.assignRole",
           "reason": "creator of organisation"
         }
-      ]
+      ],
+      "kind": "feature"
     },
     {
       "name": "define_role",
       "path": "src/features/define-role/index.ts",
       "permission": null,
-      "edges": ["Party.defineRole"]
+      "edges": ["Party.defineRole"],
+      "kind": "feature"
     },
     {
       "name": "delete_role",
       "path": "src/features/delete-role/index.ts",
       "permission": null,
       "transactional": true,
-      "edges": ["Party.deleteRole"]
+      "edges": ["Party.deleteRole"],
+      "kind": "feature"
     },
     {
       "name": "due_payments",
@@ -401,7 +409,8 @@
         "reason": "nightly cleanup",
         "startedBy": "schedule:nightly-cleanup"
       },
-      "edges": ["Billing.duePayments"]
+      "edges": ["Billing.duePayments"],
+      "kind": "feature"
     },
     {
       "name": "expire_payment",
@@ -411,7 +420,8 @@
         "reason": "nightly cleanup",
         "startedBy": "schedule:nightly-cleanup"
       },
-      "edges": ["Billing.expireOne"]
+      "edges": ["Billing.expireOne"],
+      "kind": "feature"
     },
     {
       "name": "first_sign_in",
@@ -428,110 +438,126 @@
           "target": "Party.assignRole",
           "reason": "default role on first sign-in"
         }
-      ]
+      ],
+      "kind": "feature"
     },
     {
       "name": "list_invitations",
       "path": "src/features/list-invitations/index.ts",
       "permission": null,
       "readOnly": true,
-      "edges": ["Party.listInvitations"]
+      "edges": ["Party.listInvitations"],
+      "kind": "feature"
     },
     {
       "name": "list_members",
       "path": "src/features/list-members/index.ts",
       "permission": null,
       "readOnly": true,
-      "edges": ["Party.listMembers"]
+      "edges": ["Party.listMembers"],
+      "kind": "feature"
     },
     {
       "name": "list_people",
       "path": "src/features/list-people/index.ts",
       "permission": null,
       "readOnly": true,
-      "edges": ["Party.listPeople"]
+      "edges": ["Party.listPeople"],
+      "kind": "feature"
     },
     {
       "name": "list_permissions",
       "path": "src/features/list-permissions/index.ts",
       "permission": null,
       "readOnly": true,
-      "edges": ["Party.myAccess"]
+      "edges": ["Party.myAccess"],
+      "kind": "feature"
     },
     {
       "name": "list_roles",
       "path": "src/features/list-roles/index.ts",
       "permission": null,
       "readOnly": true,
-      "edges": ["Party.listRoles"]
+      "edges": ["Party.listRoles"],
+      "kind": "feature"
     },
     {
       "name": "make_booking",
       "path": "src/features/make-booking/index.ts",
       "permission": null,
-      "edges": ["Bookings.book", "Billing.initPayment"]
+      "edges": ["Bookings.book", "Billing.initPayment"],
+      "kind": "feature"
     },
     {
       "name": "my_activity",
       "path": "src/features/my-activity/index.ts",
       "permission": null,
       "readOnly": true,
-      "edges": ["AuditTrail.mine"]
+      "edges": ["AuditTrail.mine"],
+      "kind": "feature"
     },
     {
       "name": "my_bookings",
-      "path": "src/features/my-bookings/index.ts",
+      "path": "src/read-models/my-bookings/index.ts",
       "permission": null,
       "readOnly": true,
-      "edges": ["MyBookings.myBookings"]
+      "edges": ["MyBookings.myBookings"],
+      "kind": "read-model"
     },
     {
       "name": "my_organisations",
       "path": "src/features/my-organisations/index.ts",
       "permission": null,
       "readOnly": true,
-      "edges": ["Party.myOrganisations"]
+      "edges": ["Party.myOrganisations"],
+      "kind": "feature"
     },
     {
       "name": "my_profile",
       "path": "src/features/my-profile/index.ts",
       "permission": null,
       "readOnly": true,
-      "edges": ["Party.showMe", "Party.myAccess"]
+      "edges": ["Party.showMe", "Party.myAccess"],
+      "kind": "feature"
     },
     {
       "name": "recent_audit",
       "path": "src/features/recent-audit/index.ts",
       "permission": null,
       "readOnly": true,
-      "edges": ["AuditTrail.recent"]
+      "edges": ["AuditTrail.recent"],
+      "kind": "feature"
     },
     {
       "name": "remove_member",
       "path": "src/features/remove-member/index.ts",
       "permission": null,
       "transactional": true,
-      "edges": ["Party.unrelate"]
+      "edges": ["Party.unrelate"],
+      "kind": "feature"
     },
     {
       "name": "revoke_invitation",
       "path": "src/features/revoke-invitation/index.ts",
       "permission": null,
       "transactional": true,
-      "edges": ["Party.revokeInvitation"]
+      "edges": ["Party.revokeInvitation"],
+      "kind": "feature"
     },
     {
       "name": "revoke_role",
       "path": "src/features/revoke-role/index.ts",
       "permission": null,
-      "edges": ["Party.revokeRole"]
+      "edges": ["Party.revokeRole"],
+      "kind": "feature"
     },
     {
       "name": "show_booking",
-      "path": "src/features/show-booking/index.ts",
+      "path": "src/read-models/show-booking/index.ts",
       "permission": null,
       "readOnly": true,
-      "edges": ["Bookings.get"]
+      "edges": ["Bookings.get"],
+      "kind": "read-model"
     },
     {
       "name": "sign_in",
@@ -542,12 +568,14 @@
         "reason": "public sign_in",
         "startedBy": "public sign_in"
       },
-      "edges": ["Identity.signIn"]
+      "edges": ["Identity.signIn"],
+      "kind": "feature"
     },
     {
       "name": "sign_out",
       "path": "src/features/sign-out/index.ts",
-      "permission": null
+      "permission": null,
+      "kind": "feature"
     },
     {
       "name": "sign_up",
@@ -558,7 +586,8 @@
         "reason": "public sign_up",
         "startedBy": "public sign_up"
       },
-      "edges": ["Identity.signUp"]
+      "edges": ["Identity.signUp"],
+      "kind": "feature"
     }
   ],
   "ways": [

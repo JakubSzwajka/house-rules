@@ -1,10 +1,10 @@
 import { Context, Schema } from "effect";
 import { Tool } from "effect/ai";
 import { toolParameters } from "../contract/tool-parameters.ts";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 
 export const makeTool = (
-  feature: AnyFeature,
+  feature: AnyEntryPoint,
   options: Readonly<{ title: string; idempotent: boolean; openWorld: boolean }>,
 ) =>
   Tool.make(feature.name, {

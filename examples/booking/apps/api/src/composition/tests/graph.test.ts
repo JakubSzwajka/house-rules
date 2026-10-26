@@ -1,6 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { Features } from "../../features/index.ts";
+import { ReadModels } from "../../read-models/index.ts";
 import { builtInRoles, systemPermissions } from "../access.ts";
 
 it.effect("app features retain exact closures, starts, edges and lifted flags", () =>
@@ -25,7 +26,7 @@ it.effect("app features retain exact closures, starts, edges and lifted flags", 
       "billing:refund",
       "billing:expire",
     ]);
-    const expected: readonly unknown[] = [
+    const expected: readonly (readonly unknown[])[] = [
       [
         "create_organisation",
         ["party:create-organisation"],
@@ -165,17 +166,19 @@ it.effect("app features retain exact closures, starts, edges and lifted flags", 
       ["revoke_role", ["party:admin"], [], false, true, true, true, ["Party.revokeRole"]],
     ];
     assert.deepStrictEqual<readonly unknown[]>(
-      Object.values(Features).map((e) => [
-        e.name,
-        e.closures.person,
-        e.closures.system,
-        e.readOnly,
-        e.transactional,
-        e.destructive,
-        e.needsApproval,
-        e.edges.map((edge) => ("target" in edge ? edge.target.name : edge.name)),
-      ]),
-      expected,
+      [...Object.values(Features), ...Object.values(ReadModels)]
+        .map((e) => [
+          e.name,
+          e.closures.person,
+          e.closures.system,
+          e.readOnly,
+          e.transactional,
+          e.destructive,
+          e.needsApproval,
+          e.edges.map((edge) => ("target" in edge ? edge.target.name : edge.name)),
+        ])
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+      [...expected].sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
     );
     assert.deepStrictEqual(Features.firstSignIn.start, {
       kind: "system",

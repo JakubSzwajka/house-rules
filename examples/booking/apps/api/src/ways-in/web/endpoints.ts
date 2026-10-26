@@ -1,4 +1,5 @@
 import { Features } from "../../features/index.ts";
+import { ReadModels } from "../../read-models/index.ts";
 import { endpoint, defineApi } from "@house-rules/application/contract";
 export const api = defineApi(
   { prefix: "/api" },
@@ -22,8 +23,8 @@ export const api = defineApi(
     signOut: endpoint(Features.signOut, undefined, { session: "clear" }),
     changePassword: endpoint(Features.changePassword),
     makeBooking: endpoint(Features.makeBooking),
-    showBooking: endpoint(Features.showBooking),
-    myBookings: endpoint(Features.myBookings),
+    showBooking: endpoint(ReadModels.showBooking),
+    myBookings: endpoint(ReadModels.myBookings),
     cancelBooking: endpoint(Features.cancelBooking),
     defineRole: endpoint(Features.defineRole),
     listRoles: endpoint(Features.listRoles),

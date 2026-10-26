@@ -129,37 +129,49 @@ export const appMapSources = async (snapshot, { appDirectory, rootDirectory, pac
       packageDirectories.push({ directory, path: relative(rootDirectory, directory) });
     }
   }
-  const registry = await parse(resolve(appDirectory, "src/features/index.ts"));
   const featurePaths = new Map();
-  for (const statement of registry.body.filter((node) => node.type === "ImportDeclaration")) {
-    const specifier = literal(statement.source);
-    if (!/^\.\/[^/]+\/index\.ts$/.test(specifier))
-      throw new Error("App map requires direct feature registry imports");
-    const path = resolve(appDirectory, "src/features", specifier);
-    const source = await parse(path);
-    const call = unique(calls(source, "defineFeature"), specifier);
-    const imported = unique(
-      statement.specifiers.filter(
-        (node) => node.type === "ImportSpecifier" && node.importKind !== "type",
-      ),
-      specifier,
-    );
-    const declaration = unique(
-      source.body
-        .filter(
-          (node) =>
-            node.type === "ExportNamedDeclaration" &&
-            node.declaration?.type === "VariableDeclaration",
-        )
-        .flatMap((node) => node.declaration.declarations)
-        .filter((node) => node.id.name === imported.imported.name),
-      specifier,
-    );
-    if (declaration.init !== call)
-      throw new Error("App map requires a direct exported feature declaration");
-    const name = literal(call.arguments[0]);
-    if (featurePaths.has(name)) throw new Error(`Ambiguous feature ${name}`);
-    featurePaths.set(name, relative(appDirectory, path));
+  for (const [area, builder, kind] of [
+    ["features", "defineFeature", "feature"],
+    ["read-models", "defineReadModel", "read-model"],
+  ]) {
+    const registryFile = resolve(appDirectory, `src/${area}/index.ts`);
+    let registry;
+    try {
+      registry = await parse(registryFile);
+    } catch (error) {
+      if (area === "read-models" && error.code === "ENOENT") continue;
+      throw error;
+    }
+    for (const statement of registry.body.filter((node) => node.type === "ImportDeclaration")) {
+      const specifier = literal(statement.source);
+      if (!/^\.\/[^/]+\/index\.ts$/.test(specifier))
+        throw new Error("App map requires direct feature registry imports");
+      const path = resolve(appDirectory, `src/${area}`, specifier);
+      const source = await parse(path);
+      const call = unique(calls(source, builder), specifier);
+      const imported = unique(
+        statement.specifiers.filter(
+          (node) => node.type === "ImportSpecifier" && node.importKind !== "type",
+        ),
+        specifier,
+      );
+      const declaration = unique(
+        source.body
+          .filter(
+            (node) =>
+              node.type === "ExportNamedDeclaration" &&
+              node.declaration?.type === "VariableDeclaration",
+          )
+          .flatMap((node) => node.declaration.declarations)
+          .filter((node) => node.id.name === imported.imported.name),
+        specifier,
+      );
+      if (declaration.init !== call)
+        throw new Error("App map requires a direct exported feature declaration");
+      const name = literal(call.arguments[0]);
+      if (featurePaths.has(name)) throw new Error(`Ambiguous feature ${name}`);
+      featurePaths.set(name, { path: relative(appDirectory, path), kind });
+    }
   }
   const owners = [];
   for (const { directory, path } of packageDirectories) {
@@ -173,16 +185,19 @@ export const appMapSources = async (snapshot, { appDirectory, rootDirectory, pac
     });
   }
   const appPackage = JSON.parse(await readFile(resolve(appDirectory, "package.json"), "utf8")).name;
-  for (const entry of await entries(resolve(appDirectory, "src/read-models"), true)) {
-    if (!entry.isDirectory()) throw new Error("Unexpected read-model entry");
-    const directory = resolve(appDirectory, "src/read-models", entry.name);
-    owners.push({
-      name: entry.name,
-      kind: "read-model",
-      package: appPackage,
-      path: relative(appDirectory, directory),
-      operations: await operationNames(directory),
-    });
+  for (const area of ["read-models", "projections"]) {
+    for (const entry of await entries(resolve(appDirectory, `src/${area}`), true)) {
+      if (entry.name === "index.ts" && entry.isFile()) continue;
+      if (!entry.isDirectory()) throw new Error("Unexpected projection entry");
+      const directory = resolve(appDirectory, `src/${area}`, entry.name);
+      owners.push({
+        name: entry.name,
+        kind: area === "projections" ? "projection" : "read-model",
+        package: appPackage,
+        path: relative(appDirectory, directory),
+        operations: await operationNames(directory),
+      });
+    }
   }
   const wayPaths = new Map();
   for (const path of await files(resolve(appDirectory, "src/ways-in"), true)) {
@@ -245,7 +260,11 @@ export const appMapSources = async (snapshot, { appDirectory, rootDirectory, pac
     features: snapshot.features.map((feature) => ({
       ...feature,
       path: unique(
-        [...featurePaths].filter(([name]) => name === feature.name).map(([, path]) => path),
+        [...featurePaths]
+          .filter(
+            ([name, fact]) => name === feature.name && fact.kind === (feature.kind ?? "feature"),
+          )
+          .map(([, fact]) => fact.path),
         feature.name,
       ),
     })),

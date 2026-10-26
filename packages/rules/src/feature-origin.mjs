@@ -69,8 +69,9 @@ export const featureOrigin = (
   const location = path.relative(app, found.file).split(path.sep).join("/");
   const origin =
     builder?.source === "@house-rules/application/contract" &&
-    builder.imported === "defineFeature" &&
-    /^features\/[^/]+\/index\.ts$/u.test(location);
+    ((builder.imported === "defineFeature" && /^features\/[^/]+\/index\.ts$/u.test(location)) ||
+      (builder.imported === "defineReadModel" &&
+        /^read-models\/[^/]+\/index\.ts$/u.test(location)));
   if (!origin || !system) return origin;
   const options = builderOptions(node.arguments[1], false);
   const start = graph.resolve(found.file, options?.start);

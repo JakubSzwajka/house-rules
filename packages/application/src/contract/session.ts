@@ -1,12 +1,12 @@
 import { Schema } from "effect";
 import type { PlainSchema } from "@house-rules/domain/contract";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 
 export type SessionRole = "none" | "issue" | "clear";
 
 export type SessionGrant = Readonly<{ token: string; expiresAt: number }>;
 
-export type SessionOption<E extends AnyFeature> = [
+export type SessionOption<E extends AnyEntryPoint> = [
   Extract<E["output"]["Type"], SessionGrant>,
 ] extends [never]
   ? "clear"
@@ -14,7 +14,7 @@ export type SessionOption<E extends AnyFeature> = [
 
 type WithoutToken<Value> = Value extends unknown ? Omit<Value, "token"> : never;
 
-export type BodyOf<E extends AnyFeature, S extends SessionRole> = [S] extends ["issue"]
+export type BodyOf<E extends AnyEntryPoint, S extends SessionRole> = [S] extends ["issue"]
   ? WithoutToken<E["output"]["Type"]>
   : E["output"]["Type"];
 
@@ -57,7 +57,7 @@ export const checkSessionPlace = (
 
 const bodies = new WeakMap<PlainSchema, PlainSchema>();
 
-export const bodySchemaOf = (feature: AnyFeature, session: SessionRole): PlainSchema => {
+export const bodySchemaOf = (feature: AnyEntryPoint, session: SessionRole): PlainSchema => {
   if (session !== "issue") return feature.output;
   const known = bodies.get(feature.output);
   if (known !== undefined) return known;

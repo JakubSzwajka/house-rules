@@ -1,4 +1,5 @@
 import { Features } from "../../features/index.ts";
+import { ReadModels } from "../../read-models/index.ts";
 import { webWho } from "../../composition/sign-in.ts";
 import { defineWay, Mean } from "@house-rules/application";
 import { endpoints } from "./endpoints.ts";
@@ -22,8 +23,8 @@ const features = [
   Features.signOut,
   Features.changePassword,
   Features.makeBooking,
-  Features.showBooking,
-  Features.myBookings,
+  ReadModels.showBooking,
+  ReadModels.myBookings,
   Features.cancelBooking,
   Features.defineRole,
   Features.listRoles,

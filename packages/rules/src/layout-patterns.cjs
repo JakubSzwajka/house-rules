@@ -72,9 +72,7 @@ const TRUSTED_CONTRACT_PACKAGES = Object.freeze([
   "@house-rules/domain",
   "@house-rules/identity",
 ]);
-// The effect modules a contract entry may import: the root barrel, its stable top-level modules, and
-// http (unstable/http on RCs), and the public encoding barrel. Their installed graphs are unseen;
-// trust is explicit. no-computed-import keeps encoding imports on the exact public door.
+// Installed Effect browser doors are trusted explicitly; computed/private encoding imports fail.
 const EFFECT_BROWSER_MODULES =
   "(?:index|[A-Z][A-Za-z0-9]*|encoding/index|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js";
 // Effect's SQL modules, under any build folder: effect/sql and effect/sql/* in 4.x, effect/unstable/sql on RCs.
@@ -123,6 +121,7 @@ function patterns(options) {
   const packages = packageRoots.pattern;
   const tests = pathOption(settings.testsDir, "testsDir");
   const layers = layerOptions(settings.layers ?? {}, host ? { waysIn: host.waysInLayer } : {});
+  const projectionAreas = `(?:${layers.readModels}|${layers.projections})`;
   const layerRoot = (layer) => `^${apps}/[^/]+/src/${layer}(?:/|$)`;
   // A host app has only its host's entry files, so the generic main.ts and index.ts stay out unless named.
   const ownEntryFiles = settings.appEntryFiles ?? (host ? [] : DEFAULT_NAME_LISTS.appEntryFiles);
@@ -187,14 +186,14 @@ function patterns(options) {
     publicEntry: `${publicEntry}$`,
     publicEntries: `(?:${publicEntry}|${CONTRACT_ENTRY})$`,
     contractEntry: `^${packages}/[^/]+/${CONTRACT_ENTRY}$`,
-    appDescriptorEntry: `(?:^${apps}/[^/]+/src/${layers.readModels}/[^/]+/contract[.]ts$|^${apps}/[^/]+/src/${layers.features}/(?:[^/]+/|)index[.]ts$|^${apps}/[^/]+/src/${layers.waysIn}/[^/]+/endpoints[.]ts$)`,
+    appDescriptorEntry: `(?:^${apps}/[^/]+/src/${layers.projections}/[^/]+/contract[.]ts$|^${apps}/[^/]+/src/${layers.readModels}/(?:[^/]+/|)index[.]ts$|^${apps}/[^/]+/src/${layers.features}/(?:[^/]+/|)index[.]ts$|^${apps}/[^/]+/src/${layers.waysIn}/[^/]+/endpoints[.]ts$)`,
     // Safe-regex counts `?` on a group as nesting, so optional groups are written `(?:x|)`.
-    // The browser-safe set: workspace domain files and contract entries, which the rule follows, the
-    // allowlisted effect modules, and the trusted installed contract entries. Anything else is refused.
+    // Follow workspace contracts; trust only the listed installed browser doors.
     browserSafe: [
       `^${apps}/[^/]+/src/${layers.features}/(?:[^/]+/|)index[.]ts$`,
+      `^${apps}/[^/]+/src/${layers.readModels}/(?:[^/]+/|)index[.]ts$`,
       `^${apps}/[^/]+/src/${layers.waysIn}/[^/]+/endpoints[.]ts$`,
-      `^${apps}/[^/]+/src/${layers.readModels}/[^/]+/(?!adapters/|(?:index|facade|storage)[.]ts$|(?:.*/|)(?:${testDirs})/|.*${testFile}).+`,
+      `^${apps}/[^/]+/src/${projectionAreas}/[^/]+/(?!adapters/|(?:index|facade|storage)[.]ts$|(?:.*/|)(?:${testDirs})/|.*${testFile}).+`,
       `^${packages}/[^/]+/(?!${adapters}(?:/|$)|(?:${publicEntry}|${facadeFile}|src/storage[.]ts)$|src/(?:.*/|)(?:${testDirs})/|.*${testFile})src/`,
       `(?:^|/)node_modules/effect/dist/${EFFECT_BROWSER_MODULES}$`,
       `(?:^|/)node_modules/(?:${trustedContracts.join("|")})/${INSTALLED_CONTRACT_ENTRY}$`,
@@ -202,6 +201,9 @@ function patterns(options) {
     internalRoot: `^${packages}/[^/]+/${pathOption(settings.internalDir, "internalDir")}(?:/|$)`,
     featuresRoot: layerRoot(layers.features),
     readModelsRoot: layerRoot(layers.readModels),
+    projectionsRoot: layerRoot(layers.projections),
+    projectionContract: `^${apps}/[^/]+/src/${layers.projections}/[^/]+/contract[.]ts$`,
+    readModelValues: `^${apps}/[^/]+/src/${layers.readModels}/(?:[^/]+/|)index[.]ts$`,
     waysInRoot: layerRoot(layers.waysIn),
     waysInPage: host?.singleWayArea
       ? `^(${apps}/[^/]+/src)/${layers.waysIn}/(?:.*/|)(?:(?:${host.waysInPageFiles.join("|")})[.][cm]?[jt]sx?$|(?:${host.waysInMetadataFiles.join("|")})[.][^./]+$|${host.privateFolderPrefix}[^/]+/.+)`
@@ -219,6 +221,7 @@ function patterns(options) {
     ]),
     waysInValues: [
       `^$1/(?:${layers.features}|${layers.composition}|${layers.waysIn})/`,
+      `^${apps}/[^/]+/src/${layers.readModels}/(?:[^/]+/|)index[.]ts$`,
       `^${packages}/[^/]+/${CONTRACT_ENTRY}$`,
       `^${packages}/(?:application|domain)/${publicEntry}$`,
       `(?:^|/)node_modules/(?:@[^/]+/|)[^/]+/${INSTALLED_CONTRACT_ENTRY}$`,
@@ -227,16 +230,17 @@ function patterns(options) {
     ],
     featureFolder: `^(${apps}/[^/]+/src/${layers.features}/[^/]+)/`,
     readModelFolder: `^(${apps}/[^/]+/src/${layers.readModels}/[^/]+)/`,
+    projectionFolder: `^(${apps}/[^/]+/src/${layers.projections}/[^/]+)/`,
     wayFolder: host?.singleWayArea
       ? `^(${apps}/[^/]+/src/${layers.waysIn})/`
       : `^(${apps}/[^/]+/src/${layers.waysIn}/[^/]+)/`,
-    folderCode: `^(${apps}/[^/]+/src/${layers.readModels}/[^/]+)/`,
-    folderSource: `^${apps}/[^/]+/src/${layers.readModels}/[^/]+/`,
-    folderAdapters: `^${apps}/[^/]+/src/${layers.readModels}/[^/]+/adapters/`,
-    folderAdapterImporters: `^${apps}/[^/]+/src/${layers.readModels}/[^/]+/(?:adapters/|(?:index|facade)[.]ts$)`,
-    folderRootFile: `^${apps}/[^/]+/src/${layers.readModels}/[^/]+/[^/]+$`,
-    folderRootFileAllowed: `^${apps}/[^/]+/src/${layers.readModels}/[^/]+/(?:${rootFiles.join("|")}|contract[.]ts)$`,
-    folderSubject: `^(${apps}/[^/]+/src/${layers.readModels}/[^/]+)/(?!adapters/|(?:${testDirs})/)[^/]+/`,
+    folderCode: `^(${apps}/[^/]+/src/${projectionAreas}/[^/]+)/`,
+    folderSource: `^${apps}/[^/]+/src/${projectionAreas}/[^/]+/`,
+    folderAdapters: `^${apps}/[^/]+/src/${projectionAreas}/[^/]+/adapters/`,
+    folderAdapterImporters: `^${apps}/[^/]+/src/${projectionAreas}/[^/]+/(?:adapters/|(?:index|facade)[.]ts$)`,
+    folderRootFile: `^${apps}/[^/]+/src/${projectionAreas}/[^/]+/[^/]+$`,
+    folderRootFileAllowed: `^${apps}/[^/]+/src/${projectionAreas}/[^/]+/(?:${rootFiles.join("|")}|contract[.]ts)$`,
+    folderSubject: `^(${apps}/[^/]+/src/${projectionAreas}/[^/]+)/(?!adapters/|(?:${testDirs})/)[^/]+/`,
     domainPackage: `^${packages}/domain/src/`,
     applicationPackage: `^${packages}/application/src/`,
     eventLogImport: `(?:^@house-rules/event-log(?:/|$)|(?:^|/)node_modules/@house-rules/event-log/|^${packages}/event-log/)`,

@@ -1,9 +1,9 @@
 import { Context, type Effect } from "effect";
 import type { CallFacts } from "./call-facts.ts";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 
 export type Around = <A, E, R>(
-  feature: AnyFeature,
+  feature: AnyEntryPoint,
   input: unknown,
   run: Effect.Effect<A, E, R>,
   facts?: CallFacts,

@@ -18,7 +18,7 @@ import {
   MyBookingStore,
   postgresMyBookingStore,
   ReadUnavailable,
-} from "../read-models/my-bookings/index.ts";
+} from "../projections/my-bookings/index.ts";
 import { CurrentActor, StepTrace, sqlUnitOfWork } from "@house-rules/application";
 import { memoryUnitOfWork } from "@house-rules/domain";
 import { CallAudit, memoryAuditLog, type MemoryAuditLog } from "@house-rules/call-audit";
@@ -27,7 +27,7 @@ import { Party, PartyMount } from "@house-rules/party";
 import { Config, Effect, Layer, Option, Schema } from "effect";
 import { PgClient } from "@effect/sql-pg";
 import { builtInRoles } from "./access.ts";
-import { AuditTrailMount, auditTrailReader } from "../read-models/audit-trail/index.ts";
+import { AuditTrailMount, auditTrailReader } from "../projections/audit-trail/index.ts";
 
 const storage = Config.Literals(["memory", "postgres"], "STORAGE").pipe(
   Config.withDefault("memory"),

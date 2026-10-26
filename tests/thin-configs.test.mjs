@@ -93,7 +93,7 @@ describe("thin configs over the house plugin", () => {
       assert.equal(folderRule.severity, "error");
       assert.equal(
         folderRule.from.pathNot,
-        `^${appsPattern}/[^/]+/src/read-models/[^/]+/adapters/`,
+        `^${appsPattern}/[^/]+/src/(?:read-models|projections)/[^/]+/adapters/`,
       );
       assert.deepEqual(folderRule.to, rule.to);
     }
@@ -228,7 +228,8 @@ describe("thin configs over the house plugin", () => {
       for (const part of [
         "features/wiring-probe/index.ts",
         "ways-in/web/endpoints.ts",
-        "read-models/probe/contract.ts",
+        "read-models/wiring-probe/index.ts",
+        "projections/probe/contract.ts",
       ]) {
         assert.deepEqual(
           await rulesFor(
@@ -236,13 +237,25 @@ describe("thin configs over the house plugin", () => {
             `${app}/src/${part}`,
           ),
           [
-            ...(part === "features/wiring-probe/index.ts"
+            ...(part.endsWith("wiring-probe/index.ts")
               ? ["house-rules/feature-file", "house-rules/feature-file"]
               : []),
             "house-rules/no-computed-import",
           ],
         );
       }
+    }
+    for (const [builder, area] of [
+      ["defineReadModel", "features"],
+      ["defineFeature", "read-models"],
+    ]) {
+      assert.deepEqual(
+        await rulesFor(
+          `import { ${builder} } from "@house-rules/application/contract";\nexport const entry = ${builder}("wrong_kind", {});\n`,
+          `apps/api/src/${area}/wiring-probe/index.ts`,
+        ),
+        ["house-rules/feature-file", "house-rules/feature-builders"],
+      );
     }
     assert.deepEqual(
       await rulesFor(

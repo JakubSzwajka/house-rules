@@ -1,6 +1,7 @@
 import { runFeature } from "@house-rules/application";
 import { assert, it } from "@effect/vitest";
 import { Features } from "../../features/index.ts";
+import { ReadModels } from "../../read-models/index.ts";
 import { builtInRoles, systemPermissions } from "../access.ts";
 import { makeFakePaymentProvider } from "@example/billing";
 import { Bookings, BookingNotFound } from "@example/bookings";
@@ -57,7 +58,7 @@ it.effect(
         system: readonly `${string}:${string}`[] = systemPermissions,
       ) =>
         May.context(May.fixed(person), {
-          features: Object.values(Features),
+          features: [...Object.values(Features), ...Object.values(ReadModels)],
           system,
           via: "in-process",
         });
@@ -81,7 +82,7 @@ it.effect(
       );
       assert.strictEqual(transactions, 1);
       assert.strictEqual(approvals, 0);
-      yield* runFeature(Features.showBooking, { id: input.id }).pipe(
+      yield* runFeature(ReadModels.showBooking, { id: input.id }).pipe(
         Effect.provideContext(Context.merge(runContext, may())),
       );
       assert.strictEqual(transactions, 1);
@@ -133,7 +134,7 @@ it.effect("runs the schedule once using Effect Clock, expires only pending older
     const request = Context.merge(
       Context.add(context, CurrentActor, alice),
       May.context(May.fixed(builtInRoles.member.permissions), {
-        features: Object.values(Features),
+        features: [...Object.values(Features), ...Object.values(ReadModels)],
         system: systemPermissions,
         via: "test",
       }),

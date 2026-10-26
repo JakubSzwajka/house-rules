@@ -1,6 +1,6 @@
 import { Context, Effect, Option } from "effect";
 import { McpSchema } from "effect/ai";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 
 export type CallKind = "read" | "write";
 
@@ -38,7 +38,7 @@ export const mcpChannel = (clientName: string | undefined): string => {
 export const isMcpChannel = (channel: string): boolean =>
   channel === "mcp" || channel.startsWith("mcp:");
 
-export const unknownCallFacts = (feature: AnyFeature): CallFacts => ({
+export const unknownCallFacts = (feature: AnyEntryPoint): CallFacts => ({
   kind: feature.readOnly ? "read" : "write",
   target: feature.name,
   targetId: null,
@@ -46,7 +46,7 @@ export const unknownCallFacts = (feature: AnyFeature): CallFacts => ({
   requestId: null,
 });
 
-export const callFactsOf = (feature: AnyFeature): Effect.Effect<CallFacts> =>
+export const callFactsOf = (feature: AnyEntryPoint): Effect.Effect<CallFacts> =>
   Effect.gen(function* callFacts() {
     // The MCP server provides McpRequestContext to every tool call, so an MCP call wins over the app's channel.
     const mcp = yield* Effect.serviceOption(McpSchema.McpRequestContext);

@@ -3,6 +3,7 @@ import { assert, it } from "@effect/vitest";
 import { Effect, FileSystem } from "effect";
 import { appMap, renderMap } from "@house-rules/application";
 import { Features } from "../features/index.ts";
+import { ReadModels } from "../read-models/index.ts";
 import { webWay } from "../ways-in/web/way.ts";
 import { mcpWay } from "../ways-in/mcp/way.ts";
 import { firstSignInWay } from "../ways-in/hooks/first-sign-in.ts";
@@ -18,7 +19,7 @@ it.effect("app map snapshots every actual way exposure and feature closure", () 
       const snapshot = yield* appMap(app);
       assert.deepStrictEqual(
         snapshot.features.map((feature) => feature.name).sort(),
-        Object.values(Features)
+        [...Object.values(Features), ...Object.values(ReadModels)]
           .map((feature) => feature.name)
           .sort(),
       );
@@ -36,6 +37,7 @@ it.effect("app map snapshots every actual way exposure and feature closure", () 
           assert.isTrue(app.features.includes(feature));
           const mapped = snapshot.features.find((entry) => entry.name === feature.name);
           assert.isDefined(mapped);
+          assert.strictEqual(mapped.kind, feature.kind);
           assert.deepStrictEqual(mapped.closures, {
             person: [...feature.closures.person].sort(),
             system: [...feature.closures.system].sort(),
@@ -95,7 +97,15 @@ it.effect("app map renders twice byte-identically and ignores input order", () =
     );
     assert.strictEqual(
       snapshot.modules.find((module) => module.name === "my-bookings")?.kind,
+      "projection",
+    );
+    assert.strictEqual(
+      snapshot.features.find((feature) => feature.name === "show_booking")?.kind,
       "read-model",
+    );
+    assert.strictEqual(
+      snapshot.features.find((feature) => feature.name === "make_booking")?.kind,
+      "feature",
     );
     assert.strictEqual(
       snapshot.features.find((feature) => feature.name === "make_booking")?.path,

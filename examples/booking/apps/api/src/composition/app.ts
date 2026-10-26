@@ -16,6 +16,7 @@ import {
 } from "@house-rules/identity";
 import { Config, Effect } from "effect";
 import { Features } from "../features/index.ts";
+import { ReadModels } from "../read-models/index.ts";
 import { may, systemPermissions } from "./access.ts";
 import { modulePlan as mountModules } from "./modules.ts";
 import { identityOptions, signInConfig } from "./sign-in.ts";
@@ -69,7 +70,7 @@ export const createApp = (
 ) =>
   composition({
     modules: options.modules ?? modulePlan(options),
-    features: Object.values(Features),
+    features: [...Object.values(Features), ...Object.values(ReadModels)],
     ways,
     may: options.may === undefined ? may : Effect.succeed(options.may),
     system: systemPermissions,
