@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { assertCleanTarball, assertTarballRulesAreLive } from "./tarball-content.mjs";
 import { assertNextHost } from "./packed-next-host.mjs";
+import { assertPackedExpressHost, expressConsumerFiles } from "./packed-express-host.mjs";
 import { workspaceConsumerFiles } from "./packed-workspace.mjs";
 import {
   assertContractRuleIsLive,
@@ -27,6 +28,7 @@ const PUBLISHED_IN_BUILD_ORDER = [
   "call-audit",
   "comments",
   "node-host",
+  "express-host",
   "rules",
   ...SUPPORT_MODULES,
 ];
@@ -228,6 +230,7 @@ NodePlatform.runMain(Effect.gen(function* () {
 `,
     ...commentsConsumerFiles,
     ...authConsumerFiles,
+    ...expressConsumerFiles,
     "rules.mjs": [
       'import assert from "node:assert/strict";',
       'import rules from "@house-rules/rules";',
@@ -283,6 +286,7 @@ NodePlatform.runMain(Effect.gen(function* () {
   assertPackedComments(app, { run, write, failure });
   assertPackedAuth(app, { run });
   const tsc = path.join(root, "node_modules/.bin/tsc");
+  assertPackedExpressHost(app, tsc, { run });
   run(tsc, ["--project", "tsconfig.json"], app);
   run(tsc, ["--project", "tsconfig.web.json"], app);
   run(

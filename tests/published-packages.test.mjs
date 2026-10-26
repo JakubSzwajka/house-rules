@@ -14,6 +14,7 @@ const BUILT = [
   "call-audit",
   "comments",
   "node-host",
+  "express-host",
   "work-items",
   "notes",
   "relations",
@@ -29,7 +30,7 @@ const WITH_MIGRATIONS = [
   "comments",
   "identity",
   "party",
-  ...BUILT.slice(9).filter((folder) => folder !== "email"),
+  ...BUILT.slice(10).filter((folder) => folder !== "email"),
 ];
 const PUBLISHED = [...BUILT, "rules"];
 const DOCS = new Set(["AGENTS.md", "README.md"]);

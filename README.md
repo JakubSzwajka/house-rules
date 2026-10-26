@@ -34,6 +34,7 @@ packages/
   identity/                  login bindings, passwords, OIDC and Who plug
   migrations/                module migration runner
   node-host/                 plain fetch handler on a Node socket
+  express-host/              optional real Express listener, shared Node bridge
   party/                     people, organisations, relationships and roles
   rules/                     shared checks and presets
 site/                        private Astro docs site
@@ -88,6 +89,7 @@ These are workspace versions, not a claim that the changed APIs are already on n
 | `@house-rules/rules` | `0.19.0` | [Rules](packages/rules/README.md) |
 | `@house-rules/migrations` | `0.4.0` | [Migrations](packages/migrations/README.md) |
 | `@house-rules/node-host` | `0.2.0` | [Node Host](packages/node-host/README.md) |
+| `@house-rules/express-host` | `0.1.0` | [Express Host](packages/express-host/README.md) |
 | `@house-rules/comments` | `0.2.0` | [Comments](packages/comments/README.md) |
 | `@house-rules/party` | `0.1.0` | [Party](packages/party/README.md) |
 | `@house-rules/identity` | `0.1.0` | [Identity](packages/identity/README.md) |
@@ -121,7 +123,7 @@ Warnings fail Biome and ESLint. All Dependency Cruiser rules have error severity
 
 CI starts Postgres, installs the frozen lockfile, then runs check, test, packed-consumer, the booking API build and the site build. The booking example serves a Vite/React shadcn dashboard with real sign-in through `/api` and read-only MCP at `/mcp`. Every new login gets the member role. Its build writes the page to `dist/web`, then bundles `src/main.ts` for Node. Production requires ACCOUNTS_SIGNING_KEY, a private P-256 JWK, and APP_ORIGIN over HTTPS for Secure cookies. Optional MCP_AUTH_ISSUER adds the real OIDC MCP provider; without it MCP stays closed. The devLocal test issuer is mounted only in development/test.
 
-`pnpm run packed-consumer` builds and packs all 19 public packages, installs them in a cold npm consumer, and checks Node, TypeScript, browser contracts, layout and migration behavior. It needs the registry. `pnpm acceptance` clones committed HEAD into a temp folder and runs frozen install, check and test. It cannot see uncommitted work.
+`pnpm run packed-consumer` builds and packs all 21 public packages, installs them in a cold npm consumer, and checks Node, TypeScript, browser contracts, layout and migration behavior. It needs the registry. `pnpm acceptance` clones committed HEAD into a temp folder and runs frozen install, check and test. It cannot see uncommitted work.
 
 ## Pins and environment
 

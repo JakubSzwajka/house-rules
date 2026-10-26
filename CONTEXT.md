@@ -1,14 +1,14 @@
 # Context
 
-House-rules holds a TypeScript workspace template and ten public packages. [AGENTS.md](AGENTS.md) is the law. This file names the parts; [VISION.md](VISION.md) says why they exist.
+House-rules holds a TypeScript workspace template and twenty-one public packages. [AGENTS.md](AGENTS.md) is the law. This file names the parts; [VISION.md](VISION.md) says why they exist.
 
 ## Kits and wiring
 
 The **kits** are domain and application. Domain owns operation descriptors, edges, caller data, error kinds, pure graph checks, closures, modules, policy and units of work. It imports no house-rules package, even for types. Application owns feature and read-model entry points, operation bindings, execution, sockets, ways, the router, clients, trace and app map.
 
-**Wiring** runs or checks the app. Migrations runs module SQL. Node Host serves a plain fetch handler without Effect. Rules owns the shared presets and checks. Consumer configs stay thin.
+**Wiring** runs or checks the app. Migrations runs module SQL. Node Host and optional Express Host serve a plain fetch handler without Effect, using one listener-free tracked Node bridge. Express creates its own app and listener. Rules owns the shared presets and checks. Consumer configs stay thin.
 
-**Additions** are reusable modules such as Party, Identity and Comments, or plugs such as auth-jwt and call-audit. Identity is one configurable concept with passwords, OIDC and guarded devLocal providers. devLocal uses AuthJwtLocal, allows only normalized development/test NODE_ENV values, refuses other environments with unavailable IdentityProviderInvalid and exposes signing handles through DevLocalIssuers. It owns login bindings and local password records; each configured issuer gets its matching auth-jwt verifier. Party owns roles. Auth-jwt stays a separate pure token-checking plug, including for MCP. Each framework package an app mounts ships an `AGENTS.md` guide. The nine TypeScript packages publish built JavaScript and declarations in `dist/`; workspace imports read `src/`. Rules ships plain JavaScript.
+**Additions** are reusable modules such as Party, Identity and Comments, or plugs such as auth-jwt and call-audit. Identity is one configurable concept with passwords, OIDC and guarded devLocal providers. devLocal uses AuthJwtLocal, allows only normalized development/test NODE_ENV values, refuses other environments with unavailable IdentityProviderInvalid and exposes signing handles through DevLocalIssuers. It owns login bindings and local password records; each configured issuer gets its matching auth-jwt verifier. Party owns roles. Auth-jwt stays a separate pure token-checking plug, including for MCP. Each framework package an app mounts ships an `AGENTS.md` guide. The twenty TypeScript packages publish built JavaScript and declarations in `dist/`; workspace imports read `src/`. Rules ships plain JavaScript.
 
 ## Entry points, operations and graphs
 
@@ -69,7 +69,7 @@ The **composition root** answers four questions once: modules.ts chooses mounts,
 
 **EventSource** is the application-owned delivery port. **EventLog.source** fills it from event-log's static consumers, claims, settlement and wake stream. Event ways replace app-written wake/sweep driver features. Composition commits each claim in its own unit, then takes, runs the system feature with EventInput `{ event, causedBy }` and settles success in one unit per event. Failure rolls back handler writes before separate failure bookkeeping; the committed attempt survives for retry and dead-lettering. Source wakes and a periodic sweep drive delivery. Retries run on the next wake or sweep at or after the source's retry deadline. Handlers must be idempotent: delivery is at least once and cursor locks are not a distributed lease. Removing event-log, its source plug and event ways leaves unrelated app work independent. A side effect that needs the acting person's authority stays in their request and unit; a later reaction uses system authority and records that person as the cause.
 
-The **router**, `toFetchHandler`, builds dispatch, HTTP routes, MCP tools and metadata paths from ways. A **Host** runs that fetch handler. Dispose the router before the composition. Composition builds lazily, shares a successful build, retries failures and makes disposal final. Next already has a Host.
+The **router**, `toFetchHandler`, builds dispatch, HTTP routes, MCP tools and metadata paths from ways. A **Host** runs that fetch handler. Node Host and optional Express Host share request conversion, streaming and bounded draining; neither adds an executor. Dispose the router before the composition. Composition builds lazily, shares a successful build, retries failures and makes disposal final. Next already has a Host.
 
 An **endpoint** is a browser-safe descriptor made by `endpoint(feature, at?, options?)`. `defineApi` holds keyed endpoints. Ways export client descriptors from `endpoints.ts`. Clients and OpenAPI use the same descriptors. Cookie writes need CSRF protection, even before a session exists. CORS is not access control.
 

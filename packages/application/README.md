@@ -197,6 +197,8 @@ A transactional feature joins that delivery unit. A failed feature cannot erase 
 
 Maps show the event kinds beside the handler feature in text, HTML, Mermaid and JSON; diffs compare `on`. Plans use `{ name, protocol: "event", on: ["task_moved"], features: ["notify_task_moved"], mean: "no" }`. They require exactly one system-start feature, distinct nonblank kinds and an explicit Mean, and reject public/MCP fields. Source coverage is checked only by real acquisition, not by the plan.
 
+Node apps can use [Node Host](../node-host/README.md) or optional [Express Host](../express-host/README.md) in `main.ts`. Both take the same plain `toFetchHandler(app)` handler and share one tracked Node bridge. Express creates its app and listener; it adds no executor or admission path. Dispose the router before composition. Next already owns its host.
+
 ## Endpoints, clients and failures
 
 `endpoint(feature, at?, options?)` defaults to `POST /<feature.name>` and status 200. `defineApi` keeps keyed endpoints for clients. `toHttpClient`, `toPromiseClient` and `toOpenApi` share those descriptors. Clients keep codecs, exact origin guards, manual redirects and request-id reporting. Unknown or undeclared failure headers stay `Unknown`.

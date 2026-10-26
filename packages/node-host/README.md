@@ -140,6 +140,12 @@ const host = await serve(async (request) => (await site(request)) ?? api(request
 
 Repeated calls return the same shutdown promise. With `handleSignals: true`, SIGTERM and SIGINT use that same close operation. Signal hooks stay installed through `onClose`, then are removed. A failed signal-triggered close sets the process exit code to 1. By default the Host installs no signal hooks.
 
+## Shared bridge
+
+`createNodeRequestHandler(handler, { health? })` returns `{ handle(incoming, outgoing), drain(timeoutMs) }` without opening a listener or installing process hooks. It owns active tracking, per-request aborts and response stream cleanup. `handle` covers the whole response stream; `drain` waits up to its deadline, then aborts and destroys remaining responses without waiting for uncooperative handlers. Repeated drains share one promise. The caller must stop accepting connections before draining and owns listener closure and application disposal. Optional [Express Host](../express-host/README.md) uses this same bridge with its own Express-created listener.
+
+SSE headers flush before the first event, including case-insensitive `text/event-stream` media types with parameters. Failures after that flush destroy the connection. Ordinary streams retain their pre-first-byte 500 behavior. Idle streams use the full five-second shutdown deadline.
+
 ## Why plain TypeScript
 
-This is the one sanctioned Node socket bridge. Its tsconfig extends the strict preset, not the Effect preset, because it adapts Node streams and owns the HTTP listener. Effect app code keeps `nodeBuiltinImport: error` and imports `serve` instead of `node:http`. No Effect diagnostic is weakened.
+This package owns the shared Node socket bridge. Its tsconfig extends the strict preset, not the Effect preset, because it adapts Node streams and owns the HTTP listener. Effect app code keeps `nodeBuiltinImport: error` and imports `serve` instead of `node:http`. No Effect diagnostic is weakened.

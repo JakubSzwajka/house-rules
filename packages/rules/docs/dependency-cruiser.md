@@ -37,7 +37,7 @@ Workspace doors and installed source/dist doors follow the same rule, including 
 
 The root owns `composition({ modules, features, ways, may, system })`. It mounts modules, links ports, plugs sockets, opens ways and schedules features. main supplies way values or a factory; the root never imports ways to obtain them. Features never reach composition. Tests may use root wiring.
 
-A Node Host calls serve in main.ts and disposes the fetch router before the root. Host code belongs in @house-rules/node-host, never node:http in Effect app code.
+A Node or Express Host calls serve in main.ts and disposes the fetch router before the root. Host code belongs in @house-rules/node-host or optional @house-rules/express-host, never node:http in Effect app code. Both reuse one listener-free tracked Node bridge. Express creates its own app and listener, without another executor or business router.
 
 ## Contract entry
 

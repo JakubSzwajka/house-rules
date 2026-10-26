@@ -13,6 +13,7 @@ const FRAMEWORK_PACKAGES = [
   "comments",
   "migrations",
   "node-host",
+  "express-host",
 ];
 const MOUNT_SECTION = {
   domain: "## Mounting modules and storage",

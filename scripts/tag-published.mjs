@@ -17,6 +17,7 @@ const folders = [
   "call-audit",
   "comments",
   "node-host",
+  "express-host",
   "work-items",
   "notes",
   "relations",
@@ -30,9 +31,9 @@ const folders = [
 ];
 const retiredRecoveryOnlyFolders = ["capability"];
 const CURRENT_NAME =
-  /^@house-rules\/(?:rules|domain|application|auth-jwt|identity|party|migrations|call-audit|comments|node-host|work-items|notes|relations|event-log|contacts|notifications|push|push-node|email|projects)$/u;
+  /^@house-rules\/(?:rules|domain|application|auth-jwt|identity|party|migrations|call-audit|comments|node-host|express-host|work-items|notes|relations|event-log|contacts|notifications|push|push-node|email|projects)$/u;
 const RECOVERABLE_NAME =
-  /^@house-rules\/(?:rules|domain|application|auth-jwt|identity|party|migrations|call-audit|comments|node-host|work-items|notes|relations|event-log|contacts|notifications|push|push-node|email|projects|capability)$/u;
+  /^@house-rules\/(?:rules|domain|application|auth-jwt|identity|party|migrations|call-audit|comments|node-host|express-host|work-items|notes|relations|event-log|contacts|notifications|push|push-node|email|projects|capability)$/u;
 
 function publishedTags(summary, names = CURRENT_NAME) {
   assert.ok(Array.isArray(summary.publishedPackages), "publish summary needs publishedPackages");
