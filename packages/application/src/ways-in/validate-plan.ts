@@ -7,7 +7,12 @@ import {
 } from "@house-rules/domain/contract";
 import { Effect, Schema } from "effect";
 import { endpoint } from "../contract/endpoint.ts";
-import { type AnyFeature, defineFeature, systemStart } from "../feature/feature.ts";
+import {
+  type AnyEntryPoint,
+  defineFeature,
+  defineReadModel,
+  systemStart,
+} from "../feature/feature.ts";
 import { bindOperation } from "../runtime/binding.ts";
 import { validateRuntime } from "../runtime/runtime.ts";
 import { type AnyWay, validateWays } from "./way-validation.ts";
@@ -50,6 +55,20 @@ const build = (
       transactional: value.transactional ?? false,
       needsApproval: value.needsApproval ?? false,
     };
+    const entryOptions = {
+      ...stub,
+      description: name,
+      permission: value.permission,
+      edges: edges as readonly (AnyCallable & { readonly kind?: "operation" })[],
+      flags,
+      start:
+        entry.kind === "operation" ||
+        entry.value.start === undefined ||
+        entry.value.start === "person"
+          ? ("person" as const)
+          : systemStart(entry.value.start.reason, entry.value.start.startedBy),
+      handler: () => Effect.void,
+    };
     built.set(
       name,
       entry.kind === "operation"
@@ -60,18 +79,16 @@ const build = (
             edges,
             ...flags,
           })
-        : defineFeature(name, {
-            ...stub,
-            description: name,
-            permission: value.permission,
-            edges,
-            flags,
-            start:
-              entry.value.start === undefined || entry.value.start === "person"
-                ? "person"
-                : systemStart(entry.value.start.reason, entry.value.start.startedBy),
-            handler: () => Effect.void,
-          }),
+        : entry.value.kind === "read-model"
+          ? defineReadModel(name, {
+              ...entryOptions,
+              edges: edges as readonly (AnyCallable & {
+                readonly kind?: "operation";
+                readonly readOnly: true;
+              })[],
+              flags: { ...flags, readOnly: true, destructive: false },
+            })
+          : defineFeature(name, entryOptions),
     );
   };
   for (const name of entries.keys()) {
@@ -93,7 +110,7 @@ const derive = (plan: Plan): Derived => {
   if (cycle !== undefined) return failed([cycle]);
   const operation = (name: string) =>
     built.get(name) as RegistrySnapshot["mounts"][number]["operations"][number];
-  const feature = (name: string) => built.get(name) as AnyFeature;
+  const feature = (name: string) => built.get(name) as AnyEntryPoint;
   const features = plan.features.map((each) => feature(each.name));
   const ways = plan.ways.map(
     (way): RegistryWay => ({
@@ -166,7 +183,7 @@ const derive = (plan: Plan): Derived => {
 };
 
 const validateNetworkWays = (
-  features: readonly AnyFeature[],
+  features: readonly AnyEntryPoint[],
   ways: readonly RegistryWay[],
 ): string | undefined => {
   // One counter across ways: prefixes "" and "/" both glue to "", so per-way indexes collided.

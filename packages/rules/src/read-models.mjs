@@ -5,17 +5,19 @@ import { readAppsRoot } from "./layout-config.mjs";
 export const readModels = (workspaces) =>
   workspaces
     .filter((workspace) => readAppsRoot(process.cwd()).test(`${workspace}/`))
-    .flatMap((workspace) => {
-      const directory = path.resolve(workspace, "src", "read-models");
-      if (!fs.existsSync(directory)) return [];
-      return fs
-        .readdirSync(directory, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => ({
-          directory: path.join(directory, entry.name),
-          owner: path
-            .relative(process.cwd(), path.join(directory, entry.name))
-            .split(path.sep)
-            .join("/"),
-        }));
-    });
+    .flatMap((workspace) =>
+      ["read-models", "projections"].flatMap((area) => {
+        const directory = path.resolve(workspace, "src", area);
+        if (!fs.existsSync(directory)) return [];
+        return fs
+          .readdirSync(directory, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory())
+          .map((entry) => ({
+            directory: path.join(directory, entry.name),
+            owner: path
+              .relative(process.cwd(), path.join(directory, entry.name))
+              .split(path.sep)
+              .join("/"),
+          }));
+      }),
+    );

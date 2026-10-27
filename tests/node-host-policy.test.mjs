@@ -3,10 +3,14 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { it } from "node:test";
 
-it("only the plain Node host uses strict.json; Effect app code still fails nodeBuiltinImport", () => {
+it("plain Node and Express hosts use strict.json; Effect app code still fails nodeBuiltinImport", () => {
   const read = (file) => JSON.parse(readFileSync(new URL(file, import.meta.url), "utf8"));
   assert.equal(
     read("../packages/node-host/tsconfig.json").extends,
+    "@house-rules/rules/tsconfig/strict.json",
+  );
+  assert.equal(
+    read("../packages/express-host/tsconfig.json").extends,
     "@house-rules/rules/tsconfig/strict.json",
   );
   assert.equal(

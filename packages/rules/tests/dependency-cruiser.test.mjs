@@ -50,6 +50,7 @@ test("layout snapshot pins every rule and error severity", async () => {
       "contract-entry-is-browser-safe",
       "features-do-not-import-outer-folders",
       "read-models-import-packages-only",
+      "read-models-import-packages-only",
       "ways-in-import-app-folders-only",
       "ways-in-do-not-import-read-model-values",
       "ways-in-import-contracts-only",
@@ -118,7 +119,7 @@ test("layout exports, fresh values, exact options and custom roots", () => {
     "(?:^|/)(?:tests?|__tests__|spec)(?:/|$)|[.](?:test|spec)[.][^/]+$",
   );
   assert.deepEqual(rule("app-folders").module.pathNot, [
-    "^services/[^/]+/src/(?:actions|read-models|ways-in|composition)/",
+    "^services/[^/]+/src/(?:actions|read-models|projections|ways-in|composition)/",
     "^services/[^/]+/src/(?:main[.]ts|index[.]ts)$",
     "(?:^|/)(?:tests?|__tests__|spec)(?:/|$)|[.](?:test|spec)[.][^/]+$",
   ]);
@@ -152,7 +153,7 @@ test("layout exports, fresh values, exact options and custom roots", () => {
       ({ name }) => name === "app-folders",
     ).module.pathNot,
     [
-      "^apps/[^/]+/src/(?:features|read-models|ways-in|composition)/",
+      "^apps/[^/]+/src/(?:features|read-models|projections|ways-in|composition)/",
       "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$",
     ],
   );
@@ -166,7 +167,7 @@ test("layout exports, fresh values, exact options and custom roots", () => {
   ])
     assert.throws(() => layout({ scope: "@acme/", layers }), {
       name: "TypeError",
-      message: `layout(): unknown layer "${Object.keys(layers)[0]}". Known layers: features, readModels, waysIn, composition.`,
+      message: `layout(): unknown layer "${Object.keys(layers)[0]}". Known layers: features, readModels, projections, waysIn, composition.`,
     });
   for (const [options, message] of [
     [{ layer: {} }, /unknown option "layer"/u],

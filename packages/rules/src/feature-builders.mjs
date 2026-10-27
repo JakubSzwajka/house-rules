@@ -1,15 +1,17 @@
 import path from "node:path";
+import { readEntryEdges } from "./read-entry-edges.mjs";
 import { forbiddenBuilderImports, kitImplementation } from "./kit-builder-source.mjs";
 import { matchesAnyGlob } from "./file-globs.mjs";
 import { importOf, staticPropertyName, unwrapExpression } from "./import-bindings.mjs";
 import { sourceGraph } from "./source-provenance.mjs";
 import { featureOrigin, featureOptions } from "./feature-origin.mjs";
-import { ruleDocsUrl } from "./rule-docs.mjs";
+import { featureBuilderMeta } from "./feature-builder-meta.mjs";
 const application = (source) => /^@house-rules\/application(?:\/contract)?$/u.test(source);
 const builders = new Set([
   "defineOperation",
   "bindOperation",
   "defineFeature",
+  "defineReadModel",
   "defineWay",
   "endpoint",
 ]);
@@ -23,32 +25,11 @@ const approved = (binding) =>
   builders.has(binding?.imported) && binding.source === door(binding.imported);
 export const featureBuildersRule = {
   meta: {
-    type: "problem",
-    docs: {
-      url: ruleDocsUrl("feature-builders"),
-      description:
-        "Require direct named kit builders, inline builder options, one-file feature origins for HTTP/MCP exposures and resolved hook/schedule/event system starts, May.context and May.system, and operation builders outside features.",
-    },
-    schema: [
-      {
-        type: "object",
-        properties: {
-          appsDir: { type: "array", items: { type: "string" } },
-          packagesDir: { type: "array", items: { type: "string" } },
-        },
-        additionalProperties: false,
-      },
-    ],
+    ...featureBuilderMeta,
     messages: {
-      named:
-        "Import {{name}} by name from {{door}} and call it directly; no namespace, runtime alias, barrel, callback or dynamic import.",
-      origin:
-        "Call defineFeature only in features/<name>/index.ts; do not call defineOperation or bindOperation in features/.",
-      options:
-        "Pass builder options inline with no spread, computed keys or getters; pass features inline, once, for May.context and defineWay.",
-      system: "Hook, schedule and event ways expose only features with an explicit system start.",
-      exposure:
-        "Exposed or started features must resolve to this app's defineFeature in features/<name>/index.ts, directly or through its Features registry.",
+      ...featureBuilderMeta.messages,
+      readEdges:
+        "Read-model edges must resolve statically to declared read-only operations; remove write, unresolved or dynamic edges.",
     },
   },
   create(context) {
@@ -83,6 +64,8 @@ export const featureBuildersRule = {
       context.cwd,
       roots.map((root) => `${root}/*/src/features/*/index.ts`),
     );
+    const readModelFile = /\/src\/read-models\/[^/]+\/index\.ts$/u.test(filename);
+    const inReadModels = /\/src\/read-models\//u.test(filename);
     const inFeatures = matchesAnyGlob(
       filename,
       context.cwd,
@@ -200,6 +183,7 @@ export const featureBuildersRule = {
                 : imported.source === door("defineOperation")
                   ? "defineOperation"
                   : "defineFeature",
+              "defineReadModel",
             );
           return;
         }
@@ -282,11 +266,17 @@ export const featureBuildersRule = {
         if (!inPackage && name === "defineWay" && approved(binding))
           optionFeatures(node, node.arguments[0], true, true);
         if (!approved(binding)) return;
-        if (inPackage && ["defineFeature", "endpoint", "defineWay"].includes(name)) {
+        if (name === "defineReadModel" && !readEntryEdges(graph, filename, node.arguments[1]))
+          context.report({ node, messageId: "readEdges" });
+        if (
+          inPackage &&
+          ["defineFeature", "defineReadModel", "endpoint", "defineWay"].includes(name)
+        ) {
           named(node, name);
         } else if (
           (name === "defineFeature" && !featureFile) ||
-          (["defineOperation", "bindOperation"].includes(name) && inFeatures)
+          (name === "defineReadModel" && !readModelFile) ||
+          (["defineOperation", "bindOperation"].includes(name) && (inFeatures || inReadModels))
         )
           context.report({ node, messageId: "origin" });
       },

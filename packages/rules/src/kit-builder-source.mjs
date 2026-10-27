@@ -3,9 +3,14 @@ import path from "node:path";
 
 export const kitBuilderOrigin = (found) =>
   /^@house-rules\/(?:domain|application)(?:\/contract)?$/u.test(found?.source) &&
-  ["defineOperation", "bindOperation", "defineFeature", "defineWay", "endpoint"].includes(
-    found?.imported,
-  );
+  [
+    "defineOperation",
+    "bindOperation",
+    "defineFeature",
+    "defineReadModel",
+    "defineWay",
+    "endpoint",
+  ].includes(found?.imported);
 
 export const builderFromExport = (found, origin) =>
   found?.node ? origin(found.file, found.node) : kitBuilderOrigin(found) ? found : undefined;
@@ -54,7 +59,7 @@ export const forbiddenBuilderImports = (context, graph, filename, node, report) 
     if (used) continue;
     const origin = graph.resolve(filename, spec.local);
     if (
-      ["defineFeature", "defineWay", "endpoint"].includes(origin?.imported) &&
+      ["defineFeature", "defineReadModel", "defineWay", "endpoint"].includes(origin?.imported) &&
       /^@house-rules\/application(?:\/contract)?$/u.test(origin.source)
     )
       report(spec, origin.imported);

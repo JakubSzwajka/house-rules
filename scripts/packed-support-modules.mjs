@@ -6,6 +6,7 @@ export const SUPPORT_MODULES = [
   "contacts",
   "notifications",
   "push",
+  "push-node",
   "email",
   "projects",
 ];
@@ -15,12 +16,14 @@ export function supportImportLines() {
     const binding = name.replaceAll("-", "_");
     return [
       `import * as support_${binding} from "@house-rules/${name}";`,
-      `import * as support_${binding}_contract from "@house-rules/${name}/contract";`,
+      ...(name === "push-node"
+        ? []
+        : [`import * as support_${binding}_contract from "@house-rules/${name}/contract";`]),
     ];
   });
   const entries = SUPPORT_MODULES.map((name) => {
     const binding = name.replaceAll("-", "_");
-    return `{ name: "${name}", main: support_${binding}, contract: support_${binding}_contract }`;
+    return `{ name: "${name}", main: support_${binding}, contract: ${name === "push-node" ? "null" : `support_${binding}_contract`} }`;
   });
   return `${imports.join("\n")}\nconst supportPackages = [${entries.join(", ")}];`;
 }

@@ -1,6 +1,6 @@
 import { Effect, Schema, SchemaAST, type SchemaIssue } from "effect";
 import { errorKind, type InputSchema, type StructInput } from "@house-rules/domain/contract";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 
 export const inputIssues = ["unexpected", "missing", "invalid", "repeated"] as const;
 
@@ -77,7 +77,7 @@ const codecOf = (schema: Schema.Top, source: InputSource) =>
     ? Schema.toCodecStringTree(schema)
     : Schema.toCodecJson(schema)) as unknown as Schema.Codec<unknown, unknown>;
 
-export const decodeInput = <E extends AnyFeature>(
+export const decodeInput = <E extends AnyEntryPoint>(
   feature: E,
   raw: unknown,
   source: InputSource,
@@ -89,7 +89,7 @@ export const decodeInput = <E extends AnyFeature>(
     Effect.map((value) => value as E["input"]["Type"]),
   );
 
-export const decodeValue = <E extends AnyFeature>(
+export const decodeValue = <E extends AnyEntryPoint>(
   feature: E,
   raw: unknown,
 ): Effect.Effect<E["input"]["Type"], InputInvalid> =>

@@ -2,6 +2,14 @@
 
 The booking showcase app. [MAP.md](MAP.md) is its text app map and [plan.json](plan.json) is the same design as a plan.
 
+## Entry points
+
+All 12 queries use defineReadModel and the ReadModels registry. This includes the system-start due_payments schedule selector. The 17 commands stay in Features. Ways expose these descriptors directly through one shared runtime, with unchanged names, paths and permissions. MCP still exposes only show_booking and my_bookings; the migrated person queries stay HTTP-only.
+
+MyBookings SQL stays in projections/my-bookings with its mount and published-view privacy tests. AuditTrail stays in projections/audit-trail. Neither projection is an exposed entry point. show_booking uses domain operations without SQL in its handler.
+
+This is a breaking source-authoring change: import migrated query descriptors from read-models/index.ts rather than features/index.ts. HTTP clients keep the same endpoint keys and wire paths.
+
 ## Map and plan pages
 
 Run these from the repository root. Paths resolve from where you run the command. Do not commit the generated HTML.

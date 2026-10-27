@@ -59,6 +59,7 @@ export async function cruiseFixture(fixture, config, inspect) {
           ".": "./dist/index.js",
           // effect 4.0.3 ships SQL as ./sql, with modules under ./*; RCs used ./unstable/sql.
           "./sql": "./dist/sql/index.js",
+          "./encoding": "./dist/encoding/index.js",
           "./unstable/sql": "./dist/unstable/sql/index.js",
           "./unstable/http": "./dist/unstable/http/index.js",
           "./unstable/process": "./dist/unstable/process/index.js",
@@ -68,6 +69,10 @@ export async function cruiseFixture(fixture, config, inspect) {
       {
         "dist/index.js": "export const Effect = {};\n",
         "dist/Schema.js": "export const Schema = {};\n",
+        "dist/encoding/index.js": "export const Base64Url = {};\n",
+        "dist/encoding/Base64Url.js": "export const Base64Url = {};\n",
+        "dist/encoding/Hex.js": "export const encode = () => {};\n",
+        "dist/encoding/private.js": "export const privateCodec = {};\n",
         "dist/unstable/http/index.js": "export const HttpClient = {};\n",
         "dist/unstable/http/HttpClient.js": "export const HttpClient = {};\n",
         "dist/sql/index.js": "export const sql = {};\n",

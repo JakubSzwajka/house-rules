@@ -6,7 +6,7 @@ import {
   HttpClientRequest,
   type HttpClientResponse,
 } from "effect/http";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 import {
   type Endpoint,
   failureCodeHeader,
@@ -27,7 +27,7 @@ export class HttpFailure extends Schema.TaggedError<HttpFailure>()("HttpFailure"
 export type HttpFailureOf<Code extends string> = HttpFailure & { readonly code: Code };
 
 export type ClientCall<
-  E extends AnyFeature,
+  E extends AnyEntryPoint,
   Code extends string = never,
   Session extends SessionRole = "none",
 > = (

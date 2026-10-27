@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, realpath } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { parseForESLint } from "@typescript-eslint/parser";
 
@@ -18,9 +18,17 @@ const unique = (values, label) => {
     throw new Error(`App map requires exactly one source for ${label}, found ${values.length}`);
   return values[0];
 };
-const files = async (directory) => {
+const entries = async (directory, optional = false) => {
+  try {
+    return await readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (optional && error.code === "ENOENT") return [];
+    throw error;
+  }
+};
+const files = async (directory, optional = false) => {
   const result = [];
-  for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) =>
+  for (const entry of (await entries(directory, optional)).sort((a, b) =>
     a.name < b.name ? -1 : 1,
   )) {
     if (["tests", "adapters", "node_modules", "dist"].includes(entry.name)) continue;
@@ -69,6 +77,34 @@ const calls = (source, builder) => {
   visit(source);
   return result;
 };
+const installedPackage = async (packageName, appDirectory, rootDirectory, packageRoots) => {
+  if (typeof packageName !== "string" || !packageName.startsWith("@house-rules/")) return undefined;
+  let current = resolve(appDirectory);
+  const root = resolve(rootDirectory);
+  while (current === root || current.startsWith(`${root}/`)) {
+    const directory = resolve(current, "node_modules", ...packageName.split("/"));
+    try {
+      const manifest = JSON.parse(await readFile(resolve(directory, "package.json"), "utf8"));
+      if (manifest.name === packageName) {
+        const realDirectory = await realpath(directory);
+        if (
+          packageRoots.some(
+            (base) => realDirectory === base || realDirectory.startsWith(`${base}/`),
+          )
+        )
+          return undefined;
+        return { manifest, path: relative(rootDirectory, directory) };
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    if (current === root) break;
+    const parent = resolve(current, "..");
+    if (parent === current || !(parent === root || parent.startsWith(`${root}/`))) break;
+    current = parent;
+  }
+  return undefined;
+};
 const operationNames = async (directory) => {
   const names = [];
   for (const path of await files(directory))
@@ -81,7 +117,9 @@ const operationNames = async (directory) => {
 /** Read only literal source facts. Missing and conflicting ownership is an error. */
 export const appMapSources = async (snapshot, { appDirectory, rootDirectory, packageRoots }) => {
   const packageDirectories = [];
+  const realPackageRoots = [];
   for (const base of packageRoots) {
+    realPackageRoots.push(await realpath(resolve(rootDirectory, base)));
     for (const entry of await readdir(resolve(rootDirectory, base), { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       const directory = resolve(rootDirectory, base, entry.name);
@@ -91,37 +129,49 @@ export const appMapSources = async (snapshot, { appDirectory, rootDirectory, pac
       packageDirectories.push({ directory, path: relative(rootDirectory, directory) });
     }
   }
-  const registry = await parse(resolve(appDirectory, "src/features/index.ts"));
   const featurePaths = new Map();
-  for (const statement of registry.body.filter((node) => node.type === "ImportDeclaration")) {
-    const specifier = literal(statement.source);
-    if (!/^\.\/[^/]+\/index\.ts$/.test(specifier))
-      throw new Error("App map requires direct feature registry imports");
-    const path = resolve(appDirectory, "src/features", specifier);
-    const source = await parse(path);
-    const call = unique(calls(source, "defineFeature"), specifier);
-    const imported = unique(
-      statement.specifiers.filter(
-        (node) => node.type === "ImportSpecifier" && node.importKind !== "type",
-      ),
-      specifier,
-    );
-    const declaration = unique(
-      source.body
-        .filter(
-          (node) =>
-            node.type === "ExportNamedDeclaration" &&
-            node.declaration?.type === "VariableDeclaration",
-        )
-        .flatMap((node) => node.declaration.declarations)
-        .filter((node) => node.id.name === imported.imported.name),
-      specifier,
-    );
-    if (declaration.init !== call)
-      throw new Error("App map requires a direct exported feature declaration");
-    const name = literal(call.arguments[0]);
-    if (featurePaths.has(name)) throw new Error(`Ambiguous feature ${name}`);
-    featurePaths.set(name, relative(appDirectory, path));
+  for (const [area, builder, kind] of [
+    ["features", "defineFeature", "feature"],
+    ["read-models", "defineReadModel", "read-model"],
+  ]) {
+    const registryFile = resolve(appDirectory, `src/${area}/index.ts`);
+    let registry;
+    try {
+      registry = await parse(registryFile);
+    } catch (error) {
+      if (area === "read-models" && error.code === "ENOENT") continue;
+      throw error;
+    }
+    for (const statement of registry.body.filter((node) => node.type === "ImportDeclaration")) {
+      const specifier = literal(statement.source);
+      if (!/^\.\/[^/]+\/index\.ts$/.test(specifier))
+        throw new Error("App map requires direct feature registry imports");
+      const path = resolve(appDirectory, `src/${area}`, specifier);
+      const source = await parse(path);
+      const call = unique(calls(source, builder), specifier);
+      const imported = unique(
+        statement.specifiers.filter(
+          (node) => node.type === "ImportSpecifier" && node.importKind !== "type",
+        ),
+        specifier,
+      );
+      const declaration = unique(
+        source.body
+          .filter(
+            (node) =>
+              node.type === "ExportNamedDeclaration" &&
+              node.declaration?.type === "VariableDeclaration",
+          )
+          .flatMap((node) => node.declaration.declarations)
+          .filter((node) => node.id.name === imported.imported.name),
+        specifier,
+      );
+      if (declaration.init !== call)
+        throw new Error("App map requires a direct exported feature declaration");
+      const name = literal(call.arguments[0]);
+      if (featurePaths.has(name)) throw new Error(`Ambiguous feature ${name}`);
+      featurePaths.set(name, { path: relative(appDirectory, path), kind });
+    }
   }
   const owners = [];
   for (const { directory, path } of packageDirectories) {
@@ -135,21 +185,22 @@ export const appMapSources = async (snapshot, { appDirectory, rootDirectory, pac
     });
   }
   const appPackage = JSON.parse(await readFile(resolve(appDirectory, "package.json"), "utf8")).name;
-  for (const entry of await readdir(resolve(appDirectory, "src/read-models"), {
-    withFileTypes: true,
-  })) {
-    if (!entry.isDirectory()) throw new Error("Unexpected read-model entry");
-    const directory = resolve(appDirectory, "src/read-models", entry.name);
-    owners.push({
-      name: entry.name,
-      kind: "read-model",
-      package: appPackage,
-      path: relative(appDirectory, directory),
-      operations: await operationNames(directory),
-    });
+  for (const area of ["read-models", "projections"]) {
+    for (const entry of await entries(resolve(appDirectory, `src/${area}`), true)) {
+      if (entry.name === "index.ts" && entry.isFile()) continue;
+      if (!entry.isDirectory()) throw new Error("Unexpected projection entry");
+      const directory = resolve(appDirectory, `src/${area}`, entry.name);
+      owners.push({
+        name: entry.name,
+        kind: area === "projections" ? "projection" : "read-model",
+        package: appPackage,
+        path: relative(appDirectory, directory),
+        operations: await operationNames(directory),
+      });
+    }
   }
   const wayPaths = new Map();
-  for (const path of await files(resolve(appDirectory, "src/ways-in"))) {
+  for (const path of await files(resolve(appDirectory, "src/ways-in"), true)) {
     for (const call of calls(await parse(path), "defineWay")) {
       const options = call.arguments[0];
       if (
@@ -170,27 +221,50 @@ export const appMapSources = async (snapshot, { appDirectory, rootDirectory, pac
   }
   return {
     ...snapshot,
-    modules: snapshot.modules.map((module) => {
-      if (module.operations.length === 0)
-        throw new Error(`Cannot locate empty mount ${module.service}`);
-      const owner = unique(
-        owners.filter((owner) =>
+    modules: await Promise.all(
+      snapshot.modules.map(async (module) => {
+        if (module.operations.length === 0)
+          throw new Error(`Cannot locate empty mount ${module.service}`);
+        const matchingOwners = owners.filter((owner) =>
           module.operations.every((operation) => owner.operations.includes(operation.name)),
-        ),
-        module.service,
-      );
-      return {
-        ...module,
-        name: owner.name,
-        kind: owner.kind,
-        package: owner.package,
-        path: owner.path,
-      };
-    }),
+        );
+        if (matchingOwners.length > 0) {
+          const owner = unique(matchingOwners, module.service);
+          return {
+            ...module,
+            name: owner.name,
+            kind: owner.kind,
+            package: owner.package,
+            path: owner.path,
+          };
+        }
+        const installed = await installedPackage(
+          module.package,
+          appDirectory,
+          rootDirectory,
+          realPackageRoots,
+        );
+        if (installed !== undefined) {
+          return {
+            ...module,
+            name: installed.manifest.name.split("/").at(-1),
+            kind: "package",
+            package: installed.manifest.name,
+            version: installed.manifest.version,
+            path: installed.path,
+          };
+        }
+        throw new Error(`App map requires exactly one source for ${module.service}, found 0`);
+      }),
+    ),
     features: snapshot.features.map((feature) => ({
       ...feature,
       path: unique(
-        [...featurePaths].filter(([name]) => name === feature.name).map(([, path]) => path),
+        [...featurePaths]
+          .filter(
+            ([name, fact]) => name === feature.name && fact.kind === (feature.kind ?? "feature"),
+          )
+          .map(([, fact]) => fact.path),
         feature.name,
       ),
     })),

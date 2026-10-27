@@ -27,13 +27,14 @@ apps/                        your apps
 examples/booking/            private reference app and its domain packages
 packages/
   domain/                    descriptors, callers, graphs, modules and units
-  application/               features, bindings, execution, ways and clients
+  application/               entry points, bindings, execution, ways and clients
   auth-jwt/                  token verification plug
   call-audit/                feature audit plug
   comments/                  comments module
   identity/                  login bindings, passwords, OIDC and Who plug
   migrations/                module migration runner
   node-host/                 plain fetch handler on a Node socket
+  express-host/              optional real Express listener, shared Node bridge
   party/                     people, organisations, relationships and roles
   rules/                     shared checks and presets
 site/                        private Astro docs site
@@ -46,61 +47,64 @@ App source has these areas:
 ```text
 src/
   features/<name>/           index.ts with one feature and handler, tests/
-  read-models/<name>/        screen query over published views
+  read-models/<name>/        defineReadModel query and handler, tests/
+  projections/<name>/        optional published-view SQL query infrastructure
   ways-in/<name>/            HTTP/MCP endpoints, hooks or UTC schedules
   composition/              mount, link, plug, open ways, schedule
   main.ts                   join the root and ways, start the Host
 ```
 
-Domain modules are packages, including app-owned ones such as `examples/booking/packages/bookings`. A module owns its tables, migrations and object rules. Its public doors are `index.ts` and optional browser-safe `contract.ts`. A read model stays in the app and selects published views, never private tables.
+Domain modules are packages, including app-owned ones such as `examples/booking/packages/bookings`. A module owns its tables, migrations and object rules. Its public doors are `index.ts` and optional browser-safe `contract.ts`. A read model composes declared read-only module operations. Optional app projections select published views, never private tables.
 
 ## How a call runs
 
 ```text
-request -> way (Who, Mean) -> app feature -> app May role check
+request -> way (Who, Mean) -> app entry point -> app May role check
   record -> feature identity -> person/system closures -> approval -> one unit
-    handler -> declared edges -> module or read-model operations
+    handler -> declared edges -> module or projection operations
                |
             step trace
 ```
 
 Application's `defineFeature` puts one app action and its handler in `features/<name>/index.ts`. A feature is its own entry. Its handler only calls declared edges, so the file stays browser-safe. `features/index.ts` exports only Features. Composition declares built-in roles and system permissions, and plugs `Party.may()` once. Party owns custom roles and assignments. The runtime publishes the operation permission catalogue.
 
-Domain's `defineOperation` describes module or read-model work. Modules export `<Module>Operations` from `./contract`. Application's `bindOperation` captures their services in composition. Only features can be exposed through ways, hooks or schedules.
+Domain's `defineOperation` describes module or projection work. Modules export `<Module>Operations` from `./contract`. Application's `bindOperation` captures their services in composition. Features and read models are exposed directly through ways, hooks or schedules. defineReadModel lives in read-models/<name>/index.ts with its schemas and handler; ReadModels is its registry. Both kinds use the same executor. Explicit kind, not readOnly, distinguishes queries from commands. BREAKING authoring migration: the default recommended lint preset now rejects readOnly:true defineFeature calls and unresolved command flags. Move queries to direct defineReadModel calls in read-models/<name>/index.ts and split Features and ReadModels registries. Keep projection infrastructure in projections/. The runtime still accepts legacy descriptors. The [command-kind guide](packages/rules/docs/command-kind.md) explains the conservative loader fences, including every nonliteral dynamic import in production src and literal loading of modules containing finished features or builder wrappers. They do not prove arbitrary JavaScript behavior or handler purity.
 
 A plain edge keeps the caller. `asSystem(target, reason)` switches that branch to the system and never back. A feature derives its permission closures and flags from the graph. Approval runs once. Only the feature runtime opens a production unit; handlers and modules join it. A failed write rolls back the graph's stored changes, not external provider effects.
 
 Every inner call rechecks its own permission against the permissions loaded at feature start.
 
-Ways import values from kits, `effect`, package contract doors, features, composition and their own folder. Other package main entries allow types only. Build concrete plugs in composition and pass them into ways. The root receives ways from `main.ts`; it never imports them.
+Ways import values from kits, `effect`, package contract doors, feature/read-model indexes, composition and their own folder. Other package main entries allow types only. Build concrete plugs in composition and pass them into ways. The root receives ways from `main.ts`; it never imports them.
 
 Expected errors declare a kind. Application maps that kind to a fixed status and code. Ways may change message text only. Unavailable and plumbing errors use fixed public messages; driver details stay internal. Defects answer generic 500.
 
 ## Packages and guides
 
-These are workspace versions, not a claim that the changed APIs are already on npm. Release needs owner approval.
+This is the approved stable release inventory. Exact versions and pins are recorded in [release-20261027/versions.json](docs/tasks/release-20261027/versions.json); publication still happens only through `.github/workflows/publish.yml`.
 
 | Package | Version | Guide |
 | --- | --- | --- |
-| `@house-rules/domain` | `0.2.0` | [Domain](packages/domain/README.md) |
-| `@house-rules/application` | `0.2.0` | [Application](packages/application/README.md) |
-| `@house-rules/rules` | `0.19.0` | [Rules](packages/rules/README.md) |
-| `@house-rules/migrations` | `0.4.0` | [Migrations](packages/migrations/README.md) |
-| `@house-rules/node-host` | `0.2.0` | [Node Host](packages/node-host/README.md) |
-| `@house-rules/comments` | `0.2.0` | [Comments](packages/comments/README.md) |
-| `@house-rules/party` | `0.1.0` | [Party](packages/party/README.md) |
-| `@house-rules/identity` | `0.1.0` | [Identity](packages/identity/README.md) |
-| `@house-rules/auth-jwt` | `0.1.0` | [JWT](packages/auth-jwt/README.md) |
-| `@house-rules/call-audit` | `0.7.0` | [Audit](packages/call-audit/README.md) |
-| `@house-rules/work-items` | `0.1.0` | [Work Items](packages/work-items/README.md) |
-| `@house-rules/notes` | `0.1.0` | [Notes](packages/notes/README.md) |
-| `@house-rules/relations` | `0.1.0` | [Relations](packages/relations/README.md) |
-| `@house-rules/event-log` | `0.1.0` | [Event Log](packages/event-log/README.md) |
-| `@house-rules/contacts` | `0.1.0` | [Contacts](packages/contacts/README.md) |
-| `@house-rules/notifications` | `0.1.0` | [Notifications](packages/notifications/README.md) |
-| `@house-rules/push` | `0.1.0` | [Push](packages/push/README.md) |
-| `@house-rules/email` | `0.1.0` | [Email](packages/email/README.md) |
-| `@house-rules/projects` | `0.1.0` | [Projects](packages/projects/README.md) |
+| `@house-rules/rules` | `0.20.0` | [Rules](packages/rules/README.md) |
+| `@house-rules/domain` | `0.2.1` | [Domain](packages/domain/README.md) |
+| `@house-rules/application` | `0.3.0` | [Application](packages/application/README.md) |
+| `@house-rules/auth-jwt` | `0.1.1` | [JWT](packages/auth-jwt/README.md) |
+| `@house-rules/identity` | `0.1.1` | [Identity](packages/identity/README.md) |
+| `@house-rules/party` | `0.1.1` | [Party](packages/party/README.md) |
+| `@house-rules/migrations` | `0.4.1` | [Migrations](packages/migrations/README.md) |
+| `@house-rules/call-audit` | `0.7.1` | [Audit](packages/call-audit/README.md) |
+| `@house-rules/comments` | `0.2.1` | [Comments](packages/comments/README.md) |
+| `@house-rules/node-host` | `0.2.1` | [Node Host](packages/node-host/README.md) |
+| `@house-rules/express-host` | `0.1.0` | [Express Host](packages/express-host/README.md) |
+| `@house-rules/work-items` | `0.1.1` | [Work Items](packages/work-items/README.md) |
+| `@house-rules/notes` | `0.1.1` | [Notes](packages/notes/README.md) |
+| `@house-rules/relations` | `0.1.1` | [Relations](packages/relations/README.md) |
+| `@house-rules/event-log` | `0.1.1` | [Event Log](packages/event-log/README.md) |
+| `@house-rules/contacts` | `0.1.1` | [Contacts](packages/contacts/README.md) |
+| `@house-rules/notifications` | `0.1.1` | [Notifications](packages/notifications/README.md) |
+| `@house-rules/push` | `0.1.1` | [Push](packages/push/README.md) |
+| `@house-rules/push-node` | `0.1.0` | [Push Node](packages/push-node/README.md) |
+| `@house-rules/email` | `0.1.1` | [Email](packages/email/README.md) |
+| `@house-rules/projects` | `0.1.1` | [Projects](packages/projects/README.md) |
 
 Each framework package an app mounts ships `AGENTS.md`. Load the [house-rules skill](skills/house-rules/SKILL.md) to find the right guide.
 
@@ -120,7 +124,7 @@ Warnings fail Biome and ESLint. All Dependency Cruiser rules have error severity
 
 CI starts Postgres, installs the frozen lockfile, then runs check, test, packed-consumer, the booking API build and the site build. The booking example serves a Vite/React shadcn dashboard with real sign-in through `/api` and read-only MCP at `/mcp`. Every new login gets the member role. Its build writes the page to `dist/web`, then bundles `src/main.ts` for Node. Production requires ACCOUNTS_SIGNING_KEY, a private P-256 JWK, and APP_ORIGIN over HTTPS for Secure cookies. Optional MCP_AUTH_ISSUER adds the real OIDC MCP provider; without it MCP stays closed. The devLocal test issuer is mounted only in development/test.
 
-`pnpm run packed-consumer` builds and packs all 19 public packages, installs them in a cold npm consumer, and checks Node, TypeScript, browser contracts, layout and migration behavior. It needs the registry. `pnpm acceptance` clones committed HEAD into a temp folder and runs frozen install, check and test. It cannot see uncommitted work.
+`pnpm run packed-consumer` builds and packs all 21 public packages, installs them in a cold npm consumer, and checks Node, TypeScript, browser contracts, layout and migration behavior. It needs the registry. `pnpm acceptance` clones committed HEAD into a temp folder and runs frozen install, check and test. It cannot see uncommitted work.
 
 ## Pins and environment
 
@@ -136,7 +140,7 @@ Lefthook runs check then test before every commit. Pi's interceptor and `scripts
 
 Checks do not replace review. Review module boundaries, explicit Actor arguments, object policy, fixed public error messages and SQL ownership inside procedural bodies. A plug must pass the pull-out test: removing it and its `Layer.provide` line leaves the rest building and passing. Test each exposed agent tool for A/B access under fake actors. MCP stays read-only unless the owner approves writes.
 
-The reference [booking app](examples/booking/README.md) shows booking and payment writes in one feature, a system refund edge, shared Party/Identity operations and a private read model. [TESTS.md](examples/booking/TESTS.md) names its proof and remaining gaps. Its [app map](examples/booking/apps/api/MAP.md) is generated; the freshness test never writes it. Run `pnpm --filter @example/api map` for the app map, with `--json`, `--mermaid` or `--write` to select output or refresh MAP.md.
+The reference [booking app](examples/booking/README.md) shows booking and payment writes in one feature, a system refund edge, shared Party/Identity operations and an exposed read model backed by a private SQL projection. [TESTS.md](examples/booking/TESTS.md) names its proof and remaining gaps. Its [app map](examples/booking/apps/api/MAP.md) is generated; the freshness test never writes it. Run `pnpm --filter @example/api map` for the app map, with `--json`, `--mermaid` or `--write` to select output or refresh MAP.md.
 
 ## Change the template
 

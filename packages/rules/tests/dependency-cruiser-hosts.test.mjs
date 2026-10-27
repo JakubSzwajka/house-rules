@@ -98,7 +98,8 @@ test("Next route files and private folders get npm imports, but loose app files 
     {
       ...tree,
       "apps/web/src/app/kanban/page.tsx":
-        "import {report} from '../../read-models/report/index.ts';",
+        "import {report} from '../../projections/report/index.ts';",
+      "apps/web/src/projections/report/index.ts": "export const report = {};",
     },
     layout({ scope: "@acme/", host: "next" }),
   );
@@ -144,7 +145,7 @@ test("Next changes host-owned paths only and keeps every severity", () => {
     ],
   );
   assert.deepEqual(rule(next, "app-folders").module.pathNot.slice(0, 2), [
-    "^apps/[^/]+/src/(?:features|read-models|app|composition)/",
+    "^apps/[^/]+/src/(?:features|read-models|projections|app|composition)/",
     "^apps/[^/]+/src/(?:proxy[.]ts|instrumentation[.]ts)$",
   ]);
   assert.deepEqual(rule(next, "no-unresolved-imports").from, {
@@ -165,7 +166,7 @@ test("explicit area overrides win and host lists add to consumer lists", () => {
     generatedDeclarationFiles: ["src/routes.d.ts"],
   });
   assert.deepEqual(rule(config, "app-folders").module.pathNot.slice(0, 2), [
-    "^apps/[^/]+/src/(?:features|read-models|pages|composition)/",
+    "^apps/[^/]+/src/(?:features|read-models|projections|pages|composition)/",
     "^apps/[^/]+/src/(?:proxy[.]ts|sentry[.]server[.]config[.]ts|instrumentation[.]ts)$",
   ]);
   assert.deepEqual(rule(config, "no-unresolved-imports").from, {

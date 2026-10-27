@@ -4,7 +4,8 @@ import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
 import { Context, Effect, Layer } from "effect";
 import { Features } from "../../features/index.ts";
-import { MyBookings } from "../../read-models/my-bookings/index.ts";
+import { ReadModels } from "../../read-models/index.ts";
+import { MyBookings } from "../../projections/my-bookings/index.ts";
 import { modulePlan, createApp } from "../app.ts";
 import { systemPermissions } from "../access.ts";
 import { seedRoleTesting } from "./roles-testing.ts";
@@ -40,7 +41,7 @@ for (const storage of ["memory", "postgres"] as const) {
           Context.merge(
             Context.add(context, CurrentActor, Actor.make({ id: ActorId.make(id) })),
             May.context(may, {
-              features: Object.values(Features),
+              features: [...Object.values(Features), ...Object.values(ReadModels)],
               system: systemPermissions,
               via: "web",
             }),
@@ -84,14 +85,14 @@ for (const storage of ["memory", "postgres"] as const) {
           }).pipe(Effect.provideContext(as("owner")));
         for (const id of ["staff", "acme-admin"])
           assert.strictEqual(
-            (yield* runFeature(Features.showBooking, { id: "acme-1" }).pipe(
+            (yield* runFeature(ReadModels.showBooking, { id: "acme-1" }).pipe(
               Effect.provideContext(as(id)),
             )).id,
             "acme-1",
           );
         for (const id of ["beta", "outsider", "beta-admin"]) {
           assert.strictEqual(
-            (yield* runFeature(Features.showBooking, { id: "acme-1" }).pipe(
+            (yield* runFeature(ReadModels.showBooking, { id: "acme-1" }).pipe(
               Effect.provideContext(as(id)),
               Effect.flip,
             ))._tag,
@@ -135,7 +136,7 @@ for (const storage of ["memory", "postgres"] as const) {
           Effect.provide(Approval.allowAll),
         );
         assert.strictEqual(
-          (yield* runFeature(Features.showBooking, { id: "acme-1" }).pipe(
+          (yield* runFeature(ReadModels.showBooking, { id: "acme-1" }).pipe(
             Effect.provideContext(as("staff")),
             Effect.flip,
           ))._tag,

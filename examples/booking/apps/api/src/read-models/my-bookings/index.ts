@@ -1,16 +1,13 @@
-import { MyBookings } from "./facade.ts";
-import { MyBookingsOperations } from "./booking/operations.ts";
-import { bindMyBookings } from "./booking/bind-my-bookings.ts";
-import type { MountDefinition } from "@house-rules/application";
-export const MyBookingsMount = {
-  map: { name: "my-bookings", kind: "read-model", package: "@example/api" },
-  service: MyBookings,
-  operations: Object.values(MyBookingsOperations),
-  bind: bindMyBookings,
-} satisfies MountDefinition<MyBookings, MyBookings["Service"]>;
-export { MyBookings };
-export { bindMyBookings } from "./booking/bind-my-bookings.ts";
-export { MyBookingsOperations } from "./booking/operations.ts";
-export { MyBooking, ReadUnavailable, ReadCallerDenied } from "./booking/my-bookings.ts";
-export { MyBookingStore } from "./storage.ts";
-export { postgresMyBookingStore } from "./adapters/postgres/my-bookings.ts";
+import { MyBookingsOperations } from "../../projections/my-bookings/contract.ts";
+import { defineReadModel } from "@house-rules/application/contract";
+export const myBookings = defineReadModel("my_bookings", {
+  description: "List your bookings and their payment status.",
+  title: "List your bookings and their payment status",
+  permission: null,
+  input: MyBookingsOperations.myBookings.input,
+  output: MyBookingsOperations.myBookings.output,
+  failure: MyBookingsOperations.myBookings.failure,
+  flags: { readOnly: true },
+  edges: [MyBookingsOperations.myBookings],
+  handler: (input, { call }) => call(MyBookingsOperations.myBookings, input),
+});

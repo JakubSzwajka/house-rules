@@ -6,6 +6,8 @@ The template has no Dockerfile and no health endpoint, so the workflow never run
 
 ## House Rules package releases
 
+For local package testing without npm, see [the local framework registry guide](local-registry.md).
+
 The npm packages use `.github/workflows/publish.yml`, not the application release flow below. It starts on package tag pushes and manual runs. Pull requests trigger it only for changes to the workflow, `scripts/tag-published.mjs`, `scripts/packed-*.mjs`, `scripts/tarball-content.mjs`, or `tests/publish-workflow*.mjs` and `tests/tag-published*.mjs`. Other package changes use `ci.yml` alone. After its read-only verify job passes, an approved publish job runs `pnpm publish -r --access public --provenance --no-git-checks --report-summary`.
 
 Only after that command succeeds, `scripts/tag-published.mjs` reads `pnpm-publish-summary.json`. It creates `@house-rules/<pkg>@<version>` tags for the packages the report says were published, then pushes those tags atomically. Already-published versions and private packages get no new tag. A tag already at the published commit stays untouched; a tag at another commit fails the job rather than moving it.
@@ -14,7 +16,7 @@ Only the publish job has `contents: write`, needed to push those tags. Its check
 
 ### Kits release preparation
 
-This section records the earlier kits release preparation, kept as history. The current plan is under "Current 19-package release preparation" below.
+This section records the earlier kits release preparation, kept as history. The current inventory is under "Current 21-package release preparation" below.
 
 Merge first, publish later. This change splits `@house-rules/capability` into two kits and prepares seven public packages:
 
@@ -34,35 +36,37 @@ Before a later approved publish, confirm the `NPM_TOKEN` owner can create `@hous
 
 Consumers must wait 24 hours after a future publication under this repo's release-age policy. No `minimumReleaseAgeExclude` entry is added; any exception needs separate owner approval.
 
-### Current 19-package release preparation
+### Current 21-package release inventory
 
-Merge first, publish later. This release adds nine support modules and prepares all 19 public packages:
+This is the operator-approved stable release cohort from accepted `6c0dba02f88a4bcd700304b9029e18a1c53c81e9`. Approval relayed through Conductor covers preparing this release for the existing workflow. It does not authorize hand publication or bypass any workflow gate. The exact machine-readable inventory is [versions.json](tasks/release-20261027/versions.json).
 
-| Package | npm | Release | Why |
-| --- | --- | --- | --- |
-| `@house-rules/rules` | 0.18.0 | 0.19.0 | - Next treats `src/app` as one way area; route folders are URL paths, not ways.<br>- The v2 correction removes the `nodes` and `modules` area keys and `deliveryLayer`. |
-| `@house-rules/domain` | 0.1.0 | 0.2.0 | - The v2 migration replaces nodes, entries and ways with features and package modules.<br>- Operations now use `defineOperation`; features target operations through declared edges. |
-| `@house-rules/application` | 0.1.0 | 0.2.0 | - The v2 rewrite replaces entries and the node API with one-file features, operations and package modules.<br>- Runtime mounts now capture bindings once and derive the permission catalogue.<br>- Adds isolated hook, schedule and event ways, system-role access and feature-to-feature edge rejection. |
-| `@house-rules/migrations` | 0.3.0 | 0.4.0 | - Migration locations now identify a workspace or package, not a folder path.<br>- Adds SQL health checks for the Node Host's `/healthz` and `/readyz` probes. |
-| `@house-rules/call-audit` | 0.6.0 | 0.7.0 | - Mounting now uses the application kit's captured module bindings.<br>- Audit rows gain required target data; direct reads use `AuditReader`. |
-| `@house-rules/comments` | 0.1.0 | 0.2.0 | - Comments now exports a `CommentsMount` for application runtime wiring.<br>- Its package operations follow the v2 feature and operation model. |
-| `@house-rules/node-host` | 0.1.0 | 0.2.0 | - The v2 migration removes the old node runtime and entry APIs.<br>- Composition now uses the application kit's feature/runtime model.<br>- Adds `/healthz` and `/readyz` probes outside the feature router. |
-| `@house-rules/auth-jwt` | not published | 0.1.0 | First release. Clerk preset requires `authorizedParties`; tolerance defaults to 5 seconds. |
-| `@house-rules/identity` | not published | 0.1.0 | First release. `ActorStanding` is now a required slot. |
-| `@house-rules/party` | not published | 0.1.0 | First release. `lockActive` answers `PersonNotFound` to person callers for disabled principals. |
-| `@house-rules/work-items` | not published | 0.1.0 | First release. |
-| `@house-rules/notes` | not published | 0.1.0 | First release. |
-| `@house-rules/relations` | not published | 0.1.0 | First release. |
-| `@house-rules/event-log` | not published | 0.1.0 | First release. |
-| `@house-rules/contacts` | not published | 0.1.0 | First release. |
-| `@house-rules/notifications` | not published | 0.1.0 | First release. |
-| `@house-rules/push` | not published | 0.1.0 | First release. |
-| `@house-rules/email` | not published | 0.1.0 | First release. |
-| `@house-rules/projects` | not published | 0.1.0 | First release. |
+The bridge-bearing Node Host is released as `0.2.1`; Express Host `0.1.0` depends on that exact package version. The former npm Node Host `0.2.0` lacks `createNodeRequestHandler`, so the coordinated bump is required for compatibility.
 
-The exact workspace pins move together with these package versions. The support modules peer on the released kits and ship `AGENTS.md`, `README.md`, and migrations where declared.
+| Package | Stable version |
+| --- | --- |
+| `@house-rules/rules` | `0.20.0` |
+| `@house-rules/domain` | `0.2.1` |
+| `@house-rules/application` | `0.3.0` |
+| `@house-rules/auth-jwt` | `0.1.1` |
+| `@house-rules/identity` | `0.1.1` |
+| `@house-rules/party` | `0.1.1` |
+| `@house-rules/migrations` | `0.4.1` |
+| `@house-rules/call-audit` | `0.7.1` |
+| `@house-rules/comments` | `0.2.1` |
+| `@house-rules/node-host` | `0.2.1` |
+| `@house-rules/express-host` | `0.1.0` |
+| `@house-rules/work-items` | `0.1.1` |
+| `@house-rules/notes` | `0.1.1` |
+| `@house-rules/relations` | `0.1.1` |
+| `@house-rules/event-log` | `0.1.1` |
+| `@house-rules/contacts` | `0.1.1` |
+| `@house-rules/notifications` | `0.1.1` |
+| `@house-rules/push` | `0.1.1` |
+| `@house-rules/push-node` | `0.1.0` |
+| `@house-rules/email` | `0.1.1` |
+| `@house-rules/projects` | `0.1.1` |
 
-Before publishing, confirm the `NPM_TOKEN` owner can create `@house-rules/auth-jwt`, `@house-rules/identity`, `@house-rules/party`, `@house-rules/work-items`, `@house-rules/notes`, `@house-rules/relations`, `@house-rules/event-log`, `@house-rules/contacts`, `@house-rules/notifications`, `@house-rules/push`, `@house-rules/email` and `@house-rules/projects` in the scope. These 12 names have never been published. A token limited to existing packages will not cover them.
+Every internal peer, dependency and workspace pin moves with this inventory. Consumer pins and the lockfile match. External dependency versions and supply-chain policies are unchanged. Historical release tables below retain their original versions as history. Do not manually publish; the approved release proceeds only through `.github/workflows/publish.yml`, after its normal checks and permissions succeed.
 
 ### Party and auth release preparation (history)
 
@@ -90,7 +94,7 @@ Before a later approved publish, confirm the `NPM_TOKEN` owner can create `@hous
 A workflow rerun may publish nothing, leaving an empty summary. Normal tagging then does nothing. A missing summary is an error: the tagging step fails the job and prints a recovery hint. Do not bump versions or republish to fix tags.
 
 1. [ ] In a clean checkout, fetch tags and check out the exact release commit from the failed run, not today's `main`. Confirm `git rev-parse HEAD` matches that run. Use the fixed recovery script from a newer checkout if the release commit lacks it.
-2. [ ] Run `node /path/to/fixed/scripts/tag-published.mjs --recover --dry-run` from that release checkout. It reads the 19 known public workspace versions, plus the retired `capability` package, which only recovery reads, queries npm for each exact version and fetches `dist.attestations.url`. It decodes the DSSE payload's SLSA provenance and reads `predicate.buildDefinition.resolvedDependencies[].digest.gitCommit`. The workflow repository and source URI must name `JakubSzwajka/house-rules`; the source commit must equal HEAD for a package to qualify. `gitHead` is not used. The dry run prints matching packages and commits, checks local tag conflicts and makes no Git writes.
+2. [ ] Run `node /path/to/fixed/scripts/tag-published.mjs --recover --dry-run` from that release checkout. It reads the 21 known public workspace versions, plus the retired `capability` package, which only recovery reads, queries npm for each exact version and fetches `dist.attestations.url`. It decodes the DSSE payload's SLSA provenance and reads `predicate.buildDefinition.resolvedDependencies[].digest.gitCommit`. The workflow repository and source URI must name `JakubSzwajka/house-rules`; the source commit must equal HEAD for a package to qualify. `gitHead` is not used. The dry run prints matching packages and commits, checks local tag conflicts and makes no Git writes.
 3. [ ] With approval to push the release tags and an authenticated `origin`, rerun without `--dry-run`. Recovery pushes all matching tags atomically, including local tags left by a failed push. Check the tags on `origin`. It never moves a tag at another commit and also recovers packages that reached npm before a partial publish failure.
 
 Unpublished versions and versions sourced from another commit are skipped. Missing or unreadable attestations, a foreign repository, malformed provenance and registry failures other than 404 stop recovery before any tag is created. Recovery reads provenance served by npm; it does not verify bundle signatures itself.

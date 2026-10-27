@@ -1,7 +1,7 @@
 import { isPlainPath, isPlainPrefix } from "../contract/api.ts";
 import { pathParamNames } from "../contract/endpoint.ts";
 import { checkSessionPlace } from "../contract/session.ts";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 import type { EventWay, HookWay, ScheduleWay, SystemFeature, WayOptions } from "./way.ts";
 import { prefixMismatch } from "./api-prefix.ts";
 import { checkCors } from "./cors.ts";
@@ -31,7 +31,7 @@ export const isNetworkWay = <R>(way: AnyWay<R>): way is NetworkWay<R> =>
   way.protocol === "http" || way.protocol === "mcp";
 
 export const validateWays = <R>(
-  features: readonly AnyFeature[],
+  features: readonly AnyEntryPoint[],
   ways: readonly AnyWay<R>[],
 ): string | undefined => {
   const names = new Set<string>();

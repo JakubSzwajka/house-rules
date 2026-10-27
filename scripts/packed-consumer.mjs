@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { assertCleanTarball, assertTarballRulesAreLive } from "./tarball-content.mjs";
 import { assertNextHost } from "./packed-next-host.mjs";
+import { assertPackedExpressHost, expressConsumerFiles } from "./packed-express-host.mjs";
 import { workspaceConsumerFiles } from "./packed-workspace.mjs";
 import {
   assertContractRuleIsLive,
@@ -27,6 +29,7 @@ const PUBLISHED_IN_BUILD_ORDER = [
   "call-audit",
   "comments",
   "node-host",
+  "express-host",
   "rules",
   ...SUPPORT_MODULES,
 ];
@@ -92,7 +95,22 @@ function checkTarball(folder, tarball) {
   assert.ok(!files.some((file) => /(?:^|\/)tests\//u.test(file)), `${source.name} ships tests`);
 }
 
+const sourceState = () => ({
+  head: run("git", ["rev-parse", "HEAD"], root, { capture: true }).trim(),
+  status: run("git", ["status", "--porcelain=v1", "--untracked-files=all"], root, {
+    capture: true,
+  }).trim(),
+});
 const work = mkdtempSync(path.join(os.tmpdir(), "house-rules-consumer-"));
+const proof = {
+  command: `${process.env.KEEP === "1" ? "KEEP=1 " : ""}pnpm run packed-consumer`,
+  cwd: root,
+  node: process.version,
+  startedAt: new Date().toISOString(),
+  source: sourceState(),
+  tarballs: {},
+  exitCode: 1,
+};
 try {
   const packs = path.join(work, "packs");
   const tarballs = {};
@@ -106,7 +124,14 @@ try {
     const tarball = out.trim().split("\n").pop().trim();
     assert.match(tarball, /\.tgz$/u, `pnpm pack printed no tarball for ${folder}:\n${out}`);
     checkTarball(folder, tarball);
-    tarballs[readJson(path.join(root, "packages", folder, "package.json")).name] = tarball;
+    const name = readJson(path.join(root, "packages", folder, "package.json")).name;
+    tarballs[name] = tarball;
+    const bytes = readFileSync(tarball);
+    proof.tarballs[name] = {
+      path: tarball,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+      integrity: `sha512-${createHash("sha512").update(bytes).digest("base64")}`,
+    };
   }
 
   const pins = readJson(path.join(root, "package.json")).devDependencies;
@@ -159,7 +184,7 @@ assert.equal(contract.defineFeature, application.defineFeature);
 assert.equal(typeof domain.defineModule, "function");
 for (const { name, main, contract } of supportPackages) {
   assert.ok(Object.keys(main).length > 0, name + " main entry exports");
-  assert.ok(Object.keys(contract).length > 0, name + " contract entry exports");
+  if (contract !== null) assert.ok(Object.keys(contract).length > 0, name + " contract entry exports");
 }
 assert.equal(domainContract.ActorId, domain.ActorId);
 assert.equal(domainContract.UnitOfWorkFailed, domain.UnitOfWorkFailed);
@@ -228,6 +253,7 @@ NodePlatform.runMain(Effect.gen(function* () {
 `,
     ...commentsConsumerFiles,
     ...authConsumerFiles,
+    ...expressConsumerFiles,
     "rules.mjs": [
       'import assert from "node:assert/strict";',
       'import rules from "@house-rules/rules";',
@@ -283,6 +309,7 @@ NodePlatform.runMain(Effect.gen(function* () {
   assertPackedComments(app, { run, write, failure });
   assertPackedAuth(app, { run });
   const tsc = path.join(root, "node_modules/.bin/tsc");
+  assertPackedExpressHost(app, tsc, { run });
   run(tsc, ["--project", "tsconfig.json"], app);
   run(tsc, ["--project", "tsconfig.web.json"], app);
   run(
@@ -296,7 +323,14 @@ NodePlatform.runMain(Effect.gen(function* () {
   assertNextHost(app, tsc, { run, write, readJson, failure });
   assertTarballRulesAreLive(work, root);
   console.log("packed consumer: tarballs, plain node, tsc, layout rules and the Next host pass");
+  proof.exitCode = 0;
 } finally {
+  proof.finishedAt = new Date().toISOString();
+  proof.sourceAfter = sourceState();
+  write(work, { "proof.json": proof });
+  console.log(
+    `packed consumer exit: ${proof.exitCode}; metadata: ${path.join(work, "proof.json")}`,
+  );
   if (process.env.KEEP === "1") console.log(`kept ${work}`);
   else rmSync(work, { recursive: true, force: true });
 }

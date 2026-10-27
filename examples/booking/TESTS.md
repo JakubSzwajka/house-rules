@@ -9,7 +9,7 @@ Paths start at the repository root unless stated otherwise. Evidence keys below 
 - `apps/api/src/composition/tests/browser-reads.test.ts`: memory/Postgres A/B profile and catalogue reads, admin-wide audit gate, private my_activity filtering, and custom-role deletion.
 - `packages/party/src/adapters/tests/my-access.test.ts`: both stores return only the caller's assignments and refuse system reads.
 - `packages/call-audit/src/adapters/tests/reader.test.ts`: captured readers on memory/Postgres filter A/B rows before limiting and need no per-call SQL service.
-- `apps/api/src/read-models/audit-trail/adapters/service/tests/audit-trail.test.ts`: maps stored recordedAt to epoch-ms `at` and viewerId to nullable `who` for audit entries, with own-actor filtering unchanged. The browser-reads memory/Postgres case checks timestamp bounds, actor ids and equal profile entries through `recent_audit` and `my_activity`.
+- `apps/api/src/projections/audit-trail/adapters/service/tests/audit-trail.test.ts`: maps stored recordedAt to epoch-ms `at` and viewerId to nullable `who` for audit entries, with own-actor filtering unchanged. The browser-reads memory/Postgres case checks timestamp bounds, actor ids and equal profile entries through `recent_audit` and `my_activity`.
 - `apps/api/src/tests/node-host.test.ts` runs `scripts/host-smoke.mjs`: builds the page, serves GET / as HTML, preserves POST /api/my_profile as 401 JSON, checks unset MCP, missing production key refusal and successful production GET / plus sign_up with a temporary key, and closes children.
 - `apps/api/src/ways-in/web/page/tests/approval.test.ts`: lifted needsApproval selects cancellation, role revoke and deletion for browser confirmation.
 - `packages/rules/tests/dependency-cruiser-ways.test.mjs`: browser UI dependencies work only under a way's page folder, with workspace main, builtin and SQL fences intact.
@@ -85,7 +85,7 @@ Paths start at the repository root unless stated otherwise. Evidence keys below 
 | C6 | Record placement, superseded by decision 31 | examples/booking/apps/api/src/composition/modules.ts now builds the Record plug in each STORAGE branch. H/P cover shared record behavior. |
 | C7 | Record adapter selection in modules.ts | Under [decision 31](../../docs/v2-decisions.md), modulePlan selects the Record adapter with all other storage. Postgres shares the modules' PgClient; memory accepts an inspectable log. |
 | C8 | Record acquisition before Runtime and hook | examples/booking/apps/api/src/composition/modules.ts: the module plan builds CallWatch before composition acquires Runtime and the hook. Shared runtime/trace/watch behavior is covered by H/P, not exempted. |
-| C10 | Named PG timeout alignment | Test configuration placement in examples/booking/apps/api/src/read-models/my-bookings/adapters/tests/my-bookings.test.ts: it.layer(world, { timeout: 30_000 }). The no-assertion-change statement is historical prose in the archived VERIFICATION.md under the read-only reference directory named above, not a timeout-behavior claim. V remains executable proof of the adapter. |
+| C10 | Named PG timeout alignment | Test configuration placement in examples/booking/apps/api/src/projections/my-bookings/adapters/tests/my-bookings.test.ts: it.layer(world, { timeout: 30_000 }). The no-assertion-change statement is historical prose in the archived VERIFICATION.md under the read-only reference directory named above, not a timeout-behavior claim. V remains executable proof of the adapter. |
 | C11 | File/symbol defaults | Prose in examples/booking/README.md and examples/booking/apps/api/AGENTS.md replaces the reference's separate defaults document. |
 | C12 | Cleanup evidence | Historical report in the archived VERIFICATION.md under the read-only reference directory named above, under Accepted-verdict cleanup. Current gate logs are in ~/.local/state/v2-migration/phase2/. |
 
@@ -106,8 +106,8 @@ In this table, app-relative paths start at `examples/booking/apps/api/`.
 | W | app-relative `src/ways-in/web/tests/http.test.ts` | `web confirms cancel through Mean.allow, in-process allows it, and missing database reads are unavailable` |
 | P | app-relative `src/composition/tests/postgres.test.ts` | `real PG refund failure rolls back cancel across modules and produces one failed entry record` |
 | B | app-relative `src/composition/tests/postgres.test.ts` | `MyBookings filters A/B ownership in SQL including mismatched payment owners` |
-| V | app-relative `src/read-models/my-bookings/adapters/tests/my-bookings.test.ts` | `runs the Postgres adapter against both migrated views` (suite `published views`) |
-| S | app-relative `src/read-models/my-bookings/adapters/tests/my-bookings.test.ts` | `guards every adapter SQL template against private tables and writes` |
+| V | app-relative `src/projections/my-bookings/adapters/tests/my-bookings.test.ts` | `runs the Postgres adapter against both migrated views` (suite `published views`) |
+| S | app-relative `src/projections/my-bookings/adapters/tests/my-bookings.test.ts` | `guards every adapter SQL template against private tables and writes` |
 | T | app-relative `src/composition/tests/entries.test.ts` | `runs the schedule once using Effect Clock, expires only pending older than 24h` |
 | T | root `packages/application/src/tests/system-ways.test.ts` | Hook slot mapping, fresh ids and no ambient actor; next-tick schedule, per-item rollback, disposal, duplicate slots and invalid cron |
 | T | root `packages/identity/src/tests/providers.test.ts` | devLocal signing handles, key isolation and typed production refusal |

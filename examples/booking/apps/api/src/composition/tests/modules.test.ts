@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import { ConfigProvider, Context, Effect, Layer } from "effect";
-import { MyBookings } from "../../read-models/my-bookings/index.ts";
+import { MyBookings } from "../../projections/my-bookings/index.ts";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { CallWatch, StepTrace, planLayer } from "@house-rules/application";
 import { memoryAuditLog } from "@house-rules/call-audit";

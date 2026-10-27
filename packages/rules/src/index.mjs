@@ -15,13 +15,14 @@ import { noHandRunEffectRule } from "./no-hand-run-effect.mjs";
 import { testingExportsOnlyInTestsRule } from "./testing-exports-only-in-tests.mjs";
 import { featureFileRule } from "./feature-file.mjs";
 import { featureBuildersRule } from "./feature-builders.mjs";
+import { commandKindRule } from "./command-kind.mjs";
 import { esmOnlyEffectRule } from "./esm-only-effect.mjs";
 import { ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL } from "./rule-docs.mjs";
 
 const plugin = {
   meta: {
     name: "@house-rules/rules",
-    version: "0.19.0",
+    version: "0.20.0",
   },
   rules: {
     "comment-discipline": commentDisciplineRule,
@@ -34,6 +35,7 @@ const plugin = {
     "design-css-layers": designCssLayersRule,
     "feature-file": featureFileRule,
     "feature-builders": featureBuildersRule,
+    "command-kind": commandKindRule,
     "esm-only-effect": esmOnlyEffectRule,
     "no-hand-rolled-surface": noHandRolledSurfaceRule,
     "no-hand-run-effect": noHandRunEffectRule,
@@ -62,6 +64,7 @@ plugin.configs.recommended = [
     },
     rules: {
       "house-rules/comment-discipline": "error",
+      "house-rules/command-kind": "error",
     },
   },
 ];

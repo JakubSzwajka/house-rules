@@ -55,10 +55,11 @@ For Next, create `healthRoutes({ wayPaths, checks })` once in server-only wiring
 
 ## Fixed rules
 
-- This package alone uses the strict TypeScript preset for the Node socket bridge. Keep Effect app code on the Effect preset with `nodeBuiltinImport: error`.
+- This package and Express Host use the strict TypeScript preset for Node transport. Keep Effect app code on the Effect preset with `nodeBuiltinImport: error`.
 - Never buffer whole bodies here. Body limits belong to the HTTP way's `maxBodyBytes` option.
 - Build the request's HTTP origin from Host, not forwarded headers. Behind a TLS proxy the app sets its public `origins` on the HTTP way.
-- Drain for at most five seconds before disposing the app. Repeated closes and signals share one promise; keep signal hooks until disposal ends.
+- Use one five-second deadline for request drain and listener closure, including detached CONNECT sockets. Flush HEAD/empty responses before active tracking ends; force-close only at the deadline. Requests arriving after drain starts receive fixed 503 with `Connection: close`. Repeated closes and signals share one promise; await onClose once even on listener-close error and keep signal hooks until disposal ends.
 - Reject malformed Host and non-origin-form request targets with plain 400 before the handler; OPTIONS *, TRACE and CONNECT answer 501, except TRACE on health paths answers 405. Keep IPv6 authorities working.
-- A thrown handler or a stream failure before its first byte returns a plain 500 without details.
+- A thrown handler or ordinary stream failure before its first byte returns a plain 500 without details. SSE headers flush immediately, so SSE failures destroy the connection.
+- `createNodeRequestHandler(handler, { health? })` opens no listener. It returns `handle(incoming, outgoing)` and once-only bounded `drain(timeoutMs)`, owning active request tracking, aborts and stream cleanup. Both framework hosts use it.
 - `staticFiles` fails at construction when `root` or its index file is missing, or the index is a symlink. It walks `root` once and never lists symlinks, dotfiles or non-regular files; each request re-checks device and inode with `O_NOFOLLOW` on the final component. `root` must be immutable build output owned by the deploying user: anyone who can write inside it while the server starts can change what is served, as they could by replacing `index.html`. A file added later needs a new handler. It decodes a path once and answers 404 for encoded slashes, backslashes or NUL, dot segments, dotfiles and any path at or under a symlink. `exclude` matches case-insensitively and ignores repeated slashes, like the API router. It falls back to the index only for GET or HEAD whose `Accept` gives `text/html` (or `text/*`, `*/*`) a `q` above 0 (a range with parameters other than `q` never matches our UTF-8 HTML), with no file extension in the last segment. Hashed assets are immutable for a year; the index is `no-cache`.

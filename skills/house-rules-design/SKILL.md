@@ -50,7 +50,7 @@ Ask in groups, and only what the brief and source cannot answer. [Patterns](refe
 - Ways in: which does the app need, an HTTP API, a page served with it, MCP for agents? Name each way's path.
 - Background work: what runs on a schedule, hook or event way? Name the caller-owned hook slot, cron with selector and item, or event consumer with exact on kinds and one system-start handler. Cron is UTC only, so "every morning" needs a time-zone choice. What makes each item idempotent? No startup tick, catch-up or distributed lease exists. Mean: trusted provisioning and nightly maintenance use `Mean.allow`; every other system way uses `Mean.no` unless the owner approves otherwise. Raise every system way's Mean as an owner choice.
 - Public access: what must work without identity? Name each public HTTP feature and its system-start reason. New public session paths need owner approval.
-- Agents and MCP: which read-only features may a tool expose? Plan A/B actor tests. Writes, destructive tools, token scopes and owner-only tools need named owner approval.
+- Agents and MCP: which direct defineReadModel queries may a tool expose? Plan A/B actor tests. Writes, destructive tools, token scopes and owner-only tools need named owner approval.
 - Approval: which actions are hard to undo? Which operations set `needsApproval`? Permission is not consent; an agent never approves its own action.
 - Plugs: which Who on each network way, one app-level May from Party, explicit Mean on every way, and which Record? Name lower Authenticator, ActorResolver, Approval, CallWatch and hook slots separately. Check each plug's pull-out test.
 
@@ -61,8 +61,8 @@ Ask before writing the plan if the answer changes who may act, what is public, w
 1. [ ] Read the law and guides. Read the [booking plan](../../examples/booking/apps/api/plan.json) with its [map](../../examples/booking/apps/api/MAP.md) and [commands](../../examples/booking/apps/api/README.md). Booking shows package modules, read models, a first-sign-in hook, a nightly schedule, public HTTP features and read-only MCP. It is also the setup to copy at step 8.
 2. [ ] Ask the questions above. Write `design-notes.md` beside the plan: answers and assumptions, proposed roles with their permissions, the system permission list, [Outside the plan](#outside-the-plan) items and open choices.
 3. [ ] Write `plan.json` section by section with the [field reference](reference.md#plan-fields) and the [boundary rules](reference.md#choose-the-owner). For new names, paths and flags follow [Write new items](reference.md#write-new-items).
-   - `modules`: package modules and read models with exact service keys and paths. Set `role: "process"` for composition through module operation edges; omitted role means capability. Capabilities never call processes; processes may call capabilities or other processes without cycles. List every operation under its owner. Copy a mounted package's operations exactly, including those no feature calls. Writes and object policy belong in operations.
-   - `features`: each exposed app action with its path, permission (usually null), operation edges and system start if any. Features never call features; shared sequences belong in process operations.
+   - `modules`: package modules and projections with exact service keys and paths. Set `role: "process"` for composition through module operation edges; omitted role means capability. Capabilities never call processes; processes may call capabilities or other processes without cycles. List every operation under its owner. Copy a mounted package's operations exactly, including those no feature calls. Writes and object policy belong in operations.
+   - `features`: each exposed entry with explicit kind feature or read-model, its path, permission (usually null), operation edges and system start if any. Queries use defineReadModel in read-models/<name>/index.ts, without an own readOnly flag, and a separate ReadModels registry. Do not plan legacy readOnly:true defineFeature authoring. Keep SQL/service projections in projections/. Entry points never call entry points; shared sequences belong in process operations.
    - `ways`: protocol, exposure, path, hook slot, UTC clock or event on kinds, and explicit Mean. Selector before item. Event plans take exactly one system-start feature in features; the builder uses singular feature.
    - `plugs`: Who, May and Record by name. Mean and hook plugs derive from ways. You may list them as booking does; a declared plug identical to a derived one merges.
 4. [ ] Validate, then read and render:
@@ -79,7 +79,7 @@ Ask before writing the plan if the answer changes who may act, what is public, w
 
    ```text
    App: <app> (apps/<name>). Page render: <what you checked>
-   Modules: <module> [<operations>]; mounted as is: <packages>; read models: <name> [<operations>]
+   Modules: <module> [<operations>]; mounted as is: <packages>; projections: <name> [<operations>]
    Features: <feature> -> <edges>; needs <person closure>; system needs <...>
    Ways in: <protocol name path> Mean <...> -> <features>; public: <names or none>
    Hooks: <slot> -> <feature>; schedules: <UTC cron> -> <selector>, <item>; idempotent by <...>
@@ -132,7 +132,7 @@ Ask before writing the plan if the answer changes who may act, what is public, w
    Change: <brief in one line>. Baseline matches the built app: <yes | unverified>
    Reuse checked: <module> (rejected: <why>)
    Modules and operations:
-     + <module> (<package | read-model>): <Op.name> <permission>, ...
+     + <module> (<package | projection>): <Op.name> <permission>, ...
      ~ <module>: + <Op.name> <permission>
    Features:
      + <feature> -> <edges>; needs <...>; system needs <...>; <flags>
@@ -169,7 +169,7 @@ Plan has no field for these. Write each in `design-notes.md`, put it in the owne
 - Roles: which built-in role holds each permission, and the system permission list (`composition/access.ts` in booking). The owner message shows them as a proposal under Roles.
 - First admin: who holds the first admin role, and how. Booking runs its `grant-admin` script.
 - Published views, foreign ids, object policy and relation checks.
-- Aggregates. Read-model SQL allows no SQL functions, so an average or count lives in a module operation or a view its owning module publishes.
+- Aggregates. Projection SQL allows no SQL functions, so an average or count lives in a module operation or a view its owning module publishes.
 - New env vars for `.env.schema`, outbound adapters and new dependencies. Dependencies need owner approval.
 - Time-zone config, and external side effects such as sent email that a unit rollback cannot undo.
 - Endpoint paths and methods, page screens, wording overrides and test gates.

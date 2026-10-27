@@ -5,7 +5,7 @@ import { SqlHealth } from "@house-rules/migrations";
 import { healthRoutes, serve } from "@house-rules/node-host";
 import { Context, Effect, Exit, Layer, Option } from "effect";
 import { FetchHttpClient, HttpClient } from "effect/http";
-import { AuditTrail } from "../read-models/audit-trail/index.ts";
+import { AuditTrail } from "../projections/audit-trail/index.ts";
 import { createApp, modulePlan } from "../composition/app.ts";
 import { databaseTesting } from "../composition/tests/database.ts";
 import { webWay } from "../ways-in/web/way.ts";

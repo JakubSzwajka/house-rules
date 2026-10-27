@@ -14,6 +14,7 @@ const BUILT = [
   "call-audit",
   "comments",
   "node-host",
+  "express-host",
   "work-items",
   "notes",
   "relations",
@@ -29,9 +30,9 @@ const WITH_MIGRATIONS = [
   "comments",
   "identity",
   "party",
-  ...BUILT.slice(9).filter((folder) => folder !== "email"),
+  ...BUILT.slice(10).filter((folder) => folder !== "email"),
 ];
-const PUBLISHED = [...BUILT, "rules"];
+const PUBLISHED = [...BUILT, "push-node", "rules"];
 const DOCS = new Set(["AGENTS.md", "README.md"]);
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -44,6 +45,20 @@ function targets(value) {
 }
 
 describe("published packages", () => {
+  it("matches the complete stable release inventory", () => {
+    const versions = JSON.parse(read("docs/tasks/release-20261027/versions.json"));
+    assert.deepEqual(
+      Object.keys(versions).sort(),
+      PUBLISHED.map((folder) => `@house-rules/${folder}`).sort(),
+    );
+    assert.equal(Object.keys(versions).length, PUBLISHED.length);
+    for (const version of Object.values(versions)) assert.match(version, /^\d+\.\d+\.\d+$/u);
+    for (const folder of PUBLISHED) {
+      const name = `@house-rules/${folder}`;
+      assert.equal(manifest(folder).version, versions[name], name);
+    }
+  });
+
   for (const folder of PUBLISHED) {
     it(`packages/${folder} is public and names its folder for provenance`, () => {
       const pkg = manifest(folder);
@@ -73,27 +88,33 @@ describe("published packages", () => {
     });
   }
 
-  it("the kits and the additions peer on exact kit versions and Effect 4.0.3", () => {
-    const kits = { "@house-rules/application": "0.2.0", "@house-rules/domain": "0.2.0" };
-    assert.equal(manifest("domain").version, "0.2.0");
-    assert.equal(manifest("application").version, "0.2.0");
-    assert.equal(manifest("comments").version, "0.2.0");
-    assert.equal(manifest("call-audit").version, "0.7.0");
+  it("the kits and additions peer on the released exact kit versions and Effect 4.0.3", () => {
+    const kits = { "@house-rules/application": "0.3.0", "@house-rules/domain": "0.2.1" };
+    assert.equal(manifest("domain").version, "0.2.1");
+    assert.equal(manifest("application").version, "0.3.0");
+    assert.equal(manifest("comments").version, "0.2.1");
+    assert.equal(manifest("call-audit").version, "0.7.1");
     for (const folder of ["auth-jwt", "identity", "party"]) {
-      assert.equal(manifest(folder).version, "0.1.0");
+      assert.equal(manifest(folder).version, "0.1.1");
     }
+    assert.equal(manifest("express-host").version, "0.1.0");
+    assert.equal(manifest("push-node").version, "0.1.0");
     assert.deepEqual(manifest("domain").peerDependencies, { effect: "4.0.3" });
     assert.deepEqual(manifest("application").peerDependencies, {
-      "@house-rules/domain": "0.2.0",
+      "@house-rules/domain": "0.2.1",
       effect: "4.0.3",
     });
     for (const folder of ["comments", "auth-jwt", "identity", "party"]) {
       assert.deepEqual(manifest(folder).peerDependencies, { ...kits, effect: "4.0.3" }, folder);
     }
     assert.deepEqual(manifest("call-audit").peerDependencies, {
-      "@house-rules/application": "0.2.0",
+      "@house-rules/application": "0.3.0",
       effect: "4.0.3",
     });
+    assert.equal(
+      manifest("express-host").dependencies["@house-rules/node-host"],
+      "workspace:0.2.1",
+    );
     for (const folder of WITH_MIGRATIONS) {
       assert.equal(manifest(folder).houseRules.migrations, "migrations");
     }

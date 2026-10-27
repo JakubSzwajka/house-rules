@@ -69,6 +69,11 @@ function layout(options = {}) {
       rule(
         "read-models-import-packages-only",
         { path: p.readModelFolder, pathNot: p.testPath },
+        { path: p.appFolder, pathNot: ["^$1/", p.projectionContract] },
+      ),
+      rule(
+        "read-models-import-packages-only",
+        { path: p.projectionFolder, pathNot: p.testPath },
         { path: p.appFolder, pathNot: "^$1/" },
       ),
       rule(
@@ -76,13 +81,23 @@ function layout(options = {}) {
         { path: p.waysInRoot, pathNot: p.testPath },
         {
           path: p.appFolder,
-          pathNot: [p.waysInRoot, p.featuresRoot, p.compositionRoot, p.readModelsRoot],
+          pathNot: [
+            p.waysInRoot,
+            p.featuresRoot,
+            p.compositionRoot,
+            p.readModelsRoot,
+            p.projectionsRoot,
+          ],
         },
       ),
       rule(
         "ways-in-do-not-import-read-model-values",
         { path: p.waysInRoot, pathNot: p.testPath },
-        { path: p.readModelsRoot, dependencyTypesNot: ["type-only"] },
+        {
+          path: [p.readModelsRoot, p.projectionsRoot],
+          pathNot: p.readModelValues,
+          dependencyTypesNot: ["type-only"],
+        },
       ),
       // Check every way file, including barrels. Do not follow composition into its captured services.
       // SQL and adapter imports are skipped here and refused by the third rule, so each reports once.

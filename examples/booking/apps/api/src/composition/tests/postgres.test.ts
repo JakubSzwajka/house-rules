@@ -4,7 +4,7 @@ import { Features } from "../../features/index.ts";
 import { builtInRoles, systemPermissions } from "../access.ts";
 import { Billing, makeFakePaymentProvider } from "@example/billing";
 import { Bookings } from "@example/bookings";
-import { MyBookings } from "../../read-models/my-bookings/index.ts";
+import { MyBookings } from "../../projections/my-bookings/index.ts";
 import { May, StepTrace } from "@house-rules/application";
 import { Approval, CurrentActor, withRequestId } from "@house-rules/application";
 import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";

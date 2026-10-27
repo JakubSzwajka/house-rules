@@ -1,8 +1,8 @@
-import { Features } from "../../features/index.ts";
+import { ReadModels } from "../../read-models/index.ts";
 import { mcpWho, resourceOf } from "../../composition/sign-in.ts";
 import { defineWay, Mean } from "@house-rules/application";
 const resource = resourceOf("https://booking.example", "");
-const features = [Features.showBooking, Features.myBookings] as const;
+const features = [ReadModels.showBooking, ReadModels.myBookings] as const;
 export const mcpWay = defineWay({
   name: "mcp",
   path: "/mcp",
@@ -14,13 +14,13 @@ export const mcpWay = defineWay({
   server: { name: "booking", version: "0.0.0" },
   tools: [
     {
-      feature: Features.showBooking,
+      feature: ReadModels.showBooking,
       title: "Show your booking",
       idempotent: true,
       openWorld: false,
     },
     {
-      feature: Features.myBookings,
+      feature: ReadModels.myBookings,
       title: "List your bookings and payments",
       idempotent: true,
       openWorld: false,

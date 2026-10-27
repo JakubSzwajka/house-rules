@@ -2,6 +2,7 @@ import type { AnyCallable, SystemCaller } from "@house-rules/domain/contract";
 import { Context, Effect, Layer } from "effect";
 import {
   type AnyFeature,
+  type AnyEntryPoint,
   type Binding,
   type CallScope,
   type Feature,
@@ -10,9 +11,9 @@ import {
   Runtime,
 } from "../index.ts";
 
-const sources = new WeakMap<AnyFeature, AnyCallable>();
-const handlers = new WeakMap<AnyFeature, Binding["run"]>();
-const owners = new WeakMap<AnyFeature["handler"], AnyFeature>();
+const sources = new WeakMap<AnyEntryPoint, AnyCallable>();
+const handlers = new WeakMap<AnyEntryPoint, Binding["run"]>();
+const owners = new WeakMap<AnyEntryPoint["handler"], AnyEntryPoint>();
 export function featureFixture<C extends AnyCallable>(callable: C): Feature<C>;
 export function featureFixture<C extends AnyCallable, const S extends SystemCaller>(
   callable: C,
@@ -45,7 +46,7 @@ export function featureFixture(
   return feature;
 }
 
-export const installFixture = (feature: AnyFeature, run: Binding["run"]): void => {
+export const installFixture = (feature: AnyEntryPoint, run: Binding["run"]): void => {
   handlers.set(owners.get(feature.handler) ?? feature, run);
 };
 

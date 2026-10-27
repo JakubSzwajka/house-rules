@@ -84,6 +84,7 @@ export const validateMounts = (
     if (services.has(mount.service.key)) return `Duplicate mount service ${mount.service.key}`;
     services.add(mount.service.key);
     for (const operation of mount.operations) {
+      if (operation.kind !== "operation") return `Mount must contain operations: ${operation.name}`;
       if (identities.has(operation)) return `Duplicate mounted operation ${operation.name}`;
       if (names.has(operation.name)) return `Duplicate operation name ${operation.name}`;
       identities.add(operation);

@@ -45,6 +45,7 @@ export const postgresEventStore = Layer.effect(
         yield* write(sql`select pg_notify('house_rules_event_log', '')`);
         return { ...event, id };
       }),
+      // A bare ORDER BY id resolves to the text output alias, not the bigint column.
       read: (query) =>
         read(
           StoredEvent,
@@ -56,7 +57,7 @@ export const postgresEventStore = Layer.effect(
       and (${query.requestId === undefined} or request_id = ${query.requestId ?? ""})
       and (${query.from === undefined} or occurred_at >= ${query.from ?? 0})
       and (${query.to === undefined} or occurred_at <= ${query.to ?? 0})
-      order by id limit ${query.limit ?? 100}`,
+      order by event_log_events.id limit ${query.limit ?? 100}`,
         ),
       lock: Effect.fn("EventStore.postgres.lock")(function* (consumer) {
         yield* UnitOfWork.required;

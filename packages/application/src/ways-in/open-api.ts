@@ -1,7 +1,7 @@
 import { JsonSchema, Schema, SchemaAST, SchemaRepresentation } from "effect";
 import { prefixOf } from "../contract/api.ts";
 import { prefixMismatch } from "./api-prefix.ts";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 import { type Endpoint, failureCodeHeader } from "../contract/endpoint.ts";
 import { bodySchemaOf } from "../contract/session.ts";
 import { requestIdHeader } from "../call/request-id.ts";
@@ -32,7 +32,7 @@ export type OpenApiOptions = Readonly<{
   prefix?: `/${string}`;
   servers?: ReadonlyArray<Readonly<{ url: string; description?: string }>>;
   security?: OpenApiSecurity;
-  public?: readonly AnyFeature[] | undefined;
+  public?: readonly AnyEntryPoint[] | undefined;
 }>;
 
 type Json = Record<string, unknown>;
@@ -46,7 +46,7 @@ export type OpenApiDocument = Readonly<{
   security?: ReadonlyArray<Json>;
 }>;
 
-const kindsOf = (feature: AnyFeature): readonly ErrorKind[] => {
+const kindsOf = (feature: AnyEntryPoint): readonly ErrorKind[] => {
   const walk = (ast: SchemaAST.AST): ErrorKind[] => {
     if (ast._tag === "Union") return ast.types.flatMap(walk);
     if (ast._tag !== "Objects") return [];

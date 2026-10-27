@@ -1,0 +1,17 @@
+name: house-rules-local-registry
+services:
+  verdaccio:
+    image: verdaccio/verdaccio:7.0.0@sha256:7bfad61f0dd08919d5c2dee6fcc9a9de969ecd840836c5859a37b1b144ab8d89
+    ports:
+      - "127.0.0.1:4873:4873"
+    volumes:
+      - ./config.yaml:/verdaccio/conf/config.yaml:ro
+      - storage:/verdaccio/storage
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:4873/-/ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 6
+    restart: unless-stopped
+volumes:
+  storage:

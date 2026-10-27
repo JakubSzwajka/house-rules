@@ -12,9 +12,11 @@ export const moduleGroups = (data: AppMapSnapshot) => [
     modules: data.modules.filter((module) => module.role === "process"),
   },
   {
-    title: "Read models",
+    title: "Projections",
     modules: data.modules.filter(
-      (module) => module.kind === "read-model" && (module.role ?? "capability") === "capability",
+      (module) =>
+        (module.kind === "read-model" || module.kind === "projection") &&
+        (module.role ?? "capability") === "capability",
     ),
   },
 ];

@@ -1,6 +1,7 @@
 import { Fragment, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Features } from "../../../features/index.ts";
+import { ReadModels } from "../../../read-models/index.ts";
 import { api } from "../endpoints.ts";
 import { useDashboard } from "./dashboard.tsx";
 import { PageHeading } from "./screen-kit.tsx";
@@ -31,19 +32,21 @@ export function FrameworkPanel() {
     <>
       <PageHeading
         title="Framework"
-        description="Explore the features, declared edges and access rules behind this app."
+        description="Explore the commands, queries, declared edges and access rules behind this app."
       />
       <div className="mb-6 overflow-hidden rounded-xl border">
         <Table>
           <TableHeader>
             <TableRow>
-              {["Feature", "Description", "Permission", "Flags", "Ways"].map((heading) => (
-                <TableHead key={heading}>{heading}</TableHead>
-              ))}
+              {["Entry point", "Kind", "Description", "Permission", "Flags", "Ways"].map(
+                (heading) => (
+                  <TableHead key={heading}>{heading}</TableHead>
+                ),
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {Object.values(Features).map((feature) => (
+            {[...Object.values(Features), ...Object.values(ReadModels)].map((feature) => (
               <Fragment key={feature.name}>
                 <TableRow>
                   <TableCell>
@@ -61,6 +64,7 @@ export function FrameworkPanel() {
                       {feature.name}
                     </button>
                   </TableCell>
+                  <TableCell className="text-xs">{feature.kind}</TableCell>
                   <TableCell className="max-w-64 whitespace-normal text-muted-foreground">
                     {feature.description}
                   </TableCell>
@@ -100,7 +104,7 @@ export function FrameworkPanel() {
                 </TableRow>
                 {expanded === feature.name && (
                   <TableRow>
-                    <TableCell colSpan={5} className="bg-muted/30 p-5">
+                    <TableCell colSpan={6} className="bg-muted/30 p-5">
                       <h4 className="mb-3 text-sm font-medium">Declared edges</h4>
                       <ul className="grid gap-2">
                         {feature.edges.map((edge) => (

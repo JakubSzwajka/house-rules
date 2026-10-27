@@ -106,6 +106,11 @@ export const postgresNotificationStore: Layer.Layer<NotificationStore, never, Sq
             DeliveryItem,
             sql`select ${deliveryColumns} from notification_deliveries d join notifications n on n.id = d.notification_id where d.recipient_kind = ${recipient.kind} and d.recipient_id = ${recipient.id} ${query?.unsettledOnly ? sql`and d.state in ('pending', 'held')` : sql``} order by d.id collate "C"`,
           ),
+        delivery: (id) =>
+          read(
+            DeliveryItem,
+            sql`select ${deliveryColumns} from notification_deliveries d join notifications n on n.id = d.notification_id where d.id = ${id}`,
+          ).pipe(Effect.map((rows) => rows[0] ?? null)),
         reschedule: (id, schedule) =>
           write(
             sql`update notification_deliveries set mode = ${schedule.mode}, state = ${schedule.state}, due_at = ${schedule.dueAt} where id = ${id} and state in ('pending', 'held')`,

@@ -1,7 +1,7 @@
 import { Cause, Clock, Effect, Exit, Schema } from "effect";
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http";
 import type { Api, ApiEndpoints } from "../contract/api.ts";
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 import type { Endpoint, Method } from "../contract/endpoint.ts";
 import type { BodyOf, SessionRole } from "../contract/session.ts";
 import { requestIdHeader, requestIdOf } from "../call/request-id-header.ts";
@@ -25,7 +25,7 @@ export type PromiseClientOptions = Readonly<{
   fetch?: typeof globalThis.fetch;
 }>;
 
-export type PromiseCall<E extends AnyFeature, Session extends SessionRole = "none"> = (
+export type PromiseCall<E extends AnyEntryPoint, Session extends SessionRole = "none"> = (
   input: E["input"]["Type"],
 ) => Promise<BodyOf<E, Session>>;
 

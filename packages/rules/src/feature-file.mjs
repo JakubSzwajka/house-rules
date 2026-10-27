@@ -18,7 +18,7 @@ const featureImport = (filename, source, root) => {
     /^(?:@[\w.-]+\/)?[\w-][\w.-]*\/contract$/u.test(source) ||
     (target &&
       path.dirname(path.dirname(path.dirname(target))) === path.dirname(root) &&
-      /\/read-models\/[^/]+\/contract\.ts$/u.test(target))
+      /\/(?:read-models|projections)\/[^/]+\/contract\.ts$/u.test(target))
   );
 };
 const typeDeclaration = (node) =>
@@ -30,7 +30,7 @@ export const featureFileRule = {
     docs: {
       url: ruleDocsUrl("feature-file"),
       description:
-        "Require one directly exported defineFeature per feature index, no imports of other feature indexes, index.ts and tests/ only, and a registry limited to Features and feature/type re-exports.",
+        "Require one direct defineFeature or defineReadModel in its matching entry-point index, contract-only imports, index.ts and tests/ only, and Features/ReadModels registries.",
     },
     schema: [
       {
@@ -52,16 +52,21 @@ export const featureFileRule = {
   create(context) {
     const filename = path.resolve(context.physicalFilename ?? context.filename);
     const roots = context.options[0]?.appsDir ?? ["apps"];
+    const area = filename.includes(`${path.sep}src${path.sep}read-models${path.sep}`)
+      ? "read-models"
+      : "features";
+    const builder = area === "features" ? "defineFeature" : "defineReadModel";
+    const registryName = area === "features" ? "Features" : "ReadModels";
     if (
       !matchesAnyGlob(
         filename,
         context.cwd,
-        roots.map((root) => `${root}/*/src/features/**/*`),
+        roots.map((root) => `${root}/*/src/${area}/**/*`),
       )
     )
       return {};
     const relative = filename
-      .split(`${path.sep}src${path.sep}features${path.sep}`)
+      .split(`${path.sep}src${path.sep}${area}${path.sep}`)
       .at(-1)
       .split(path.sep);
     if (relative.slice(1).includes("tests")) return {};
@@ -96,10 +101,7 @@ export const featureFileRule = {
     return {
       CallExpression(node) {
         const binding = importOf(unwrapExpression(node.callee), context.sourceCode);
-        if (
-          binding?.imported === "defineFeature" &&
-          binding.source === "@house-rules/application/contract"
-        )
+        if (binding?.imported === builder && binding.source === "@house-rules/application/contract")
           calls.push(node);
       },
       "Program:exit"(program) {
@@ -108,7 +110,12 @@ export const featureFileRule = {
       },
       ImportExpression(node) {
         const source = node.source.value;
-        if (registry || typeof source !== "string" || !featureImport(filename, source, featureRoot))
+        if (
+          area === "read-models" ||
+          registry ||
+          typeof source !== "string" ||
+          !featureImport(filename, source, featureRoot)
+        )
           report(node, registry ? "registry" : "import");
       },
       Program(program) {
@@ -166,7 +173,7 @@ export const featureFileRule = {
                 if (
                   !(
                     value.id.type === "Identifier" &&
-                    value.id.name === "Features" &&
+                    value.id.name === registryName &&
                     featureObject(value.init)
                   )
                 )
@@ -213,7 +220,7 @@ export const featureFileRule = {
             importOf(unwrapExpression(call.callee), context.sourceCode);
           if (
             values.length !== 1 ||
-            binding?.imported !== "defineFeature" ||
+            binding?.imported !== builder ||
             binding.source !== "@house-rules/application/contract"
           )
             report(program, "shape");

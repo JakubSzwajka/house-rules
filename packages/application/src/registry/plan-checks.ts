@@ -52,6 +52,15 @@ export const planIssues = (
         path: `${entry.path}.start`,
         reason: `Blank system feature reason or startedBy at ${entry.value.name}`,
       });
+    if (
+      entry.kind === "feature" &&
+      entry.value.kind === "read-model" &&
+      (entry.value.readOnly === false || entry.value.destructive === true)
+    )
+      issues.push({
+        path: entry.path,
+        reason: "Read models must be read-only and non-destructive",
+      });
     for (const [e, edge] of (entry.value.edges ?? []).entries()) {
       const target = entries.get(targetName(edge));
       if (target?.kind === "feature")

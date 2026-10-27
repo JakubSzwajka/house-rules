@@ -69,6 +69,17 @@ test("contract-entry-is-browser-safe refuses effect's adapter imports", () => {
   const store = "node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist";
   assert.equal(allowed(`${store}/Schema.js`), true);
   assert.equal(allowed(`${store}/index.js`), true);
+  assert.equal(allowed(`${store}/encoding/index.js`), true);
+  for (const file of [
+    "encoding.js",
+    "encoding/Base64Url.js",
+    "encoding/private.js",
+    "encoding/internal/index.js",
+    "encoding/index.js/extra",
+    "encoding/index.d.ts",
+    "internal/encoding/index.js",
+  ])
+    assert.equal(allowed(`${store}/${file}`), false, file);
   assert.equal(allowed(`${store}/http/index.js`), true);
   assert.equal(allowed(`${store}/http/HttpClient.js`), true);
   assert.equal(allowed(`${store}/sql/SqlClient.js`), false);
@@ -147,6 +158,48 @@ test("installed identity contract is trusted, not its main door", async () => {
     layout({ scope: "@acme/" }),
   );
   assert.deepEqual(ruleNames(bad), ["contract-entry-is-browser-safe"]);
+});
+
+test("browser roots accept the exact public Effect encoding module through a package contract", async () => {
+  const tree = {
+    "packages/a/package.json": JSON.stringify({
+      name: "@acme/a",
+      exports: { ".": "./src/index.ts", "./contract": "./src/contract.ts" },
+    }),
+    "packages/a/src/index.ts": "export {};",
+    "packages/a/src/contract.ts": 'export { cursor } from "./cursor/cursor-codec.js";',
+    "packages/a/src/cursor/cursor-codec.ts":
+      'import { Base64Url } from "effect/encoding"; export const cursor = Base64Url;',
+    "apps/web/src/features/show/index.ts": 'export { cursor } from "@acme/a/contract";',
+    "apps/web/src/features/index.ts": 'export { cursor } from "./show/index.js";',
+    "apps/web/src/read-models/list/contract.ts": 'export { cursor } from "@acme/a/contract";',
+    "apps/web/src/ways-in/http/endpoints.ts": 'export { cursor } from "@acme/a/contract";',
+  };
+  assert.deepEqual(await violatedRules(tree, layout({ scope: "@acme/" })), []);
+  for (const source of [
+    "effect/encoding/Base64Url",
+    "effect/encoding/Hex",
+    "effect/encoding/private",
+    "effect/internal/encoding",
+    "effect/sql",
+    "effect/sql/SqlClient",
+    "effect/unstable/sql/SqlClient",
+    "effect/unstable/process",
+    "@effect/sql-pg",
+    "@effect/platform-node",
+    "pg",
+    "node:fs",
+    "@house-rules/application",
+  ]) {
+    const violations = await violatedRules(
+      { ...tree, "packages/a/src/cursor/cursor-codec.ts": `export * from "${source}";` },
+      layout({ scope: "@acme/" }),
+    );
+    assert.ok(
+      violations.some(({ rule }) => rule === "contract-entry-is-browser-safe"),
+      `${source}: ${JSON.stringify(violations)}`,
+    );
+  }
 });
 
 const runLayoutBin = (config) =>

@@ -5,6 +5,7 @@ import { Party } from "@house-rules/party";
 import { Context, Effect, Layer } from "effect";
 import { createApp, modulePlan } from "../composition/app.ts";
 import { Features } from "../features/index.ts";
+import { ReadModels } from "../read-models/index.ts";
 import { resourceOf } from "../composition/sign-in.ts";
 import { databaseTesting } from "../composition/tests/database.ts";
 import { seedRoleTesting } from "../composition/tests/roles-testing.ts";
@@ -66,7 +67,7 @@ for (const backend of ["memory", "postgres"] as const)
           url: "https://booking.example",
         });
         const refused = yield* Effect.promise(() =>
-          call(app, Features.listRoles, {}, incoming("reader"), { way: "web" }),
+          call(app, ReadModels.listRoles, {}, incoming("reader"), { way: "web" }),
         );
         assert.isFalse(refused.ok);
         if (!refused.ok) assert.strictEqual(refused.error?._tag, "Forbidden");
@@ -97,7 +98,7 @@ for (const backend of ["memory", "postgres"] as const)
         );
         assert.isTrue(
           (yield* Effect.promise(() =>
-            call(app, Features.listRoles, {}, incoming("reader"), { way: "web" }),
+            call(app, ReadModels.listRoles, {}, incoming("reader"), { way: "web" }),
           )).ok,
         );
         yield* runFeature(Features.revokeRole, assignment).pipe(
@@ -113,7 +114,7 @@ for (const backend of ["memory", "postgres"] as const)
           Effect.provide(Approval.allowAll),
         );
         const revoked = yield* Effect.promise(() =>
-          call(app, Features.listRoles, {}, incoming("reader"), { way: "web" }),
+          call(app, ReadModels.listRoles, {}, incoming("reader"), { way: "web" }),
         );
         assert.isFalse(revoked.ok);
         if (!revoked.ok) assert.strictEqual(revoked.error?._tag, "Forbidden");
@@ -150,7 +151,7 @@ for (const backend of ["memory", "postgres"] as const)
         );
         assert.isTrue(
           (yield* Effect.promise(() =>
-            call(app, Features.showBooking, { id: "member-booking" }, incoming("member"), {
+            call(app, ReadModels.showBooking, { id: "member-booking" }, incoming("member"), {
               way: "mcp",
             }),
           )).ok,
@@ -158,7 +159,7 @@ for (const backend of ["memory", "postgres"] as const)
         for (const feature of [
           Features.cancelBooking,
           Features.defineRole,
-          Features.listRoles,
+          ReadModels.listRoles,
           Features.assignRole,
           Features.revokeRole,
         ])

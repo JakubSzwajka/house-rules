@@ -18,9 +18,9 @@ import { Runtime } from "../runtime/runtime.ts";
 import { CallPermissions } from "../socket/permission-lists.ts";
 import { MayUnavailable } from "../socket/may-unavailable.ts";
 import { StepTrace } from "../trace/step-trace.ts";
-import { type AnyFeature, isFeature } from "../feature/feature.ts";
+import { type AnyEntryPoint, isEntryPoint } from "../feature/feature.ts";
 
-export type FeatureFailure<E extends AnyFeature> =
+export type FeatureFailure<E extends AnyEntryPoint> =
   | Exclude<
       E["failure"]["Type"] | InnerFailure,
       E["transactional"] extends true ? NoOpenUnit : never
@@ -29,7 +29,7 @@ export type FeatureFailure<E extends AnyFeature> =
   | MayUnavailable
   | (E["needsApproval"] extends false ? never : ApprovalDenied)
   | (E["transactional"] extends false ? never : UnitOfWorkFailed);
-export type FeatureRequirements<E extends AnyFeature> =
+export type FeatureRequirements<E extends AnyEntryPoint> =
   | Runtime
   | CallPermissions
   | StepTrace
@@ -37,13 +37,13 @@ export type FeatureRequirements<E extends AnyFeature> =
   | (E["transactional"] extends false ? never : UnitOfWork)
   | (E["needsApproval"] extends false ? never : Approval);
 
-export function runFeature<E extends AnyFeature>(
+export function runFeature<E extends AnyEntryPoint>(
   feature: E,
   input: E["input"]["Type"],
 ): Effect.Effect<E["output"]["Type"], FeatureFailure<E>, FeatureRequirements<E>>;
 export function runFeature(
-  feature: AnyFeature,
-  input: AnyFeature["input"]["Type"],
+  feature: AnyEntryPoint,
+  input: AnyEntryPoint["input"]["Type"],
 ): Effect.Effect<
   unknown,
   KindedError,
@@ -51,7 +51,7 @@ export function runFeature(
 > {
   const work = Effect.gen(function* () {
     const featureName = feature.name;
-    if (!isFeature(feature))
+    if (!isEntryPoint(feature))
       return yield* new CallInvalid({
         callable: featureName,
         reason: "Feature was not created by defineFeature",

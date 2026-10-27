@@ -28,6 +28,7 @@ export const canonical = (data: AppMapSnapshot): AppMapSnapshot => ({
     })),
   features: named(data.features).map((feature) => ({
     ...feature,
+    kind: feature.kind ?? "feature",
     closures: {
       person: strings(feature.closures.person),
       system: strings(feature.closures.system),

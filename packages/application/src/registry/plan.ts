@@ -22,13 +22,14 @@ export const PlanOperation = Schema.Struct({
 const PlanModule = Schema.Struct({
   name: Name,
   service: Name,
-  kind: Schema.Literals(["package", "read-model"]),
+  kind: Schema.Literals(["package", "read-model", "projection"]),
   role: Schema.optionalKey(Schema.Literals(["capability", "process"])),
   package: Schema.optionalKey(Schema.String),
   path: Source,
   operations: Schema.Array(PlanOperation),
 });
 export const PlanFeature = Schema.Struct({
+  kind: Schema.optionalKey(Schema.Literals(["feature", "read-model"])),
   name: Name,
   path: Source,
   permission: Permission,

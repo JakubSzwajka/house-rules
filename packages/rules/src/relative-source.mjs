@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 
 export const relativeSource = (file, source) => {
   if (!source.startsWith(".")) return undefined;
@@ -16,4 +17,14 @@ export const relativeSource = (file, source) => {
       return false;
     }
   });
+};
+
+export const installedContractSource = (file, source) => {
+  if (!source.endsWith("/contract") || /^@house-rules\/(?:domain|application)\//u.test(source))
+    return undefined;
+  try {
+    return createRequire(file).resolve(source);
+  } catch {
+    return undefined;
+  }
 };

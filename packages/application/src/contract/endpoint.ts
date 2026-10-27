@@ -1,4 +1,4 @@
-import type { AnyFeature } from "../feature/feature.ts";
+import type { AnyEntryPoint } from "../feature/feature.ts";
 
 export type CsrfOptOut = Readonly<{ skip: true; reason: string }>;
 import { checkSessionPlace, type SessionOption, type SessionRole } from "./session.ts";
@@ -16,7 +16,7 @@ export type EndpointOptions<
 }>;
 
 export type Endpoint<
-  E extends AnyFeature = AnyFeature,
+  E extends AnyEntryPoint = AnyEntryPoint,
   Code extends string = string,
   Session extends SessionRole = SessionRole,
 > = Readonly<{
@@ -66,7 +66,7 @@ export const parseAt = (
 };
 
 export const endpoint = <
-  E extends AnyFeature,
+  E extends AnyEntryPoint,
   const Code extends string = never,
   const Session extends SessionOption<E> = never,
 >(

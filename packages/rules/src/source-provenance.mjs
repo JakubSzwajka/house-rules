@@ -1,14 +1,18 @@
 import * as fs from "node:fs";
 import path from "node:path";
+import { sourcePackages } from "./source-packages.mjs";
+import { objectProperty } from "./object-property.mjs";
 import { parseForESLint } from "@typescript-eslint/parser";
 import { unwrapExpression } from "./import-bindings.mjs";
+import { sourceDefinitions, variableValue, requireIdentity } from "./source-bindings.mjs";
+import { featureOptions } from "./feature-origin.mjs";
 import {
   builderFromExport,
   importedOrigin,
   builderExportSources,
   kitBuilderOrigin,
 } from "./kit-builder-source.mjs";
-import { relativeSource } from "./relative-source.mjs";
+import { relativeSource, installedContractSource } from "./relative-source.mjs";
 export { relativeSource } from "./relative-source.mjs";
 
 export const sourceGraph = (
@@ -17,31 +21,11 @@ export const sourceGraph = (
   scopeManager,
   { cwd = process.cwd(), packagesDir = [], workspaces = [] } = {},
 ) => {
-  const packages = new Map();
-  for (const manifest of [
-    ...fs.globSync(
-      packagesDir.map((root) => `${root}/*/package.json`),
-      { cwd },
-    ),
-    ...workspaces.map((workspace) => path.join(workspace, "package.json")),
-  ]) {
-    try {
-      const file = path.resolve(cwd, manifest);
-      const json = JSON.parse(fs.readFileSync(file, "utf8"));
-      if (["@house-rules/domain", "@house-rules/application"].includes(json.name)) continue;
-      for (const [key, entry] of Object.entries(json.exports ?? { ".": "./src/index.ts" })) {
-        const target = typeof entry === "string" ? entry : (entry?.import ?? entry?.default);
-        if ([".", "./contract"].includes(key) && typeof target === "string")
-          packages.set(
-            json.name + (key === "." ? "" : "/contract"),
-            path.resolve(path.dirname(file), target),
-          );
-      }
-    } catch {
-      /* unresolved package source fails at its use */
-    }
-  }
-  const targetSource = (file, source) => relativeSource(file, source) ?? packages.get(source);
+  let packages;
+  const targetSource = (file, source) =>
+    relativeSource(file, source) ??
+    (packages ??= sourcePackages(cwd, packagesDir, workspaces)).get(source) ??
+    installedContractSource(file, source);
   const cache = new Map([[path.resolve(filename), program]]);
   const scopes = new Map([[path.resolve(filename), scopeManager]]);
   const load = (file) => {
@@ -158,11 +142,7 @@ export const sourceGraph = (
     }
     return undefined;
   };
-  const definition = (file, node) =>
-    scopes
-      .get(file)
-      ?.scopes.flatMap((scope) => scope.references)
-      .find((reference) => reference.identifier === node)?.resolved?.defs[0];
+  const definition = sourceDefinitions(scopes);
   const resolve = (file, expression, seen = new Set(), allowMutable = false) => {
     const node = unwrapExpression(expression);
     if (node?.type === "MemberExpression") {
@@ -175,10 +155,14 @@ export const sourceGraph = (
         )
           return { ...object, imported: name };
         if (object?.node?.type === "ObjectExpression") {
-          const property = object.node.properties.find(
-            (item) => item.type === "Property" && (item.key.name ?? item.key.value) === name,
+          return (
+            objectProperty(
+              (from, value) => resolve(from, value, seen, allowMutable),
+              object.file,
+              object.node,
+              name,
+            ) || undefined
           );
-          if (property) return resolve(object.file, property.value, seen, allowMutable);
         }
         if (object?.node?.type === "Program") {
           const found = named(object.file, name, true);
@@ -194,7 +178,8 @@ export const sourceGraph = (
     const def = definition(file, node);
     if (def && !["ImportBinding", "Variable"].includes(def.type)) return undefined;
     if (def?.type === "Variable" && def.parent.kind !== "const" && !allowMutable) return undefined;
-    const found = def?.type === "Variable" ? { file, node: def.node.init } : named(file, node.name);
+    const found =
+      def?.type === "Variable" ? { file, node: variableValue(def, node) } : named(file, node.name);
     if (found?.unstable && !allowMutable) return undefined;
     if (!found?.node) return found;
     const resolved = resolve(found.file, found.node, new Set([...seen, key]), allowMutable);
@@ -203,18 +188,25 @@ export const sourceGraph = (
       : resolved;
   };
   const builderOrigins = new Map();
-  const builderOrigin = (file, expression) => {
+  const builderOrigin = (file, expression, { imported, completed = false } = {}) => {
     const root = resolve(file, expression, new Set(), true);
     const rootNode = root?.node;
-    if (rootNode && builderOrigins.has(rootNode)) return builderOrigins.get(rootNode);
+    const mode = `${imported ?? "*"}:${completed}`;
+    if (rootNode && !builderOrigins.has(rootNode)) builderOrigins.set(rootNode, new Map());
+    const memo = builderOrigins.get(rootNode);
+    if (memo?.has(mode)) return memo.get(mode);
     const pending = [{ found: root, withinFunction: false }];
     const seen = new Set();
     while (pending.length) {
       const { found, withinFunction } = pending.pop();
       if (!found) continue;
       if (kitBuilderOrigin(found)) {
-        if (withinFunction && found.imported === "bindOperation") continue;
-        if (rootNode) builderOrigins.set(rootNode, found);
+        if (
+          (imported && found.imported !== imported) ||
+          (withinFunction && found.imported === "bindOperation")
+        )
+          continue;
+        memo?.set(mode, found);
         return found;
       }
       const node = found.node;
@@ -222,6 +214,7 @@ export const sourceGraph = (
         !node ||
         seen.has(node) ||
         (node.type === "CallExpression" &&
+          !completed &&
           !withinFunction &&
           !(
             node.callee.type === "MemberExpression" &&
@@ -241,9 +234,26 @@ export const sourceGraph = (
         ["ArrowFunctionExpression", "FunctionExpression", "FunctionDeclaration"].includes(
           node.type,
         );
+      const callee = node.type === "CallExpression" && unwrapExpression(node.callee);
+      const binding = callee?.type === "Identifier" && definition(found.file, callee);
+      const completedWay =
+        withinFunction &&
+        binding?.node?.type === "ImportSpecifier" &&
+        (binding.node.imported.name ?? binding.node.imported.value) === "defineWay" &&
+        binding.parent.source.value === "@house-rules/application" &&
+        featureOptions(
+          { resolve },
+          found.file.slice(0, found.file.lastIndexOf(`${path.sep}src${path.sep}`) + 5),
+          found.file,
+          node.arguments[0],
+          true,
+          true,
+        ).length === 0;
       for (const [key, value] of Object.entries(node)) {
         if (["parent", "loc", "range", "tokens", "comments", "id", "key", "property"].includes(key))
           continue;
+        // A completed way is a value; keep scanning its arguments for escaped builders.
+        if (completedWay && key === "callee") continue;
         for (const child of Array.isArray(value) ? value : [value]) {
           if (!child || typeof child !== "object" || typeof child.type !== "string") continue;
           pending.push({
@@ -256,27 +266,19 @@ export const sourceGraph = (
         }
       }
     }
-    if (rootNode) builderOrigins.set(rootNode, undefined);
+    memo?.set(mode, undefined);
     return undefined;
   };
   const importOrigin = (file, expression, matches) =>
     importedOrigin(resolve, file, expression, matches);
-  const isRequire = (file, expression) => {
-    const node = unwrapExpression(expression);
-    if (node?.type === "Identifier" && node.name === "require" && !definition(file, node))
-      return true;
-    const found = resolve(file, node);
-    if (found?.node?.type !== "CallExpression") return false;
-    const factory = resolve(found.file, found.node.callee);
-    return (
-      ["node:module", "module"].includes(factory?.source) && factory.imported === "createRequire"
-    );
-  };
-  const packageBuilder = (from, source, imported) => {
+  const isRequire = requireIdentity(resolve, definition, load);
+  const packageBuilder = (from, source, imported, options) => {
     const file = targetSource(from, source);
     if (!file) return undefined;
-    if (imported === undefined) return builderOrigin(file, load(file));
-    return builderFromExport(named(file, imported, true), builderOrigin);
+    if (imported === undefined) return builderOrigin(file, load(file), options);
+    return builderFromExport(named(file, imported, true), (from, node) =>
+      builderOrigin(from, node, options),
+    );
   };
   return { resolve, builderOrigin, importOrigin, isRequire, packageBuilder };
 };

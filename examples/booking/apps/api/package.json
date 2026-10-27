@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --project tsconfig.json",
+    "typecheck": "tsc --project tsconfig.json && pnpm run typecheck:prove",
+    "typecheck:prove": "tsc --project tsconfig.prove.json",
     "test": "varlock run --path ../../../../ -- vitest run",
     "build": "pnpm run build:web && pnpm run build:api",
     "build:api": "esbuild src/main.ts --bundle --platform=node --format=esm --external:effect '--external:@effect/*' --outfile=dist/main.js",
@@ -18,18 +19,18 @@
   "dependencies": {
     "@example/bookings": "workspace:0.0.0",
     "@example/billing": "workspace:0.0.0",
-    "@house-rules/domain": "workspace:0.2.0",
-    "@house-rules/application": "workspace:0.2.0",
+    "@house-rules/domain": "workspace:0.2.1",
+    "@house-rules/application": "workspace:0.3.0",
     "effect": "4.0.3",
     "@effect/platform-node": "4.0.3",
     "@effect/platform-node-shared": "4.0.3",
     "@effect/sql-pg": "4.0.3",
-    "@house-rules/auth-jwt": "workspace:0.1.0",
-    "@house-rules/identity": "workspace:0.1.0",
-    "@house-rules/call-audit": "workspace:0.7.0",
-    "@house-rules/party": "workspace:0.1.0",
-    "@house-rules/migrations": "workspace:0.4.0",
-    "@house-rules/node-host": "workspace:0.2.0"
+    "@house-rules/auth-jwt": "workspace:0.1.1",
+    "@house-rules/identity": "workspace:0.1.1",
+    "@house-rules/call-audit": "workspace:0.7.1",
+    "@house-rules/party": "workspace:0.1.1",
+    "@house-rules/migrations": "workspace:0.4.1",
+    "@house-rules/node-host": "workspace:0.2.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",

@@ -14,7 +14,7 @@ export const AppMapJson = Schema.Struct({
     Schema.Struct({
       name: Name,
       service: Name,
-      kind: Schema.Literals(["package", "read-model"]),
+      kind: Schema.Literals(["package", "read-model", "projection"]),
       role: Schema.optionalKey(Schema.Literals(["capability", "process"])),
       package: Schema.optionalKey(Schema.String),
       path: Schema.optionalKey(Schema.String),
@@ -33,6 +33,7 @@ export const AppMapJson = Schema.Struct({
   ),
   features: Schema.Array(
     Schema.Struct({
+      kind: Schema.optionalKey(Schema.Literals(["feature", "read-model"])),
       name: Name,
       path: Schema.optionalKey(Schema.String),
       start: Schema.Union([

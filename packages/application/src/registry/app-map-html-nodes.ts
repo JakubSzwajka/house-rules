@@ -125,7 +125,7 @@ export const featureNode = (graph: MapGraph, marks: Marks, feature: Feature): st
     "feature",
     marks.get(`feature:${feature.name}`),
     feature.name,
-    flagBadges(feature.flags),
+    code(feature.kind ?? "feature") + flagBadges(feature.flags),
     facts([
       feature.start === "person" ? undefined : ["Start", start(feature)],
       [

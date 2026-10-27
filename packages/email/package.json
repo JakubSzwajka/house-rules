@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/email",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A provider-neutral email sending port with console and memory adapters.",
   "license": "MIT",
   "type": "module",
@@ -42,14 +42,14 @@
     "test": "varlock run --path ../../ -- vitest run"
   },
   "peerDependencies": {
-    "@house-rules/application": "0.2.0",
-    "@house-rules/domain": "0.2.0",
+    "@house-rules/application": "0.3.0",
+    "@house-rules/domain": "0.2.1",
     "effect": "4.0.3"
   },
   "devDependencies": {
     "@effect/vitest": "4.0.3",
-    "@house-rules/application": "workspace:0.2.0",
-    "@house-rules/domain": "workspace:0.2.0",
+    "@house-rules/application": "workspace:0.3.0",
+    "@house-rules/domain": "workspace:0.2.1",
     "effect": "4.0.3",
     "typescript": "7.0.2",
     "vitest": "5.0.1"

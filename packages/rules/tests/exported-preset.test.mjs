@@ -18,13 +18,14 @@ async function lint(code, filePath) {
 test("exports plugin metadata and a flat preset for every supported extension", () => {
   assert.deepEqual(plugin.meta, {
     name: "@house-rules/rules",
-    version: "0.19.0",
+    version: "0.20.0",
   });
   assert.deepEqual(plugin.configs.recommended[0].files, ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]);
   assert.equal(plugin.configs.recommended[0].plugins["house-rules"], plugin);
   assert.equal(plugin.configs.recommended[0].rules["house-rules/comment-discipline"], "error");
   assert.deepEqual(Object.keys(plugin.configs.recommended[0].rules), [
     "house-rules/comment-discipline",
+    "house-rules/command-kind",
   ]);
   assert.deepEqual(plugin.configs.testing[0].files, ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]);
   assert.equal(plugin.configs.testing[0].plugins["house-rules"], plugin);

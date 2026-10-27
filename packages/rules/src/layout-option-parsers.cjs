@@ -4,6 +4,7 @@
 const DEFAULT_LAYERS = {
   features: "features",
   readModels: "read-models",
+  projections: "projections",
   waysIn: "ways-in",
   composition: "composition",
 };

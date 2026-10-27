@@ -1,0 +1,23 @@
+{
+  "@house-rules/rules": "0.20.0",
+  "@house-rules/domain": "0.2.1",
+  "@house-rules/application": "0.3.0",
+  "@house-rules/auth-jwt": "0.1.1",
+  "@house-rules/identity": "0.1.1",
+  "@house-rules/party": "0.1.1",
+  "@house-rules/migrations": "0.4.1",
+  "@house-rules/call-audit": "0.7.1",
+  "@house-rules/comments": "0.2.1",
+  "@house-rules/node-host": "0.2.1",
+  "@house-rules/express-host": "0.1.0",
+  "@house-rules/work-items": "0.1.1",
+  "@house-rules/notes": "0.1.1",
+  "@house-rules/relations": "0.1.1",
+  "@house-rules/event-log": "0.1.1",
+  "@house-rules/contacts": "0.1.1",
+  "@house-rules/notifications": "0.1.1",
+  "@house-rules/push": "0.1.1",
+  "@house-rules/push-node": "0.1.0",
+  "@house-rules/email": "0.1.1",
+  "@house-rules/projects": "0.1.1"
+}

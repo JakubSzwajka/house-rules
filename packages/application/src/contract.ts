@@ -1,6 +1,12 @@
 export {
   type Feature,
   type AnyFeature,
+  type AnyEntryPoint,
+  type EntryPoint,
+  type EntryPointKind,
+  type ReadModel,
+  type AnyReadModel,
+  defineReadModel,
   type FeatureFlags,
   defineFeature,
   systemStart,

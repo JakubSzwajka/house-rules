@@ -2,6 +2,10 @@
 
 Status: revision 5. Revision 5 is the owner's change: the example comes back inside phase 1 instead of phase 2. Revision 4 came after three feasibility reviews (FAIL with 13 findings, FAIL with 5 new ones, then one blocker on node.ts imports; all addressed). Leader: the session that wrote this file. The owner's decisions are in `docs/v2-decisions.md`. The spike that proved the shape is `examples/booking-v2/`, built from `docs/v2-spec.md`. This spec is the real migration: v2 becomes the only shape of the framework. Nothing old is kept beside it.
 
+## Current supersession
+
+This is the historical v2 migration specification, not the current authoring law. Task 287 supersedes its SQL-only read-model vocabulary: defineReadModel creates an exposed read entry point in read-models/<name>/index.ts, composing declared read-only domain operations. defineFeature is the command builder, including idempotent commands. Task 289 makes the default recommended authoring lint reject legacy readOnly:true defineFeature calls. Migrate queries directly to defineReadModel, remove their own readOnly flag and use a separate ReadModels registry. Runtime compatibility for existing descriptors remains. Both kinds use one admission/execution pipeline, with explicit kind in descriptors/plans/maps and no entry-to-entry edges. The SQL/service mounts described below are now projections in projections/. Their published-view ownership, bounded grammar, A/B privacy tests and unavailable ports remain. Legacy mount kind read-model and missing entry kinds retain their historical meanings for staged consumers. Read AGENTS.md and packages/application/README.md for the live API.
+
 ## 1. Outcome
 
 When the migration is done, all of this is true:
