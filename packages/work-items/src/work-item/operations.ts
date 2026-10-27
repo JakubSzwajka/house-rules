@@ -23,12 +23,6 @@ const write = {
   transactional: true,
   edges: [],
 } as const;
-const read = {
-  failure: WorkItemFailure,
-  permission: WorkItemPermissions.read,
-  readOnly: true,
-  edges: [],
-} as const;
 const key = Schema.Struct({ id: Schema.NonEmptyString });
 const create = defineOperation("WorkItems.create", {
   ...write,
@@ -82,27 +76,37 @@ const release = defineOperation("WorkItems.release", {
   input: key,
 });
 const get = defineOperation("WorkItems.get", {
-  ...read,
+  failure: WorkItemFailure,
+  permission: WorkItemPermissions.read,
+  readOnly: true,
+  edges: [],
   description: "Read one visible work item.",
   input: key,
   output: WorkItem,
 });
 const getForSystem = defineOperation("WorkItems.getForSystem", {
-  ...read,
-  permission: WorkItemPermissions.systemRead,
   failure: Schema.Union([WorkItemFailure, WorkItemsCallerDenied]),
+  permission: WorkItemPermissions.systemRead,
+  readOnly: true,
+  edges: [],
   description: "Read one work item as the system without person access checks.",
   input: key,
   output: WorkItem,
 });
 const list = defineOperation("WorkItems.list", {
-  ...read,
+  failure: WorkItemFailure,
+  permission: WorkItemPermissions.read,
+  readOnly: true,
+  edges: [],
   description: "List visible work items with filters and an exclusive cursor.",
   input: WorkItemFilters,
   output: WorkItemList,
 });
 const tree = defineOperation("WorkItems.tree", {
-  ...read,
+  failure: WorkItemFailure,
+  permission: WorkItemPermissions.read,
+  readOnly: true,
+  edges: [],
   description: "Read a container's work item hierarchy.",
   input: Schema.Struct({ container: Schema.NullOr(WorkItemRef) }),
   output: Schema.Array(WorkItemTree),
