@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/auth-jwt",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Fills the House Rules Authenticator slot by verifying JWTs against a JWKS, with a Clerk preset.",
   "license": "MIT",
   "type": "module",
@@ -28,14 +28,14 @@
     "test": "varlock run --path ../../ -- vitest run"
   },
   "peerDependencies": {
-    "@house-rules/application": "0.2.0",
-    "@house-rules/domain": "0.2.0",
+    "@house-rules/application": "0.3.0",
+    "@house-rules/domain": "0.2.1",
     "effect": "4.0.3"
   },
   "devDependencies": {
     "@effect/vitest": "4.0.3",
-    "@house-rules/application": "workspace:0.2.0",
-    "@house-rules/domain": "workspace:0.2.0",
+    "@house-rules/application": "workspace:0.3.0",
+    "@house-rules/domain": "workspace:0.2.1",
     "effect": "4.0.3",
     "typescript": "7.0.2",
     "vitest": "5.0.1"

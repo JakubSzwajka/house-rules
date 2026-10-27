@@ -31,7 +31,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@house-rules/node-host": "workspace:0.2.0",
+    "@house-rules/node-host": "workspace:0.2.1",
     "express": "5.3.0"
   },
   "devDependencies": {

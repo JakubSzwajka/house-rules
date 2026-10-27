@@ -80,30 +80,31 @@ Expected errors declare a kind. Application maps that kind to a fixed status and
 
 ## Packages and guides
 
-These are workspace versions, not a claim that the changed APIs are already on npm. Release needs owner approval.
+This is the approved stable release inventory. Exact versions and pins are recorded in [release-20261027/versions.json](docs/tasks/release-20261027/versions.json); publication still happens only through `.github/workflows/publish.yml`.
 
 | Package | Version | Guide |
 | --- | --- | --- |
-| `@house-rules/domain` | `0.2.0` | [Domain](packages/domain/README.md) |
-| `@house-rules/application` | `0.2.0` | [Application](packages/application/README.md) |
-| `@house-rules/rules` | `0.19.0` | [Rules](packages/rules/README.md) |
-| `@house-rules/migrations` | `0.4.0` | [Migrations](packages/migrations/README.md) |
-| `@house-rules/node-host` | `0.2.0` | [Node Host](packages/node-host/README.md) |
+| `@house-rules/rules` | `0.20.0` | [Rules](packages/rules/README.md) |
+| `@house-rules/domain` | `0.2.1` | [Domain](packages/domain/README.md) |
+| `@house-rules/application` | `0.3.0` | [Application](packages/application/README.md) |
+| `@house-rules/auth-jwt` | `0.1.1` | [JWT](packages/auth-jwt/README.md) |
+| `@house-rules/identity` | `0.1.1` | [Identity](packages/identity/README.md) |
+| `@house-rules/party` | `0.1.1` | [Party](packages/party/README.md) |
+| `@house-rules/migrations` | `0.4.1` | [Migrations](packages/migrations/README.md) |
+| `@house-rules/call-audit` | `0.7.1` | [Audit](packages/call-audit/README.md) |
+| `@house-rules/comments` | `0.2.1` | [Comments](packages/comments/README.md) |
+| `@house-rules/node-host` | `0.2.1` | [Node Host](packages/node-host/README.md) |
 | `@house-rules/express-host` | `0.1.0` | [Express Host](packages/express-host/README.md) |
-| `@house-rules/comments` | `0.2.0` | [Comments](packages/comments/README.md) |
-| `@house-rules/party` | `0.1.0` | [Party](packages/party/README.md) |
-| `@house-rules/identity` | `0.1.0` | [Identity](packages/identity/README.md) |
-| `@house-rules/auth-jwt` | `0.1.0` | [JWT](packages/auth-jwt/README.md) |
-| `@house-rules/call-audit` | `0.7.0` | [Audit](packages/call-audit/README.md) |
-| `@house-rules/work-items` | `0.1.0` | [Work Items](packages/work-items/README.md) |
-| `@house-rules/notes` | `0.1.0` | [Notes](packages/notes/README.md) |
-| `@house-rules/relations` | `0.1.0` | [Relations](packages/relations/README.md) |
-| `@house-rules/event-log` | `0.1.0` | [Event Log](packages/event-log/README.md) |
-| `@house-rules/contacts` | `0.1.0` | [Contacts](packages/contacts/README.md) |
-| `@house-rules/notifications` | `0.1.0` | [Notifications](packages/notifications/README.md) |
-| `@house-rules/push` | `0.1.0` | [Push](packages/push/README.md) |
-| `@house-rules/email` | `0.1.0` | [Email](packages/email/README.md) |
-| `@house-rules/projects` | `0.1.0` | [Projects](packages/projects/README.md) |
+| `@house-rules/work-items` | `0.1.1` | [Work Items](packages/work-items/README.md) |
+| `@house-rules/notes` | `0.1.1` | [Notes](packages/notes/README.md) |
+| `@house-rules/relations` | `0.1.1` | [Relations](packages/relations/README.md) |
+| `@house-rules/event-log` | `0.1.1` | [Event Log](packages/event-log/README.md) |
+| `@house-rules/contacts` | `0.1.1` | [Contacts](packages/contacts/README.md) |
+| `@house-rules/notifications` | `0.1.1` | [Notifications](packages/notifications/README.md) |
+| `@house-rules/push` | `0.1.1` | [Push](packages/push/README.md) |
+| `@house-rules/push-node` | `0.1.0` | [Push Node](packages/push-node/README.md) |
+| `@house-rules/email` | `0.1.1` | [Email](packages/email/README.md) |
+| `@house-rules/projects` | `0.1.1` | [Projects](packages/projects/README.md) |
 
 Each framework package an app mounts ships `AGENTS.md`. Load the [house-rules skill](skills/house-rules/SKILL.md) to find the right guide.
 

@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/event-log",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Transactional domain event history and in-process consumer delivery.",
   "license": "MIT",
   "type": "module",
@@ -47,8 +47,8 @@
   },
   "peerDependencies": {
     "@effect/sql-pg": "4.0.3",
-    "@house-rules/application": "0.2.0",
-    "@house-rules/domain": "0.2.0",
+    "@house-rules/application": "0.3.0",
+    "@house-rules/domain": "0.2.1",
     "effect": "4.0.3"
   },
   "devDependencies": {
@@ -56,9 +56,9 @@
     "@effect/platform-node-shared": "4.0.3",
     "@effect/sql-pg": "4.0.3",
     "@effect/vitest": "4.0.3",
-    "@house-rules/application": "workspace:0.2.0",
-    "@house-rules/domain": "workspace:0.2.0",
-    "@house-rules/migrations": "workspace:0.4.0",
+    "@house-rules/application": "workspace:0.3.0",
+    "@house-rules/domain": "workspace:0.2.1",
+    "@house-rules/migrations": "workspace:0.4.1",
     "effect": "4.0.3",
     "typescript": "7.0.2",
     "vitest": "5.0.1"

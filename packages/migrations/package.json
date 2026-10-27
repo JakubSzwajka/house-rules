@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/migrations",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Run SQL migrations for many modules, each with its own folder and its own history table.",
   "license": "MIT",
   "type": "module",

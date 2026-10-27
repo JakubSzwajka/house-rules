@@ -40,13 +40,13 @@
     "web-push": "3.6.7"
   },
   "peerDependencies": {
-    "@house-rules/push": "0.1.0",
+    "@house-rules/push": "0.1.1",
     "effect": "4.0.3"
   },
   "devDependencies": {
     "@effect/vitest": "4.0.3",
-    "@house-rules/domain": "workspace:0.2.0",
-    "@house-rules/push": "workspace:0.1.0",
+    "@house-rules/domain": "workspace:0.2.1",
+    "@house-rules/push": "workspace:0.1.1",
     "@types/node": "24.19.1",
     "@types/web-push": "3.6.4",
     "effect": "4.0.3",

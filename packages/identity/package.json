@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/identity",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Turns a verified Principal into an ActorId through module-owned bindings, and supplies the Who socket.",
   "license": "MIT",
   "type": "module",
@@ -37,12 +37,12 @@
     "test": "varlock run --path ../../ -- vitest run"
   },
   "dependencies": {
-    "@house-rules/auth-jwt": "workspace:0.1.0",
+    "@house-rules/auth-jwt": "workspace:0.1.1",
     "jose": "6.2.12"
   },
   "peerDependencies": {
-    "@house-rules/application": "0.2.0",
-    "@house-rules/domain": "0.2.0",
+    "@house-rules/application": "0.3.0",
+    "@house-rules/domain": "0.2.1",
     "effect": "4.0.3"
   },
   "devDependencies": {
@@ -50,9 +50,9 @@
     "@effect/platform-node-shared": "4.0.3",
     "@effect/sql-pg": "4.0.3",
     "@effect/vitest": "4.0.3",
-    "@house-rules/application": "workspace:0.2.0",
-    "@house-rules/domain": "workspace:0.2.0",
-    "@house-rules/migrations": "workspace:0.4.0",
+    "@house-rules/application": "workspace:0.3.0",
+    "@house-rules/domain": "workspace:0.2.1",
+    "@house-rules/migrations": "workspace:0.4.1",
     "effect": "4.0.3",
     "typescript": "7.0.2",
     "vitest": "5.0.1"

@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/notifications",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Inbox, channel preferences, quiet hours and a delivery ledger.",
   "license": "MIT",
   "type": "module",
@@ -46,8 +46,8 @@
     "test": "varlock run --path ../../ -- vitest run"
   },
   "peerDependencies": {
-    "@house-rules/application": "0.2.0",
-    "@house-rules/domain": "0.2.0",
+    "@house-rules/application": "0.3.0",
+    "@house-rules/domain": "0.2.1",
     "effect": "4.0.3"
   },
   "devDependencies": {
@@ -55,9 +55,9 @@
     "@effect/platform-node-shared": "4.0.3",
     "@effect/sql-pg": "4.0.3",
     "@effect/vitest": "4.0.3",
-    "@house-rules/application": "workspace:0.2.0",
-    "@house-rules/domain": "workspace:0.2.0",
-    "@house-rules/migrations": "workspace:0.4.0",
+    "@house-rules/application": "workspace:0.3.0",
+    "@house-rules/domain": "workspace:0.2.1",
+    "@house-rules/migrations": "workspace:0.4.1",
     "effect": "4.0.3",
     "typescript": "7.0.2",
     "vitest": "5.0.1"

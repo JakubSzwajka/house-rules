@@ -181,7 +181,7 @@ importers:
         specifier: 8.0.3
         version: 8.0.3(supports-color@7.2.0)
       '@house-rules/rules':
-        specifier: workspace:0.19.0
+        specifier: workspace:0.20.0
         version: link:packages/rules
       '@shadcn/lint':
         specifier: 0.2.0
@@ -229,28 +229,28 @@ importers:
         specifier: workspace:0.0.0
         version: link:../../packages/bookings
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../../../../packages/application
       '@house-rules/auth-jwt':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.1.1
         version: link:../../../../packages/auth-jwt
       '@house-rules/call-audit':
-        specifier: workspace:0.7.0
+        specifier: workspace:0.7.1
         version: link:../../../../packages/call-audit
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../../../../packages/domain
       '@house-rules/identity':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.1.1
         version: link:../../../../packages/identity
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../../../../packages/migrations
       '@house-rules/node-host':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../../../../packages/node-host
       '@house-rules/party':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.1.1
         version: link:../../../../packages/party
       effect:
         specifier: 4.0.3
@@ -317,10 +317,10 @@ importers:
   examples/booking/packages/billing:
     dependencies:
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../../../../packages/application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../../../../packages/domain
       effect:
         specifier: 4.0.3
@@ -339,7 +339,7 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../../../../packages/migrations
       typescript:
         specifier: 7.0.2
@@ -351,13 +351,13 @@ importers:
   examples/booking/packages/bookings:
     dependencies:
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../../../../packages/application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../../../../packages/domain
       '@house-rules/party':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.1.1
         version: link:../../../../packages/party
       effect:
         specifier: 4.0.3
@@ -376,7 +376,7 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../../../../packages/migrations
       typescript:
         specifier: 7.0.2
@@ -394,10 +394,10 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -419,10 +419,10 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       effect:
         specifier: 4.0.3
@@ -449,10 +449,10 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -479,13 +479,13 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -512,13 +512,13 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -551,10 +551,10 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       effect:
         specifier: 4.0.3
@@ -581,13 +581,13 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -602,7 +602,7 @@ importers:
   packages/express-host:
     dependencies:
       '@house-rules/node-host':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../node-host
       express:
         specifier: 5.3.0
@@ -624,7 +624,7 @@ importers:
   packages/identity:
     dependencies:
       '@house-rules/auth-jwt':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.1.1
         version: link:../auth-jwt
       jose:
         specifier: 6.2.12
@@ -643,13 +643,13 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -712,13 +712,13 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -745,13 +745,13 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -778,13 +778,13 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -811,13 +811,13 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -844,13 +844,13 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -872,10 +872,10 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@24.19.1)(vite@8.3.0(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/push':
-        specifier: workspace:0.1.0
+        specifier: workspace:0.1.1
         version: link:../push
       '@types/node':
         specifier: 24.19.1
@@ -908,13 +908,13 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -972,13 +972,13 @@ importers:
         specifier: 4.0.3
         version: 4.0.3(effect@4.0.3)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/application':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.3.0
         version: link:../application
       '@house-rules/domain':
-        specifier: workspace:0.2.0
+        specifier: workspace:0.2.1
         version: link:../domain
       '@house-rules/migrations':
-        specifier: workspace:0.4.0
+        specifier: workspace:0.4.1
         version: link:../migrations
       effect:
         specifier: 4.0.3
@@ -1000,7 +1000,7 @@ importers:
         version: 7.3.5(@types/node@24.19.1)(jiti@2.7.0)(yaml@2.9.1)
     devDependencies:
       '@house-rules/rules':
-        specifier: workspace:0.19.0
+        specifier: workspace:0.20.0
         version: link:../packages/rules
       '@types/node':
         specifier: 24.19.1
