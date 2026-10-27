@@ -9,18 +9,20 @@ import { defineFeature } from "@house-rules/application/contract";
 import { Effect, Schema } from "effect";
 
 export const ping = defineFeature("ping", {
-  description: "Read the service status",
+  description: "Send a service ping",
   permission: null,
   input: Schema.Void,
   output: Schema.String,
   failure: Schema.Never,
   edges: [],
-  flags: { readOnly: true },
+  flags: { readOnly: false },
   handler: () => Effect.succeed("ok"),
 });
 ```
 
 Value and type imports are limited to `effect`, kit contract doors, package `./contract` doors, the same app's `projections/<name>/contract.ts` doors and legacy read-model contracts. Other feature indexes, package mains, composition and local handler files are not allowed. Entry points call operations, never other entry points. Literal dynamic imports follow the same allow-list; computed imports fail closed.
+
+The default recommended [command-kind](command-kind.md) rule rejects readOnly true commands and unresolved flags, even without this placement preset. Queries use defineReadModel directly.
 
 Read models use the same shape in `read-models/<name>/index.ts`, with exactly one direct defineReadModel call and no other value exports. Their imports follow this same contract-only list, including projection contracts. They never import features, other read-model entries, services or adapters. Dynamic imports in read entry points are forbidden.
 

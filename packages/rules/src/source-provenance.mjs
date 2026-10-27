@@ -4,6 +4,7 @@ import { sourcePackages } from "./source-packages.mjs";
 import { objectProperty } from "./object-property.mjs";
 import { parseForESLint } from "@typescript-eslint/parser";
 import { unwrapExpression } from "./import-bindings.mjs";
+import { sourceDefinitions, variableValue, requireIdentity } from "./source-bindings.mjs";
 import { featureOptions } from "./feature-origin.mjs";
 import {
   builderFromExport,
@@ -20,9 +21,11 @@ export const sourceGraph = (
   scopeManager,
   { cwd = process.cwd(), packagesDir = [], workspaces = [] } = {},
 ) => {
-  const packages = sourcePackages(cwd, packagesDir, workspaces);
+  let packages;
   const targetSource = (file, source) =>
-    relativeSource(file, source) ?? packages.get(source) ?? installedContractSource(file, source);
+    relativeSource(file, source) ??
+    (packages ??= sourcePackages(cwd, packagesDir, workspaces)).get(source) ??
+    installedContractSource(file, source);
   const cache = new Map([[path.resolve(filename), program]]);
   const scopes = new Map([[path.resolve(filename), scopeManager]]);
   const load = (file) => {
@@ -139,11 +142,7 @@ export const sourceGraph = (
     }
     return undefined;
   };
-  const definition = (file, node) =>
-    scopes
-      .get(file)
-      ?.scopes.flatMap((scope) => scope.references)
-      .find((reference) => reference.identifier === node)?.resolved?.defs[0];
+  const definition = sourceDefinitions(scopes);
   const resolve = (file, expression, seen = new Set(), allowMutable = false) => {
     const node = unwrapExpression(expression);
     if (node?.type === "MemberExpression") {
@@ -179,7 +178,8 @@ export const sourceGraph = (
     const def = definition(file, node);
     if (def && !["ImportBinding", "Variable"].includes(def.type)) return undefined;
     if (def?.type === "Variable" && def.parent.kind !== "const" && !allowMutable) return undefined;
-    const found = def?.type === "Variable" ? { file, node: def.node.init } : named(file, node.name);
+    const found =
+      def?.type === "Variable" ? { file, node: variableValue(def, node) } : named(file, node.name);
     if (found?.unstable && !allowMutable) return undefined;
     if (!found?.node) return found;
     const resolved = resolve(found.file, found.node, new Set([...seen, key]), allowMutable);
@@ -188,18 +188,25 @@ export const sourceGraph = (
       : resolved;
   };
   const builderOrigins = new Map();
-  const builderOrigin = (file, expression) => {
+  const builderOrigin = (file, expression, { imported, completed = false } = {}) => {
     const root = resolve(file, expression, new Set(), true);
     const rootNode = root?.node;
-    if (rootNode && builderOrigins.has(rootNode)) return builderOrigins.get(rootNode);
+    const mode = `${imported ?? "*"}:${completed}`;
+    if (rootNode && !builderOrigins.has(rootNode)) builderOrigins.set(rootNode, new Map());
+    const memo = builderOrigins.get(rootNode);
+    if (memo?.has(mode)) return memo.get(mode);
     const pending = [{ found: root, withinFunction: false }];
     const seen = new Set();
     while (pending.length) {
       const { found, withinFunction } = pending.pop();
       if (!found) continue;
       if (kitBuilderOrigin(found)) {
-        if (withinFunction && found.imported === "bindOperation") continue;
-        if (rootNode) builderOrigins.set(rootNode, found);
+        if (
+          (imported && found.imported !== imported) ||
+          (withinFunction && found.imported === "bindOperation")
+        )
+          continue;
+        memo?.set(mode, found);
         return found;
       }
       const node = found.node;
@@ -207,6 +214,7 @@ export const sourceGraph = (
         !node ||
         seen.has(node) ||
         (node.type === "CallExpression" &&
+          !completed &&
           !withinFunction &&
           !(
             node.callee.type === "MemberExpression" &&
@@ -258,27 +266,19 @@ export const sourceGraph = (
         }
       }
     }
-    if (rootNode) builderOrigins.set(rootNode, undefined);
+    memo?.set(mode, undefined);
     return undefined;
   };
   const importOrigin = (file, expression, matches) =>
     importedOrigin(resolve, file, expression, matches);
-  const isRequire = (file, expression) => {
-    const node = unwrapExpression(expression);
-    if (node?.type === "Identifier" && node.name === "require" && !definition(file, node))
-      return true;
-    const found = resolve(file, node);
-    if (found?.node?.type !== "CallExpression") return false;
-    const factory = resolve(found.file, found.node.callee);
-    return (
-      ["node:module", "module"].includes(factory?.source) && factory.imported === "createRequire"
-    );
-  };
-  const packageBuilder = (from, source, imported) => {
+  const isRequire = requireIdentity(resolve, definition, load);
+  const packageBuilder = (from, source, imported, options) => {
     const file = targetSource(from, source);
     if (!file) return undefined;
-    if (imported === undefined) return builderOrigin(file, load(file));
-    return builderFromExport(named(file, imported, true), builderOrigin);
+    if (imported === undefined) return builderOrigin(file, load(file), options);
+    return builderFromExport(named(file, imported, true), (from, node) =>
+      builderOrigin(from, node, options),
+    );
   };
   return { resolve, builderOrigin, importOrigin, isRequire, packageBuilder };
 };

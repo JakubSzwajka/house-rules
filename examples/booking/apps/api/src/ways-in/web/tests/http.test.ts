@@ -113,18 +113,18 @@ it.live("shared features, one authenticated hook, HTTP closure refusal and appro
     assert.strictEqual(mcpWay.features[1], ReadModels.myBookings);
     assert.deepStrictEqual(webWay.features, [
       Features.createOrganisation,
-      Features.myOrganisations,
+      ReadModels.myOrganisations,
       Features.createInvitation,
       Features.acceptInvitation,
-      Features.listInvitations,
+      ReadModels.listInvitations,
       Features.revokeInvitation,
       Features.removeMember,
-      Features.listPeople,
-      Features.listMembers,
-      Features.myActivity,
-      Features.myProfile,
-      Features.listPermissions,
-      Features.recentAudit,
+      ReadModels.listPeople,
+      ReadModels.listMembers,
+      ReadModels.myActivity,
+      ReadModels.myProfile,
+      ReadModels.listPermissions,
+      ReadModels.recentAudit,
       Features.deleteRole,
       Features.signUp,
       Features.signIn,
@@ -135,7 +135,7 @@ it.live("shared features, one authenticated hook, HTTP closure refusal and appro
       ReadModels.myBookings,
       Features.cancelBooking,
       Features.defineRole,
-      Features.listRoles,
+      ReadModels.listRoles,
       Features.assignRole,
       Features.revokeRole,
     ]);
@@ -173,7 +173,7 @@ it.live(
           ),
         );
       for (const [entry, input] of [
-        [Features.duePayments, {}],
+        [ReadModels.duePayments, {}],
         [{ ...ReadModels.showBooking }, { id: "one" }],
       ] as const) {
         const refused = yield* Effect.promise(() =>

@@ -2,6 +2,8 @@
 
 Status: approved by the owner to build. Revision 3, after two feasibility reviews. Leader: the session that wrote this file. It is a spike: a readable, runnable slice of the v2 shape, built next to today's code so the owner can read real code and then settle the open points. It is not the migration. Nothing in `packages/` changes.
 
+Current authoring follows [AGENTS.md](../AGENTS.md), not this historical spike. Commands use defineFeature. Queries use defineReadModel directly in read-models/<name>/index.ts, with no own readOnly flag and a separate ReadModels registry. SQL/service projections live in projections/. Explicit entry kind distinguishes commands from queries. The default recommended lint rejects legacy readOnly:true defineFeature authoring; runtime compatibility for old descriptors remains.
+
 ## 1. Outcome
 
 When the spike is done, all of this is true:

@@ -22,8 +22,8 @@ WAYS
       └─ Party.createPerson
  nightly-cleanup  schedule 0 3 * * * UTC  [2 features]  src/ways-in/schedules/nightly-cleanup.ts
   Mean: allow
-  ├─ due_payments [feature]  system (nightly cleanup)  src/features/due-payments/index.ts  needs
-  │   none; system needs billing:expire
+  ├─ due_payments [read-model]  system (nightly cleanup)  src/read-models/due-payments/index.ts
+  │   needs none; system needs billing:expire
   │   └─ Billing.duePayments
   └─ expire_payment [feature]  system (nightly cleanup)  src/features/expire-payment/index.ts  needs
       none; system needs billing:expire
@@ -53,30 +53,33 @@ WAYS
   │   └─ Party.defineRole
   ├─ delete_role [feature]  person  src/features/delete-role/index.ts  needs party:admin
   │   └─ Party.deleteRole
-  ├─ list_invitations [feature]  person  src/features/list-invitations/index.ts  needs party:admin
+  ├─ list_invitations [read-model]  person  src/read-models/list-invitations/index.ts  needs
+  │   party:admin
   │   └─ Party.listInvitations
-  ├─ list_members [feature]  person  src/features/list-members/index.ts  needs party:read
+  ├─ list_members [read-model]  person  src/read-models/list-members/index.ts  needs party:read
   │   └─ Party.listMembers
-  ├─ list_people [feature]  person  src/features/list-people/index.ts  needs party:admin
+  ├─ list_people [read-model]  person  src/read-models/list-people/index.ts  needs party:admin
   │   └─ Party.listPeople
-  ├─ list_permissions [feature]  person  src/features/list-permissions/index.ts  needs party:read
+  ├─ list_permissions [read-model]  person  src/read-models/list-permissions/index.ts  needs
+  │   party:read
   │   └─ Party.myAccess
-  ├─ list_roles [feature]  person  src/features/list-roles/index.ts  needs party:read
+  ├─ list_roles [read-model]  person  src/read-models/list-roles/index.ts  needs party:read
   │   └─ Party.listRoles
   ├─ make_booking [feature]  person  src/features/make-booking/index.ts  needs billing:charge
   │   bookings:write party:read
   │   ├─ Billing.initPayment
   │   └─ Bookings.book → Party.canAdminOrganisation, Party.isRelated
-  ├─ my_activity [feature]  person  src/features/my-activity/index.ts  needs none
+  ├─ my_activity [read-model]  person  src/read-models/my-activity/index.ts  needs none
   │   └─ AuditTrail.mine
   ├─ my_bookings [read-model]  person  src/read-models/my-bookings/index.ts  needs bookings:read
   │   └─ MyBookings.myBookings
-  ├─ my_organisations [feature]  person  src/features/my-organisations/index.ts  needs party:read
+  ├─ my_organisations [read-model]  person  src/read-models/my-organisations/index.ts  needs
+  │   party:read
   │   └─ Party.myOrganisations
-  ├─ my_profile [feature]  person  src/features/my-profile/index.ts  needs party:read
+  ├─ my_profile [read-model]  person  src/read-models/my-profile/index.ts  needs party:read
   │   ├─ Party.myAccess
   │   └─ Party.showMe
-  ├─ recent_audit [feature]  person  src/features/recent-audit/index.ts  needs audit:read
+  ├─ recent_audit [read-model]  person  src/read-models/recent-audit/index.ts  needs audit:read
   │   └─ AuditTrail.recent
   ├─ remove_member [feature]  person  src/features/remove-member/index.ts  needs party:admin
   │   └─ Party.unrelate

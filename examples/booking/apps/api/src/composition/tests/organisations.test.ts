@@ -4,6 +4,7 @@ import { Actor, ActorId, UnitOfWork } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
 import { Context, Effect, Layer } from "effect";
 import { Features } from "../../features/index.ts";
+import { ReadModels } from "../../read-models/index.ts";
 import { modulePlan, createApp } from "../app.ts";
 import { builtInRoles, systemPermissions } from "../access.ts";
 import { seedRoleTesting } from "./roles-testing.ts";
@@ -38,7 +39,7 @@ for (const storage of ["memory", "postgres"] as const) {
           Context.merge(
             Context.add(context, CurrentActor, Actor.make({ id: ActorId.make(id) })),
             May.context(may, {
-              features: Object.values(Features),
+              features: [...Object.values(Features), ...Object.values(ReadModels)],
               system: systemPermissions,
               via: "web",
             }),
@@ -71,10 +72,10 @@ for (const storage of ["memory", "postgres"] as const) {
           ["b", y],
         ] as const)
           assert.deepStrictEqual(
-            yield* runFeature(Features.myOrganisations, {}).pipe(Effect.provideContext(as(id))),
+            yield* runFeature(ReadModels.myOrganisations, {}).pipe(Effect.provideContext(as(id))),
             [{ ...org, relation: "staff", roles: adminRoles }],
           );
-        for (const feature of [Features.createInvitation, Features.listInvitations] as const) {
+        for (const feature of [Features.createInvitation, ReadModels.listInvitations] as const) {
           const input = { organisationId: y.id, roleKey: null };
           assert.strictEqual(
             (yield* runFeature(feature, input).pipe(Effect.provideContext(as("a")), Effect.flip))
@@ -101,7 +102,7 @@ for (const storage of ["memory", "postgres"] as const) {
           "PartyDenied",
         );
         assert.strictEqual(
-          (yield* runFeature(Features.listInvitations, { organisationId: x.id }).pipe(
+          (yield* runFeature(ReadModels.listInvitations, { organisationId: x.id }).pipe(
             Effect.provideContext(as("a")),
           )).length,
           1,
@@ -117,12 +118,12 @@ for (const storage of ["memory", "postgres"] as const) {
           ))._tag,
           "PartyNotFound",
         );
-        const list = yield* runFeature(Features.listPeople, {}).pipe(
+        const list = yield* runFeature(ReadModels.listPeople, {}).pipe(
           Effect.provideContext(as("a")),
         );
         assert.deepStrictEqual(list.map((p) => p.id).sort(), ["a", "joiner"]);
         assert.deepStrictEqual(
-          (yield* runFeature(Features.listPeople, {}).pipe(Effect.provideContext(as("b")))).map(
+          (yield* runFeature(ReadModels.listPeople, {}).pipe(Effect.provideContext(as("b")))).map(
             (p) => p.id,
           ),
           ["b"],
@@ -136,7 +137,7 @@ for (const storage of ["memory", "postgres"] as const) {
           [x.id, x.id],
         );
         assert.deepStrictEqual(
-          (yield* runFeature(Features.listMembers, { organisationId: x.id }).pipe(
+          (yield* runFeature(ReadModels.listMembers, { organisationId: x.id }).pipe(
             Effect.provideContext(as("a")),
           )).map((p) => ({ id: p.id, relation: p.relation, roles: p.roles })),
           ["a", "joiner"].map((id) => ({
@@ -152,21 +153,21 @@ for (const storage of ["memory", "postgres"] as const) {
           ["member", "unknown"],
         ] as const)
           assert.strictEqual(
-            (yield* runFeature(Features.listMembers, { organisationId }).pipe(
+            (yield* runFeature(ReadModels.listMembers, { organisationId }).pipe(
               Effect.provideContext(as(id)),
               Effect.flip,
             ))._tag,
             "PartyNotFound",
           );
         assert.strictEqual(
-          (yield* runFeature(Features.listPeople, {}).pipe(
+          (yield* runFeature(ReadModels.listPeople, {}).pipe(
             Effect.provideContext(as("member")),
             Effect.flip,
           ))._tag,
           "Forbidden",
         );
         assert.strictEqual(
-          (yield* runFeature(Features.listPeople, {}).pipe(Effect.provideContext(as("global"))))
+          (yield* runFeature(ReadModels.listPeople, {}).pipe(Effect.provideContext(as("global"))))
             .length,
           5,
         );
@@ -214,7 +215,7 @@ for (const storage of ["memory", "postgres"] as const) {
         );
         assert.isFalse(yield* party.isRelated(relation));
         assert.strictEqual(
-          (yield* runFeature(Features.listInvitations, { organisationId: x.id }).pipe(
+          (yield* runFeature(ReadModels.listInvitations, { organisationId: x.id }).pipe(
             Effect.provideContext(as("joiner")),
             Effect.flip,
           ))._tag,

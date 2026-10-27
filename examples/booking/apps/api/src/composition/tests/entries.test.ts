@@ -146,13 +146,13 @@ it.effect("runs the schedule once using Effect Clock, expires only pending older
     yield* TestClock.adjust("24 hours");
     const systemContext = Context.merge(
       context,
-      May.system([Features.duePayments, Features.expirePayment], {
+      May.system([ReadModels.duePayments, Features.expirePayment], {
         system: systemPermissions,
         via: "schedule:nightly-cleanup",
       }),
     );
     const due = () =>
-      runFeature(Features.duePayments, {}).pipe(Effect.provideContext(systemContext));
+      runFeature(ReadModels.duePayments, {}).pipe(Effect.provideContext(systemContext));
     assert.deepStrictEqual(yield* due(), []);
     yield* TestClock.adjust(1);
     const inputs = yield* due();

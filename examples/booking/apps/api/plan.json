@@ -402,7 +402,7 @@
     },
     {
       "name": "due_payments",
-      "path": "src/features/due-payments/index.ts",
+      "path": "src/read-models/due-payments/index.ts",
       "permission": null,
       "readOnly": true,
       "start": {
@@ -410,7 +410,7 @@
         "startedBy": "schedule:nightly-cleanup"
       },
       "edges": ["Billing.duePayments"],
-      "kind": "feature"
+      "kind": "read-model"
     },
     {
       "name": "expire_payment",
@@ -443,43 +443,43 @@
     },
     {
       "name": "list_invitations",
-      "path": "src/features/list-invitations/index.ts",
+      "path": "src/read-models/list-invitations/index.ts",
       "permission": null,
       "readOnly": true,
       "edges": ["Party.listInvitations"],
-      "kind": "feature"
+      "kind": "read-model"
     },
     {
       "name": "list_members",
-      "path": "src/features/list-members/index.ts",
+      "path": "src/read-models/list-members/index.ts",
       "permission": null,
       "readOnly": true,
       "edges": ["Party.listMembers"],
-      "kind": "feature"
+      "kind": "read-model"
     },
     {
       "name": "list_people",
-      "path": "src/features/list-people/index.ts",
+      "path": "src/read-models/list-people/index.ts",
       "permission": null,
       "readOnly": true,
       "edges": ["Party.listPeople"],
-      "kind": "feature"
+      "kind": "read-model"
     },
     {
       "name": "list_permissions",
-      "path": "src/features/list-permissions/index.ts",
+      "path": "src/read-models/list-permissions/index.ts",
       "permission": null,
       "readOnly": true,
       "edges": ["Party.myAccess"],
-      "kind": "feature"
+      "kind": "read-model"
     },
     {
       "name": "list_roles",
-      "path": "src/features/list-roles/index.ts",
+      "path": "src/read-models/list-roles/index.ts",
       "permission": null,
       "readOnly": true,
       "edges": ["Party.listRoles"],
-      "kind": "feature"
+      "kind": "read-model"
     },
     {
       "name": "make_booking",
@@ -490,11 +490,11 @@
     },
     {
       "name": "my_activity",
-      "path": "src/features/my-activity/index.ts",
+      "path": "src/read-models/my-activity/index.ts",
       "permission": null,
       "readOnly": true,
       "edges": ["AuditTrail.mine"],
-      "kind": "feature"
+      "kind": "read-model"
     },
     {
       "name": "my_bookings",
@@ -506,27 +506,27 @@
     },
     {
       "name": "my_organisations",
-      "path": "src/features/my-organisations/index.ts",
+      "path": "src/read-models/my-organisations/index.ts",
       "permission": null,
       "readOnly": true,
       "edges": ["Party.myOrganisations"],
-      "kind": "feature"
+      "kind": "read-model"
     },
     {
       "name": "my_profile",
-      "path": "src/features/my-profile/index.ts",
+      "path": "src/read-models/my-profile/index.ts",
       "permission": null,
       "readOnly": true,
       "edges": ["Party.showMe", "Party.myAccess"],
-      "kind": "feature"
+      "kind": "read-model"
     },
     {
       "name": "recent_audit",
-      "path": "src/features/recent-audit/index.ts",
+      "path": "src/read-models/recent-audit/index.ts",
       "permission": null,
       "readOnly": true,
       "edges": ["AuditTrail.recent"],
-      "kind": "feature"
+      "kind": "read-model"
     },
     {
       "name": "remove_member",

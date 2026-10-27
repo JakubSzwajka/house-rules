@@ -48,6 +48,7 @@
 	redir /rules/biome/ /rules/ 301
 	redir /rules/node/ /rules/ 301
 	redir /rules/eslint/comment-discipline/ /rules/#comment-discipline 301
+	redir /rules/eslint/command-kind/ /rules/#command-kind 301
 	redir /rules/eslint/no-broken-relative-links/ /rules/#no-broken-relative-links 301
 	redir /rules/eslint/design-no-raw-color/ /rules/#design-no-raw-color 301
 	redir /rules/eslint/design-no-raw-color-literal/ /rules/#design-no-raw-color-literal 301

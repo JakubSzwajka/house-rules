@@ -1,4 +1,3 @@
-import { Features } from "../../features/index.ts";
 import { ReadModels } from "../../read-models/index.ts";
 import { mcpWho, resourceOf } from "../../composition/sign-in.ts";
 import { defineWay, Mean } from "@house-rules/application";

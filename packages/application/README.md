@@ -11,9 +11,9 @@ HTTP / MCP / call
                       step trace
 ```
 
-## Define a feature
+## Entry points and operations
 
-A feature lives in `features/<name>/index.ts`. Import `defineFeature` from the browser-safe contract door. Its handler receives decoded input and `{ call, caller }`. It calls only declared operation edges, never other features or module services. `feature-file` rejects imports of other feature indexes. Typed feature edge targets fail at compile time; Runtime/composition acquisition rejects plain and system feature targets with typed GraphInvalid. Reuse goes through module operations.
+A command feature lives in `features/<name>/index.ts`. Import `defineFeature` from the browser-safe contract door. Its handler receives decoded input and `{ call, caller }`. It calls only declared operation edges, never other features or module services. `feature-file` rejects imports of other feature indexes. Typed feature edge targets fail at compile time; Runtime/composition acquisition rejects plain and system feature targets with typed GraphInvalid. Reuse goes through module operations.
 
 The module declares its operation and exports `ItemsOperations` through `@example/items/contract`:
 
@@ -32,21 +32,20 @@ const readTitle = defineOperation("Items.readTitle", {
 export const ItemsOperations = { readTitle } as const;
 ```
 
-`features/show-title/index.ts` contains exactly one builder call and one value export:
+An exposed query in `read-models/show-title/index.ts` contains exactly one builder call and one value export:
 
 ```ts
 import { ItemsOperations } from "@example/items/contract";
-import { defineFeature } from "@house-rules/application/contract";
+import { defineReadModel } from "@house-rules/application/contract";
 
 const readTitle = ItemsOperations.readTitle;
-export const showTitle = defineFeature("show_title", {
+export const showTitle = defineReadModel("show_title", {
   description: "Show one item's title.",
   input: readTitle.input,
   output: readTitle.output,
   failure: readTitle.failure,
   permission: null,
   edges: [readTitle],
-  flags: { readOnly: true },
   handler: (input, { call }) => call(readTitle, input),
 });
 ```
@@ -55,18 +54,18 @@ Keep the endpoint in `ways-in/web/endpoints.ts`:
 
 ```ts
 import { endpoint } from "@house-rules/application/contract";
-import { showTitle } from "../../features/show-title/index.ts";
+import { showTitle } from "../../read-models/show-title/index.ts";
 
 export const showEndpoint = endpoint(showTitle, "GET /titles/:id");
 ```
 
-The options are `description`, optional `title`, `permission`, `input`, `output`, `failure`, optional `edges`, `flags`, `start` and `handler`. Permission is a `resource:action` string or explicit `null`. Omitted flags are literal false. `start` defaults to `"person"`. Use `systemStart("hook:first-sign-in")` for a system start. Its optional second argument sets `startedBy`; otherwise the reason supplies both fields.
+The options are `description`, optional `title`, `permission`, `input`, `output`, `failure`, optional `edges`, `flags`, `start` and `handler`. Permission is a `resource:action` string or explicit `null`. Omitted command flags are literal false; read models fix readOnly true. `start` defaults to `"person"`. Use `systemStart("hook:first-sign-in")` for a system start. Its optional second argument sets `startedBy`; otherwise the reason supplies both fields.
 
 Export the app's features as one `Features` object in `features/index.ts`. Declare system permissions in composition. Module packages export operation descriptors from their contract doors, often as `<Module>Operations`. Projections publish operations. Read models are exposed queries, not mounted services.
 
 ## Define a read model
 
-`defineReadModel` is the read entry-point builder from application/contract. Its `kind` is `"read-model"`; defineFeature retains `"feature"` for commands, including idempotent commands and legacy read-only features. Names, verbs and readOnly never classify kind.
+`defineReadModel` is the read entry-point builder from application/contract. Its `kind` is `"read-model"`; defineFeature retains `"feature"` for commands, including idempotent commands. Names, verbs and readOnly never classify kind. The runtime retains legacy read-only feature compatibility, but the default recommended authoring rule rejects it.
 
 Put one builder call with schemas and handler in `read-models/<name>/index.ts`, then export ReadModels from `read-models/index.ts`. The options match defineFeature, except own readOnly is fixed true and destructive may only be false. Transactional reads are supported. Edges accept read-only operation descriptors only, including system edges. Runtime and plan validation reject every declared transitive path into non-read-only work. Domain calculations remain in modules; SQL is not required.
 
@@ -89,9 +88,11 @@ Graph validation proves declared read-only reachability. It trusts operation met
 
 ### Migrate an exposed read
 
+BREAKING: recommended now enables house-rules/command-kind at error without opt-in. Command options and flags must be inline objects with literal boolean flags, without readOnly true. Move exposed queries to direct defineReadModel calls and split Features/ReadModels registries. Do not add wrapper features.
+
 When upgrading to rules that enforce this layout, move legacy SQL/service folders under `src/read-models/` to `src/projections/`. Runtime compatibility for the old mount kind `read-model` is retained, but the new authoring rules reject SQL projection code in `read-models/`.
 
-1. Keep its name, input/output/failure schemas, permission, edges and handler. Move it to read-models/<name>/index.ts and use defineReadModel. Keep command features, even idempotent ones, unchanged.
+1. Keep its name, input/output/failure schemas, permission, edges and handler. Move it to read-models/<name>/index.ts, use defineReadModel and remove its own readOnly flag. Keep command features, even idempotent ones, unchanged.
 2. Move any old SQL/service mount out of read-models into projections. Update its contracts, composition mount imports and map kind, without changing domain logic or SQL.
 3. Add the query to ReadModels and register/expose that exact descriptor directly. Update endpoint imports and remove only its old wrapper feature. Keep existing features/exposure field names and endpoint methods/paths.
 4. Set kind read-model on its plan features entry, update paths and regenerate the map. Old missing kinds default to feature, never an inferred query. Widen generic consumer lists from AnyFeature to AnyEntryPoint only when they contain both kinds.
@@ -136,11 +137,11 @@ Only the feature runtime and kit-owned event driver open production units. Write
 
 Plug May once with `composition({ modules: ModulePlan, features, ways, may, system })`. Pass an Effect such as Party.may(); composition resolves it after modules build, with no mutable cell. `MaySocket<E = never>` has `permissionsOf(caller: PersonCaller): Effect<readonly Permission[], E>`. Capture its long-lived services during mounting. `May.fixed(permissions)` gives every person the same list. A failed lookup is logged and becomes `MayUnavailable`, with fixed public 503 text.
 
-The gate checks the caller's roles through the feature's permission closure. A module checks relations on its loaded object in the same unit as a write. HTTP and MCP share the app May plug. MCP stays read-only by exposing only read features, not by using a separate agent permission list.
+The gate checks the caller's roles through the feature's permission closure. A module checks relations on its loaded object in the same unit as a write. HTTP and MCP share the app May plug. MCP stays read-only by exposing only direct read models, not by using a separate agent permission list.
 
 `WhoSocket<R>` resolves an Actor from `Incoming`. Composition supplies its requirements. `Mean.no`, `Mean.elicitation` and `Mean.allow` supply lower Approval layers. Elicitation asks a human and fails closed on decline, cancel, malformed replies or missing support. `RecordSocket` supplies lower `CallWatch`; concrete audit storage belongs to call-audit. Authenticator, Approval and CallWatch remain separate slots. There is no export named Record.
 
-HTTP ways hold endpoint descriptors. List public features with `defineWay({ protocol: "http", ..., features: [Features.signIn, Features.profile], public: [Features.signIn] })`. Each public feature must also be in `features` and declare `start: systemStart(reason, startedBy?)`. Composition and Runtime reject person-start or unexposed public entries with GraphInvalid. Only listed requests skip Who, ignoring missing, invalid and valid tokens alike. They run as the declared SystemCaller using composition's system permissions. Watch, approval, transactions, trace and transport guards still apply. Other features still resolve Who. MCP refuses `public`.
+HTTP ways hold endpoint descriptors. List public features with `defineWay({ protocol: "http", ..., features: [Features.signIn, ReadModels.profile], public: [Features.signIn] })`. Each public feature must also be in `features` and declare `start: systemStart(reason, startedBy?)`. Composition and Runtime reject person-start or unexposed public entries with GraphInvalid. Only listed requests skip Who, ignoring missing, invalid and valid tokens alike. They run as the declared SystemCaller using composition's system permissions. Watch, approval, transactions, trace and transport guards still apply. Other features still resolve Who. MCP refuses `public`.
 
 Admission stays on the way, not on endpoint descriptors. Pass `public: way.public` to `toOpenApi(endpoints, options)` to mark those operations with `security: []`, overriding any global security requirement. This option only describes admission; it cannot grant access. The router has no HTTP documentation route.
 
@@ -161,7 +162,7 @@ const hook = defineWay({
 const nightly = defineWay({
   protocol: "schedule", name: "nightly-cleanup",
   clock: { cron: "0 3 * * *", timeZone: "UTC" },
-  features: [Features.duePayments, Features.expirePayment], mean: Mean.allow, input: {},
+  features: [ReadModels.duePayments, Features.expirePayment], mean: Mean.allow, input: {},
 });
 ```
 

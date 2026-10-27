@@ -25,6 +25,7 @@ test("exports plugin metadata and a flat preset for every supported extension", 
   assert.equal(plugin.configs.recommended[0].rules["house-rules/comment-discipline"], "error");
   assert.deepEqual(Object.keys(plugin.configs.recommended[0].rules), [
     "house-rules/comment-discipline",
+    "house-rules/command-kind",
   ]);
   assert.deepEqual(plugin.configs.testing[0].files, ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"]);
   assert.equal(plugin.configs.testing[0].plugins["house-rules"], plugin);

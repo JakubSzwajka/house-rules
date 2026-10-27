@@ -4,6 +4,7 @@ import { Actor, ActorId } from "@house-rules/domain";
 import { Party } from "@house-rules/party";
 import { Clock, Context, Effect, Layer } from "effect";
 import { Features } from "../../features/index.ts";
+import { ReadModels } from "../../read-models/index.ts";
 import { modulePlan, createApp } from "../app.ts";
 import { systemPermissions } from "../access.ts";
 import { seedRoleTesting } from "./roles-testing.ts";
@@ -38,14 +39,14 @@ for (const storage of ["memory", "postgres"] as const) {
           Context.merge(
             Context.add(context, CurrentActor, Actor.make({ id: ActorId.make(id) })),
             May.context(may, {
-              features: Object.values(Features),
+              features: [...Object.values(Features), ...Object.values(ReadModels)],
               system: systemPermissions,
               via: "web",
             }),
           );
         const startedAt = yield* Clock.currentTimeMillis;
         for (const id of ["alice", "bob"] as const) {
-          const profile = yield* runFeature(Features.myProfile, {}).pipe(
+          const profile = yield* runFeature(ReadModels.myProfile, {}).pipe(
             withRequestId(`profile-${id}`),
             Effect.provideContext(as(id)),
           );
@@ -55,18 +56,18 @@ for (const storage of ["memory", "postgres"] as const) {
             [ActorId.make(id)],
           );
           assert.strictEqual(profile.access.permissions.includes("party:admin"), id === "alice");
-          const catalogue = yield* runFeature(Features.listPermissions, {}).pipe(
+          const catalogue = yield* runFeature(ReadModels.listPermissions, {}).pipe(
             Effect.provideContext(as(id)),
           );
           assert.include(catalogue, "audit:read");
           assert.deepStrictEqual(catalogue, profile.access.catalogue);
         }
-        const denied = yield* runFeature(Features.recentAudit, {}).pipe(
+        const denied = yield* runFeature(ReadModels.recentAudit, {}).pipe(
           Effect.provideContext(as("bob")),
           Effect.flip,
         );
         assert.strictEqual(denied._tag, "Forbidden");
-        const alice = yield* runFeature(Features.recentAudit, {}).pipe(
+        const alice = yield* runFeature(ReadModels.recentAudit, {}).pipe(
           Effect.provideContext(as("alice")),
         );
         assert.isTrue(alice.some((row) => row.requestId === "profile-alice"));
@@ -76,11 +77,11 @@ for (const storage of ["memory", "postgres"] as const) {
         assert.isTrue(publicEntry.at >= startedAt);
         assert.isTrue(publicEntry.at <= (yield* Clock.currentTimeMillis));
         assert.strictEqual(publicEntry.who, "bob");
-        const carol = yield* runFeature(Features.recentAudit, {}).pipe(
+        const carol = yield* runFeature(ReadModels.recentAudit, {}).pipe(
           Effect.provideContext(as("carol")),
         );
         assert.isTrue(carol.some((row) => row.requestId === "profile-alice"));
-        const mine = yield* runFeature(Features.myActivity, {}).pipe(
+        const mine = yield* runFeature(ReadModels.myActivity, {}).pipe(
           Effect.provideContext(as("bob")),
         );
         assert.isTrue(mine.some((row) => row.requestId === "profile-bob"));

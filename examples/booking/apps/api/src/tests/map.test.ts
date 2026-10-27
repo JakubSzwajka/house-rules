@@ -99,10 +99,18 @@ it.effect("app map renders twice byte-identically and ignores input order", () =
       snapshot.modules.find((module) => module.name === "my-bookings")?.kind,
       "projection",
     );
-    assert.strictEqual(
-      snapshot.features.find((feature) => feature.name === "show_booking")?.kind,
-      "read-model",
-    );
+    assert.strictEqual(snapshot.features.filter((entry) => entry.kind === "feature").length, 17);
+    assert.strictEqual(snapshot.features.filter((entry) => entry.kind === "read-model").length, 12);
+    for (const query of Object.values(ReadModels)) {
+      const mapped = snapshot.features.find((entry) => entry.name === query.name);
+      assert.isDefined(mapped);
+      assert.strictEqual(mapped.kind, "read-model");
+      assert.strictEqual(
+        mapped.path,
+        `src/read-models/${query.name.replaceAll("_", "-")}/index.ts`,
+      );
+      assert.isTrue(mapped.flags.readOnly);
+    }
     assert.strictEqual(
       snapshot.features.find((feature) => feature.name === "make_booking")?.kind,
       "feature",

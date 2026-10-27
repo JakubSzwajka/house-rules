@@ -237,9 +237,9 @@ describe("thin configs over the house plugin", () => {
             `${app}/src/${part}`,
           ),
           [
-            ...(part.endsWith("wiring-probe/index.ts")
-              ? ["house-rules/feature-file", "house-rules/feature-file"]
-              : []),
+            ...(part.endsWith("wiring-probe/index.ts") ? ["house-rules/feature-file"] : []),
+            "house-rules/command-kind",
+            ...(part.endsWith("wiring-probe/index.ts") ? ["house-rules/feature-file"] : []),
             "house-rules/no-computed-import",
           ],
         );
@@ -262,7 +262,7 @@ describe("thin configs over the house plugin", () => {
         "export const load = (name: string) => import(name);\n",
         "packages/bookings/src/booking/wiring-probe.ts",
       ),
-      ["house-rules/no-computed-import"],
+      ["house-rules/command-kind", "house-rules/no-computed-import"],
     );
     for (const source of ["effect/ai", "effect/unstable/ai"]) {
       assert.deepEqual(
