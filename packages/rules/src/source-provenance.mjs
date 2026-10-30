@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import path from "node:path";
 import { sourcePackages } from "./source-packages.mjs";
+import { cachedFile } from "./source-cache.mjs";
 import { objectProperty } from "./object-property.mjs";
 import { parseForESLint } from "@typescript-eslint/parser";
 import { unwrapExpression } from "./import-bindings.mjs";
@@ -14,6 +15,13 @@ import {
 } from "./kit-builder-source.mjs";
 import { relativeSource, installedContractSource } from "./relative-source.mjs";
 export { relativeSource } from "./relative-source.mjs";
+
+const parseSource = (file) =>
+  parseForESLint(fs.readFileSync(file, "utf8"), {
+    sourceType: "module",
+    range: true,
+    loc: true,
+  });
 
 export const sourceGraph = (
   filename,
@@ -31,11 +39,7 @@ export const sourceGraph = (
   const load = (file) => {
     if (!cache.has(file)) {
       try {
-        const parsed = parseForESLint(fs.readFileSync(file, "utf8"), {
-          sourceType: "module",
-          range: true,
-          loc: true,
-        });
+        const parsed = cachedFile(file, parseSource);
         cache.set(file, parsed.ast);
         scopes.set(file, parsed.scopeManager);
       } catch {

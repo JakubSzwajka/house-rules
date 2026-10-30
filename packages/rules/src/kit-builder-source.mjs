@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import path from "node:path";
+import { sourceGlob, sourceJson } from "./source-cache.mjs";
 
 export const kitBuilderOrigin = (found) =>
   /^@house-rules\/(?:domain|application)(?:\/contract)?$/u.test(found?.source) &&
@@ -86,9 +87,9 @@ export const importedOrigin = (resolve, file, expression, matches, seen = new Se
 };
 
 export const kitImplementation = (filename, cwd, roots) => {
-  for (const manifest of fs.globSync(
+  for (const manifest of sourceGlob(
+    cwd,
     roots.map((root) => `${root}/{domain,application}/package.json`),
-    { cwd },
   )) {
     try {
       const file = path.resolve(cwd, manifest);
@@ -96,7 +97,7 @@ export const kitImplementation = (filename, cwd, roots) => {
       const kit = path.basename(root);
       if (
         ["domain", "application"].includes(kit) &&
-        JSON.parse(fs.readFileSync(file, "utf8")).name === `@house-rules/${kit}` &&
+        sourceJson(file).name === `@house-rules/${kit}` &&
         (fs.existsSync(filename) ? fs.realpathSync(filename) : filename).startsWith(
           `${root}${path.sep}src${path.sep}`,
         )

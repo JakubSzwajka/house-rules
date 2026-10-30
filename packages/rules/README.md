@@ -122,6 +122,7 @@ The v2 correction removed the nodes and modules area keys and deliveryLayer.
 Retired node-file and entry-from-app-node links remain on the site retirement notice.
 Historical changes remain relevant, not alternate configuration paths:
 
+- Unreleased: shares disk-parsed import graphs and workspace metadata across linted files. File and directory stat checks refresh changed sources and package lists in long-lived ESLint processes. The current file always uses ESLint's own AST and scopes. Lint rules and results are unchanged.
 - 0.19.0 corrects the breaking Next host B2 behavior for `src/app`.
 - 0.18.0 added multiple disjoint roots, whole-star root segments and migrations' layout-config root discovery.
 - 0.17.0 split the kits into domain and application and narrowed installed contract trust to their reviewed doors.

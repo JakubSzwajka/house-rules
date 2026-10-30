@@ -4,6 +4,7 @@ import { staticPropertyName } from "./import-bindings.mjs";
 import { matchesAnyGlob } from "./file-globs.mjs";
 import { ruleDocsUrl } from "./rule-docs.mjs";
 import { sourceGraph } from "./source-provenance.mjs";
+import { sourceGlob, sourceJson } from "./source-cache.mjs";
 
 export const esmOnlyEffectRule = {
   meta: {
@@ -32,9 +33,9 @@ export const esmOnlyEffectRule = {
     const roots = context.options[0] ?? {};
     const apps = roots.appsDir ?? ["apps"];
     const packages = roots.packagesDir ?? ["packages"];
-    const manifests = fs.globSync(
+    const manifests = sourceGlob(
+      context.cwd,
       [...apps, ...packages].map((root) => `${root}/*/package.json`),
-      { cwd: context.cwd },
     );
     let owner;
     let effect = false;
@@ -43,7 +44,7 @@ export const esmOnlyEffectRule = {
       if (!filename.startsWith(`${directory}${path.sep}src${path.sep}`)) continue;
       owner = directory;
       try {
-        const json = JSON.parse(fs.readFileSync(path.resolve(context.cwd, manifest), "utf8"));
+        const json = sourceJson(path.resolve(context.cwd, manifest));
         if (
           json.name === "@house-rules/rules" &&
           fs.realpathSync(directory) === fs.realpathSync(path.resolve(import.meta.dirname, ".."))
@@ -58,7 +59,7 @@ export const esmOnlyEffectRule = {
           ["@house-rules/domain", "@house-rules/application"].includes(json.name) ||
           "effect" in { ...json.dependencies, ...json.devDependencies, ...json.peerDependencies };
         if (!effect && fs.existsSync(path.join(directory, "tsconfig.json"))) {
-          const config = JSON.parse(fs.readFileSync(path.join(directory, "tsconfig.json"), "utf8"));
+          const config = sourceJson(path.join(directory, "tsconfig.json"));
           effect = [config.extends]
             .flat()
             .some(
