@@ -16,7 +16,11 @@ Only the publish job has `contents: write`, needed to push those tags. Its check
 
 ### Rules 0.20.1 source-graph cache patch
 
-`@house-rules/rules` 0.20.1 shares parsed disk sources, scope managers and workspace metadata across files in one ESLint process. File and directory stat checks invalidate changed sources, manifests and workspace lists. The current linted file keeps ESLint's own AST and scope manager and never enters the shared cache. Rule behavior is unchanged.
+`@house-rules/rules` 0.20.1 shares parsed disk sources, scope managers and workspace metadata across files in one ESLint process. File and directory stat checks invalidate changed sources, manifests and workspace lists. The current linted file keeps ESLint's own AST and scope manager and never enters the shared disk-source cache.
+
+Per-graph resolution memos and an import-reachability prefilter avoid repeated builder scans through large contract aggregates. Directory scans check their watched set and stamps before caching a result. Shared cache values are read-only. Rule behavior is unchanged.
+
+File stamps assume a filesystem with fine-grained modification or change times; same-size edits within one coarse timestamp tick may not invalidate.
 
 The 0.20.1 release changes only `@house-rules/rules`: the manifest, plugin metadata, exact consumer workspace pins, lockfile and release inventory move together. No other package version changes. Publication still requires the existing publish workflow; this patch does not authorize publishing or tags.
 

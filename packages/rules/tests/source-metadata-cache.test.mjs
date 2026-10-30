@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
+import { tmpdir } from "node:os";
 import { it } from "node:test";
 import { sourcePackages } from "../src/source-packages.mjs";
 import { workspaceDirectories } from "../src/workspaces.mjs";
 import { kitImplementation } from "../src/kit-builder-source.mjs";
 
 it("shares manifest reads and directory scans while detecting workspace and kit changes", (t) => {
-  const root = fs.mkdtempSync(path.resolve("node_modules/source-metadata-cache-"));
+  const root = fs.mkdtempSync(path.join(tmpdir(), "source-metadata-cache-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const put = (file, text) => {
     const target = path.join(root, file);
@@ -66,7 +67,7 @@ it("shares manifest reads and directory scans while detecting workspace and kit 
 });
 
 it("keeps source maps isolated by cwd and refreshes symlinked manifest directories", (t) => {
-  const root = fs.mkdtempSync(path.resolve("node_modules/source-symlink-cache-"));
+  const root = fs.mkdtempSync(path.join(tmpdir(), "source-symlink-cache-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   for (const name of ["one", "two"]) {
     fs.mkdirSync(path.join(root, name, "packages/bridge"), { recursive: true });

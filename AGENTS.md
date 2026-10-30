@@ -2,7 +2,7 @@
 
 This file is the law for agents and people working in this repo and projects made from its template. Read `VISION.md` for why and `CONTEXT.md` for the words. Vision does not override the law.
 
-House rules and tool presets belong in `packages/rules`, the plugin `@house-rules/rules`. The root uses `workspace:0.20.0`. Keep consumer configs thin: extend presets and set project values. Never copy a preset into a thin config.
+House rules and tool presets belong in `packages/rules`, the plugin `@house-rules/rules`. The root uses `workspace:0.20.1`. Keep consumer configs thin: extend presets and set project values. Never copy a preset into a thin config.
 
 ## Commands
 

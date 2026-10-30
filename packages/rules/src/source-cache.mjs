@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import path from "node:path";
 
+// Shared values, including ASTs and scope managers, are read-only. Callers must not mutate them.
 const fileCaches = new WeakMap();
 const scans = new Map();
 const remember = (cache, key, value, limit) => {
@@ -60,16 +61,27 @@ export const sourceGlob = (cwd, patterns, followSymlinks = false) => {
     for (let end = 1; end < parts.length; end++) prefixes.add(parts.slice(0, end).join("/"));
   }
   // Watch every glob ancestor, including empty roots, so additions cannot hide behind a cached list.
-  const directories = [cwd];
-  for (const entry of fs.globSync([...prefixes], { ...options, withFileTypes: true })) {
-    const file = path.resolve(entry.parentPath, entry.name);
-    if (
-      entry.isDirectory() ||
-      (entry.isSymbolicLink() && fs.statSync(file, { throwIfNoEntry: false })?.isDirectory())
-    )
-      directories.push(file);
-  }
+  const watch = () => {
+    const directories = new Set([cwd]);
+    for (const entry of fs.globSync([...prefixes], { ...options, withFileTypes: true })) {
+      const file = path.resolve(entry.parentPath, entry.name);
+      if (
+        entry.isDirectory() ||
+        (entry.isSymbolicLink() && fs.statSync(file, { throwIfNoEntry: false })?.isDirectory())
+      )
+        directories.add(file);
+    }
+    return directories;
+  };
+  const directories = [...watch()].map((file) => [file, stamp(file)]);
   const files = fs.globSync(patterns, options);
-  remember(scans, key, { files, directories: directories.map((file) => [file, stamp(file)]) }, 128);
+  const after = watch();
+  // Stamp before globbing, then check stamps and membership, or a concurrent addition can stay hidden.
+  if (
+    after.size === directories.length &&
+    directories.every(([file, version]) => after.has(file) && stamp(file) === version)
+  )
+    remember(scans, key, { files, directories }, 128);
+  else scans.delete(key);
   return files;
 };

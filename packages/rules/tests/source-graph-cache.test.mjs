@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
+import { tmpdir } from "node:os";
 import { it } from "node:test";
 import { Linter } from "eslint";
 import parser from "@typescript-eslint/parser";
@@ -11,7 +12,7 @@ import { featureBuildersRule } from "../src/feature-builders.mjs";
 import { esmOnlyEffectRule } from "../src/esm-only-effect.mjs";
 
 const fixture = (t) => {
-  const root = fs.mkdtempSync(path.resolve("node_modules/source-graph-cache-"));
+  const root = fs.mkdtempSync(path.join(tmpdir(), "source-graph-cache-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const put = (file, text) => {
     const target = path.join(root, file);
@@ -108,7 +109,7 @@ it("invalidates changed, deleted, recreated and previously invalid dependency fi
   assert.equal(values.at(-1).node.value, 333);
 });
 
-it("refreshes same-size edits by mtime and size edits even when mtime is preserved", (t) => {
+it("refreshes same-size timestamp edits and size edits with preserved mtime", (t) => {
   const { put, leaf, lint, values } = fixture(t);
   const code = 'import { value } from "./leaf.ts"; value;';
   put("apps/api/src/leaf.ts", "export const value = 11;");
