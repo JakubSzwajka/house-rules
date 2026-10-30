@@ -14,11 +14,11 @@ Only after that command succeeds, `scripts/tag-published.mjs` reads `pnpm-publis
 
 Only the publish job has `contents: write`, needed to push those tags. Its checkout uses `persist-credentials: false`; install, build and publish get no stored write token. The tagging step alone receives `GITHUB_TOKEN` and passes its authentication header through command-scoped Git config, not the checkout's config file. GitHub does not trigger workflows from `GITHUB_TOKEN` pushes, so the new package tags cannot start a second publish run. The verify job keeps `contents: read` and has no npm token or OIDC permission.
 
-### Rules source-graph cache patch (unreleased)
+### Rules 0.20.1 source-graph cache patch
 
-The unreleased `@house-rules/rules` patch shares parsed disk sources, scope managers and workspace metadata across files in one ESLint process. File and directory stat checks invalidate changed sources, manifests and workspace lists. The current linted file keeps ESLint's own AST and scope manager and never enters the shared cache. Rule behavior is unchanged.
+`@house-rules/rules` 0.20.1 shares parsed disk sources, scope managers and workspace metadata across files in one ESLint process. File and directory stat checks invalidate changed sources, manifests and workspace lists. The current linted file keeps ESLint's own AST and scope manager and never enters the shared cache. Rule behavior is unchanged.
 
-Prepare the rules version bump, exact consumer workspace pins, lockfile and release inventory together before release. No other package version changes. Publication still requires the existing publish workflow; this patch does not authorize publishing or tags.
+The 0.20.1 release changes only `@house-rules/rules`: the manifest, plugin metadata, exact consumer workspace pins, lockfile and release inventory move together. No other package version changes. Publication still requires the existing publish workflow; this patch does not authorize publishing or tags.
 
 ### Kits release preparation
 
@@ -50,7 +50,7 @@ The bridge-bearing Node Host is released as `0.2.1`; Express Host `0.1.0` depend
 
 | Package | Stable version |
 | --- | --- |
-| `@house-rules/rules` | `0.20.0` |
+| `@house-rules/rules` | `0.20.1` |
 | `@house-rules/domain` | `0.2.1` |
 | `@house-rules/application` | `0.3.0` |
 | `@house-rules/auth-jwt` | `0.1.1` |

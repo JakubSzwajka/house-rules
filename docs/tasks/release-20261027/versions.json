@@ -1,5 +1,5 @@
 {
-  "@house-rules/rules": "0.20.0",
+  "@house-rules/rules": "0.20.1",
   "@house-rules/domain": "0.2.1",
   "@house-rules/application": "0.3.0",
   "@house-rules/auth-jwt": "0.1.1",
