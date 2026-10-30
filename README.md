@@ -84,7 +84,7 @@ This is the approved stable release inventory. Exact versions and pins are recor
 
 | Package | Version | Guide |
 | --- | --- | --- |
-| `@house-rules/rules` | `0.20.0` | [Rules](packages/rules/README.md) |
+| `@house-rules/rules` | `0.20.1` | [Rules](packages/rules/README.md) |
 | `@house-rules/domain` | `0.2.1` | [Domain](packages/domain/README.md) |
 | `@house-rules/application` | `0.3.0` | [Application](packages/application/README.md) |
 | `@house-rules/auth-jwt` | `0.1.1` | [JWT](packages/auth-jwt/README.md) |

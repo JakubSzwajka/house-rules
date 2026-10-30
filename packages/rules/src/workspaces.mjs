@@ -1,14 +1,14 @@
 import * as fs from "node:fs";
 import path from "node:path";
+import { cachedFile, sourceGlob } from "./source-cache.mjs";
 
 // The workspace packages, as pnpm finds them: each folder that a `packages:` glob in pnpm-workspace.yaml
 // matches and that holds a package.json, so a nested glob such as examples/*/packages/* counts too.
 const DEFAULT_WORKSPACES = ["apps/*", "packages/*"];
 const WORKSPACE_LIST_ITEM = /^\s+-\s+["']?([^"'#\s]+)["']?\s*$/u;
 
-const workspacePatterns = (cwd) => {
-  if (!fs.existsSync(path.join(cwd, "pnpm-workspace.yaml"))) return DEFAULT_WORKSPACES;
-  const lines = fs.readFileSync(path.join(cwd, "pnpm-workspace.yaml"), "utf8").split("\n");
+const readPatterns = (file) => {
+  const lines = fs.readFileSync(file, "utf8").split("\n");
   const start = lines.findIndex((line) => line.trimEnd() === "packages:");
   const patterns = [];
   for (const line of start === -1 ? [] : lines.slice(start + 1)) {
@@ -28,11 +28,14 @@ export const workspaceRoot = (cwd) => {
   }
 };
 
-export const workspaceDirectories = (cwd = process.cwd()) =>
-  fs
-    .globSync(
-      workspacePatterns(cwd).map((pattern) => `${pattern}/package.json`),
-      { cwd, followSymlinks: true },
-    )
+export const workspaceDirectories = (cwd = process.cwd()) => {
+  const file = path.join(cwd, "pnpm-workspace.yaml");
+  const patterns = fs.existsSync(file) ? cachedFile(file, readPatterns) : DEFAULT_WORKSPACES;
+  return sourceGlob(
+    cwd,
+    patterns.map((pattern) => `${pattern}/package.json`),
+    true,
+  )
     .map((manifest) => path.dirname(manifest).split(path.sep).join("/"))
     .sort();
+};

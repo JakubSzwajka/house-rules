@@ -181,7 +181,7 @@ importers:
         specifier: 8.0.3
         version: 8.0.3(supports-color@7.2.0)
       '@house-rules/rules':
-        specifier: workspace:0.20.0
+        specifier: workspace:0.20.1
         version: link:packages/rules
       '@shadcn/lint':
         specifier: 0.2.0
@@ -1000,7 +1000,7 @@ importers:
         version: 7.3.5(@types/node@24.19.1)(jiti@2.7.0)(yaml@2.9.1)
     devDependencies:
       '@house-rules/rules':
-        specifier: workspace:0.20.0
+        specifier: workspace:0.20.1
         version: link:../packages/rules
       '@types/node':
         specifier: 24.19.1
