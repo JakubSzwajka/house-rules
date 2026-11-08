@@ -19,6 +19,20 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: house_rules
+          POSTGRES_USER: house_rules
+          POSTGRES_PASSWORD: house_rules
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U house_rules -d house_rules"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

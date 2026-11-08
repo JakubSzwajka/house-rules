@@ -1,4 +1,4 @@
-import * as Domain from "@alchemy.run/domain";
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import { devTokens } from "@house-rules/stack";
 import { expect, it } from "@effect/vitest";
@@ -13,7 +13,7 @@ import { bookingLive } from "../booking-live.ts";
 import { Routes } from "../routes.ts";
 
 const Served = HttpRouter.serve(Routes, { disableLogger: true }).pipe(
-  Layer.provide(bookingLive(devTokens(DEV_TOKENS)).pipe(Layer.provide(Domain.InMemory))),
+  Layer.provide(bookingLive(devTokens(DEV_TOKENS)).pipe(Layer.provide(platformForTests))),
   Layer.provideMerge(NodeHttpServer.layerTest),
 );
 

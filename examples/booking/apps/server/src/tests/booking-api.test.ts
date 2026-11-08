@@ -1,4 +1,4 @@
-import * as Domain from "@alchemy.run/domain";
+import { platformForTests } from "@house-rules/domain-postgres";
 import { BookingApi, BookingId } from "@example/booking-domain";
 import { devTokens, PersonId, sessionClient } from "@house-rules/stack";
 import { describe, expect, it } from "@effect/vitest";
@@ -9,7 +9,7 @@ import * as Stream from "effect/Stream";
 import { DEV_TOKENS, everyoneIsMember } from "../auth.ts";
 import { bookingLive } from "../booking-live.ts";
 
-const World = bookingLive(devTokens(DEV_TOKENS)).pipe(Layer.provide(Domain.InMemory));
+const World = bookingLive(devTokens(DEV_TOKENS)).pipe(Layer.provide(platformForTests));
 
 const as = (token: string) => BookingApi.clientInProcess.pipe(Effect.provide(sessionClient(token)));
 
@@ -102,7 +102,7 @@ describe("BookingApi in memory, with Session, dev tokens and Roles", () => {
             everyoneIsMember(
               devTokens({ "nia-token": { subject: "nia", orgId: null, roles: [] } }),
             ),
-          ).pipe(Layer.provide(Domain.InMemory)),
+          ).pipe(Layer.provide(platformForTests)),
         ),
       ),
   );

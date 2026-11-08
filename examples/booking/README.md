@@ -2,7 +2,7 @@
 
 A small booking backend on [Alchemy Domain](https://alchemy.run/domain) and `@house-rules/stack`. A person books a stay for a guest and pays for it. The payment opens with a 24-hour deadline, the fake provider charges it, and cancelling a booking refunds a paid payment. Each person reads their own bookings.
 
-The same model runs in memory on Node for local play and on Cloudflare Durable Objects in production.
+The same model runs on Node with its data in Postgres (`@house-rules/domain-postgres`), in memory with `DOMAIN_STORE=memory`, and on Cloudflare Durable Objects.
 
 ## What it shows
 
@@ -41,11 +41,11 @@ packages/domain/           @example/booking-domain: the model, imports only Alch
   src/booking.api.ts       BookingApi: what clients may send and read
   src/tests/               stories
 apps/server/               @example/booking-server: hosting
-  src/local.ts             Node server, in memory
+  src/local.ts             Node server on Postgres, or in memory
   src/cli.ts               a CLI over the local server
   src/booking-worker.ts    Cloudflare Worker on Durable Objects
   alchemy.run.ts           the stack that deploys the Worker
-  src/tests/               Api test in memory, HTTP smoke test
+  src/tests/               Api test, HTTP smoke test, restart test on Postgres
 ```
 
 ## Run it locally
@@ -54,10 +54,12 @@ With Node 24 and pnpm, from the repo root:
 
 ```sh
 pnpm install
-cd examples/booking/apps/server && node src/local.ts
+pnpm db:up
+cd examples/booking/apps/server
+DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55432/house_rules node src/local.ts
 ```
 
-The server listens on `http://localhost:3000` (set `PORT` to change it). Everything lives in memory and is gone when it stops. Then, in another shell (curl 7.82 or later, for `--json`):
+The server listens on `http://localhost:3000` (set `PORT` to change it). It keeps its events, state and views in the `booking` schema, so bookings survive a restart. `DOMAIN_STORE=memory node src/local.ts` runs it with no database, and everything is gone when it stops. Then, in another shell (curl 7.82 or later, for `--json`):
 
 ```sh
 curl localhost:3000/MakeBooking -H 'authorization: Bearer ann-token' \
@@ -136,7 +138,8 @@ pnpm exec alchemy destroy
 
 ```sh
 pnpm --filter @example/booking-domain exec vitest run   # stories
-pnpm --filter @example/booking-server exec vitest run   # Api in memory and the HTTP server
+pnpm db:up
+pnpm --filter @example/booking-server exec vitest run   # Api, HTTP server and restart, on Postgres
 ```
 
 ## What the old example had that this one drops
@@ -144,7 +147,7 @@ pnpm --filter @example/booking-server exec vitest run   # Api in memory and the 
 - The React dashboard, the app map (`MAP.md`) and the plan tooling.
 - Identity's passwords, sign-up, sign-in, change-password, the first-sign-in hook and grant-admin. Clerk or dev tokens sign people in, and roles come from the auth provider.
 - Party: organisations, members, invitations and custom roles. An organisation is the `orgId` the auth provider gives, and org admin is a role.
-- Postgres, migrations, Docker, seed data, storage adapters, units of work and the audit log. Alchemy stores the events, and every command is traced.
+- Migrations, seed data, storage adapters, units of work and the audit log. The platform stores the events (in Postgres on Node), and every command is traced.
 - The nightly expiry job. Each payment schedules its own expiry when it opens.
 - Features, operations, ways and composition. Commands, a view, policies and one Api replace them.
 - Org staff reading a colleague's booking. Only the owner reads their bookings, and an org admin may cancel organisation bookings.

@@ -10,6 +10,13 @@ Open work, not alternate law.
 - [ ] Release `@house-rules/stack` 0.1.0 through the publish workflow after the owner's yes. Confirm the `NPM_TOKEN` owner can create the new package name.
 - [ ] Decide whether to deprecate the retired packages on npm. That needs separate approval.
 
+## Postgres platform spike
+
+- [ ] Run more than one replica per schema: one outbox loop per model (advisory lock or `SKIP LOCKED`), schedules claimed once, and `LISTEN`/`NOTIFY` so live reads see other replicas' commits.
+- [ ] Host projections, streams and sagas, and backfill views added to a database that already has events.
+- [ ] Run the stack modules' Api tests on Postgres too, not only `Domain.InMemory`.
+- [ ] Ask Alchemy whether a Node or Postgres platform is planned, with the owner's yes; delete `packages/domain-postgres` when it ships.
+
 ## Rules
 
 - [ ] Decide which `@house-rules/rules` checks still apply to Alchemy apps. The feature, read-model, way, migration and SQL rules describe the retired kits; other apps still consume them, so they stay until those apps move.

@@ -27,7 +27,9 @@
     "local-publish": "node scripts/local-publish.mjs",
     "acceptance": "bash scripts/acceptance-cold-clone.sh",
     "prepare": "effect-tsgo patch && lefthook install",
-    "vendor:agent-sources": "bash scripts/vendor-agent-sources.sh"
+    "vendor:agent-sources": "bash scripts/vendor-agent-sources.sh",
+    "db:up": "docker compose up postgres --wait",
+    "db:down": "docker compose down"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

@@ -1,0 +1,25 @@
+{
+  "name": "@house-rules/domain-postgres",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A Postgres Platform for Alchemy Domain: events, state, views and an outbox in your own Postgres.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run && DOMAIN_STORE=memory vitest run"
+  },
+  "dependencies": {
+    "@alchemy.run/domain": "2.0.0-beta.85",
+    "@effect/sql-pg": "4.1.2",
+    "effect": "4.1.2"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.1.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}

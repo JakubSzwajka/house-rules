@@ -8,11 +8,12 @@ A TypeScript workspace template for apps built on [Alchemy Domain](https://alche
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm --filter @example/booking-server dev
+pnpm db:up
+DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55432/house_rules pnpm --filter @example/booking-server dev
 curl localhost:3000/MakeBooking -H 'authorization: Bearer ann-token' --json '{"target":"b-1","input":{"guestName":"Grace","amount":100}}'
 ```
 
-The server runs in memory on `http://localhost:3000`. The [example's README](examples/booking/README.md) lists the dev tokens, more calls, the CLI, MCP, Clerk sign-in and the Cloudflare deploy.
+The server keeps its data in Postgres on `http://localhost:3000` and keeps it across restarts; `DOMAIN_STORE=memory` runs it in memory with no database. The [example's README](examples/booking/README.md) lists the dev tokens, more calls, the CLI, MCP, Clerk sign-in and the Cloudflare deploy.
 
 ## Start a new app
 
@@ -27,7 +28,7 @@ pnpm check
 pnpm test
 ```
 
-Install sets up lefthook and patches `tsc` with `effect-tsgo patch`. No test needs a database: models run on `Domain.InMemory`.
+Install sets up lefthook and patches `tsc` with `effect-tsgo patch`. Tests that host a model need Postgres: run `pnpm db:up` (Docker) first, or set `DOMAIN_STORE=memory` to run them on `Domain.InMemory`.
 
 Then follow [Start a new app from scratch](packages/stack/README.md#start-a-new-app-from-scratch) in the stack README: permissions, your own aggregate beside a stack module, the model and its Api, roles, stories, sign-in with dev tokens or Clerk, one Api test, and serving it locally the way the booking server does. Its code is a passing test, `packages/stack/src/tests/new-app.test.ts`.
 
@@ -40,9 +41,10 @@ apps/                        your apps (servers, web)
 packages/
   rules/                     @house-rules/rules: ESLint, Biome, TypeScript and Dependency Cruiser presets and bins
   stack/                     @house-rules/stack: actor, access, auth, approval and reusable domain modules
+  domain-postgres/           @house-rules/domain-postgres (private spike): a Postgres Platform for Alchemy Domain
 examples/booking/
   packages/domain/           booking reference model: bookings, payments and their rules
-  apps/server/               hosts the model in memory on Node, on Cloudflare Durable Objects in production
+  apps/server/               hosts the model on Postgres (or in memory) on Node, on Cloudflare Durable Objects
 docs/                        release and local registry guides
 site/                        private Astro docs site
 skills/house-rules/          agent guide router

@@ -52,6 +52,6 @@ The **door** of a package is its `src/index.ts`. `@house-rules/stack` has exactl
 
 A **thin config** extends a house-rules preset and sets only project values: `tsconfig.base.json`, `biome.json`, `eslint.config.mjs`, `.dependency-cruiser.cjs`.
 
-The **example** is `examples/booking`: a domain package and a server that hosts it in memory locally and on Cloudflare Durable Objects in production. New projects remove it.
+The **example** is `examples/booking`: a domain package and a server that hosts it on Postgres (or in memory) on Node and on Cloudflare Durable Objects. New projects remove it.
 
 A **Story** (`@alchemy.run/domain/Story`) is a test written as given events, a command, and the events, reply or rejection that follow.

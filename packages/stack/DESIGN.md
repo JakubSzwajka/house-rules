@@ -17,8 +17,8 @@ One publishable package replaces the old kits (`domain`, `application`), the hos
 | object policy inside modules | the aggregate's own state, checked in `decide` |
 | `asSystem` | a policy or webhook provides `system(name, permissions)` as `CurrentActor` |
 | Approval, Mean | `ApprovalGate` middleware with an `Approval` policy Layer (see `src/approval/README.md`) |
-| UnitOfWork, migrations, Postgres adapters | gone: one aggregate commits in one transaction; the platform stores events |
-| node-host, express-host | gone: `Domain.InMemory` for tests and local play, Cloudflare Durable Objects in production |
+| UnitOfWork, migrations, Postgres adapters | gone: one aggregate commits in one transaction; the platform stores events (on Node, `@house-rules/domain-postgres` in Postgres) |
+| node-host, express-host | gone: `@house-rules/domain-postgres` or `Domain.InMemory` on Node, Cloudflare Durable Objects on Cloudflare |
 | call-audit | events carry their author; Domain traces every command |
 
 ## Layout

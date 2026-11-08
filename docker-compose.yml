@@ -1,0 +1,18 @@
+# Local Postgres for tests and the booking example. Credentials are local-only throwaways.
+name: house-rules
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: house_rules
+      POSTGRES_USER: house_rules
+      POSTGRES_PASSWORD: house_rules
+    ports:
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U house_rules -d house_rules"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

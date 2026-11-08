@@ -14,6 +14,7 @@ Use the Node version in `.nvmrc` and the exact pnpm version in `package.json` (C
 | `pnpm check` | Exact pins, environment, Biome, ESLint, workspace typechecks, Dependency Cruiser, package and folder cycles |
 | `pnpm test` | Root Node tests, then workspace tests through Turborepo |
 | `pnpm env:check` | Validate `.env.schema` with Varlock |
+| `pnpm db:up` / `pnpm db:down` | Start / stop the local Postgres (docker compose, `127.0.0.1:55432`) that tests and the booking server use |
 | `pnpm fix` / `pnpm format` | Rewrite files with safe lint fixes / formatting only |
 | `pnpm build` | Build `@house-rules/stack` to dist for packing; the workspace still reads src |
 | `pnpm run packed-consumer` | Pack rules and stack, install them in a cold npm consumer, load and typecheck them; needs the registry |
@@ -22,11 +23,11 @@ Use the Node version in `.nvmrc` and the exact pnpm version in `package.json` (C
 | `pnpm vendor:agent-sources` | Clone the pinned Effect source into `.agent_sources/` |
 | `pnpm --filter @house-rules/site generate` | Regenerate the rules page |
 
-CI runs frozen install, `pnpm check`, `pnpm test`, `pnpm run packed-consumer` and the site build. No test needs a database. Before calling work ready, `pnpm check` and `pnpm test` must both exit 0. Warnings fail Biome and ESLint; every Dependency Cruiser rule is an error. The rules table in `packages/rules/README.md` is the checked-rule source; do not copy it here.
+CI runs frozen install, `pnpm check`, `pnpm test`, `pnpm run packed-consumer` and the site build, with a Postgres service. Tests that host a model run on real Postgres through `platformForTests` from `@house-rules/domain-postgres`, one schema per test; run `pnpm db:up` first. `DOMAIN_STORE=memory` runs them on `Domain.InMemory` instead. Before calling work ready, `pnpm check` and `pnpm test` must both exit 0. Warnings fail Biome and ESLint; every Dependency Cruiser rule is an error. The rules table in `packages/rules/README.md` is the checked-rule source; do not copy it here.
 
 ## The package and its door
 
-- One framework package: `@house-rules/stack` in `packages/stack`. Its only door is `src/index.ts` (`.`); reusable modules are namespace exports from it. No subpaths, no deep imports. `publishConfig.exports` points at dist.
+- One published framework package: `@house-rules/stack` in `packages/stack`. `@house-rules/domain-postgres` (`packages/domain-postgres`, private) is a spike Postgres `Platform` for Alchemy Domain; delete it when Alchemy ships its own. Its only door is `src/index.ts` (`.`); reusable modules are namespace exports from it. No subpaths, no deep imports. `publishConfig.exports` points at dist.
 - [packages/stack/DESIGN.md](packages/stack/DESIGN.md) maps every old concept to its replacement and holds the block rules. [packages/stack/AGENTS.md](packages/stack/AGENTS.md) documents mounting, wiring and fixed rules; it ships in the package. Keep both in step with the code.
 - Two public packages publish only through `.github/workflows/publish.yml`: `@house-rules/rules` and `@house-rules/stack`. Never publish by hand. A release bumps a package and every workspace pin together, with approval. Tags come only from `pnpm-publish-summary.json`.
 - `packages/rules` stays: other apps consume its published versions. Change it only when strictly needed.
@@ -47,7 +48,7 @@ CI runs frozen install, `pnpm check`, `pnpm test`, `pnpm run packed-consumer` an
 - Rules spanning aggregates get their own aggregate or a policy/saga, never a cross-aggregate transaction.
 - Expected failures are rejections or tagged errors. Never `throw`, never global `Error`.
 - Files are kebab-case with Alchemy's kind suffix (`.id`, `.aggregate`, `.command`, `.rejection`, `.view`, `.policy`, `.saga`, `.projection`, `.stream`, `.external`, `.context`, `.middleware`). A domain package imports only `@alchemy.run/domain`, `effect` and `@house-rules/stack`; hosting, Cloudflare and auth providers belong to the server.
-- Hosting: `Domain.InMemory` for tests and local play, Cloudflare Durable Objects in production. Clients and agents reach the model only through a `Domain.Api` served with `@alchemy.run/domain/Http`, `/Ai` (MCP) or `/Cli`.
+- Hosting: `@house-rules/domain-postgres` on Node with Postgres, `Domain.InMemory` when `DOMAIN_STORE=memory` or in stories, Cloudflare Durable Objects on Cloudflare. The Postgres platform has no projections, streams, sagas or backfill and runs one replica per schema; see its README. Clients and agents reach the model only through a `Domain.Api` served with `@alchemy.run/domain/Http`, `/Ai` (MCP) or `/Cli`.
 
 Before editing, read Alchemy's installed skill (`packages/stack/node_modules/@alchemy.run/domain/skills/alchemy-domain/SKILL.md` and its references) and the installed `effect/AGENTS.md` and `ai-docs`. Trust the pinned versions over memory and over newer docs on alchemy.run.
 
