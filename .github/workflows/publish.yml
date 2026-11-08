@@ -52,6 +52,21 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
+    # The same throwaway Postgres as ci.yml: the domain-postgres and booking tests host models on it.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: house_rules
+          POSTGRES_USER: house_rules
+          POSTGRES_PASSWORD: house_rules
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U house_rules -d house_rules"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       # GitHub's `==` ignores case, so the publish job's `github.ref == 'refs/heads/main'` also
       # matches a branch named MAIN. This shell comparison is exact, and `publish` needs `verify`.
