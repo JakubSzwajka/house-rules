@@ -3,7 +3,7 @@ import { existsSync, globSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { parseWorkflow, PR_PATHS } from "./publish-workflow-assertions.mjs";
 
-const PUBLISHED = ["rules", "stack"];
+const PUBLISHED = ["rules", "stack", "domain-postgres"];
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const root = new URL("../", import.meta.url);
 const workspaceManifests = () =>
@@ -25,15 +25,19 @@ function targets(value) {
 }
 
 describe("published packages", () => {
-  it("only @house-rules/rules and @house-rules/stack are public", () => {
+  it("only @house-rules/rules, @house-rules/stack and @house-rules/domain-postgres are public", () => {
     const publicNames = workspaceManifests()
       .filter(({ pkg }) => pkg.private !== true)
       .map(({ pkg }) => pkg.name)
       .sort();
-    assert.deepEqual(publicNames, ["@house-rules/rules", "@house-rules/stack"]);
+    assert.deepEqual(publicNames, [
+      "@house-rules/domain-postgres",
+      "@house-rules/rules",
+      "@house-rules/stack",
+    ]);
     assert.match(
       read("scripts/packed-consumer.mjs"),
-      /^const PUBLISHED = \["rules", "stack"\];$/mu,
+      /^const PUBLISHED = \["rules", "stack", "domain-postgres"\];$/mu,
     );
   });
 
@@ -48,35 +52,41 @@ describe("published packages", () => {
     });
   }
 
-  it("packages/stack ships dist/ and keeps src/ for the workspace", () => {
-    const pkg = JSON.parse(read("packages/stack/package.json"));
-    assert.ok(existsSync(new URL("packages/stack/tsconfig.build.json", root)));
-    assert.equal(pkg.scripts.build, "tsc --project tsconfig.build.json");
-    assert.equal(pkg.scripts.prepack, "pnpm run build");
-    assert.deepEqual(
-      pkg.files.filter((file) => !file.endsWith(".md")),
-      ["dist"],
-    );
-    assert.deepEqual(pkg.exports, { ".": "./src/index.ts" });
-    assert.deepEqual(Object.keys(pkg.publishConfig.exports), Object.keys(pkg.exports));
-    for (const target of targets(pkg.publishConfig.exports)) {
-      assert.match(target, /^\.\/dist\/index\.(?:js|d\.ts)$/u);
-    }
-  });
-
-  it("packages/stack peers on exact Alchemy and Effect versions that the workspace uses", () => {
-    const { peerDependencies, devDependencies } = JSON.parse(read("packages/stack/package.json"));
-    for (const [name, version] of Object.entries(peerDependencies)) {
-      assert.match(version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u, name);
-      assert.equal(devDependencies[name], version, name);
-    }
-    for (const { path, pkg } of workspaceManifests()) {
-      for (const name of Object.keys(peerDependencies)) {
-        const pin = pkg.dependencies?.[name] ?? pkg.devDependencies?.[name];
-        if (pin !== undefined) assert.equal(pin, peerDependencies[name], `${path} ${name}`);
+  for (const folder of ["stack", "domain-postgres"]) {
+    it(`packages/${folder} ships dist/ and keeps src/ for the workspace`, () => {
+      const pkg = JSON.parse(read(`packages/${folder}/package.json`));
+      assert.ok(existsSync(new URL(`packages/${folder}/tsconfig.build.json`, root)));
+      assert.equal(pkg.scripts.build, "tsc --project tsconfig.build.json");
+      assert.equal(pkg.scripts.prepack, "pnpm run build");
+      assert.deepEqual(
+        pkg.files.filter((file) => !file.endsWith(".md")),
+        ["dist"],
+      );
+      assert.deepEqual(pkg.exports, { ".": "./src/index.ts" });
+      assert.deepEqual(Object.keys(pkg.publishConfig.exports), Object.keys(pkg.exports));
+      for (const target of targets(pkg.publishConfig.exports)) {
+        assert.match(target, /^\.\/dist\/index\.(?:js|d\.ts)$/u);
       }
-    }
-  });
+    });
+  }
+
+  for (const folder of ["stack", "domain-postgres"]) {
+    it(`packages/${folder} peers on exact Alchemy and Effect versions that the workspace uses`, () => {
+      const { peerDependencies, devDependencies } = JSON.parse(
+        read(`packages/${folder}/package.json`),
+      );
+      for (const [name, version] of Object.entries(peerDependencies)) {
+        assert.match(version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u, name);
+        assert.equal(devDependencies[name], version, name);
+      }
+      for (const { path, pkg } of workspaceManifests()) {
+        for (const name of Object.keys(peerDependencies)) {
+          const pin = pkg.dependencies?.[name] ?? pkg.devDependencies?.[name];
+          if (pin !== undefined) assert.equal(pin, peerDependencies[name], `${path} ${name}`);
+        }
+      }
+    });
+  }
 
   it("Node platform consumers pin the shared package to the same Effect version", () => {
     for (const { path, pkg } of workspaceManifests()) {

@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const runGit = (args) => execFileSync("git", args, { encoding: "utf8" });
-const folders = ["rules", "stack"];
+const folders = ["rules", "stack", "domain-postgres"];
 const retiredRecoveryOnlyFolders = [
   "domain",
   "application",
@@ -30,7 +30,7 @@ const retiredRecoveryOnlyFolders = [
   "projects",
   "capability",
 ];
-const CURRENT_NAME = /^@house-rules\/(?:rules|stack)$/u;
+const CURRENT_NAME = /^@house-rules\/(?:rules|stack|domain-postgres)$/u;
 const RECOVERABLE_NAME = new RegExp(
   `^@house-rules/(?:${[...folders, ...retiredRecoveryOnlyFolders].join("|")})$`,
   "u",

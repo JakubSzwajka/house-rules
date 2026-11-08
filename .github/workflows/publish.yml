@@ -1,6 +1,6 @@
 name: Publish packages
 
-# Publishes the two public @house-rules packages to npm: rules and stack. The retired packages
+# Publishes the three public @house-rules packages to npm: rules, stack and domain-postgres. The retired packages
 # (capability, domain, application, the hosts, plugs and old modules) are never published again.
 # `pnpm publish -r` skips private packages and every version already on the registry, so one run
 # publishes exactly the packages whose version was bumped.

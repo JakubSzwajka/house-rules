@@ -17,8 +17,8 @@ Use the Node version in `.nvmrc` and the exact pnpm version in `package.json` (C
 | `pnpm db:up` / `pnpm db:down` | Start / stop the local Postgres (docker compose, `127.0.0.1:55432`) that tests and the booking server use |
 | `pnpm fix` / `pnpm format` | Rewrite files with safe lint fixes / formatting only |
 | `pnpm build` | Build `@house-rules/stack` to dist for packing; the workspace still reads src |
-| `pnpm run packed-consumer` | Pack rules and stack, install them in a cold npm consumer, load and typecheck them; needs the registry |
-| `pnpm run local-publish` | Publish rules and stack as `-local` prereleases to the local Verdaccio ([docs/local-registry.md](docs/local-registry.md)); never npm |
+| `pnpm run packed-consumer` | Pack rules, stack and domain-postgres, install them in a cold npm consumer, load and typecheck them; needs the registry |
+| `pnpm run local-publish` | Publish rules, stack and domain-postgres as `-local` prereleases to the local Verdaccio ([docs/local-registry.md](docs/local-registry.md)); never npm |
 | `pnpm acceptance` | Clone HEAD into a temp folder and run frozen install, check and test |
 | `pnpm vendor:agent-sources` | Clone the pinned Effect source into `.agent_sources/` |
 | `pnpm --filter @house-rules/site generate` | Regenerate the rules page |
@@ -27,9 +27,9 @@ CI runs frozen install, `pnpm check`, `pnpm test`, `pnpm run packed-consumer` an
 
 ## The package and its door
 
-- One published framework package: `@house-rules/stack` in `packages/stack`. `@house-rules/domain-postgres` (`packages/domain-postgres`, private) is a spike Postgres `Platform` for Alchemy Domain; delete it when Alchemy ships its own. Its only door is `src/index.ts` (`.`); reusable modules are namespace exports from it. No subpaths, no deep imports. `publishConfig.exports` points at dist.
+- One framework package: `@house-rules/stack` in `packages/stack`. `@house-rules/domain-postgres` (`packages/domain-postgres`) is a Postgres `Platform` for Alchemy Domain, kept separate so it can be deleted when Alchemy ships its own. Each package's only door is `src/index.ts` (`.`); reusable modules are namespace exports from it. No subpaths, no deep imports. `publishConfig.exports` points at dist.
 - [packages/stack/DESIGN.md](packages/stack/DESIGN.md) maps every old concept to its replacement and holds the block rules. [packages/stack/AGENTS.md](packages/stack/AGENTS.md) documents mounting, wiring and fixed rules; it ships in the package. Keep both in step with the code.
-- Two public packages publish only through `.github/workflows/publish.yml`: `@house-rules/rules` and `@house-rules/stack`. Never publish by hand. A release bumps a package and every workspace pin together, with approval. Tags come only from `pnpm-publish-summary.json`.
+- Three public packages publish only through `.github/workflows/publish.yml`: `@house-rules/rules`, `@house-rules/stack` and `@house-rules/domain-postgres`. Never publish by hand. A release bumps a package and every workspace pin together, with approval. Tags come only from `pnpm-publish-summary.json`.
 - `packages/rules` stays: other apps consume its published versions. Change it only when strictly needed.
 - Apps live in `apps/<name>`, shared packages in `packages/<name>`. The example lives in `examples/booking`: a domain package (`packages/domain`) and a server (`apps/server`). New projects remove examples. Packages never import examples or apps; apps never import other apps. Import packages by name with an exact `workspace:<version>` pin. No import cycles.
 - No file or folder named utils, helpers or misc.

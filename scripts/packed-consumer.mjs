@@ -7,7 +7,7 @@ import path from "node:path";
 import { assertCleanTarball, assertTarballRulesAreLive } from "./tarball-content.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
-const PUBLISHED = ["rules", "stack"];
+const PUBLISHED = ["rules", "stack", "domain-postgres"];
 const ALLOWED_TOP = new Set(["package.json", "README.md", "AGENTS.md", "LICENSE"]);
 
 const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
@@ -82,6 +82,13 @@ const refused = await Effect.runPromise(Effect.flip(Effect.provideService(write,
 assert.equal(refused._tag, "Forbidden");
 `;
 
+const POSTGRES_PROBE = `import * as Layer from "effect/Layer";
+import { fromEnv, layer, migrate } from "@house-rules/domain-postgres";
+assert.equal(Layer.isLayer(layer({ schema: "app" })), true);
+assert.equal(Layer.isLayer(fromEnv({ schema: "app" })), true);
+assert.equal(typeof migrate, "function");
+`;
+
 const work = mkdtempSync(path.join(os.tmpdir(), "house-rules-consumer-"));
 try {
   const packs = path.join(work, "packs");
@@ -119,6 +126,8 @@ try {
     },
     "stack.mjs": `import assert from "node:assert/strict";\n${STACK_PROBE}console.log("cold install: packed stack authorizes a person and a system actor");\n`,
     "stack.ts": `declare const assert: Record<"equal" | "deepEqual", (a: unknown, b: unknown) => void>;\n${STACK_PROBE}`,
+    "postgres.mjs": `import assert from "node:assert/strict";\n${POSTGRES_PROBE}console.log("cold install: packed domain-postgres builds its layers");\n`,
+    "postgres.ts": `declare const assert: Record<"equal", (a: unknown, b: unknown) => void>;\n${POSTGRES_PROBE}`,
     "rules.mjs": [
       'import assert from "node:assert/strict";',
       'import rules from "@house-rules/rules";',
@@ -128,7 +137,7 @@ try {
     ].join("\n"),
     "tsconfig.json": {
       extends: "@house-rules/rules/tsconfig/effect.json",
-      include: ["stack.ts"],
+      include: ["stack.ts", "postgres.ts"],
     },
   });
   for (const lock of ["package-lock.json", "pnpm-lock.yaml", "yarn.lock"]) {
@@ -141,9 +150,12 @@ try {
   );
   run(process.execPath, ["--no-experimental-strip-types", "rules.mjs"], app);
   run(process.execPath, ["--no-experimental-strip-types", "stack.mjs"], app);
+  run(process.execPath, ["--no-experimental-strip-types", "postgres.mjs"], app);
   run(path.join(root, "node_modules/.bin/tsc"), ["--project", "tsconfig.json", "--noEmit"], app);
   assertTarballRulesAreLive(work, root);
-  console.log("packed consumer: rules and stack tarballs install, load and typecheck cold");
+  console.log(
+    "packed consumer: rules, stack and domain-postgres tarballs install, load and typecheck cold",
+  );
 } finally {
   if (process.env.KEEP === "1") console.log(`kept ${work}`);
   else rmSync(work, { recursive: true, force: true });

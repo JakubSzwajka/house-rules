@@ -14,7 +14,6 @@ Open work, not alternate law.
 
 - [ ] Run more than one replica per schema: one outbox loop per model (advisory lock or `SKIP LOCKED`), schedules claimed once, and `LISTEN`/`NOTIFY` so live reads see other replicas' commits.
 - [ ] Host projections, streams and sagas, and backfill views added to a database that already has events.
-- [ ] Run the stack modules' Api tests on Postgres too, not only `Domain.InMemory`.
 - [ ] Ask Alchemy whether a Node or Postgres platform is planned, with the owner's yes; delete `packages/domain-postgres` when it ships.
 
 ## Rules

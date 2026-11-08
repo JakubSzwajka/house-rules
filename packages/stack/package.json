@@ -50,7 +50,7 @@
     "@effect/platform-node": "4.1.2",
     "@effect/platform-node-shared": "4.1.2",
     "@effect/vitest": "4.1.2",
-    "@house-rules/domain-postgres": "workspace:0.0.0",
+    "@house-rules/domain-postgres": "workspace:0.1.0",
     "alchemy": "2.0.0-beta.85",
     "effect": "4.1.2",
     "typescript": "7.0.2",

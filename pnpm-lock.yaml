@@ -229,7 +229,7 @@ importers:
         specifier: workspace:0.0.0
         version: link:../../packages/domain
       '@house-rules/domain-postgres':
-        specifier: workspace:0.0.0
+        specifier: workspace:0.1.0
         version: link:../../../../packages/domain-postgres
       '@house-rules/stack':
         specifier: workspace:0.1.0
@@ -278,19 +278,22 @@ importers:
 
   packages/domain-postgres:
     dependencies:
-      '@alchemy.run/domain':
-        specifier: 2.0.0-beta.85
-        version: 2.0.0-beta.85(alchemy@2.0.0-beta.85(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.0))(@types/react@19.3.0)(effect@4.1.2)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1))(effect@4.1.2)
       '@effect/sql-pg':
         specifier: 4.1.2
         version: 4.1.2(effect@4.1.2)
-      effect:
-        specifier: 4.1.2
-        version: 4.1.2
     devDependencies:
+      '@alchemy.run/domain':
+        specifier: 2.0.0-beta.85
+        version: 2.0.0-beta.85(alchemy@2.0.0-beta.85(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.0))(@types/react@19.3.0)(effect@4.1.2)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1))(effect@4.1.2)
       '@effect/vitest':
         specifier: 4.1.2
         version: 4.1.2(effect@4.1.2)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
+      alchemy:
+        specifier: 2.0.0-beta.85
+        version: 2.0.0-beta.85(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.0))(@types/react@19.3.0)(effect@4.1.2)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1)
+      effect:
+        specifier: 4.1.2
+        version: 4.1.2
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -348,7 +351,7 @@ importers:
         specifier: 4.1.2
         version: 4.1.2(effect@4.1.2)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
       '@house-rules/domain-postgres':
-        specifier: workspace:0.0.0
+        specifier: workspace:0.1.0
         version: link:../domain-postgres
       alchemy:
         specifier: 2.0.0-beta.85

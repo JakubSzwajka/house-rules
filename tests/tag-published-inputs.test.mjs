@@ -119,7 +119,7 @@ describe("publish report and recovery inputs", () => {
     );
   });
 
-  it("loads the two public workspace manifests and every retired one, without the summary", () => {
+  it("loads the three public workspace manifests and every retired one, without the summary", () => {
     const files = [];
     const packages = workspacePackages((file) => {
       files.push(file);
@@ -131,6 +131,7 @@ describe("publish report and recovery inputs", () => {
       [
         "rules",
         "stack",
+        "domain-postgres",
         "domain",
         "application",
         "auth-jwt",
@@ -154,7 +155,7 @@ describe("publish report and recovery inputs", () => {
         "capability",
       ].map((folder) => `packages/${folder}/package.json`),
     );
-    assert.equal(packages.length, 23);
+    assert.equal(packages.length, 24);
     assert.throws(() => workspacePackages(() => JSON.stringify({ name: "@other/app" })));
     assert.throws(() =>
       workspacePackages((file) =>
@@ -218,8 +219,9 @@ describe("publish report and recovery inputs", () => {
     assert.deepEqual(names(workspacePackages(checkout(current))), current);
   });
 
-  it("reads a current release commit that has only rules and stack", () => {
-    assert.deepEqual(names(workspacePackages(checkout(["rules", "stack"]))), ["rules", "stack"]);
+  it("reads a current release commit that has only the public packages", () => {
+    const current = ["rules", "stack", "domain-postgres"];
+    assert.deepEqual(names(workspacePackages(checkout(current))), current);
   });
 
   it("skips absent historical manifests but refuses every other manifest failure", () => {
@@ -230,7 +232,7 @@ describe("publish report and recovery inputs", () => {
       return JSON.stringify({ name: `@house-rules/${folder}`, version: "1.0.0" });
     };
     const packages = workspacePackages(historical);
-    assert.equal(packages.length, 22);
+    assert.equal(packages.length, 23);
     assert.ok(!packages.some(({ name }) => name === "@house-rules/comments"));
     for (const source of [
       "not json",

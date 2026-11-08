@@ -1,24 +1,54 @@
 {
   "name": "@house-rules/domain-postgres",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "A Postgres Platform for Alchemy Domain: events, state, views and an outbox in your own Postgres.",
   "license": "MIT",
   "type": "module",
+  "files": [
+    "dist",
+    "AGENTS.md",
+    "README.md"
+  ],
   "exports": {
     ".": "./src/index.ts"
   },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JakubSzwajka/house-rules.git",
+    "directory": "packages/domain-postgres"
+  },
+  "bugs": {
+    "url": "https://github.com/JakubSzwajka/house-rules/issues"
+  },
+  "homepage": "https://github.com/JakubSzwajka/house-rules",
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "prepack": "pnpm run build",
     "typecheck": "tsc --project tsconfig.json",
     "test": "vitest run && DOMAIN_STORE=memory vitest run"
   },
   "dependencies": {
+    "@effect/sql-pg": "4.1.2"
+  },
+  "peerDependencies": {
     "@alchemy.run/domain": "2.0.0-beta.85",
-    "@effect/sql-pg": "4.1.2",
+    "alchemy": "2.0.0-beta.85",
     "effect": "4.1.2"
   },
   "devDependencies": {
+    "@alchemy.run/domain": "2.0.0-beta.85",
     "@effect/vitest": "4.1.2",
+    "alchemy": "2.0.0-beta.85",
+    "effect": "4.1.2",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
   }

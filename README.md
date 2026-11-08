@@ -41,7 +41,7 @@ apps/                        your apps (servers, web)
 packages/
   rules/                     @house-rules/rules: ESLint, Biome, TypeScript and Dependency Cruiser presets and bins
   stack/                     @house-rules/stack: actor, access, auth and reusable domain modules
-  domain-postgres/           @house-rules/domain-postgres (private spike): a Postgres Platform for Alchemy Domain
+  domain-postgres/           @house-rules/domain-postgres: a Postgres Platform for Alchemy Domain
 examples/booking/
   packages/domain/           booking reference model: bookings, payments and their rules
   apps/server/               hosts the model on Postgres (or in memory) on Node, on Cloudflare Durable Objects
@@ -78,7 +78,7 @@ pnpm test  -> root Node tests -> workspace tests
 
 Warnings fail Biome and ESLint. All Dependency Cruiser rules have error severity. See the [rules table](packages/rules/README.md#rules-and-checks) for the checked rules and their limits.
 
-CI installs the frozen lockfile, then runs check, test, packed-consumer and the site build. `pnpm run packed-consumer` packs rules and stack, installs them in a cold npm consumer, then loads and typechecks them; it needs the registry. `pnpm acceptance` clones committed HEAD into a temp folder and runs frozen install, check and test.
+CI installs the frozen lockfile, then runs check, test, packed-consumer and the site build. `pnpm run packed-consumer` packs rules, stack and domain-postgres, installs them in a cold npm consumer, then loads and typechecks them; it needs the registry. `pnpm acceptance` clones committed HEAD into a temp folder and runs frozen install, check and test.
 
 ## Pins and environment
 
@@ -96,7 +96,7 @@ Checks do not replace review. Review object access in aggregate state, system gr
 
 ## Releases
 
-Two packages publish, only through `.github/workflows/publish.yml`: `@house-rules/rules` and `@house-rules/stack`. A release bumps a package and every workspace pin on it together, with approval. See [the release guide](docs/release.md) and, for trying changes in another app without npm, [the local registry guide](docs/local-registry.md).
+Three packages publish, only through `.github/workflows/publish.yml`: `@house-rules/rules`, `@house-rules/stack` and `@house-rules/domain-postgres`. A release bumps a package and every workspace pin on it together, with approval. See [the release guide](docs/release.md) and, for trying changes in another app without npm, [the local registry guide](docs/local-registry.md).
 
 ## Commands
 

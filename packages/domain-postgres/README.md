@@ -1,6 +1,6 @@
 # @house-rules/domain-postgres
 
-A Postgres `Platform` for Alchemy Domain (`@alchemy.run/domain` 2.0.0-beta.85). It keeps a model's events, state, receipts, views, schedules and outbox in your own Postgres, so a model runs on Node in a container and survives a restart. It is a spike: private, not published, and meant to be deleted when Alchemy ships its own Postgres host.
+A Postgres `Platform` for Alchemy Domain (`@alchemy.run/domain` 2.0.0-beta.85). It keeps a model's events, state, receipts, views, schedules and outbox in your own Postgres, so a model runs on Node in a container and survives a restart. It is its own package so it can be deleted when Alchemy ships its own Postgres host. [AGENTS.md](AGENTS.md) holds the wiring and fixed rules for agents.
 
 ```ts
 import { layer } from "@house-rules/domain-postgres";
