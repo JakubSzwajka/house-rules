@@ -76,6 +76,7 @@ export const kitchenLive = <E, R>(auth: Layer.Layer<AuthProvider, E, R>) =>
 - Every client-sent command lists `middleware: [Session]` and `Forbidden` in `rejects`, and its `decide` starts with `yield* requirePermission(...)`, which returns the actor or fails `Forbidden` (403).
 - Object access (owner, member, holder) lives in the aggregate's state, checked after the permission, with its own rejection (`NotRecipeOwner`, `httpApiStatus: 403`).
 - Private views list `middleware: [Session]` and check in `validate`: `requirePermission`, then any ownership rule, such as the key against `authorOf(actor)` in the booking example's `MyBookings`.
+- `validate` does not guard a view's whole surface. In beta.85 a view's `events` call judges only the events that match the client's `where` filter (Alchemy `Api.ts`, the `${name}.events` handler), so a stranger can learn a private view's contents one yes/no at a time, and `list` and `events` hand a current reader the key's whole history. For a private view, refuse `request.mode` `"list"` and `"events"` in `validate`, and do not serve `/rpc` or the view's HTTP `events` and `list` routes to clients.
 - Events that record a change by someone carry `by: authorOf(actor)`. Time comes from `decide`'s `{ now }`; ids come from the caller.
 
 ### Policies act as system actors with explicit grants
@@ -117,7 +118,7 @@ Tests sit in `tests/` beside the code and use `@effect/vitest` (`it.effect`, `it
 - One `Domain.verify(App)` test that expects `[]`.
 - Stories (`@alchemy.run/domain/Story`) for every command's happy path and every rejection. Stories skip middleware, so provide the actor: `Story.provide(CurrentActor, person("ann", { permissions: [...] }))`. Cover the permission holder, a person without it, the wrong owner and a system actor. Stub external systems with `Story.make(App, { layer: Handlers, stub: [PaymentProvider] })`.
 - Every policy reaction and every view's state after the events it folds.
-- One Api test through `SessionLive`, `devTokens` and `Roles` over `platformForTests` from `@house-rules/domain-postgres` (a fresh Postgres schema per test, or `Domain.InMemory` with `DOMAIN_STORE=memory`), with `Api.clientInProcess` and `sessionClient(token)`. Read views with `{ atLeast: receipt }` after a write. Middleware is tested here, since stories skip it.
+- One Api test through `SessionLive`, `devTokens` and `Roles` over `platformForTests` from `@house-rules/domain-postgres` (a fresh Postgres schema per test, or `Domain.InMemory` with `DOMAIN_STORE=memory`), with `Api.clientInProcess` and `sessionClient(token)`. Read views with `{ atLeast: receipt }` after a write. It waits for the read key's own checkpoint (Alchemy `Model.ts:757`), so when the commit's last event routes to another key, the read times out with `ConsistencyTimeout`; watch the key and filter instead. Middleware is tested here, since stories skip it.
 
 Worked examples: [src/tests/new-app.test.ts](src/tests/new-app.test.ts) (a whole small app), [src/access/tests/require-permission.test.ts](src/access/tests/require-permission.test.ts) and `examples/booking/packages/domain/src/tests` in the template.
 

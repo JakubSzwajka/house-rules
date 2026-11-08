@@ -1,6 +1,6 @@
 # @house-rules/rules
 
-House rules and presets for TypeScript workspaces whose apps build on Alchemy Domain. Version 0.20.1. Install every dependency at an exact version. This package ships checked-in JavaScript with no build step.
+House rules and presets for TypeScript workspaces whose apps build on Alchemy Domain. Version 0.21.0. Install every dependency at an exact version. This package ships checked-in JavaScript with no build step.
 
 ## Install and enable
 
@@ -85,7 +85,7 @@ Use house-rules-pins and house-rules-layout from package bins. layout accepts --
 
 ## Upgrade notes
 
-BREAKING, unreleased: the rules for the retired house-rules kits are gone. Apps build on Alchemy Domain, which has no features, read models, ways, composition, facades, storage ports, contract doors or SQL migrations.
+BREAKING in 0.21.0: the rules for the retired house-rules kits are gone. Apps build on Alchemy Domain, which has no features, read models, ways, composition, facades, storage ports, contract doors or SQL migrations.
 
 ```text
 removed ESLint rules     command-kind, feature-file, feature-builders
@@ -111,6 +111,7 @@ For an approved upgrade, review the rule diff, update exact pins and the lockfil
 
 Historical changes, not alternate configuration paths:
 
+- 0.21.0 removes the checks for the retired kits; see Upgrade notes.
 - 0.20.1 shares disk-parsed import graphs and workspace metadata across linted files. File and directory stat checks refresh changed sources and package lists in long-lived ESLint processes. The current file always uses ESLint's own AST and scopes. Lint rules and results are unchanged.
 - 0.19.0 corrects the breaking Next host B2 behavior for `src/app`.
 - 0.18.0 added multiple disjoint roots, whole-star root segments and migrations' layout-config root discovery.

@@ -70,10 +70,25 @@ pnpm add --save-exact @house-rules/stack@0.1.0-local.20261025123456789
 
 Use the actual version printed by your run, not this example. Do not save `@local`, ranges, or workspace links. Local versions only exist on your machine; CI cannot fetch them. For a quick smoke test, use a throwaway folder under `/tmp` with its own `package.json`, `.npmrc` and `pnpm-workspace.yaml` so no consumer checkout is changed.
 
+### A consumer that still uses released framework packages
+
+The scope line sends every `@house-rules/*` request to Verdaccio, which never falls back to npm for that scope. A consumer mid-move, such as trippy on `@house-rules/capability`, `call-audit` and `migrations`, then fails with `ERR_PNPM_FETCH_404` for the released packages. For such a consumer, skip the `.npmrc` line and point each local package at its tarball in `overrides` instead. pnpm fetches only those three from Verdaccio and everything else from npm:
+
+```yaml
+minimumReleaseAgeExclude:
+  - '@house-rules/*'
+overrides:
+  '@house-rules/stack': 'http://127.0.0.1:4873/@house-rules/stack/-/stack-0.1.0-local.20261025123456789.tgz'
+  '@house-rules/domain-postgres': 'http://127.0.0.1:4873/@house-rules/domain-postgres/-/domain-postgres-0.1.0-local.20261025123456789.tgz'
+  '@house-rules/rules': 'http://127.0.0.1:4873/@house-rules/rules/-/rules-0.21.0-local.20261025123456789.tgz'
+```
+
+Keep the direct dependencies in `package.json` at the exact local versions, so `house-rules-pins` still passes; the override replaces them at install. Each version's `dist.tarball` in `curl http://127.0.0.1:4873/@house-rules%2fstack` gives the URL.
+
 ## Switch back before merging a consumer to main
 
 - Replace every direct `-local` dependency with an exact real npm version that contains the needed changes. Wait for the framework's normal [release workflow](release.md) if needed.
-- Remove the temporary framework `overrides`, the scope registry line, and the `@house-rules/*` release-age exclusion. Preserve unrelated settings.
+- Remove the temporary framework `overrides` (version or tarball form), the scope registry line, and the `@house-rules/*` release-age exclusion. Preserve unrelated settings.
 - Reinstall from npmjs. Check `package.json`, workspace config and the lockfile for local versions and `127.0.0.1:4873` URLs.
 - Run the consumer's full checks and tests. Merge only with green CI using real npm packages.
 
