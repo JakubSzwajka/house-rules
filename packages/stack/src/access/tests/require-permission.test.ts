@@ -1,3 +1,4 @@
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
@@ -83,7 +84,7 @@ describe("Session over the Api", () => {
         Roles.layer({ member: ["counters:bump"], guest: [] }),
       ),
     ),
-    Layer.provideMerge(Counters.layer(Layer.empty).pipe(Layer.provide(Domain.InMemory))),
+    Layer.provideMerge(Counters.layer(Layer.empty).pipe(Layer.provide(platformForTests))),
   );
   const as = (token: string) =>
     CountersApi.clientInProcess.pipe(Effect.provide(sessionClient(token)));

@@ -1,3 +1,4 @@
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -53,7 +54,7 @@ const Hosted = Everything.layer(
 ).pipe(
   Layer.provide(
     Layer.mergeAll(
-      Domain.InMemory,
+      platformForTests,
       Delivery.memoryEmail("app@example.test"),
       Delivery.memoryPush(),
       Contacts.memoryVerificationCodes(),

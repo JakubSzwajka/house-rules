@@ -1,3 +1,4 @@
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
@@ -172,7 +173,7 @@ describe("ContactsApi over Session", () => {
         deliver: (code) => Deferred.succeed(delivered, code).pipe(Effect.asVoid),
       });
       const hosted = Model.layer(Contacts.handlers).pipe(
-        Layer.provide(Layer.mergeAll(codes, Domain.InMemory)),
+        Layer.provide(Layer.mergeAll(codes, platformForTests)),
       );
       const World = SessionLive.pipe(
         Layer.provide(Layer.mergeAll(tokens, roles)),

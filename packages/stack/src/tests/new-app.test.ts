@@ -1,3 +1,4 @@
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
@@ -212,7 +213,7 @@ describe("a new app: one own aggregate beside the Notes module", () => {
       Effect.scoped,
       Effect.provide(
         kitchenLive(AuthFromEnv).pipe(
-          Layer.provide(Domain.InMemory),
+          Layer.provide(platformForTests),
           Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnvRecord({}))),
         ),
       ),
@@ -232,7 +233,7 @@ describe("a new app: one own aggregate beside the Notes module", () => {
       Effect.scoped,
       Effect.provide(
         kitchenLive(AuthFromEnv).pipe(
-          Layer.provide(Domain.InMemory),
+          Layer.provide(platformForTests),
           Layer.provide(
             ConfigProvider.layer(
               ConfigProvider.fromEnvRecord({ CLERK_ISSUER: "https://clerk.example.test" }),

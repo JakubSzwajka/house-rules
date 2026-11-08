@@ -1,3 +1,4 @@
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -78,7 +79,7 @@ const World = Layer.mergeAll(SessionLive, OrgOnlyLive).pipe(
       Roles.layer({ guest: ["rooms:enter"] }),
     ),
   ),
-  Layer.provideMerge(Rooms.layer(Layer.empty).pipe(Layer.provide(Domain.InMemory))),
+  Layer.provideMerge(Rooms.layer(Layer.empty).pipe(Layer.provide(platformForTests))),
 );
 
 describe("middleware order: Effect 4.1.2 runs the last listed first, unlike the beta.85 docs", () => {

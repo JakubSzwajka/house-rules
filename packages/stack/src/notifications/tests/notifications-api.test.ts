@@ -1,3 +1,4 @@
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -49,7 +50,7 @@ const World = SessionLive.pipe(
   ),
   Layer.provideMerge(
     Notifications.layer(handlers).pipe(
-      Layer.provide(Domain.InMemory),
+      Layer.provide(platformForTests),
       Layer.provideMerge(Layer.mergeAll(memoryEmail("noreply@example.test"), memoryPush())),
     ),
   ),

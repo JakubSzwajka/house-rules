@@ -1,3 +1,4 @@
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -53,7 +54,7 @@ const worldWith = (auth: Layer.Layer<AuthProvider>) =>
     Layer.provide(
       Layer.mergeAll(auth, Roles.layer({ greeter: ["desks:greet"], "org:admin": ["desks:greet"] })),
     ),
-    Layer.provideMerge(Desks.layer(Layer.empty).pipe(Layer.provide(Domain.InMemory))),
+    Layer.provideMerge(Desks.layer(Layer.empty).pipe(Layer.provide(platformForTests))),
   );
 
 const devWorld = worldWith(

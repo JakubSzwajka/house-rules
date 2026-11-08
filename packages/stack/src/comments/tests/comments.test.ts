@@ -1,3 +1,4 @@
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
@@ -179,7 +180,7 @@ describe("Comments over the Api", () => {
         Roles.layer({ member: [read, write], guest: [] }),
       ),
     ),
-    Layer.provideMerge(App.layer(Layer.empty).pipe(Layer.provide(Domain.InMemory))),
+    Layer.provideMerge(App.layer(Layer.empty).pipe(Layer.provide(platformForTests))),
   );
   const as = (token: string) => AppApi.clientInProcess.pipe(Effect.provide(sessionClient(token)));
 

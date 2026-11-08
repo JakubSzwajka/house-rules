@@ -1,3 +1,4 @@
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
@@ -129,7 +130,7 @@ describe("GraphApi over Session", () => {
         Roles.layer({ editor: ["relations:read", "relations:write"], guest: [] }),
       ),
     ),
-    Layer.provideMerge(Graph.layer(Layer.empty).pipe(Layer.provide(Domain.InMemory))),
+    Layer.provideMerge(Graph.layer(Layer.empty).pipe(Layer.provide(platformForTests))),
   );
   const as = (token: string) => GraphApi.clientInProcess.pipe(Effect.provide(sessionClient(token)));
 

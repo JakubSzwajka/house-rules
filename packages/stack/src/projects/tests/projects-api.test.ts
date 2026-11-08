@@ -1,3 +1,4 @@
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -39,7 +40,7 @@ describe("ProjectsApi", () => {
         }),
       ),
     ),
-    Layer.provideMerge(Model.layer(Projects.handlers).pipe(Layer.provide(Domain.InMemory))),
+    Layer.provideMerge(Model.layer(Projects.handlers).pipe(Layer.provide(platformForTests))),
   );
   const as = (token: string) =>
     ProjectsApi.clientInProcess.pipe(Effect.provide(sessionClient(token)));

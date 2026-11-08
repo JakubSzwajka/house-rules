@@ -1,3 +1,4 @@
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -30,7 +31,7 @@ const World = Layer.mergeAll(SessionLive, WorkItems.workflowConfig(board)).pipe(
       }),
     ),
   ),
-  Layer.provideMerge(Model.layer(WorkItems.handlers).pipe(Layer.provide(Domain.InMemory))),
+  Layer.provideMerge(Model.layer(WorkItems.handlers).pipe(Layer.provide(platformForTests))),
 );
 const as = (token: string) =>
   WorkItemsApi.clientInProcess.pipe(Effect.provide(sessionClient(token)));

@@ -1,3 +1,4 @@
+import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
@@ -42,7 +43,7 @@ const World = SessionLive.pipe(
       }),
     ),
   ),
-  Layer.provideMerge(Organisations.layer(Layer.empty).pipe(Layer.provide(Domain.InMemory))),
+  Layer.provideMerge(Organisations.layer(Layer.empty).pipe(Layer.provide(platformForTests))),
 );
 const as = (token: string) =>
   OrganisationsApi.clientInProcess.pipe(Effect.provide(sessionClient(token)));
