@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/domain-postgres",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A Postgres Platform for Alchemy Domain: events, state, views and an outbox in your own Postgres.",
   "license": "MIT",
   "type": "module",

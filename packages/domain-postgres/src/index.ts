@@ -1,5 +1,5 @@
 export { layer, type Options } from "./adapters/postgres-platform.ts";
-export { migrate } from "./adapters/tables.ts";
+export { migrate, TablesMissing } from "./adapters/tables.ts";
 export {
   domainStore,
   fromEnv,

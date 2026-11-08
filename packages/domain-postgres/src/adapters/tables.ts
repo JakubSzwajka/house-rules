@@ -1,5 +1,24 @@
 import { PgClient } from "@effect/sql-pg/PgClient";
+import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
+
+export const tableNames = [
+  "instances",
+  "events",
+  "receipts",
+  "schedules",
+  "cancellations",
+  "views",
+  "view_keys",
+  "view_entries",
+  "outbox",
+] as const;
+
+export class TablesMissing extends Data.TaggedError("TablesMissing")<{
+  readonly schema: string;
+  readonly missing: ReadonlyArray<string>;
+  readonly message: string;
+}> {}
 
 export const createTables = (schema: string) =>
   Effect.gen(function* () {
@@ -97,4 +116,28 @@ export const migrate = (schema: string) =>
   Effect.gen(function* () {
     const sql = yield* PgClient;
     yield* sql.withTransaction(createTables(schema));
+  });
+
+export const checkTables = (schema: string) =>
+  Effect.gen(function* () {
+    const sql = yield* PgClient;
+    const schemas = yield* sql<{ found: boolean }>`
+      SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = ${schema}) AS found`;
+    const rows = yield* sql<{ name: string }>`
+      SELECT c.relname AS name
+      FROM pg_catalog.pg_class c
+      JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = ${schema} AND c.relkind IN ('r', 'p')`;
+    const found = new Set(rows.map((row) => row.name));
+    const missing = tableNames.filter((name) => !found.has(name));
+    if (missing.length === 0) return;
+    const fix = `run migrate("${schema}") as the schema owner before starting with createTables: false`;
+    return yield* new TablesMissing({
+      schema,
+      missing,
+      message:
+        schemas[0]?.found === true
+          ? `schema "${schema}" lacks tables ${missing.join(", ")}; ${fix}`
+          : `schema "${schema}" does not exist; ${fix}`,
+    });
   });
