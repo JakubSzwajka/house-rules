@@ -139,18 +139,21 @@ describe("work items", () => {
     ),
   );
 
-  it.effect("refuses a workflow with a repeated or unknown state, or a closed claim state", () =>
-    Effect.gen(function* () {
-      const { board } = WorkItems;
-      for (const workflow of [
-        { ...board, states: [...board.states, { name: "todo", category: "open" as const }] },
-        { ...board, initial: "nowhere" },
-        { ...board, transitions: { todo: ["nowhere"] } },
-        { ...board, claim: "done" },
-      ]) {
-        const failed = yield* Layer.build(WorkItems.workflowConfig(workflow)).pipe(Effect.flip);
-        expect(failed._tag).toBe("SchemaError");
-      }
-    }).pipe(Effect.scoped),
+  it.effect(
+    "refuses a workflow with a repeated or unknown state, a closed claim state, or a release it cannot make",
+    () =>
+      Effect.gen(function* () {
+        const { board } = WorkItems;
+        for (const workflow of [
+          { ...board, states: [...board.states, { name: "todo", category: "open" as const }] },
+          { ...board, initial: "nowhere" },
+          { ...board, transitions: { todo: ["nowhere"] } },
+          { ...board, claim: "done" },
+          { ...board, transitions: { todo: ["doing"], doing: ["done"], done: [] } },
+        ]) {
+          const failed = yield* Layer.build(WorkItems.workflowConfig(workflow)).pipe(Effect.flip);
+          expect(failed._tag).toBe("SchemaError");
+        }
+      }).pipe(Effect.scoped),
   );
 });

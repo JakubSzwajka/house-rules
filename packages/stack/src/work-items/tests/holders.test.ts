@@ -72,7 +72,7 @@ describe("holders", () => {
   it.effect("refuses a claim the workflow does not allow", () =>
     story(
       Story.given(item1, created()),
-      ...as(worker("ann"), { ...strict, transitions: { todo: [] } }),
+      ...as(worker("ann"), { ...strict, transitions: { todo: [], doing: ["todo"] } }),
       Story.when(item1, new ClaimWorkItem()),
       Story.rejected(new TransitionNotAllowed({ from: "todo", to: "doing" })),
     ),

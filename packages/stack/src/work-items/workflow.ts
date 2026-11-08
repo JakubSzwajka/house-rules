@@ -19,6 +19,7 @@ export const Workflow = Schema.Struct({
       new Set(names).size === names.length &&
       [w.initial, w.claim, w.release.from, w.release.to].every(known) &&
       !isClosed(w, w.claim) &&
+      allows(w, w.release.from, w.release.to) &&
       Object.entries(w.transitions).every(
         ([from, to]) => known(from) && (to === "any" || to.every(known)),
       )
