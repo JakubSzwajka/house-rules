@@ -213,7 +213,7 @@ export const AuthFromEnv = Layer.unwrap(
 );
 ```
 
-`apps/server/src/kitchen-live.ts` hosts the model and serves `Session` over any provider. Production swaps `Domain.InMemory` for Cloudflare Durable Objects; tests and local play provide `Domain.InMemory`:
+`apps/server/src/kitchen-live.ts` hosts the model and serves `Session` over any provider. The platform Layer is provided last: `fromEnv` from `@house-rules/domain-postgres` on Node (Postgres, or `Domain.InMemory` with `DOMAIN_STORE=memory`), Cloudflare Durable Objects on Cloudflare. Tests provide `platformForTests` or `Domain.InMemory`:
 
 ```ts
 export const kitchenLive = <E, R>(auth: Layer.Layer<AuthProvider, E, R>) =>
@@ -269,7 +269,7 @@ The empty `ConfigProvider` pins the test to dev tokens whatever the shell export
 Copy the booking server's two hosting files and swap the names; nothing else changes:
 
 - [routes.ts](../../examples/booking/apps/server/src/routes.ts): `KitchenApi` in place of `BookingApi` serves plain HTTP with OpenAPI at `/openapi.json`, Effect RPC at `/rpc` and MCP at `/mcp`.
-- [local.ts](../../examples/booking/apps/server/src/local.ts): `kitchenLive(AuthFromEnv).pipe(Layer.provide(Domain.InMemory))` in place of `bookingLive(...)`, served by `NodeHttpServer` on `PORT` (default 3000). The booking server provides `fromEnv` from the workspace's private `@house-rules/domain-postgres` instead, which keeps the data in Postgres.
+- [local.ts](../../examples/booking/apps/server/src/local.ts): `kitchenLive(AuthFromEnv).pipe(Layer.provide(fromEnv({ schema: "kitchen" })))` in place of `bookingLive(...)`, served by `NodeHttpServer` on `PORT` (default 3000). `fromEnv` from `@house-rules/domain-postgres` keeps the data in Postgres (`pnpm db:up`), or in memory with `DOMAIN_STORE=memory`.
 - Optional: [cli.ts](../../examples/booking/apps/server/src/cli.ts) for a CLI over `/rpc`, [booking-worker.ts](../../examples/booking/apps/server/src/booking-worker.ts) and [alchemy.run.ts](../../examples/booking/apps/server/alchemy.run.ts) to deploy on Cloudflare Durable Objects, [local-http.test.ts](../../examples/booking/apps/server/src/tests/local-http.test.ts) for an HTTP smoke test.
 
 ```sh

@@ -1,6 +1,6 @@
 # Context
 
-House-rules is a TypeScript workspace template for apps built on Alchemy Domain. It publishes two packages: `@house-rules/rules` (presets and checks) and `@house-rules/stack` (auth, access and reusable domain modules). [AGENTS.md](AGENTS.md) is the law. This file names the parts; [VISION.md](VISION.md) says why they exist. Alchemy's own words come first; house-rules adds only what Alchemy leaves open.
+House-rules is a TypeScript workspace template for apps built on Alchemy Domain. It publishes three packages: `@house-rules/rules` (presets and checks), `@house-rules/stack` (auth, access and reusable domain modules) and `@house-rules/domain-postgres` (a Postgres platform). [AGENTS.md](AGENTS.md) is the law. This file names the parts; [VISION.md](VISION.md) says why they exist. Alchemy's own words come first; house-rules adds only what Alchemy leaves open.
 
 ## The model
 
@@ -26,9 +26,11 @@ An **External System** is something outside the model a block calls, such as pay
 
 An **Api** (`Domain.Api`) lists the commands and reads a client may use, served over HTTP, MCP (`/Ai`) or a CLI. What it serves authorizes itself through middleware and `validate`.
 
+A **Platform** (the **domain store**) is the Layer that hosts a model: it stores events, state, receipts and views, and delivers events to views and policies. `Domain.InMemory` serves tests and local play, `@house-rules/domain-postgres` keeps them in Postgres on Node, and Cloudflare Durable Objects host them on Cloudflare. Swapping the platform Layer changes nothing in the model. `DOMAIN_STORE` (`postgres` or `memory`) picks it on Node.
+
 ## Who and what may
 
-An **Actor** is who is acting: a **Person** (a signed-in user, possibly through an agent, `via: "agent"`) or a **System** actor (a named policy, saga or webhook). **CurrentActor** is the request context that carries it with each command to its aggregate.
+An **Actor** is who is acting: a **Person** (a signed-in user, or an agent acting as that user with the same permissions) or a **System** actor (a named policy, saga or webhook). **CurrentActor** is the request context that carries it with each command to its aggregate.
 
 A **Permission** is a `resource:action` string a block checks with **requirePermission**. A module publishes its strings as `<Module>Permissions`.
 

@@ -19,7 +19,7 @@ export class Kitchen extends Domain.Model("Kitchen", {
 }) {}
 ```
 
-A module with policies brings a `handlers` Layer. Merge every module's `handlers` with your own into the one `App.layer(...)`, and provide the adapters they need. From [src/tests/compose.test.ts](src/tests/compose.test.ts), which hosts every module at once:
+A module with policies brings a `handlers` Layer. Merge every module's `handlers` with your own into the one `App.layer(...)`, and provide the adapters they need. Adapted from [src/tests/compose.test.ts](src/tests/compose.test.ts), which hosts every module at once:
 
 ```ts
 const Hosted = Everything.layer(
@@ -27,7 +27,7 @@ const Hosted = Everything.layer(
 ).pipe(
   Layer.provide(
     Layer.mergeAll(
-      Domain.InMemory,
+      fromEnv({ schema: "app" }),
       Delivery.memoryEmail("app@example.test"),
       Delivery.memoryPush(),
       Contacts.memoryVerificationCodes(),
@@ -36,6 +36,7 @@ const Hosted = Everything.layer(
 );
 ```
 
+- The platform Layer stores the model. `fromEnv({ schema })` from `@house-rules/domain-postgres` picks Postgres or `Domain.InMemory` from `DOMAIN_STORE`; on Cloudflare use the Durable Object host. The model does not change.
 - A model with no handlers takes `App.layer(Layer.empty)`.
 - `Notifications` needs `Email` and `Push` adapters from `Delivery` (`consoleEmail`, `consolePush` locally), `Contacts` a `VerificationCodes` adapter, `Projects` the `Projects.projectsConfig(...)` middleware Layer and `WorkItems` `WorkItems.workflowConfig(...)`, both merged beside `SessionLive`.
 - `Domain.verify(App)` must be `[]`. It reports duplicate event tags and duplicate aggregate, view or stream names across modules.
@@ -116,7 +117,7 @@ Tests sit in `tests/` beside the code and use `@effect/vitest` (`it.effect`, `it
 - One `Domain.verify(App)` test that expects `[]`.
 - Stories (`@alchemy.run/domain/Story`) for every command's happy path and every rejection. Stories skip middleware, so provide the actor: `Story.provide(CurrentActor, person("ann", { permissions: [...] }))`. Cover the permission holder, a person without it, the wrong owner and a system actor. Stub external systems with `Story.make(App, { layer: Handlers, stub: [PaymentProvider] })`.
 - Every policy reaction and every view's state after the events it folds.
-- One Api test through `SessionLive`, `devTokens` and `Roles` over `Domain.InMemory`, with `Api.clientInProcess` and `sessionClient(token)`. Read views with `{ atLeast: receipt }` after a write. Middleware is tested here, since stories skip it.
+- One Api test through `SessionLive`, `devTokens` and `Roles` over `platformForTests` from `@house-rules/domain-postgres` (a fresh Postgres schema per test, or `Domain.InMemory` with `DOMAIN_STORE=memory`), with `Api.clientInProcess` and `sessionClient(token)`. Read views with `{ atLeast: receipt }` after a write. Middleware is tested here, since stories skip it.
 
 Worked examples: [src/tests/new-app.test.ts](src/tests/new-app.test.ts) (a whole small app), [src/access/tests/require-permission.test.ts](src/access/tests/require-permission.test.ts) and `examples/booking/packages/domain/src/tests` in the template.
 
