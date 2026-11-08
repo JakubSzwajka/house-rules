@@ -89,7 +89,7 @@ test("selection includes transitive local dependencies and rejects unknown packa
   });
   const packages = [
     pkg("app-kit", { "@house-rules/stack": "workspace:0.1.0" }),
-    pkg("stack", { "@house-rules/rules": "workspace:0.20.1" }),
+    pkg("stack", { "@house-rules/rules": "workspace:0.21.0" }),
     pkg("rules"),
   ];
   assert.deepEqual(

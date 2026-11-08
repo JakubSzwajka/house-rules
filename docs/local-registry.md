@@ -80,7 +80,7 @@ minimumReleaseAgeExclude:
 overrides:
   '@house-rules/stack': 'http://127.0.0.1:4873/@house-rules/stack/-/stack-0.1.0-local.20261025123456789.tgz'
   '@house-rules/domain-postgres': 'http://127.0.0.1:4873/@house-rules/domain-postgres/-/domain-postgres-0.1.0-local.20261025123456789.tgz'
-  '@house-rules/rules': 'http://127.0.0.1:4873/@house-rules/rules/-/rules-0.20.1-local.20261025123456789.tgz'
+  '@house-rules/rules': 'http://127.0.0.1:4873/@house-rules/rules/-/rules-0.21.0-local.20261025123456789.tgz'
 ```
 
 Keep the direct dependencies in `package.json` at the exact local versions, so `house-rules-pins` still passes; the override replaces them at install. Each version's `dist.tarball` in `curl http://127.0.0.1:4873/@house-rules%2fstack` gives the URL.

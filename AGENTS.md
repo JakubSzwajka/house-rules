@@ -2,7 +2,7 @@
 
 This file is the law for agents and people working in this repo and projects made from its template. Read `VISION.md` for why and `CONTEXT.md` for the words. Vision does not override the law.
 
-Apps are built on Alchemy Domain (`@alchemy.run/domain` 2.0.0-beta.85, Effect 4.1.2). Where Alchemy and older house-rules ideas disagree, Alchemy wins. House rules and tool presets live in `packages/rules` (`@house-rules/rules`); the root uses `workspace:0.20.1`. Keep consumer configs thin: extend presets and set project values, never copy a preset.
+Apps are built on Alchemy Domain (`@alchemy.run/domain` 2.0.0-beta.85, Effect 4.1.2). Where Alchemy and older house-rules ideas disagree, Alchemy wins. House rules and tool presets live in `packages/rules` (`@house-rules/rules`); the root uses `workspace:0.21.0`. Keep consumer configs thin: extend presets and set project values, never copy a preset.
 
 ## Commands
 
