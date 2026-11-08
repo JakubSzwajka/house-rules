@@ -25,13 +25,6 @@ Each reads the token from `Authorization: Bearer` or a cookie. A token that is m
 
 ## Agents
 
-`actor.via` is `"agent"` only when the request carries `x-house-rules-via: agent` (`VIA_AGENT_HEADER`). The server sets it on the agent's channel:
-
-```ts
-DomainAi.toMcp(AppApi, { headers: viaAgent() });
-DomainAi.toToolkit(AppApi, { headers: viaAgent(Effect.map(CurrentSession, (s) => s.token)) });
-```
-
-`viaAgent()` passes on the MCP request's headers (its bearer token or cookie) and marks them; with a token it also sets `Authorization: Bearer`. A typed client acting as an agent uses `sessionClient(token, "agent")`.
+An agent acts as its user. `DomainAi.toMcp(AppApi)` passes the MCP request's headers (its bearer token or cookie) to `Session`, so the agent gets exactly the person's permissions. There is no separate agent marker and no approval step.
 
 Not built: MCP as an OAuth resource server (protected-resource metadata, the 401 `WWW-Authenticate` challenge, checking that the token's audience is this resource). Today an MCP client signs in with the same session token as the app's own clients, through whichever provider is plugged in.

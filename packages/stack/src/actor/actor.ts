@@ -8,7 +8,6 @@ export const Person = Schema.TaggedStruct("Person", {
   orgId: Schema.NullOr(Schema.String),
   roles: Schema.Array(Schema.String),
   permissions: Schema.Array(Schema.String),
-  via: Schema.Literals(["user", "agent"]),
 });
 export type Person = typeof Person.Type;
 
@@ -27,7 +26,6 @@ export const person = (
     readonly roles?: ReadonlyArray<string>;
     readonly permissions?: ReadonlyArray<string>;
     readonly orgId?: string | null;
-    readonly via?: "user" | "agent";
   } = {},
 ): Person => ({
   _tag: "Person",
@@ -35,7 +33,6 @@ export const person = (
   orgId: options.orgId ?? null,
   roles: [...(options.roles ?? [])],
   permissions: [...(options.permissions ?? [])],
-  via: options.via ?? "user",
 });
 
 export const system = (name: string, permissions: ReadonlyArray<string> = []): System => ({

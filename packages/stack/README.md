@@ -1,6 +1,6 @@
 # @house-rules/stack
 
-Sign-in, permissions and reusable domain modules for apps built on [Alchemy Domain](https://alchemy.run/domain). An app models its backend as Alchemy aggregates, commands, events, views and policies; the stack adds who is acting (`CurrentActor`), what they may do (`requirePermission`, `Roles`), how they sign in (`Session` over a swappable `AuthProvider`: Clerk, any JWT issuer, or dev tokens), a guard for agent writes (`ApprovalGate`), and ready modules such as comments, organisations or work items that an app spreads into its own `Domain.Model`. Everything comes through one door: `import { Session, requirePermission, Notes } from "@house-rules/stack"`.
+Sign-in, permissions and reusable domain modules for apps built on [Alchemy Domain](https://alchemy.run/domain). An app models its backend as Alchemy aggregates, commands, events, views and policies; the stack adds who is acting (`CurrentActor`), what they may do (`requirePermission`, `Roles`), how they sign in (`Session` over a swappable `AuthProvider`: Clerk, any JWT issuer, or dev tokens) and ready modules such as comments, organisations or work items that an app spreads into its own `Domain.Model`. Everything comes through one door: `import { Session, requirePermission, Notes } from "@house-rules/stack"`.
 
 [DESIGN.md](DESIGN.md) holds the design and the rules every block follows. [AGENTS.md](AGENTS.md) is the short operating guide for building an app on the stack.
 
@@ -10,9 +10,8 @@ Sign-in, permissions and reusable domain modules for apps built on [Alchemy Doma
 | --- | --- | --- |
 | Actor | `Actor`, `Person`, `PersonId`, `System`, `person`, `system`, `authorOf`, `CurrentActor` | who is acting: a signed-in person (directly or `via: "agent"`) or a named system actor, carried with each command |
 | Access | `Permission`, `can`, `requirePermission`, `Forbidden`, `Roles`, `RoleDefinitions` | permissions are `resource:action` strings; `Roles` turns role names into permissions once per request; `decide` checks them |
-| Auth | `AuthProvider`, `Principal`, `Session`, `SessionLive`, `Unauthenticated`, `sessionClient`, `credentialOf`, `viaAgent`, `VIA_AGENT_HEADER` | the `Session` RPC middleware over a provider slot; [auth README](src/auth/README.md) |
+| Auth | `AuthProvider`, `Principal`, `Session`, `SessionLive`, `Unauthenticated`, `sessionClient`, `credentialOf` | the `Session` RPC middleware over a provider slot; [auth README](src/auth/README.md) |
 | Auth providers | `clerk`, `jwt`, `devTokens` | Clerk session tokens (v1 `org_id`/`org_role` and v2 `o.id`/`o.rol` claims), any JWT issuer (JWKS, PEM or HS256 secret), fixed tokens for tests and local play |
-| Approval | `ApprovalGate`, `ApprovalRequired`, `Approval`, `isAgent` | refuses chosen commands when an agent acts for a person; [approval README](src/approval/README.md) |
 | Target | `Target`, `TargetKey`, `targetKey` | `{ kind, id }` of an app's own object, shared by comments and notes |
 | `Comments` | module | flat comments on a target, author edits, moderated deletes; [README](src/comments/README.md) |
 | `Contacts` | module | email, phone and postal contacts per owner, primaries, verification by one-time code; [README](src/contacts/README.md) |
@@ -284,5 +283,4 @@ Then run `pnpm check` and `pnpm test` from the root; both must exit 0 before a c
 ## Next
 
 - Add a policy: it has no session, so it acts as a system actor with explicit grants. See `BookingPayment` in [the booking example](../../examples/booking/packages/domain/src/payment/booking-payment.policy.ts) and [AGENTS.md](AGENTS.md).
-- Guard agent writes with `ApprovalGate`, listed before `Session`: [approval README](src/approval/README.md).
 - Read [DESIGN.md](DESIGN.md) before writing a new module.

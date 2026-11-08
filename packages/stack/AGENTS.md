@@ -4,7 +4,7 @@ Operating guide for agents working on an app built on the stack.
 
 ## What it does
 
-Sign-in, permissions, an approval guard for agent writes, and reusable domain modules for apps on Alchemy Domain (`@alchemy.run/domain` 2.0.0-beta.85, Effect 4.1.2), all from one door, `@house-rules/stack`. [README.md](README.md) lists what is inside and walks through a new app step by step; [DESIGN.md](DESIGN.md) holds the design and the rules for every block. Each module documents its commands, permissions and rules in `src/<module>/README.md`. When docs and code disagree, the code and its tests win.
+Sign-in, permissions and reusable domain modules for apps on Alchemy Domain (`@alchemy.run/domain` 2.0.0-beta.85, Effect 4.1.2), all from one door, `@house-rules/stack`. [README.md](README.md) lists what is inside and walks through a new app step by step; [DESIGN.md](DESIGN.md) holds the design and the rules for every block. Each module documents its commands, permissions and rules in `src/<module>/README.md`. When docs and code disagree, the code and its tests win.
 
 ## How an app mounts it
 
@@ -55,7 +55,7 @@ export const kitchenLive = <E, R>(auth: Layer.Layer<AuthProvider, E, R>) =>
   );
 ```
 
-- Clients send the bearer token with `sessionClient(token)`; `sessionClient(token, "agent")` and the server's `viaAgent()` set `x-house-rules-via: agent`, which makes the actor `via: "agent"`.
+- Clients send the bearer token with `sessionClient(token)`. An agent over MCP sends its user's token and acts as that user.
 - With a provider that knows no organisations (JWT, dev tokens), `Organisations.withMemberships(provider)` adds the person's role in their active organisation.
 
 ## Fixed rules
@@ -100,10 +100,10 @@ Commands only a policy sends still check a permission; the system actor holds it
 Effect 4.1.2 runs a command's middleware from the **last** entry to the first, the reverse of what Alchemy's beta.85 docs say. A guard that reads the actor goes before `Session`:
 
 ```ts
-middleware: [ApprovalGate, Session],
+middleware: [OrgOnly, Session],
 ```
 
-Provide the gate's policy beside `SessionLive`: `Approval.denyAgents` (default), `Approval.allowAll` or `Approval.policy(({ command, actor }) => boolean)`. Listed the other way it sees no actor and refuses everyone. [src/approval/tests/approval.test.ts](src/approval/tests/approval.test.ts) pins the order.
+Listed the other way the guard sees no actor. [src/auth/tests/middleware-order.test.ts](src/auth/tests/middleware-order.test.ts) pins the order.
 
 ### Event tags are unique across the app
 
@@ -116,7 +116,7 @@ Tests sit in `tests/` beside the code and use `@effect/vitest` (`it.effect`, `it
 - One `Domain.verify(App)` test that expects `[]`.
 - Stories (`@alchemy.run/domain/Story`) for every command's happy path and every rejection. Stories skip middleware, so provide the actor: `Story.provide(CurrentActor, person("ann", { permissions: [...] }))`. Cover the permission holder, a person without it, the wrong owner and a system actor. Stub external systems with `Story.make(App, { layer: Handlers, stub: [PaymentProvider] })`.
 - Every policy reaction and every view's state after the events it folds.
-- One Api test through `SessionLive`, `devTokens` and `Roles` over `Domain.InMemory`, with `Api.clientInProcess` and `sessionClient(token)`. Read views with `{ atLeast: receipt }` after a write. Approval is tested here, since stories skip middleware.
+- One Api test through `SessionLive`, `devTokens` and `Roles` over `Domain.InMemory`, with `Api.clientInProcess` and `sessionClient(token)`. Read views with `{ atLeast: receipt }` after a write. Middleware is tested here, since stories skip it.
 
 Worked examples: [src/tests/new-app.test.ts](src/tests/new-app.test.ts) (a whole small app), [src/access/tests/require-permission.test.ts](src/access/tests/require-permission.test.ts) and `examples/booking/packages/domain/src/tests` in the template.
 

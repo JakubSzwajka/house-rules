@@ -4,7 +4,7 @@ Open work, not alternate law.
 
 ## Migration to Alchemy Domain
 
-- [ ] Land the reusable modules in `packages/stack`: comments, notes, contacts, relations, projects, work-items, notifications, delivery, organisations, approval and the Clerk and JWT auth providers. Extend `packages/stack/AGENTS.md` and `README.md` with each module's mount and permissions.
+- [ ] Land the reusable modules in `packages/stack`: comments, notes, contacts, relations, projects, work-items, notifications, delivery, organisations and the Clerk and JWT auth providers. Extend `packages/stack/AGENTS.md` and `README.md` with each module's mount and permissions.
 - [ ] Land the booking example (`examples/booking/packages/domain`, `examples/booking/apps/server`) and its README, then drop the two placeholder tests.
 - [ ] Decide what the site says about the new model beyond the rules page, with the owner.
 - [ ] Release `@house-rules/stack` 0.1.0 through the publish workflow after the owner's yes. Confirm the `NPM_TOKEN` owner can create the new package name.
@@ -25,7 +25,6 @@ Open work, not alternate law.
 ## Decisions still open
 
 - [ ] Map OAuth token scopes to permissions when a real app needs it: the app role's permissions intersected with token scopes.
-- [ ] Prove human approval across the MCP clients and deployment shapes we use. Agents cannot approve their own writes.
 - [ ] Design accounts: login linking, password reset, email verification and sign-in rate limiting.
 
 ## App-driven work

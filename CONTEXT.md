@@ -42,8 +42,6 @@ An **AuthProvider** is the slot that answers who is signed in: it turns request 
 
 **Object access** is who may touch one aggregate (owner, members, holders). It lives in the aggregate's state and is checked in `decide` after the permission, with its own rejection such as `NotAuthor`.
 
-**Approval** is the `ApprovalGate` middleware a hard-to-undo command lists before `Session` (`[ApprovalGate, Session]`). It refuses the command with `ApprovalRequired` (403) when a person acts through an agent, unless the app's `Approval` policy Layer allows it. An agent never approves its own writes.
-
 ## The workspace
 
 A **module** is a folder in `packages/stack/src/<module>/` with its blocks, its door (`index.ts`), its permissions, its README and its tests: comments, contacts, delivery, notes, notifications, organisations, projects, relations and work-items. An app **mounts** it by spreading its block lists into its own `Domain.Model`.

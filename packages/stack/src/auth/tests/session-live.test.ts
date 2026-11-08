@@ -16,37 +16,32 @@ import {
   Session,
   SessionLive,
   sessionClient,
-  VIA_AGENT_HEADER,
 } from "../../index.ts";
 import { clerk } from "../clerk.ts";
 
 const DeskId = Schema.String.pipe(Schema.brand("DeskId"));
-const Via = Schema.Literals(["user", "agent"]);
-
-class Greeted extends Domain.Event("Greeted", { by: Schema.String, via: Via }) {}
+class Greeted extends Domain.Event("Greeted", { by: Schema.String }) {}
 
 class Greet extends Domain.Command("Greet", {
   target: DeskId,
   middleware: [Session],
   events: [Greeted],
   rejects: [Forbidden],
-  reply: { by: Schema.String, via: Via },
+  reply: { by: Schema.String },
 }) {}
 
 class Desk extends Domain.Aggregate("Desk", {
   id: DeskId,
-  state: Schema.Struct({ by: Schema.String, via: Via }),
-  initial: { by: "", via: "user" },
+  state: Schema.Struct({ by: Schema.String }),
+  initial: { by: "" },
   commands: [Greet],
   decide: {
     Greet: Effect.fn(function* () {
       const actor = yield* requirePermission("desks:greet");
-      return [
-        new Greeted({ by: authorOf(actor), via: actor._tag === "Person" ? actor.via : "user" }),
-      ];
+      return [new Greeted({ by: authorOf(actor) })];
     }),
   },
-  evolve: { Greeted: (_, e) => ({ by: e.by, via: e.via }) },
+  evolve: { Greeted: (_, e) => ({ by: e.by }) },
   reply: { Greet: (s) => s },
 }) {}
 
@@ -76,15 +71,12 @@ const greet = (client: Layer.Layer<RpcMiddleware.ForClient<Session>>, desk: stri
   ).pipe(Effect.map(({ reply }) => reply));
 
 describe("SessionLive", () => {
-  it.live("marks a person as acting through an agent only from the via header", () =>
+  it.live("signs a dev-token person in from a bearer token or the session cookie", () =>
     Effect.gen(function* () {
-      expect(yield* greet(sessionClient("ann-token"), "d-1")).toEqual({ by: "ann", via: "user" });
-      expect(yield* greet(sessionClient("ann-token", "agent"), "d-2")).toEqual({
+      expect(yield* greet(sessionClient("ann-token"), "d-1")).toEqual({ by: "ann" });
+      expect(yield* greet(withHeaders({ cookie: "__session=ann-token" }), "d-2")).toEqual({
         by: "ann",
-        via: "agent",
       });
-      const odd = withHeaders({ authorization: "Bearer ann-token", [VIA_AGENT_HEADER]: "Agent" });
-      expect(yield* greet(odd, "d-3")).toEqual({ by: "ann", via: "user" });
     }).pipe(Effect.scoped, Effect.provide(devWorld)),
   );
 
@@ -104,7 +96,7 @@ describe("SessionLive", () => {
         Effect.scoped,
         Effect.provide(worldWith(clerk({ issuer: "https://clerk.example.test", jwtKey }))),
       );
-      expect(reply).toEqual({ by: "user_ann", via: "user" });
+      expect(reply).toEqual({ by: "user_ann" });
     }),
   );
 

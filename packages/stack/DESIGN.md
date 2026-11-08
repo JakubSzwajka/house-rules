@@ -16,7 +16,7 @@ One publishable package replaces the old kits (`domain`, `application`), the hos
 | May, Party.may, permission closures | `Roles` turns role names into permissions once per request; each `decide` and `validate` calls `requirePermission` |
 | object policy inside modules | the aggregate's own state, checked in `decide` |
 | `asSystem` | a policy or webhook provides `system(name, permissions)` as `CurrentActor` |
-| Approval, Mean | `ApprovalGate` middleware with an `Approval` policy Layer (see `src/approval/README.md`) |
+| Approval, Mean | dropped: an agent acts as its user, with the user's permissions |
 | UnitOfWork, migrations, Postgres adapters | gone: one aggregate commits in one transaction; the platform stores events (on Node, `@house-rules/domain-postgres` in Postgres) |
 | node-host, express-host | gone: `@house-rules/domain-postgres` or `Domain.InMemory` on Node, Cloudflare Durable Objects on Cloudflare |
 | call-audit | events carry their author; Domain traces every command |
@@ -29,7 +29,6 @@ src/
   actor/              Actor, person(), system(), CurrentActor
   access/             Permission, can, requirePermission, Forbidden, Roles
   auth/               AuthProvider slot, Session middleware, SessionLive, providers
-  approval/           ApprovalGate middleware, ApprovalRequired, Approval policies
   target/             Target { kind, id } and targetKey, shared by comments and notes
   <module>/           one folder per reusable module
     index.ts          the module's door
@@ -64,7 +63,7 @@ class App extends Domain.Model("App", {
 
 ## Middleware order
 
-Effect 4.1.2 runs a command's middleware list from the **last** entry to the first, the reverse of what Alchemy's beta.85 docs say. A guard that reads the actor goes before `Session`: `middleware: [ApprovalGate, Session]`. `src/approval/tests/approval.test.ts` pins this order, so it fails if Alchemy or Effect change it.
+Effect 4.1.2 runs a command's middleware list from the **last** entry to the first, the reverse of what Alchemy's beta.85 docs say. A guard that reads the actor goes before `Session`: `middleware: [OrgOnly, Session]`. `src/auth/tests/middleware-order.test.ts` pins this order, so it fails if Alchemy or Effect change it.
 
 ## Rules for every block
 

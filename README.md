@@ -40,7 +40,7 @@ Write your own `VISION.md`. Keep your code in `apps/` and `packages/`. Once your
 apps/                        your apps (servers, web)
 packages/
   rules/                     @house-rules/rules: ESLint, Biome, TypeScript and Dependency Cruiser presets and bins
-  stack/                     @house-rules/stack: actor, access, auth, approval and reusable domain modules
+  stack/                     @house-rules/stack: actor, access, auth and reusable domain modules
   domain-postgres/           @house-rules/domain-postgres (private spike): a Postgres Platform for Alchemy Domain
 examples/booking/
   packages/domain/           booking reference model: bookings, payments and their rules
@@ -53,7 +53,7 @@ tests/                       root wiring and fence tests
 
 ## The stack package
 
-`@house-rules/stack` is the one framework package. Its door is `src/index.ts`: the core (actor, access, auth with Clerk, JWT and dev-token providers, approval) by name, and the reusable modules as namespaces: `Comments`, `Contacts`, `Delivery`, `Notes`, `Notifications`, `Organisations`, `Projects`, `Relations` and `WorkItems`. An app spreads a module's block lists into its own model, as the stack's new-app test does:
+`@house-rules/stack` is the one framework package. Its door is `src/index.ts`: the core (actor, access, auth with Clerk, JWT and dev-token providers) by name, and the reusable modules as namespaces: `Comments`, `Contacts`, `Delivery`, `Notes`, `Notifications`, `Organisations`, `Projects`, `Relations` and `WorkItems`. An app spreads a module's block lists into its own model, as the stack's new-app test does:
 
 ```ts
 export class Kitchen extends Domain.Model("Kitchen", {
@@ -62,7 +62,7 @@ export class Kitchen extends Domain.Model("Kitchen", {
 }) {}
 ```
 
-Every client-sent command lists `middleware: [Session]`, rejects `Forbidden`, and starts its `decide` with `yield* requirePermission(...)`. `SessionLive` resolves the signed-in person through an `AuthProvider` slot and turns roles into permissions with `Roles`. Policies act as system actors with explicit grants. Effect runs the last listed middleware first, so a guard that reads the actor goes before `Session`: `[ApprovalGate, Session]`. See the [stack README](packages/stack/README.md), its [AGENTS.md](packages/stack/AGENTS.md) and [DESIGN.md](packages/stack/DESIGN.md), which maps every old house-rules concept to its replacement.
+Every client-sent command lists `middleware: [Session]`, rejects `Forbidden`, and starts its `decide` with `yield* requirePermission(...)`. `SessionLive` resolves the signed-in person through an `AuthProvider` slot and turns roles into permissions with `Roles`. Policies act as system actors with explicit grants. Effect runs the last listed middleware first, so a guard that reads the actor goes before `Session`: `[Guard, Session]`. See the [stack README](packages/stack/README.md), its [AGENTS.md](packages/stack/AGENTS.md) and [DESIGN.md](packages/stack/DESIGN.md), which maps every old house-rules concept to its replacement.
 
 ## The example
 

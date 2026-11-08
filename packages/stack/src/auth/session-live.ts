@@ -1,12 +1,11 @@
 import * as Effect from "effect/Effect";
-import * as Headers from "effect/http/Headers";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import { PersonId } from "../actor/actor.ts";
 import { CurrentActor } from "../actor/current-actor.context.ts";
 import { Roles } from "../access/roles.ts";
 import { AuthProvider } from "./auth-provider.ts";
-import { Session, Unauthenticated, VIA_AGENT_HEADER } from "./session.middleware.ts";
+import { Session, Unauthenticated } from "./session.middleware.ts";
 
 export const SessionLive = Layer.effect(
   Session,
@@ -28,9 +27,6 @@ export const SessionLive = Layer.effect(
                     orgId: principal.orgId,
                     roles: [...principal.roles],
                     permissions: [...roles.permissionsOf(principal.roles)],
-                    via: Option.contains(Headers.get(headers, VIA_AGENT_HEADER), "agent")
-                      ? "agent"
-                      : "user",
                   }),
           }),
         ),
