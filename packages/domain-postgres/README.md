@@ -16,7 +16,7 @@ const Hosted = App.layer(AppHandlers).pipe(
 
 ## What it stores
 
-`layer` creates its tables in `schema` on start (`CREATE ... IF NOT EXISTS`):
+`layer` creates its tables in `schema` on start (`CREATE ... IF NOT EXISTS`), unless you pass `createTables: false` (see [A runtime role that cannot create](#a-runtime-role-that-cannot-create)):
 
 | Table | Holds |
 | --- | --- |
@@ -28,6 +28,26 @@ const Hosted = App.layer(AppHandlers).pipe(
 | `outbox` | deliveries to views and policies, written in the same transaction as the commit |
 
 A command commits its events, state, receipt and outbox rows in one transaction. One loop per model delivers the outbox in order, deletes each row after its view or policy succeeds, retries a failure, and parks a row after `maxAttempts` (5) by setting `failed_at`. Views drop duplicates by checkpoint, so delivery is at least once.
+
+## A runtime role that cannot create
+
+Postgres checks the CREATE privilege before it checks whether a schema or table exists. So the default start, which runs `CREATE ... IF NOT EXISTS`, fails with `permission denied` for a role that may only read and write rows, even when every table is there.
+
+Split the two jobs. The schema owner runs `migrate(schema)` in the deploy's migration step, with a `PgClient` that connects as the owner. `migrate` is idempotent. The app runs `layer({ schema, createTables: false })` or `fromEnv({ schema, createTables: false })` as the runtime role. With `createTables: false`, start reads `pg_catalog` instead of creating anything. If the schema or any table is missing, the layer dies with `TablesMissing`, which names the schema and the missing tables. It never creates them.
+
+The runtime role needs these grants, run once by the owner:
+
+```sql
+GRANT USAGE ON SCHEMA app TO app_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA app TO app_runtime;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA app TO app_runtime;
+ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA app
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_runtime;
+ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA app
+  GRANT USAGE ON SEQUENCES TO app_runtime;
+```
+
+The sequence grant covers `outbox.position`, a `bigserial`. The default privileges cover tables a later version of this package adds when the owner runs `migrate` again. The runtime role needs no CREATE on the database or the schema.
 
 ## Limits
 

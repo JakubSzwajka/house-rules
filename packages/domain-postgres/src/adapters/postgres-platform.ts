@@ -9,11 +9,12 @@ import type * as Scope from "effect/Scope";
 import { makeAggregateStore } from "./aggregate-store.ts";
 import { type Fire, type Host, notifier } from "./host.ts";
 import { makeOutbox } from "./outbox.ts";
-import { migrate } from "./tables.ts";
+import { checkTables, migrate } from "./tables.ts";
 import { makeViewStore } from "./view-store.ts";
 
 export interface Options {
   readonly schema?: string;
+  readonly createTables?: boolean;
   readonly pollInterval?: Duration.Input;
   readonly maxAttempts?: number;
 }
@@ -118,7 +119,9 @@ export const layer = (options: Options = {}): Layer.Layer<Platform, never, PgCli
     Effect.gen(function* () {
       const sql = yield* PgClient;
       const schema = options.schema ?? "domain";
-      yield* migrate(schema).pipe(Effect.orDie);
+      yield* (options.createTables === false ? checkTables(schema) : migrate(schema)).pipe(
+        Effect.orDie,
+      );
       return Platform.of({
         model: ({ modelName }) =>
           Effect.flatMap(Effect.scope, (scope) => makeHost(sql, schema, modelName, scope, options)),

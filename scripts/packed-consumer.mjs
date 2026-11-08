@@ -83,8 +83,10 @@ assert.equal(refused._tag, "Forbidden");
 `;
 
 const POSTGRES_PROBE = `import * as Layer from "effect/Layer";
-import { fromEnv, layer, migrate } from "@house-rules/domain-postgres";
+import { fromEnv, layer, migrate, TablesMissing } from "@house-rules/domain-postgres";
 assert.equal(Layer.isLayer(layer({ schema: "app" })), true);
+assert.equal(Layer.isLayer(layer({ schema: "app", createTables: false })), true);
+assert.equal(new TablesMissing({ schema: "app", missing: ["events"], message: "m" })._tag, "TablesMissing");
 assert.equal(Layer.isLayer(fromEnv({ schema: "app" })), true);
 assert.equal(typeof migrate, "function");
 `;
