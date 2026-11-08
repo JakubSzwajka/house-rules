@@ -8,7 +8,7 @@ Sign-in, permissions and reusable domain modules for apps built on [Alchemy Doma
 
 | Part | Exports | Job |
 | --- | --- | --- |
-| Actor | `Actor`, `Person`, `PersonId`, `System`, `person`, `system`, `authorOf`, `CurrentActor` | who is acting: a signed-in person (directly or `via: "agent"`) or a named system actor, carried with each command |
+| Actor | `Actor`, `Person`, `PersonId`, `System`, `person`, `system`, `authorOf`, `CurrentActor` | who is acting: a signed-in person (an agent over MCP acts as its person) or a named system actor, carried with each command |
 | Access | `Permission`, `can`, `requirePermission`, `Forbidden`, `Roles`, `RoleDefinitions` | permissions are `resource:action` strings; `Roles` turns role names into permissions once per request; `decide` checks them |
 | Auth | `AuthProvider`, `Principal`, `Session`, `SessionLive`, `Unauthenticated`, `sessionClient`, `credentialOf` | the `Session` RPC middleware over a provider slot; [auth README](src/auth/README.md) |
 | Auth providers | `clerk`, `jwt`, `devTokens` | Clerk session tokens (v1 `org_id`/`org_role` and v2 `o.id`/`o.rol` claims), any JWT issuer (JWKS, PEM or HS256 secret), fixed tokens for tests and local play |
