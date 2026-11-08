@@ -15,7 +15,6 @@ const retained = [
   "apps-do-not-import-other-apps",
   "packages-imported-by-name",
   "packages-public-entry-only",
-  "contract-entry-is-browser-safe",
   "no-unresolved-deep-package-imports",
   "production-does-not-import-tests",
   "tests-live-in-tests-dir",
@@ -47,34 +46,13 @@ test("layout snapshot pins every rule and error severity", async () => {
       "apps-do-not-import-other-apps",
       "packages-imported-by-name",
       "packages-public-entry-only",
-      "contract-entry-is-browser-safe",
-      "features-do-not-import-outer-folders",
-      "read-models-import-packages-only",
-      "read-models-import-packages-only",
-      "ways-in-import-app-folders-only",
-      "ways-in-do-not-import-read-model-values",
-      "ways-in-import-contracts-only",
-      "ways-in-import-contracts-only",
-      "ways-in-import-contracts-only",
-      "ways-in-do-not-import-other-ways",
-      "composition-does-not-import-ways-in",
-      "read-models-public-entry-only",
-      "domain-imports-no-house-rules",
-      "application-does-not-import-event-log",
       "no-unresolved-deep-package-imports",
       "production-does-not-import-tests",
       "tests-live-in-tests-dir",
       "tests-do-not-import-internals",
       "no-unresolved-imports",
-      "app-folders",
       "no-ownerless-files",
       "package-root-files",
-      "package-root-files",
-      "domain-does-not-import-adapters",
-      "domain-does-not-import-adapters",
-      "subjects-do-not-import-package-root",
-      "adapter-imports-only-in-adapters",
-      "contract-entry-is-browser-safe",
       "domain-does-not-import-adapters",
       "domain-does-not-import-adapters",
       "subjects-do-not-import-package-root",
@@ -94,20 +72,12 @@ test("layout exports, fresh values, exact options and custom roots", () => {
     scope: "@my.org/",
     appsDir: "services",
     packagesDir: "libs",
-    layers: { features: "actions" },
     publicEntry: "src/main.ts",
     internalDir: "lib/private",
     testsDir: "spec",
   });
   const rule = (name) => config.forbidden.find((item) => item.name === name);
-  assert.equal(
-    rule("features-do-not-import-outer-folders").from.path,
-    "^(services/[^/]+/src/actions/[^/]+)/",
-  );
-  assert.equal(
-    rule("packages-public-entry-only").to.path,
-    "^libs/[^/]+/(?!(?:src/main[.]ts|src/contract[.]ts)$)",
-  );
+  assert.equal(rule("packages-public-entry-only").to.path, "^libs/[^/]+/(?!src/main[.]ts$)");
   assert.equal(rule("no-unresolved-deep-package-imports").to.path, "^@my[.]org/[^/]+/.+");
   assert.equal(rule("tests-do-not-import-internals").to.path, "^libs/[^/]+/lib/private(?:/|$)");
   assert.equal(
@@ -118,56 +88,27 @@ test("layout exports, fresh values, exact options and custom roots", () => {
     rule("production-does-not-import-tests").to.path,
     "(?:^|/)(?:tests?|__tests__|spec)(?:/|$)|[.](?:test|spec)[.][^/]+$",
   );
-  assert.deepEqual(rule("app-folders").module.pathNot, [
-    "^services/[^/]+/src/(?:actions|read-models|projections|ways-in|composition)/",
-    "^services/[^/]+/src/(?:main[.]ts|index[.]ts)$",
-    "(?:^|/)(?:tests?|__tests__|spec)(?:/|$)|[.](?:test|spec)[.][^/]+$",
-  ]);
-  assert.equal(
-    rule("ways-in-do-not-import-read-model-values").from.path,
-    "^services/[^/]+/src/ways-in(?:/|$)",
-  );
+  assert.equal(rule("subjects-do-not-import-package-root").to.path, "^$1/src/main[.]ts$");
   const mechanisms =
     "[tT][yY][pP][eE][sS]|[mM][oO][dD][eE][lL][sS]|[sS][cC][hH][eE][mM][aA][sS]|[dD][rR][aA][fF][tT][sS]|[eE][rR][rR][oO][rR][sS]|[vV][aA][lL][iI][dD][aA][tT][eE]|[vV][aA][lL][iI][dD][aA][tT][iI][oO][nN]|[cC][oO][nN][sS][tT][aA][nN][tT][sS]|[iI][nN][tT][eE][rR][fF][aA][cC][eE][sS]|[iI][nN][tT][eE][rR][nN][aA][lL]";
   assert.deepEqual(rule("no-ownerless-files").module.path, [
     "^(?:services|libs)/(?:.*/)?(?:utils|helpers|misc)(?:[.][^/]*)?(?:/|$)",
     `^libs/[^/]+/(?:.*/)?(?:${mechanisms})(?:[.][^/]*)?(?:/|$)`,
-    `^services/[^/]+/src/read-models/[^/]+/(?:.*/)?(?:${mechanisms})(?:[.][^/]*)?(?:/|$)`,
   ]);
-  const named = layout({
-    scope: "@acme/",
-    appEntryFiles: ["worker.ts", "app.config.ts"],
-    ownerlessNames: ["common", "lib"],
-  }).forbidden;
-  assert.equal(
-    named.find(({ name }) => name === "app-folders").module.pathNot[1],
-    "^apps/[^/]+/src/(?:worker[.]ts|app[.]config[.]ts)$",
-  );
+  const named = layout({ scope: "@acme/", ownerlessNames: ["common", "lib"] }).forbidden;
   assert.deepEqual(named.find(({ name }) => name === "no-ownerless-files").module.path, [
     "^(?:apps|packages)/(?:.*/)?(?:common|lib)(?:[.][^/]*)?(?:/|$)",
     `^packages/[^/]+/(?:.*/)?(?:${mechanisms})(?:[.][^/]*)?(?:/|$)`,
-    `^apps/[^/]+/src/read-models/[^/]+/(?:.*/)?(?:${mechanisms})(?:[.][^/]*)?(?:/|$)`,
   ]);
-  assert.deepEqual(
-    layout({ scope: "@acme/", appEntryFiles: [] }).forbidden.find(
-      ({ name }) => name === "app-folders",
-    ).module.pathNot,
-    [
-      "^apps/[^/]+/src/(?:features|read-models|projections|ways-in|composition)/",
-      "(?:^|/)(?:tests?|__tests__)(?:/|$)|[.](?:test|spec)[.][^/]+$",
-    ],
-  );
   assert.throws(() => layout(), /scope is required/);
   assert.throws(() => layout({ scope: "" }), /scope is required/);
-  for (const layers of [
-    { delivery: "delivery" },
-    { server: "server" },
-    { useCases: "use-cases" },
-    { domain: "domain" },
-  ])
-    assert.throws(() => layout({ scope: "@acme/", layers }), {
+  for (const option of ["layers", "appEntryFiles", "facadeFile", "trustedContractPackages"])
+    assert.throws(() => layout({ scope: "@acme/", [option]: undefined }), {
       name: "TypeError",
-      message: `layout(): unknown layer "${Object.keys(layers)[0]}". Known layers: features, readModels, projections, waysIn, composition.`,
+      message: new RegExp(
+        `^layout\\(\\): ${option} was removed with the retired house-rules kits`,
+        "u",
+      ),
     });
   for (const [options, message] of [
     [{ layer: {} }, /unknown option "layer"/u],
@@ -175,11 +116,9 @@ test("layout exports, fresh values, exact options and custom roots", () => {
       { appsDir: "apps/" },
       /appsDir must be a non-empty relative path without a leading or trailing/u,
     ],
-    [{ layers: { features: "" } }, /layers.features must be a non-empty relative path/u],
-    [{ appEntryFiles: "main.ts" }, /appEntryFiles must be an array of names without/u],
-    [{ appEntryFiles: ["src/main.ts"] }, /appEntryFiles must be an array of names without/u],
     [{ ownerlessNames: [] }, /ownerlessNames must be a non-empty array of names without/u],
     [{ ownerlessNames: [""] }, /ownerlessNames must be a non-empty array of names without/u],
+    [{ packageRootFiles: [] }, /packageRootFiles must be a non-empty array of names without/u],
   ])
     assert.throws(() => layout({ scope: "@acme/", ...options }), message);
 });
@@ -221,22 +160,6 @@ test("test placement still catches every misplaced test, even without workspace 
     "tests-live-in-tests-dir: packages/a/src/unit-tests/suffix.spec.ts",
     "tests-live-in-tests-dir: packages/a/tests/package-root.test.ts",
   ]);
-});
-
-test("app-folders rejects loose app files and custom entry lists stay exact", async () => {
-  assert.deepEqual(
-    fromPaths(await violatedRules("violations/app-code-in-layers", fixtureLayout())),
-    ["app-folders: apps/web/src/delivery-legacy/bridge.ts", "app-folders: apps/web/src/stray.ts"],
-  );
-  assert.deepEqual(
-    fromPaths(
-      await violatedRules(
-        "violations/app-code-in-layers",
-        fixtureLayout({ appEntryFiles: ["stray.ts"] }),
-      ),
-    ),
-    ["app-folders: apps/web/src/delivery-legacy/bridge.ts", "app-folders: apps/web/src/main.ts"],
-  );
 });
 
 test("ownerless names stay whole-name, caseless for mechanisms, and configurable", async () => {

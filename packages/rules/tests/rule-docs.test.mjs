@@ -9,7 +9,6 @@ import { fileURLToPath } from "node:url";
 import { layout } from "../src/dependency-cruiser.cjs";
 import plugin, { ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL } from "../src/index.mjs";
 import { cruiseFixture } from "./dependency-cruiser-helpers.mjs";
-import { run as runMigrations } from "./migrations-helpers.mjs";
 
 const bin = (name) => fileURLToPath(new URL(`../bin/${name}.mjs`, import.meta.url));
 const README = fileURLToPath(new URL("../README.md", import.meta.url));
@@ -85,15 +84,6 @@ describe("rule docs links", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
-
-  it("ends a failing house-rules-migrations run with the link, once", () => {
-    const result = runMigrations({
-      "packages/trips/stray.sql": "create table a (id text);\n",
-      "packages/trips/other.sql": "create table b (id text);\n",
-    });
-    assert.equal(result.status, 1, result.stderr);
-    assertSeeLine(result.stderr, "house-rules-migrations");
   });
 
   it("ends a failing house-rules-layout run with the link for each failing check", async () => {

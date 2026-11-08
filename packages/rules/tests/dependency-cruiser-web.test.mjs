@@ -6,42 +6,33 @@ import { fromPaths, violatedRules } from "./dependency-cruiser-helpers.mjs";
 const tree = {
   "apps/web/package.json": "{}",
   "apps/web/framework-env.d.ts": 'import "./.framework/types/routes.d.ts";',
-  "apps/web/src/composition/framework-env.d.ts": 'import "../../.framework/types/server.d.ts";',
-  "apps/web/src/ways-in/web/page.ts": 'import {db} from "../../projections/db/index.ts";',
-  "apps/web/src/projections/db/index.ts": "export const db = {};",
+  "apps/web/src/server/framework-env.d.ts": 'import "../../.framework/types/server.d.ts";',
+  "apps/web/src/main.ts": 'import {missing} from "./missing.ts";',
 };
-const valueViolations = [
-  "ways-in-do-not-import-read-model-values: apps/web/src/ways-in/web/page.ts -> apps/web/src/projections/db/index.ts",
-  "ways-in-import-contracts-only: apps/web/src/ways-in/web/page.ts -> apps/web/src/projections/db/index.ts",
-];
+const valueViolations = ["no-unresolved-imports: apps/web/src/main.ts -> ./missing.ts"];
 const unresolved = [
   "no-unresolved-imports: apps/web/framework-env.d.ts -> ./.framework/types/routes.d.ts",
-  "no-unresolved-imports: apps/web/src/composition/framework-env.d.ts -> ../../.framework/types/server.d.ts",
+  "no-unresolved-imports: apps/web/src/server/framework-env.d.ts -> ../../.framework/types/server.d.ts",
 ];
 const rule = (config, name) => config.forbidden.find((item) => item.name === name);
 test("empty generated declarations preserve the whole config", () => {
   const plain = layout({ scope: "@acme/" });
   assert.deepEqual(layout({ scope: "@acme/", generatedDeclarationFiles: [] }), plain);
   assert.deepEqual(rule(plain, "no-unresolved-imports").from, {});
-  assert.deepEqual(rule(plain, "ways-in-do-not-import-read-model-values").to, {
-    path: ["^apps/[^/]+/src/read-models(?:/|$)", "^apps/[^/]+/src/projections(?:/|$)"],
-    pathNot: "^apps/[^/]+/src/read-models/(?:[^/]+/|)index[.]ts$",
-    dependencyTypesNot: ["type-only"],
-  });
   assert.ok(plain.forbidden.every(({ severity }) => severity === "error"));
 });
-test("web values are fenced and unconfigured declarations must resolve", async () => {
+test("unconfigured declarations and ordinary files must resolve", async () => {
   assert.deepEqual(
     fromPaths(await violatedRules(tree, layout({ scope: "@acme/" }))),
     [...unresolved, ...valueViolations].sort(),
   );
 });
-test("removed server-entry option fails with current root/router guidance", () => {
+test("removed server-entry option fails with removal guidance", () => {
   for (const value of [[], ["runtime.ts"], "runtime.ts"])
     assert.throws(() => layout({ scope: "@acme/", serverEntryFiles: value }), {
       name: "TypeError",
       message:
-        "layout(): serverEntryFiles was removed in 0.16.0. Put root wiring in src/composition/ as composition({ modules, features, ways, may, system }); ways may import the root, and main.ts passes way values into it. Use toFetchHandler for the router. Remove the option. See @house-rules/rules docs/dependency-cruiser.md.",
+        "layout(): serverEntryFiles was removed in 0.16.0. Remove the option. See @house-rules/rules docs/dependency-cruiser.md.",
     });
 });
 test("generated declarations exempt only the named app-relative files", async () => {
@@ -54,10 +45,10 @@ test("generated declarations exempt only the named app-relative files", async ()
     [unresolved[1], ...valueViolations].sort(),
   );
 });
-test("naming both declarations keeps module-value fences enabled", async () => {
+test("naming both declarations keeps ordinary files checked", async () => {
   const config = layout({
     scope: "@acme/",
-    generatedDeclarationFiles: ["framework-env.d.ts", "src/composition/framework-env.d.ts"],
+    generatedDeclarationFiles: ["framework-env.d.ts", "src/server/framework-env.d.ts"],
   });
   assert.deepEqual(fromPaths(await violatedRules(tree, config)), valueViolations);
 });

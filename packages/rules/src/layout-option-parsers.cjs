@@ -1,13 +1,6 @@
 "use strict";
 
 // Option parsers for layout(). Each one validates a value and returns the Dependency Cruiser pattern for it.
-const DEFAULT_LAYERS = {
-  features: "features",
-  readModels: "read-models",
-  projections: "projections",
-  waysIn: "ways-in",
-  composition: "composition",
-};
 
 // Dots become `[.]` so the default patterns stay byte-equal to drunk-cat-stack's hand-written ones.
 function escape(value) {
@@ -99,19 +92,6 @@ function disjointRoots(apps, packages, caller = "layout()") {
       );
     }
   });
-}
-
-// The reverse of rootsOption's pattern: the root entries, with "*" segments, as written in the options.
-function rootsFromPattern(pattern) {
-  const group = /^\(\?:(.*)\)$/u.exec(pattern);
-  const alternatives = group ? group[1].split(/(?<!\\)\|/u) : [pattern];
-  // A literal segment never holds "*" or "[", so each "[^/]+" is a "*" segment.
-  return alternatives.map((alternative) =>
-    alternative
-      .replaceAll("[^/]+", "*")
-      .replace(/\[\.\]/gu, ".")
-      .replace(/\\(.)/gu, "$1"),
-  );
 }
 
 function scopeName(scope) {
@@ -208,34 +188,14 @@ function adapterImportsOption(specifiers, scope, packages) {
   return { installed, workspace };
 }
 
-// `hostLayers` are a host preset's defaults, such as Next's `app` folder; the app's own layers win.
-function layerOptions(layers, hostLayers = {}) {
-  if (layers === null || typeof layers !== "object" || Array.isArray(layers)) {
-    throw new TypeError("layout(): layers must be an object.");
-  }
-  for (const name of Object.keys(layers)) {
-    if (!(name in DEFAULT_LAYERS)) {
-      throw new TypeError(
-        `layout(): unknown layer "${name}". Known layers: ${Object.keys(DEFAULT_LAYERS).join(", ")}.`,
-      );
-    }
-  }
-  const merged = { ...DEFAULT_LAYERS, ...hostLayers, ...layers };
-  return Object.fromEntries(
-    Object.entries(merged).map(([name, value]) => [name, pathOption(value, `layers.${name}`)]),
-  );
-}
-
 module.exports = {
   adapterImportsOption,
   caseless,
   disjointRoots,
   escape,
-  layerOptions,
   nameListOption,
   pathListOption,
   pathOption,
-  rootsFromPattern,
   rootsOption,
   scopeName,
 };

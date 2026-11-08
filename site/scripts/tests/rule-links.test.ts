@@ -53,7 +53,7 @@ describe("rule links the rules package emits", () => {
     const urls = emittedUrls();
     assert.equal(urls.filter((url) => url === "").length, 0);
     assert.ok(urls.length > Object.keys(plugin.rules).length + 3);
-    assert.ok(binUrls().length >= 4, "pins, migrations and two layout checks");
+    assert.ok(binUrls().length >= 3, "pins and two layout checks");
   });
 
   it("each point at an anchor on the generated rules page", () => {

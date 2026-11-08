@@ -7,8 +7,6 @@ import { it } from "node:test";
 import { Linter } from "eslint";
 import parser from "@typescript-eslint/parser";
 import { sourceGraph } from "../src/source-provenance.mjs";
-import { commandKindRule } from "../src/command-kind.mjs";
-import { featureBuildersRule } from "../src/feature-builders.mjs";
 import { esmOnlyEffectRule } from "../src/esm-only-effect.mjs";
 
 const fixture = (t) => {
@@ -23,7 +21,7 @@ const fixture = (t) => {
   put("apps/api/package.json", '{"name":"api"}');
   const leaf = put(
     "apps/api/src/leaf.ts",
-    'export { defineFeature as make } from "@house-rules/application/contract"; export const value = 1;',
+    'export { createRequire as make } from "node:module"; export const value = 1;',
   );
   const barrel = put("apps/api/src/barrel.ts", 'export { make, value } from "./leaf.ts";');
   const values = [];
@@ -50,16 +48,12 @@ const fixture = (t) => {
             test: {
               rules: {
                 probe,
-                command: commandKindRule,
-                builders: featureBuildersRule,
                 esm: esmOnlyEffectRule,
               },
             },
           },
           rules: {
             "test/probe": "error",
-            "test/command": "error",
-            "test/builders": "error",
             "test/esm": "error",
           },
         },
@@ -82,9 +76,9 @@ it("parses each dependency once across linted files and all graph consumers", (t
     t.mock.restoreAll();
     syncBuiltinESMExports();
   });
-  const code = 'import { make, value } from "./barrel.ts"; make("x", {}); value;';
+  const code = 'import { make, value } from "./barrel.ts"; make(import.meta.url); value;';
   const first = lint(code);
-  assert.ok(first.some(({ ruleId }) => ruleId === "test/command"));
+  assert.ok(first.some(({ ruleId }) => ruleId === "test/esm"));
   assert.deepEqual(lint(code, "two.ts"), first);
   assert.deepEqual([...reads.values()], [1, 1]);
   assert.equal(values[0].node, values[1].node);

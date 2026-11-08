@@ -12,7 +12,7 @@ export const esmOnlyEffectRule = {
     docs: {
       url: ruleDocsUrl("esm-only-effect"),
       description:
-        "Require ESM loading in production app and Effect workspace-package src, including both kits; tests, rules and top-level tooling are excluded.",
+        "Require ESM loading in production app and Effect workspace-package src; tests, rules and top-level tooling are excluded.",
     },
     schema: [
       {
@@ -56,7 +56,6 @@ export const esmOnlyEffectRule = {
             context.cwd,
             apps.map((root) => `${root}/*/src/**/*`),
           ) ||
-          ["@house-rules/domain", "@house-rules/application"].includes(json.name) ||
           "effect" in { ...json.dependencies, ...json.devDependencies, ...json.peerDependencies };
         if (!effect && fs.existsSync(path.join(directory, "tsconfig.json"))) {
           const config = sourceJson(path.join(directory, "tsconfig.json"));

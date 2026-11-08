@@ -8,7 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cruise } from "dependency-cruiser";
 import { ESLint } from "eslint";
-import { featuresConfig } from "@house-rules/rules";
+import { workspaceConfig } from "@house-rules/rules";
 
 const PLUGIN = "@house-rules/rules";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -163,84 +163,43 @@ describe("thin configs over the house plugin", () => {
     assert.match(scripts.check, /pnpm run deps && pnpm run layout$/);
   });
 
-  it("eslint.config.mjs derives the features preset and guards both configured apps and tests", async () => {
+  it("eslint.config.mjs derives the workspace preset and guards both configured roots and tests", async () => {
     const eslint = new ESLint({ cwd: repositoryRoot });
     const rulesFor = async (code, filePath) => {
       const [result] = await eslint.lintText(code, { filePath });
       return result.messages.map(({ ruleId }) => ruleId);
     };
 
-    const preset = featuresConfig(ROOTS);
+    const preset = workspaceConfig(ROOTS);
     for (const app of ["apps/api", "examples/booking/apps/server"]) {
-      const file = `${app}/src/features/wiring-probe/index.ts`;
+      const file = `${app}/src/wiring-probe.ts`;
       const config = await eslint.calculateConfigForFile(file);
       for (const block of preset) {
-        for (const name of ["feature-file", "feature-builders", "esm-only-effect"]) {
-          const id = `house-rules/${name}`;
-          if (block.rules?.[id] !== undefined) {
-            const [severity, options] = block.rules[id];
-            assert.equal(severity, "error");
-            assert.deepEqual(config.rules[id], [2, options]);
-          }
+        const id = "house-rules/esm-only-effect";
+        if (block.rules?.[id] !== undefined) {
+          const [severity, options] = block.rules[id];
+          assert.equal(severity, "error");
+          assert.deepEqual(config.rules[id], [2, options]);
         }
       }
-      for (const part of ["index", "extra"]) {
-        assert.deepEqual(
-          await rulesFor("export const x = 1;\n", `${app}/src/features/wiring-probe/${part}.ts`),
-          ["house-rules/feature-file"],
-        );
-      }
       assert.deepEqual(
-        await rulesFor(
-          'import { defineFeature } from "@house-rules/application/contract";\nexport const feature = defineFeature("misplaced", {});\n',
-          `${app}/src/ways-in/web/endpoints.ts`,
-        ),
-        ["house-rules/feature-builders"],
+        await rulesFor("export const load = (name: string) => import(name);\n", file),
+        ["house-rules/no-computed-import"],
       );
-      for (const part of [
-        "features/wiring-probe/index.ts",
-        "ways-in/web/endpoints.ts",
-        "read-models/wiring-probe/index.ts",
-        "projections/probe/contract.ts",
-      ]) {
-        assert.deepEqual(
-          await rulesFor(
-            "export const load = (name: string) => import(name);\n",
-            `${app}/src/${part}`,
-          ),
-          [
-            ...(part.endsWith("wiring-probe/index.ts") ? ["house-rules/feature-file"] : []),
-            "house-rules/command-kind",
-            ...(part.endsWith("wiring-probe/index.ts") ? ["house-rules/feature-file"] : []),
-            "house-rules/no-computed-import",
-          ],
-        );
-      }
-    }
-    for (const [builder, area] of [
-      ["defineReadModel", "features"],
-      ["defineFeature", "read-models"],
-    ]) {
-      assert.deepEqual(
-        await rulesFor(
-          `import { ${builder} } from "@house-rules/application/contract";\nexport const entry = ${builder}("wrong_kind", {});\n`,
-          `apps/api/src/${area}/wiring-probe/index.ts`,
-        ),
-        ["house-rules/feature-file", "house-rules/feature-builders"],
-      );
+      assert.deepEqual(await rulesFor("export const x = 1;\n", file), []);
     }
     assert.deepEqual(
       await rulesFor(
         "export const load = (name: string) => import(name);\n",
         "examples/booking/packages/domain/src/booking/wiring-probe.ts",
       ),
-      ["house-rules/command-kind", "house-rules/no-computed-import"],
+      ["house-rules/no-computed-import"],
     );
     for (const source of ["effect/ai", "effect/unstable/ai"]) {
       assert.deepEqual(
         await rulesFor(
           `import { Tool } from "${source}";\nexport const T = Tool.make("probe");\n`,
-          "apps/api/src/ways-in/mcp/wiring-probe.ts",
+          "apps/api/src/mcp/wiring-probe.ts",
         ),
         ["house-rules/no-hand-rolled-surface"],
       );
@@ -248,14 +207,14 @@ describe("thin configs over the house plugin", () => {
     assert.deepEqual(
       await rulesFor(
         'import { Effect } from "effect";\nexport const run = () => Effect.runPromise(Effect.void);\n',
-        "apps/api/src/features/wiring-probe/tests/wiring-probe.test.ts",
+        "apps/api/src/booking/tests/wiring-probe.test.ts",
       ),
       ["house-rules/no-hand-run-effect"],
     );
     assert.deepEqual(
       await rulesFor(
         'import { StackTesting } from "@house-rules/stack";\nexport const fake = StackTesting;\n',
-        "apps/api/src/composition/wiring-probe.ts",
+        "apps/api/src/server/wiring-probe.ts",
       ),
       ["house-rules/testing-exports-only-in-tests"],
     );

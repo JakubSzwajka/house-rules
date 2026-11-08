@@ -5,10 +5,8 @@ import { cachedFile } from "./source-cache.mjs";
 import { objectProperty } from "./object-property.mjs";
 import { parseForESLint } from "@typescript-eslint/parser";
 import { unwrapExpression } from "./import-bindings.mjs";
-import { sourceDefinitions, variableValue, requireIdentity } from "./source-bindings.mjs";
-import { builderFromExport, importedOrigin, sourceBuilderOrigin } from "./kit-builder-source.mjs";
-import { relativeSource, installedContractSource } from "./relative-source.mjs";
-export { relativeSource } from "./relative-source.mjs";
+import { sourceDefinitions, variableValue } from "./source-bindings.mjs";
+import { relativeSource } from "./relative-source.mjs";
 
 const parseSource = (file) =>
   parseForESLint(fs.readFileSync(file, "utf8"), {
@@ -21,7 +19,7 @@ export const sourceGraph = (
   filename,
   program,
   scopeManager,
-  { cwd = process.cwd(), packagesDir = [], workspaces = [] } = {},
+  { cwd = process.cwd(), packagesDir = [] } = {},
 ) => {
   let packages;
   const targets = new Map();
@@ -30,9 +28,7 @@ export const sourceGraph = (
     if (!targets.has(key))
       targets.set(
         key,
-        relativeSource(file, source) ??
-          (packages ??= sourcePackages(cwd, packagesDir, workspaces)).get(source) ??
-          installedContractSource(file, source),
+        relativeSource(file, source) ?? (packages ??= sourcePackages(cwd, packagesDir)).get(source),
       );
     return targets.get(key);
   };
@@ -211,17 +207,5 @@ export const sourceGraph = (
       ? { ...resolved, file: found.file, annotation: found.annotation }
       : resolved;
   };
-  const builderOrigin = sourceBuilderOrigin({ resolve, definition, targetSource, load, named });
-  const importOrigin = (file, expression, matches) =>
-    importedOrigin(resolve, file, expression, matches);
-  const isRequire = requireIdentity(resolve, definition, load);
-  const packageBuilder = (from, source, imported, options) => {
-    const file = targetSource(from, source);
-    if (!file) return undefined;
-    if (imported === undefined) return builderOrigin(file, load(file), options);
-    return builderFromExport(named(file, imported, true), (from, node) =>
-      builderOrigin(from, node, options),
-    );
-  };
-  return { resolve, builderOrigin, importOrigin, isRequire, packageBuilder };
+  return { resolve };
 };

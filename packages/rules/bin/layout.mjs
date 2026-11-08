@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { cruise } from "dependency-cruiser";
-import { findAppFolderCycles } from "../src/app-folder-cycles.mjs";
-import { findContractExportProblems } from "../src/contract-exports.mjs";
 import { loadLayoutConfig } from "../src/layout-config.mjs";
 import { findPackageCycles } from "../src/package-cycles.mjs";
 import { seeRuleLine } from "../src/rule-docs.mjs";
@@ -39,14 +37,8 @@ async function check(workspace) {
     outputType: "json",
   });
   const report = JSON.parse(output);
-  const appCycles = findAppFolderCycles(report.modules, config, workspace);
-  for (const { rule, cycle } of appCycles) {
-    console.error(`${rule}: ${cycle.join(" -> ")}`);
-    console.error(seeRuleLine(rule));
-  }
   const subjectCycles = findSubjectFolderCycles(report.modules, config, workspace);
   const packageCycles = await findPackageCycles(report.modules, config, { baseDir: workspace });
-  const contractExports = await findContractExportProblems(config, workspace);
 
   if (subjectCycles.length > 0) {
     console.error(
@@ -72,32 +64,14 @@ async function check(workspace) {
     }
   }
 
-  if (contractExports.length > 0) {
-    const manifests = new Set(contractExports.map(({ manifest }) => manifest));
-    console.error(
-      `contract-entry-is-browser-safe: ${manifests.size} package manifest(s) export more than "." and "./contract", or point them at the wrong file:`,
-    );
-    for (const { manifest, problem } of contractExports) {
-      console.error(`  ${manifest}: ${problem}`);
-    }
-  }
-
   if (subjectCycles.length > 0) {
     console.error(seeRuleLine("no-subject-folder-cycles"));
   }
   if (packageCycles.length > 0) {
     console.error(seeRuleLine("no-package-cycles"));
   }
-  if (contractExports.length > 0) {
-    console.error(seeRuleLine("contract-entry-is-browser-safe"));
-  }
 
-  if (
-    appCycles.length > 0 ||
-    subjectCycles.length > 0 ||
-    packageCycles.length > 0 ||
-    contractExports.length > 0
-  ) {
+  if (subjectCycles.length > 0 || packageCycles.length > 0) {
     process.exitCode = 1;
     return;
   }

@@ -43,7 +43,7 @@ Every strict flag stays. It has no `plugins` block, so a framework plugin such a
 A web app splits its code across two tsconfig files:
 
 - `tsconfig.json` checks the whole app as UI code. It extends `web.json` and adds the framework's values.
-- `tsconfig.effect.json` checks the app's Effect code in features, read models, ways and composition. It extends `effect.json` first and `web.json` second, so the Effect diagnostics run with the same libs and resolution as the UI. Its `typecheck` script runs it with the patched `tsc`.
+- `tsconfig.effect.json` checks the app's Effect code: the model, its views and the server that serves them. It extends `effect.json` first and `web.json` second, so the Effect diagnostics run with the same libs and resolution as the UI. Its `typecheck` script runs it with the patched `tsc`.
 
 Order matters. In an `extends` array, a later file wins. `[effect.json, web.json]` keeps the plugin block, which only `effect.json` sets, and takes `web.json`'s libs and resolution. `packages/rules/tests/config-presets-effect.test.mjs` keeps this as a test: with the patched root `tsc`, DOM types resolve and a floating Effect still fails with TS377001. `[web.json, effect.json]` puts `strict.json`'s `NodeNext` and ES2023-only `lib` back, because `effect.json` extends `strict.json`.
 
