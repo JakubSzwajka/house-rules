@@ -2,7 +2,19 @@
 
 A TypeScript workspace template for apps built on [Alchemy Domain](https://alchemy.run/domain), with shared checks, exact pins and commit hooks. Apps model their backend as aggregates, commands, events, views and policies; `@house-rules/stack` adds sign-in, permissions and reusable modules on top. [AGENTS.md](AGENTS.md) is the law; [CONTEXT.md](CONTEXT.md) defines the words. The [docs site](https://stack.kubaszwajka.com) explains the template to people.
 
-## Start
+## Play with the example
+
+[examples/booking](examples/booking/README.md) is a small booking backend on the stack: bookings, payments with a deadline, policies acting as a system actor, a private view, and one Api served as HTTP, RPC, MCP and a CLI. With Node 24 and pnpm, from the repo root:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm --filter @example/booking-server dev
+curl localhost:3000/MakeBooking -H 'authorization: Bearer ann-token' --json '{"target":"b-1","input":{"guestName":"Grace","amount":100}}'
+```
+
+The server runs in memory on `http://localhost:3000`. The [example's README](examples/booking/README.md) lists the dev tokens, more calls, the CLI, MCP, Clerk sign-in and the Cloudflare deploy.
+
+## Start a new app
 
 Use the Node version in `.nvmrc` and the exact pnpm version in `package.json`. Corepack selects it.
 
@@ -17,7 +29,9 @@ pnpm test
 
 Install sets up lefthook and patches `tsc` with `effect-tsgo patch`. No test needs a database: models run on `Domain.InMemory`.
 
-Write your own `VISION.md`. Remove `examples/` in your new project and its roots from the workspace and thin configs. Keep your code in `apps/` and `packages/`.
+Then follow [Start a new app from scratch](packages/stack/README.md#start-a-new-app-from-scratch) in the stack README: permissions, your own aggregate beside a stack module, the model and its Api, roles, stories, sign-in with dev tokens or Clerk, one Api test, and serving it locally the way the booking server does. Its code is a passing test, `packages/stack/src/tests/new-app.test.ts`.
+
+Write your own `VISION.md`. Keep your code in `apps/` and `packages/`. Once your app runs, remove `examples/` and its roots from the workspace and thin configs.
 
 ## Layout
 
@@ -25,10 +39,11 @@ Write your own `VISION.md`. Remove `examples/` in your new project and its roots
 apps/                        your apps (servers, web)
 packages/
   rules/                     @house-rules/rules: ESLint, Biome, TypeScript and Dependency Cruiser presets and bins
-  stack/                     @house-rules/stack: actor, access, auth and reusable domain modules
+  stack/                     @house-rules/stack: actor, access, auth, approval and reusable domain modules
 examples/booking/
   packages/domain/           booking reference model: bookings, payments and their rules
   apps/server/               hosts the model in memory on Node, on Cloudflare Durable Objects in production
+docs/                        release and local registry guides
 site/                        private Astro docs site
 skills/house-rules/          agent guide router
 tests/                       root wiring and fence tests
@@ -36,16 +51,16 @@ tests/                       root wiring and fence tests
 
 ## The stack package
 
-`@house-rules/stack` is the one framework package. Its door is `src/index.ts`; reusable modules are namespace exports from it. An app spreads a module's block lists into its own model:
+`@house-rules/stack` is the one framework package. Its door is `src/index.ts`: the core (actor, access, auth with Clerk, JWT and dev-token providers, approval) by name, and the reusable modules as namespaces: `Comments`, `Contacts`, `Delivery`, `Notes`, `Notifications`, `Organisations`, `Projects`, `Relations` and `WorkItems`. An app spreads a module's block lists into its own model, as the stack's new-app test does:
 
 ```ts
-class App extends Domain.Model("App", {
-  aggregates: [...Comments.aggregates, Booking],
-  views: [...Comments.views, MyBookings],
+export class Kitchen extends Domain.Model("Kitchen", {
+  aggregates: [...Notes.aggregates, Recipe],
+  views: [...Notes.views],
 }) {}
 ```
 
-Every client-sent command lists `middleware: [Session]`, rejects `Forbidden`, and starts its `decide` with `yield* requirePermission(...)`. `SessionLive` resolves the signed-in person through an `AuthProvider` slot and turns roles into permissions with `Roles`. Policies act as system actors with explicit grants. See the [stack README](packages/stack/README.md), its [AGENTS.md](packages/stack/AGENTS.md) and [DESIGN.md](packages/stack/DESIGN.md), which maps every old house-rules concept to its replacement.
+Every client-sent command lists `middleware: [Session]`, rejects `Forbidden`, and starts its `decide` with `yield* requirePermission(...)`. `SessionLive` resolves the signed-in person through an `AuthProvider` slot and turns roles into permissions with `Roles`. Policies act as system actors with explicit grants. Effect runs the last listed middleware first, so a guard that reads the actor goes before `Session`: `[ApprovalGate, Session]`. See the [stack README](packages/stack/README.md), its [AGENTS.md](packages/stack/AGENTS.md) and [DESIGN.md](packages/stack/DESIGN.md), which maps every old house-rules concept to its replacement.
 
 ## The example
 

@@ -5,7 +5,7 @@ import { authorOf } from "../actor/actor.ts";
 import { Forbidden } from "../access/forbidden.rejection.ts";
 import { can } from "../access/permission.ts";
 import { requirePermission } from "../access/require-permission.ts";
-import { AdoptChild, ChildAdopted, TooDeep } from "./adopt-child.command.ts";
+import { AdoptChild, WorkItemChildAdopted, TooDeep } from "./adopt-child.command.ts";
 import { AssignWorkItem, WorkItemAssigned } from "./assign-work-item.command.ts";
 import { ChangeWorkItemStatus, WorkItemStatusChanged } from "./change-work-item-status.command.ts";
 import {
@@ -14,12 +14,12 @@ import {
   WorkItemClosed,
   WorkItemHeld,
 } from "./claim-work-item.command.ts";
-import { ConfirmParent, ParentConfirmed } from "./confirm-parent.command.ts";
+import { ConfirmParent, WorkItemParentConfirmed } from "./confirm-parent.command.ts";
 import { CreateWorkItem, WorkItemCreated, WorkItemExists } from "./create-work-item.command.ts";
 import { CurrentWorkflow } from "./current-workflow.context.ts";
 import { EditWorkItem, WorkItemEdited } from "./edit-work-item.command.ts";
 import { WorkItemsPermissions } from "./permissions.ts";
-import { ParentRefused, RefuseParent } from "./refuse-parent.command.ts";
+import { WorkItemParentRefused, RefuseParent } from "./refuse-parent.command.ts";
 import { NotHolder, ReleaseWorkItem, WorkItemReleased } from "./release-work-item.command.ts";
 import { TransitionNotAllowed } from "./transition-not-allowed.rejection.ts";
 import { WorkItemId } from "./work-item.id.ts";
@@ -130,17 +130,17 @@ export class WorkItem extends Domain.Aggregate("WorkItem", {
       if (s === null) return yield* new WorkItemNotFound();
       if (s.parent !== null) return yield* new TooDeep();
       if (s.children.includes(cmd.child)) return [];
-      return [new ChildAdopted({ child: cmd.child, container: s.container })];
+      return [new WorkItemChildAdopted({ child: cmd.child, container: s.container })];
     }),
     ConfirmParent: Effect.fn(function* (s, cmd) {
       yield* requirePermission(WorkItemsPermissions.link);
       if (s?.parent?.id !== cmd.parent || s.parent.confirmed) return [];
-      return [new ParentConfirmed({ parent: cmd.parent, container: cmd.container })];
+      return [new WorkItemParentConfirmed({ parent: cmd.parent, container: cmd.container })];
     }),
     RefuseParent: Effect.fn(function* (s, cmd) {
       yield* requirePermission(WorkItemsPermissions.link);
       if (s?.parent?.id !== cmd.parent || s.parent.confirmed) return [];
-      return [new ParentRefused({ parent: cmd.parent, reason: cmd.reason })];
+      return [new WorkItemParentRefused({ parent: cmd.parent, reason: cmd.reason })];
     }),
   },
   evolve: foldWorkItem,

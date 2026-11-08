@@ -34,8 +34,8 @@ Entering a closed category (done or cancelled) stamps `closedAt` with the comman
 A parent is set once, at creation, and a child is one level deep: a parent must be a root. That rule spans two records, so it runs as reserve then commit:
 
 1. `CreateWorkItem { parent }` records `WorkItemCreated` with the parent pending and no container.
-2. `ParentAdoption` sends `AdoptChild` to the parent. A missing parent fails `WorkItemNotFound`; a parent that has a parent, pending or confirmed, fails `TooDeep`. Otherwise the parent records `ChildAdopted { child, container }`.
-3. The policy then sends `ConfirmParent`, and the child records `ParentConfirmed` with the parent's container. On a refusal it sends `RefuseParent`, and the child records `ParentRefused { reason }` and stays a root in the inbox.
+2. `ParentAdoption` sends `AdoptChild` to the parent. A missing parent fails `WorkItemNotFound`; a parent that has a parent, pending or confirmed, fails `TooDeep`. Otherwise the parent records `WorkItemChildAdopted { child, container }`.
+3. The policy then sends `ConfirmParent`, and the child records `WorkItemParentConfirmed` with the parent's container. On a refusal it sends `RefuseParent`, and the child records `WorkItemParentRefused { reason }` and stays a root in the inbox.
 
 Since a parent must already exist and be a root, and an item with a parent cannot adopt, no chain is deeper than one level and no cycle can form, an item naming itself included.
 
@@ -49,8 +49,8 @@ Since a parent must already exist and be a root, and an item with a parent canno
 | AssignWorkItem `{ holder }` | WorkItemAssigned | WorkItemNotFound | assign |
 | ClaimWorkItem | WorkItemClaimed | WorkItemNotFound, WorkItemClosed, WorkItemHeld, TransitionNotAllowed | write |
 | ReleaseWorkItem | WorkItemReleased | WorkItemNotFound, NotHolder, TransitionNotAllowed | write |
-| AdoptChild `{ child }` | ChildAdopted | WorkItemNotFound, TooDeep | link |
-| ConfirmParent, RefuseParent | ParentConfirmed, ParentRefused | none | link |
+| AdoptChild `{ child }` | WorkItemChildAdopted | WorkItemNotFound, TooDeep | link |
+| ConfirmParent, RefuseParent | WorkItemParentConfirmed, WorkItemParentRefused | none | link |
 
 Permissions are `work_items:read`, `work_items:write`, `work_items:assign` and `work_items:link`; only the policy's system actor `hierarchyKeeper` holds `link`. Titles are trimmed, 1 to 200 characters; bodies up to 20,000. A container is any string id, such as a project id; none means the inbox. An unchanged edit records nothing. Changes record `by`.
 
@@ -61,6 +61,18 @@ Each needs `work_items:read`.
 - `WorkItemCard`, keyed by the work item: its whole state.
 - `ContainerWorkItems`, keyed by container: every item in it, by id, children included once confirmed. Clients build the tree from `parent`.
 - `HeldWorkItems`, keyed by person: the items they hold, by id.
+
+An item with no container (the inbox) is in no `ContainerWorkItems` key; read it by id.
+
+`ContainerWorkItems` and `HeldWorkItems` fold `WorkItemCard`, not the aggregate, so their checkpoints count `WorkItemCard/<id>`, never `WorkItem/<id>`. In beta.85 a read `atLeast` a command's receipt never matches them and fails `ConsistencyTimeout` after 10 seconds, which a test sees as a hang. Read the card `atLeast` the receipt, then the chained view `atLeast` the card's cursor:
+
+```ts
+const claimed = yield* api.ClaimWorkItem(id);
+const card = yield* api.WorkItemCard.snapshot(id, { atLeast: claimed });
+const held = yield* api.HeldWorkItems.get(me, {
+  atLeast: { stream: `WorkItemCard/${id}`, version: card.cursor },
+});
+```
 
 ## Left out
 

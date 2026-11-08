@@ -1,5 +1,7 @@
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import { system } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
@@ -123,5 +125,17 @@ describe("projects", () => {
       ),
       Story.then(project1, created),
     ),
+  );
+
+  it.effect("refuses statuses without their default, or with a repeat", () =>
+    Effect.gen(function* () {
+      for (const statuses of [
+        { statuses: ["active"], defaultStatus: "archived" },
+        { statuses: ["active", "active"], defaultStatus: "active" },
+      ]) {
+        const failed = yield* Layer.build(Projects.projectsConfig(statuses)).pipe(Effect.flip);
+        expect(failed._tag).toBe("SchemaError");
+      }
+    }).pipe(Effect.scoped),
   );
 });

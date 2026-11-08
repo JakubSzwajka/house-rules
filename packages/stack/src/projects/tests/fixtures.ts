@@ -6,7 +6,7 @@ import * as Projects from "../index.ts";
 
 const { defaultStatuses, Project, ProjectCreated, ProjectId, ProjectSettings, ProjectSlug } =
   Projects;
-const { ProjectsPermissions, SlugClaim, SlugClaimed } = Projects;
+const { ProjectsPermissions, SlugClaim, ProjectSlugClaimed } = Projects;
 
 export class Model extends Domain.Model("ProjectsTest", {
   aggregates: [...Projects.aggregates],
@@ -35,6 +35,6 @@ export const asWriter = [
   Story.provide(ProjectSettings, defaultStatuses),
 ] as const;
 export const existingAlpha = [
-  Story.given(alphaClaim, new SlugClaimed({ project: p1, by: "ann" })),
+  Story.given(alphaClaim, new ProjectSlugClaimed({ project: p1, by: "ann" })),
   Story.given(project1, created),
 ] as const;

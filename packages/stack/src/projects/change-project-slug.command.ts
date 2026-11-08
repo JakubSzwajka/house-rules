@@ -5,7 +5,7 @@ import { Session } from "../auth/session.middleware.ts";
 import { ProjectId, ProjectSlug } from "./project.id.ts";
 import { SlugTaken } from "./slug-taken.rejection.ts";
 
-export class SlugClaimed extends Domain.Event("SlugClaimed", {
+export class ProjectSlugClaimed extends Domain.Event("ProjectSlugClaimed", {
   project: ProjectId,
   by: Schema.String,
 }) {}
@@ -14,6 +14,6 @@ export class ChangeProjectSlug extends Domain.Command("ChangeProjectSlug", {
   target: ProjectSlug,
   middleware: [Session],
   input: { project: ProjectId },
-  events: [SlugClaimed],
+  events: [ProjectSlugClaimed],
   rejects: [Forbidden, SlugTaken],
 }) {}

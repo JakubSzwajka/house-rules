@@ -3,9 +3,7 @@ import * as Schema from "effect/Schema";
 export const Category = Schema.Literals(["open", "active", "done", "cancelled"]);
 
 export const Workflow = Schema.Struct({
-  states: Schema.Array(Schema.Struct({ name: Schema.NonEmptyString, category: Category })).check(
-    Schema.isMinLength(1),
-  ),
+  states: Schema.Array(Schema.Struct({ name: Schema.NonEmptyString, category: Category })),
   initial: Schema.NonEmptyString,
   transitions: Schema.Record(
     Schema.String,

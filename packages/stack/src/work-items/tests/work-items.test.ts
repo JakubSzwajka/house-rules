@@ -1,6 +1,8 @@
 import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import { person } from "../../actor/actor.ts";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import * as WorkItems from "../index.ts";
@@ -135,5 +137,20 @@ describe("work items", () => {
       Story.when(item1, new AssignWorkItem({ holder: ann })),
       Story.then(item1),
     ),
+  );
+
+  it.effect("refuses a workflow with a repeated or unknown state, or a closed claim state", () =>
+    Effect.gen(function* () {
+      const { board } = WorkItems;
+      for (const workflow of [
+        { ...board, states: [...board.states, { name: "todo", category: "open" as const }] },
+        { ...board, initial: "nowhere" },
+        { ...board, transitions: { todo: ["nowhere"] } },
+        { ...board, claim: "done" },
+      ]) {
+        const failed = yield* Layer.build(WorkItems.workflowConfig(workflow)).pipe(Effect.flip);
+        expect(failed._tag).toBe("SchemaError");
+      }
+    }).pipe(Effect.scoped),
   );
 });

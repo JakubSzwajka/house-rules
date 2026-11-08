@@ -1,13 +1,13 @@
 import * as Schema from "effect/Schema";
 import { PersonId } from "../actor/actor.ts";
-import type { ChildAdopted } from "./adopt-child.command.ts";
+import type { WorkItemChildAdopted } from "./adopt-child.command.ts";
 import type { WorkItemAssigned } from "./assign-work-item.command.ts";
 import type { WorkItemStatusChanged } from "./change-work-item-status.command.ts";
 import type { WorkItemClaimed } from "./claim-work-item.command.ts";
-import type { ParentConfirmed } from "./confirm-parent.command.ts";
+import type { WorkItemParentConfirmed } from "./confirm-parent.command.ts";
 import type { WorkItemCreated } from "./create-work-item.command.ts";
 import type { WorkItemEdited } from "./edit-work-item.command.ts";
-import type { ParentRefused } from "./refuse-parent.command.ts";
+import type { WorkItemParentRefused } from "./refuse-parent.command.ts";
 import type { WorkItemReleased } from "./release-work-item.command.ts";
 import { WorkItemId } from "./work-item.id.ts";
 
@@ -56,11 +56,14 @@ export const foldWorkItem = {
     status: e.to,
     closedAt: e.closedAt,
   })),
-  ChildAdopted: live((i, e: ChildAdopted) => ({ ...i, children: [...i.children, e.child] })),
-  ParentConfirmed: live((i, e: ParentConfirmed) => ({
+  WorkItemChildAdopted: live((i, e: WorkItemChildAdopted) => ({
+    ...i,
+    children: [...i.children, e.child],
+  })),
+  WorkItemParentConfirmed: live((i, e: WorkItemParentConfirmed) => ({
     ...i,
     container: e.container,
     parent: { id: e.parent, confirmed: true },
   })),
-  ParentRefused: live((i, _: ParentRefused) => ({ ...i, parent: null })),
+  WorkItemParentRefused: live((i, _: WorkItemParentRefused) => ({ ...i, parent: null })),
 };

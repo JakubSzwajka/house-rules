@@ -2,7 +2,7 @@ import * as Domain from "@alchemy.run/domain";
 import * as Schema from "effect/Schema";
 
 export const ProjectStatuses = Schema.Struct({
-  statuses: Schema.Array(Schema.NonEmptyString).check(Schema.isMinLength(1)),
+  statuses: Schema.Array(Schema.NonEmptyString),
   defaultStatus: Schema.NonEmptyString,
 }).check(
   Schema.makeFilter(

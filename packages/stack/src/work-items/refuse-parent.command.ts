@@ -6,7 +6,7 @@ import { WorkItemId } from "./work-item.id.ts";
 
 export const RefusalReason = Schema.Literals(["missing", "too-deep"]);
 
-export class ParentRefused extends Domain.Event("ParentRefused", {
+export class WorkItemParentRefused extends Domain.Event("WorkItemParentRefused", {
   parent: WorkItemId,
   reason: RefusalReason,
 }) {}
@@ -15,6 +15,6 @@ export class RefuseParent extends Domain.Command("RefuseParent", {
   target: WorkItemId,
   middleware: [Session],
   input: { parent: WorkItemId, reason: RefusalReason },
-  events: [ParentRefused],
+  events: [WorkItemParentRefused],
   rejects: [Forbidden],
 }) {}

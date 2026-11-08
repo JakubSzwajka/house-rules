@@ -5,7 +5,7 @@ import { Session } from "../auth/session.middleware.ts";
 import { WorkItemId } from "./work-item.id.ts";
 import { WorkItemNotFound } from "./work-item-not-found.rejection.ts";
 
-export class ChildAdopted extends Domain.Event("ChildAdopted", {
+export class WorkItemChildAdopted extends Domain.Event("WorkItemChildAdopted", {
   child: WorkItemId,
   container: Schema.NullOr(Schema.String),
 }) {}
@@ -16,6 +16,6 @@ export class AdoptChild extends Domain.Command("AdoptChild", {
   target: WorkItemId,
   middleware: [Session],
   input: { child: WorkItemId },
-  events: [ChildAdopted],
+  events: [WorkItemChildAdopted],
   rejects: [Forbidden, WorkItemNotFound, TooDeep],
 }) {}

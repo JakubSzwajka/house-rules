@@ -1,16 +1,19 @@
 import * as Domain from "@alchemy.run/domain";
 import * as Effect from "effect/Effect";
+import { system } from "../actor/actor.ts";
 import { CurrentActor } from "../actor/current-actor.context.ts";
-import { AdoptChild, ChildAdopted } from "./adopt-child.command.ts";
+import { AdoptChild, WorkItemChildAdopted } from "./adopt-child.command.ts";
 import { ConfirmParent } from "./confirm-parent.command.ts";
 import { WorkItemCreated } from "./create-work-item.command.ts";
-import { hierarchyKeeper } from "./permissions.ts";
+import { WorkItemsPermissions } from "./permissions.ts";
 import { RefuseParent } from "./refuse-parent.command.ts";
 import { WorkItem } from "./work-item.aggregate.ts";
 
+export const hierarchyKeeper = system("ParentAdoption", [WorkItemsPermissions.link]);
+
 export class ParentAdoption extends Domain.Policy("ParentAdoption", {
   from: WorkItem,
-  on: [WorkItemCreated, ChildAdopted],
+  on: [WorkItemCreated, WorkItemChildAdopted],
 }) {}
 
 export const ParentAdoptionLive = ParentAdoption.toLayer(
@@ -18,7 +21,7 @@ export const ParentAdoptionLive = ParentAdoption.toLayer(
     const items = yield* WorkItem;
     return Effect.fn(
       function* ({ source, event }) {
-        if (event._tag === "ChildAdopted") {
+        if (event._tag === "WorkItemChildAdopted") {
           const confirm = new ConfirmParent({ parent: source.id, container: event.container });
           yield* items.send(event.child, confirm);
           return;

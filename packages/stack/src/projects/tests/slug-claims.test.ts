@@ -28,9 +28,9 @@ const {
   ProjectSettings,
   ProjectSlugChanged,
   ProjectsPermissions,
-  SlugClaimed,
-  SlugReleased,
-  SlugReserved,
+  ProjectSlugClaimed,
+  ProjectSlugReleased,
+  ProjectSlugReserved,
   SlugTaken,
   UnknownStatus,
 } = Projects;
@@ -44,7 +44,7 @@ describe("slug claims", () => {
       Story.when(alphaClaim, new CreateProject({ project: p1, name: "Alpha" })),
       Story.then(
         alphaClaim,
-        new SlugReserved({
+        new ProjectSlugReserved({
           project: p1,
           name: "Alpha",
           status: "active",
@@ -92,14 +92,14 @@ describe("slug claims", () => {
       Story.when(betaClaim, new CreateProject({ project: p1, name: "Again" })),
       Story.then(
         betaClaim,
-        new SlugReserved({
+        new ProjectSlugReserved({
           project: p1,
           name: "Again",
           status: "active",
           description: "",
           by: "ann",
         }),
-        new SlugReleased({ project: p1 }),
+        new ProjectSlugReleased({ project: p1 }),
       ),
       Story.then(project1),
       Story.state(betaClaim, { project: null }),
@@ -111,9 +111,9 @@ describe("slug claims", () => {
       ...existingAlpha,
       ...asWriter,
       Story.when(betaClaim, new ChangeProjectSlug({ project: p1 })),
-      Story.then(betaClaim, new SlugClaimed({ project: p1, by: "ann" })),
+      Story.then(betaClaim, new ProjectSlugClaimed({ project: p1, by: "ann" })),
       Story.then(project1, new ProjectSlugChanged({ from: alpha, to: beta, by: "ann" })),
-      Story.then(alphaClaim, new SlugReleased({ project: p1 })),
+      Story.then(alphaClaim, new ProjectSlugReleased({ project: p1 })),
       Story.view(ProjectDirectory, "projects", {
         projects: { [p1]: { slug: beta, name: "Alpha", status: "active" } },
       }),
@@ -123,7 +123,7 @@ describe("slug claims", () => {
   it.effect("refuses a new slug another project holds", () =>
     story(
       ...existingAlpha,
-      Story.given(betaClaim, new SlugClaimed({ project: p2, by: "bob" })),
+      Story.given(betaClaim, new ProjectSlugClaimed({ project: p2, by: "bob" })),
       ...asWriter,
       Story.when(betaClaim, new ChangeProjectSlug({ project: p1 })),
       Story.rejected(new SlugTaken({ project: p2 })),
@@ -136,8 +136,8 @@ describe("slug claims", () => {
       Story.when(betaClaim, new ChangeProjectSlug({ project: p2 })),
       Story.then(
         betaClaim,
-        new SlugClaimed({ project: p2, by: "ann" }),
-        new SlugReleased({ project: p2 }),
+        new ProjectSlugClaimed({ project: p2, by: "ann" }),
+        new ProjectSlugReleased({ project: p2 }),
       ),
     ),
   );

@@ -37,6 +37,8 @@ CI runs frozen install, `pnpm check`, `pnpm test`, `pnpm run packed-consumer` an
 
 - A command is decided by its aggregate. `decide` is pure, or an `Effect.fn` that reads only what its middleware provides. `evolve` and `reply` are total and never fail.
 - Every client-sent command lists `middleware: [Session]` and `Forbidden` in `rejects`; its `decide` starts with `yield* requirePermission(<Module>Permissions.x)`. Permissions are `resource:action` strings. `Roles` resolves role names to permissions once per request; roles never reach a `decide`.
+- Effect 4.1.2 runs a command's middleware from the last entry to the first, the reverse of Alchemy's beta.85 docs. A guard that reads the actor goes before `Session`: `middleware: [ApprovalGate, Session]`.
+- Event tags are unique across every module an app composes; prefix generic names (`EdgeRelated`, `NotificationDelivered`).
 - Object access (owner, member, holder) lives in the aggregate's state and is checked after the permission, with its own rejection (`httpApiStatus: 403`).
 - Views that hold anything private list `middleware: [Session]` and authorize in `validate`.
 - Policies and webhooks have no session. They act as a system actor, `system(name, permissions)` provided as `CurrentActor`, holding only explicitly granted permissions. Every system grant is an owner decision. A system actor never borrows the author's roles.

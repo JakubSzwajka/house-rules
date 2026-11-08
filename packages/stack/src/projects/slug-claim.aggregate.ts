@@ -4,11 +4,11 @@ import * as Schema from "effect/Schema";
 import { authorOf } from "../actor/actor.ts";
 import { requirePermission } from "../access/require-permission.ts";
 import { ProjectSettings } from "./project-settings.context.ts";
-import { ChangeProjectSlug, SlugClaimed } from "./change-project-slug.command.ts";
-import { CreateProject, SlugReserved } from "./create-project.command.ts";
+import { ChangeProjectSlug, ProjectSlugClaimed } from "./change-project-slug.command.ts";
+import { CreateProject, ProjectSlugReserved } from "./create-project.command.ts";
 import { ProjectsPermissions } from "./permissions.ts";
 import { ProjectId, ProjectSlug } from "./project.id.ts";
-import { ReleaseSlug, SlugReleased } from "./release-slug.command.ts";
+import { ReleaseSlug, ProjectSlugReleased } from "./release-slug.command.ts";
 import { SlugTaken } from "./slug-taken.rejection.ts";
 import { UnknownStatus } from "./unknown-status.rejection.ts";
 
@@ -27,7 +27,7 @@ export class SlugClaim extends Domain.Aggregate("SlugClaim", {
       if (!settings.statuses.includes(status))
         return yield* new UnknownStatus({ status, statuses: settings.statuses });
       return [
-        new SlugReserved({
+        new ProjectSlugReserved({
           project: cmd.project,
           name: cmd.name,
           status,
@@ -40,16 +40,16 @@ export class SlugClaim extends Domain.Aggregate("SlugClaim", {
       const actor = yield* requirePermission(ProjectsPermissions.write);
       if (s.project === cmd.project) return [];
       if (s.project !== null) return yield* new SlugTaken({ project: s.project });
-      return [new SlugClaimed({ project: cmd.project, by: authorOf(actor) })];
+      return [new ProjectSlugClaimed({ project: cmd.project, by: authorOf(actor) })];
     }),
     ReleaseSlug: Effect.fn(function* (s, cmd) {
       yield* requirePermission(ProjectsPermissions.settle);
-      return s.project === cmd.project ? [new SlugReleased({ project: cmd.project })] : [];
+      return s.project === cmd.project ? [new ProjectSlugReleased({ project: cmd.project })] : [];
     }),
   },
   evolve: {
-    SlugReserved: (_, e) => ({ project: e.project }),
-    SlugClaimed: (_, e) => ({ project: e.project }),
-    SlugReleased: () => ({ project: null }),
+    ProjectSlugReserved: (_, e) => ({ project: e.project }),
+    ProjectSlugClaimed: (_, e) => ({ project: e.project }),
+    ProjectSlugReleased: () => ({ project: null }),
   },
 }) {}

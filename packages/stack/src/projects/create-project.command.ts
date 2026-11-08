@@ -7,7 +7,7 @@ import { ProjectsConfig } from "./projects-config.middleware.ts";
 import { SlugTaken } from "./slug-taken.rejection.ts";
 import { UnknownStatus } from "./unknown-status.rejection.ts";
 
-export class SlugReserved extends Domain.Event("SlugReserved", {
+export class ProjectSlugReserved extends Domain.Event("ProjectSlugReserved", {
   project: ProjectId,
   name: Schema.String,
   status: Schema.String,
@@ -24,6 +24,6 @@ export class CreateProject extends Domain.Command("CreateProject", {
     status: Schema.optionalKey(Schema.String),
     description: Schema.optionalKey(Schema.String),
   },
-  events: [SlugReserved],
+  events: [ProjectSlugReserved],
   rejects: [Forbidden, SlugTaken, UnknownStatus],
 }) {}

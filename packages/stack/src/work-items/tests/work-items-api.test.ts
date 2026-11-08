@@ -2,8 +2,6 @@ import * as Domain from "@alchemy.run/domain";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Option from "effect/Option";
-import * as Stream from "effect/Stream";
 import { Roles } from "../../access/roles.ts";
 import { devTokens } from "../../auth/dev-tokens.ts";
 import { SessionLive } from "../../auth/session-live.ts";
@@ -42,12 +40,12 @@ describe("WorkItemsApi", () => {
     Effect.gen(function* () {
       const annClient = yield* as("ann-token");
       yield* annClient.CreateWorkItem(w1, { title: "Fix the roof", container: "p-1" });
-      yield* annClient.ClaimWorkItem(w1);
-      const held = yield* annClient.HeldWorkItems.watch(ann).pipe(
-        Stream.filter(({ state }) => state?.items[w1] !== undefined),
-        Stream.runHead,
-      );
-      expect(Option.getOrUndefined(held)?.state?.items[w1]).toMatchObject({ status: "doing" });
+      const claimed = yield* annClient.ClaimWorkItem(w1);
+      const card = yield* annClient.WorkItemCard.snapshot(w1, { atLeast: claimed });
+      const held = yield* annClient.HeldWorkItems.get(ann, {
+        atLeast: { stream: `WorkItemCard/${w1}`, version: card.cursor },
+      });
+      expect(held?.items[w1]).toMatchObject({ status: "doing" });
       const bobClient = yield* as("bob-token");
       const taken = yield* bobClient.ClaimWorkItem(w1).pipe(Effect.flip);
       expect(taken).toMatchObject({ _tag: "WorkItemHeld", holder: ann });
