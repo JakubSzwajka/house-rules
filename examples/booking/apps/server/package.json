@@ -1,0 +1,33 @@
+{
+  "name": "@example/booking-server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Hosts the booking model: on Postgres (or in memory) on Node, on Cloudflare Durable Objects in production.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/local.ts",
+    "cli": "node src/cli.ts",
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run",
+    "alchemy:dev": "alchemy dev",
+    "deploy": "alchemy deploy",
+    "destroy": "alchemy destroy"
+  },
+  "dependencies": {
+    "@alchemy.run/cloudflare": "2.0.0-beta.85",
+    "@alchemy.run/domain": "2.0.0-beta.85",
+    "@effect/platform-node": "4.1.2",
+    "@effect/platform-node-shared": "4.1.2",
+    "@example/booking-domain": "workspace:0.0.0",
+    "@house-rules/domain-postgres": "workspace:0.1.0",
+    "@house-rules/stack": "workspace:0.1.0",
+    "alchemy": "2.0.0-beta.85",
+    "effect": "4.1.2"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.1.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}

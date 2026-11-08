@@ -2,136 +2,37 @@
 
 This file covers House Rules package releases to npm. App release and deploy workflows are not kept in this repo.
 
-## House Rules package releases
+## Packages
+
+Three packages publish: `@house-rules/rules` (plain JavaScript, no build), `@house-rules/stack` and `@house-rules/domain-postgres` (both built to `dist/` by `tsconfig.build.json`; the workspace reads `src/`). Every other workspace package is private. The retired packages (`capability`, `domain`, `application`, the hosts, the plugs and the old modules) keep their last versions on npm and are never published again. Deprecating them on npm needs separate approval.
 
 For local package testing without npm, see [the local framework registry guide](local-registry.md).
 
-The npm packages use `.github/workflows/publish.yml`. It starts on package tag pushes and manual runs. Pull requests trigger it only for changes to the workflow, `scripts/tag-published.mjs`, `scripts/packed-*.mjs`, `scripts/tarball-content.mjs`, or `tests/publish-workflow*.mjs` and `tests/tag-published*.mjs`. Other package changes use `ci.yml` alone. After its read-only verify job passes, an approved publish job runs `pnpm publish -r --access public --provenance --no-git-checks --report-summary`.
+## The workflow
 
-Only after that command succeeds, `scripts/tag-published.mjs` reads `pnpm-publish-summary.json`. It creates `@house-rules/<pkg>@<version>` tags for the packages the report says were published, then pushes those tags atomically. Already-published versions and private packages get no new tag. A tag already at the published commit stays untouched; a tag at another commit fails the job rather than moving it.
+The npm packages use `.github/workflows/publish.yml`. It starts on package tag pushes (`@house-rules/<pkg>@<version>`) and manual runs. Pull requests trigger it only for changes to the workflow, `scripts/tag-published.mjs`, `scripts/packed-*.mjs`, `scripts/tarball-content.mjs`, `tests/publish-workflow*.mjs` and `tests/tag-published*.mjs`. Other changes use `ci.yml` alone.
 
-Only the publish job has `contents: write`, needed to push those tags. Its checkout uses `persist-credentials: false`; install, build and publish get no stored write token. The tagging step alone receives `GITHUB_TOKEN` and passes its authentication header through command-scoped Git config, not the checkout's config file. GitHub does not trigger workflows from `GITHUB_TOKEN` pushes, so the new package tags cannot start a second publish run. The verify job keeps `contents: read` and has no npm token or OIDC permission.
+The read-only `verify` job runs check, test, build, the packed consumer and `pnpm publish -r --dry-run`. It has `contents: read` only, no npm token and no OIDC. Its first step refuses a manual publish run from any ref but exactly `refs/heads/main`. After it passes, the `publish` job runs `pnpm publish -r --access public --provenance --no-git-checks --report-summary`. `pnpm publish -r` skips private packages and versions already on the registry, so one run publishes exactly the bumped packages.
 
-### Rules 0.20.1 source-graph cache patch
+Only after that command succeeds, `scripts/tag-published.mjs` reads `pnpm-publish-summary.json`. It creates `@house-rules/<pkg>@<version>` tags for the packages the report says were published, then pushes those tags atomically. A summary naming a retired package fails. A tag already at the published commit stays untouched; a tag at another commit fails the job rather than moving it.
 
-`@house-rules/rules` 0.20.1 shares parsed disk sources, scope managers and workspace metadata across files in one ESLint process. File and directory stat checks invalidate changed sources, manifests and workspace lists. The current linted file keeps ESLint's own AST and scope manager and never enters the shared disk-source cache.
+Only the publish job has `contents: write`, needed to push those tags. Its checkout uses `persist-credentials: false`. The tagging step alone receives `GITHUB_TOKEN` through command-scoped Git config. GitHub does not trigger workflows from `GITHUB_TOKEN` pushes, so new tags cannot start a second publish run.
 
-Per-graph resolution memos and an import-reachability prefilter avoid repeated builder scans through large contract aggregates. Directory scans check their watched set and stamps before caching a result. Shared cache values are read-only. Rule behavior is unchanged.
+## Prepare a release
 
-File stamps assume a filesystem with fine-grained modification or change times; same-size edits within one coarse timestamp tick may not invalidate.
+1. Bump the package version and every workspace pin on it together, with the owner's approval.
+2. Keep `@house-rules/stack`'s peer dependencies on the exact Effect and Alchemy versions the workspace pins.
+3. Run `pnpm check`, `pnpm test` and `pnpm run packed-consumer` locally.
+4. Merge, then push the package tag or run the workflow manually on main. Never publish by hand.
 
-The 0.20.1 release changes only `@house-rules/rules`: the manifest, plugin metadata, exact consumer workspace pins, lockfile and release inventory move together. No other package version changes. Publication still requires the existing publish workflow; this patch does not authorize publishing or tags.
+Before the first `@house-rules/stack` or `@house-rules/domain-postgres` release, confirm the `NPM_TOKEN` owner can create the new package in the scope. A token limited to existing packages will not cover it. Consumers wait 24 hours after a publication under the release-age policy; any exception needs owner approval.
 
-### Kits release preparation
+## If tagging failed
 
-This section records the earlier kits release preparation, kept as history. The current inventory is under "Current 21-package release preparation" below.
+A workflow rerun may publish nothing, leaving an empty summary; normal tagging then does nothing. A missing summary fails the tagging step with a recovery hint. Do not bump versions or republish to fix tags.
 
-Merge first, publish later. This change splits `@house-rules/capability` into two kits and prepares seven public packages:
+1. In a clean checkout, fetch tags and check out the exact release commit from the failed run. Confirm `git rev-parse HEAD` matches that run. Use the recovery script from a newer checkout if the release commit lacks it.
+2. Run `node /path/to/scripts/tag-published.mjs --recover --dry-run` from that release checkout. It reads the known workspace manifests (rules, stack and domain-postgres, plus every retired package, which only recovery reads), queries npm for each exact version and reads the SLSA provenance source commit from its attestations. A package qualifies only when the workflow repository is `JakubSzwajka/house-rules` and the source commit equals HEAD. The dry run makes no Git writes.
+3. With approval to push the release tags, rerun without `--dry-run`. Recovery pushes all matching tags atomically and never moves a tag at another commit.
 
-| Package | Version | Why |
-| --- | --- | --- |
-| `@house-rules/domain` | 0.1.0 | new: first release |
-| `@house-rules/application` | 0.1.0 | new name for the application side of capability: first release |
-| `@house-rules/comments` | 0.1.0 | first release; exact peers on domain 0.1.0 and application 0.1.0 |
-| `@house-rules/call-audit` | 0.6.0 | exact peer on application 0.1.0 instead of capability |
-| `@house-rules/rules` | 0.18.0 | its checks recognise the new kit names and take several apps and packages roots |
-| `@house-rules/migrations` | 0.3.0 | unchanged |
-| `@house-rules/node-host` | 0.1.0 | unchanged |
-
-`@house-rules/capability` is retired. It stays at 0.16.0 on npm; its unpublished 0.17.0 is dropped, and the workflow never publishes it again. Deprecating it on npm needs a separate approval. Effect and all tools keep their pins.
-
-Before a later approved publish, confirm the `NPM_TOKEN` owner can create `@house-rules/domain`, `@house-rules/application` and `@house-rules/comments` in the scope. A token limited to existing packages will not cover these first releases. The workflow needs its existing OIDC permission for provenance and matching public repository metadata. A local dry run tests packaging, not those npm permissions or provenance signing. Do not manually publish or create a trigger tag to merge this work.
-
-Consumers must wait 24 hours after a future publication under this repo's release-age policy. No `minimumReleaseAgeExclude` entry is added; any exception needs separate owner approval.
-
-### Current 21-package release inventory
-
-This is the operator-approved stable release cohort from accepted `6c0dba02f88a4bcd700304b9029e18a1c53c81e9`. Approval relayed through Conductor covers preparing this release for the existing workflow. It does not authorize hand publication or bypass any workflow gate. The exact machine-readable inventory is [versions.json](tasks/release-20261027/versions.json).
-
-The bridge-bearing Node Host is released as `0.2.1`; Express Host `0.1.0` depends on that exact package version. The former npm Node Host `0.2.0` lacks `createNodeRequestHandler`, so the coordinated bump is required for compatibility.
-
-| Package | Stable version |
-| --- | --- |
-| `@house-rules/rules` | `0.20.1` |
-| `@house-rules/domain` | `0.2.1` |
-| `@house-rules/application` | `0.3.0` |
-| `@house-rules/auth-jwt` | `0.1.1` |
-| `@house-rules/identity` | `0.1.1` |
-| `@house-rules/party` | `0.1.1` |
-| `@house-rules/migrations` | `0.4.1` |
-| `@house-rules/call-audit` | `0.7.1` |
-| `@house-rules/comments` | `0.2.1` |
-| `@house-rules/node-host` | `0.2.1` |
-| `@house-rules/express-host` | `0.1.0` |
-| `@house-rules/work-items` | `0.1.1` |
-| `@house-rules/notes` | `0.1.1` |
-| `@house-rules/relations` | `0.1.1` |
-| `@house-rules/event-log` | `0.1.1` |
-| `@house-rules/contacts` | `0.1.1` |
-| `@house-rules/notifications` | `0.1.1` |
-| `@house-rules/push` | `0.1.1` |
-| `@house-rules/push-node` | `0.1.0` |
-| `@house-rules/email` | `0.1.1` |
-| `@house-rules/projects` | `0.1.1` |
-
-Every internal peer, dependency and workspace pin moves with this inventory. Consumer pins and the lockfile match. External dependency versions and supply-chain policies are unchanged. Historical release tables below retain their original versions as history. Do not manually publish; the approved release proceeds only through `.github/workflows/publish.yml`, after its normal checks and permissions succeed.
-
-### Party and auth release preparation (history)
-
-Merge first, publish later. This change adds sign-in and people as three new public packages, moves every exact peer on the application kit to its new version, and adds static files to the Node Host:
-
-| Package | Version | Why |
-| --- | --- | --- |
-| `@house-rules/auth-jwt` | 0.1.0 | new: first release; fills `Authenticator`; depends on `jose` 6.2.12 |
-| `@house-rules/identity` | 0.1.0 | new: first release; identity bindings, `ActorResolver`, `FirstSignIn`, `Identity.caller` |
-| `@house-rules/party` | 0.1.0 | new: first release; Person records keyed by `ActorId` |
-| `@house-rules/application` | 0.2.0 | new public API: `Principal`, `Authenticator`, `TokenRejected`, `tokenFrom`, `protectedResource`; 0.1.0 is on npm |
-| `@house-rules/comments` | 0.2.0 | exact peer on application 0.2.0 instead of 0.1.0 |
-| `@house-rules/call-audit` | 0.7.0 | exact peer on application 0.2.0 instead of 0.1.0 |
-| `@house-rules/domain` | 0.1.0 | unchanged |
-| `@house-rules/rules` | 0.18.0 | unchanged |
-| `@house-rules/migrations` | 0.3.0 | unchanged |
-| `@house-rules/node-host` | 0.2.0 | new public API: `staticFiles` serves a built single-page app from the API's own service; 0.1.0 is on npm |
-
-The three new packages peer on exact domain 0.1.0, application 0.2.0 and Effect 4.0.3. Identity and party ship their SQL migrations; an app lists each in `migrations.json`.
-
-Before a later approved publish, confirm the `NPM_TOKEN` owner can create `@house-rules/auth-jwt`, `@house-rules/identity` and `@house-rules/party` in the scope. A token limited to existing packages will not cover these first releases. The same OIDC, provenance and release-age notes as the kits release apply. Do not manually publish or create a trigger tag to merge this work.
-
-### If tagging failed
-
-A workflow rerun may publish nothing, leaving an empty summary. Normal tagging then does nothing. A missing summary is an error: the tagging step fails the job and prints a recovery hint. Do not bump versions or republish to fix tags.
-
-1. [ ] In a clean checkout, fetch tags and check out the exact release commit from the failed run, not today's `main`. Confirm `git rev-parse HEAD` matches that run. Use the fixed recovery script from a newer checkout if the release commit lacks it.
-2. [ ] Run `node /path/to/fixed/scripts/tag-published.mjs --recover --dry-run` from that release checkout. It reads the 21 known public workspace versions, plus the retired `capability` package, which only recovery reads, queries npm for each exact version and fetches `dist.attestations.url`. It decodes the DSSE payload's SLSA provenance and reads `predicate.buildDefinition.resolvedDependencies[].digest.gitCommit`. The workflow repository and source URI must name `JakubSzwajka/house-rules`; the source commit must equal HEAD for a package to qualify. `gitHead` is not used. The dry run prints matching packages and commits, checks local tag conflicts and makes no Git writes.
-3. [ ] With approval to push the release tags and an authenticated `origin`, rerun without `--dry-run`. Recovery pushes all matching tags atomically, including local tags left by a failed push. Check the tags on `origin`. It never moves a tag at another commit and also recovers packages that reached npm before a partial publish failure.
-
-Unpublished versions and versions sourced from another commit are skipped. Missing or unreadable attestations, a foreign repository, malformed provenance and registry failures other than 404 stop recovery before any tag is created. Recovery reads provenance served by npm; it does not verify bundle signatures itself.
-
-Historical checkouts may predate a known package. Recovery skips only an absent package manifest (ENOENT); an existing private manifest, invalid JSON or version, or any other read failure still stops it. This lets the current script recover release commits from before comments, domain, application, auth-jwt, identity or party existed, and commits that still have `packages/capability`. A publish summary that names `@house-rules/capability` still fails: only recovery accepts the retired name.
-
-Recovery does not publish anything. A personal-token push can trigger the publish workflow; use `GITHUB_TOKEN` in CI if that must be avoided.
-
-### Backfill the two missing release sets
-
-Use Node 24.21.0 and the fixed script while each detached worktree supplies its historical package versions. From the checkout containing this fix:
-
-```sh
-recovery="$(pwd)/scripts/tag-published.mjs"
-git worktree add --detach /tmp/hr-recover-dc422cd dc422cd
-git worktree add --detach /tmp/hr-recover-f844b82 f844b82
-(cd /tmp/hr-recover-dc422cd && mise exec node@24.21.0 -- node "$recovery" --recover --dry-run)
-(cd /tmp/hr-recover-f844b82 && mise exec node@24.21.0 -- node "$recovery" --recover --dry-run)
-```
-
-At `dc422cd`, expect rules `0.16.0`, capability `0.13.1`, migrations `0.2.1` and call-audit `0.2.1`. At `f844b82`, expect rules `0.16.1`, capability `0.14.0` and call-audit `0.3.0`; migrations `0.2.1` is skipped because its provenance names `dc422cd`.
-
-Only after approval to create and push these tags, run:
-
-```sh
-(cd /tmp/hr-recover-dc422cd && mise exec node@24.21.0 -- node "$recovery" --recover)
-(cd /tmp/hr-recover-f844b82 && mise exec node@24.21.0 -- node "$recovery" --recover)
-git worktree remove /tmp/hr-recover-dc422cd
-git worktree remove /tmp/hr-recover-f844b82
-```
-
-If you only run the preview, remove the worktrees without running either write command.
+Unpublished versions and versions from another commit are skipped. Missing or unreadable attestations, a foreign repository, malformed provenance and registry failures other than 404 stop recovery before any tag is created. Recovery skips only absent package manifests, so it works at historical commits that predate a package or still hold retired ones. Recovery does not publish anything.

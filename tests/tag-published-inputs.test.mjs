@@ -9,7 +9,7 @@ import {
   workspacePackages,
 } from "../scripts/tag-published.mjs";
 import {
-  application,
+  stack,
   fixture,
   head,
   metadata,
@@ -119,7 +119,7 @@ describe("publish report and recovery inputs", () => {
     );
   });
 
-  it("loads the 21 public workspace manifests and the retired capability one, without the summary", () => {
+  it("loads the three public workspace manifests and every retired one, without the summary", () => {
     const files = [];
     const packages = workspacePackages((file) => {
       files.push(file);
@@ -130,6 +130,8 @@ describe("publish report and recovery inputs", () => {
       files,
       [
         "rules",
+        "stack",
+        "domain-postgres",
         "domain",
         "application",
         "auth-jwt",
@@ -153,7 +155,7 @@ describe("publish report and recovery inputs", () => {
         "capability",
       ].map((folder) => `packages/${folder}/package.json`),
     );
-    assert.equal(packages.length, 22);
+    assert.equal(packages.length, 24);
     assert.throws(() => workspacePackages(() => JSON.stringify({ name: "@other/app" })));
     assert.throws(() =>
       workspacePackages((file) =>
@@ -192,7 +194,7 @@ describe("publish report and recovery inputs", () => {
     assert.deepEqual(names(workspacePackages(checkout(kits))), kits);
   });
 
-  it("reads a new release commit that has auth and party and lacks capability", () => {
+  it("reads the last multi-package release commit, before stack", () => {
     const current = [
       "rules",
       "domain",
@@ -217,6 +219,11 @@ describe("publish report and recovery inputs", () => {
     assert.deepEqual(names(workspacePackages(checkout(current))), current);
   });
 
+  it("reads a current release commit that has only the public packages", () => {
+    const current = ["rules", "stack", "domain-postgres"];
+    assert.deepEqual(names(workspacePackages(checkout(current))), current);
+  });
+
   it("skips absent historical manifests but refuses every other manifest failure", () => {
     const historical = (file) => {
       if (file === "packages/comments/package.json")
@@ -225,7 +232,7 @@ describe("publish report and recovery inputs", () => {
       return JSON.stringify({ name: `@house-rules/${folder}`, version: "1.0.0" });
     };
     const packages = workspacePackages(historical);
-    assert.equal(packages.length, 21);
+    assert.equal(packages.length, 23);
     assert.ok(!packages.some(({ name }) => name === "@house-rules/comments"));
     for (const source of [
       "not json",
@@ -245,13 +252,13 @@ describe("publish report and recovery inputs", () => {
   });
 
   it("queries npm for an exact version on the public registry", () => {
-    const published = metadata(application);
+    const published = metadata(stack);
     assert.deepEqual(
-      npmVersion(application, (command, args, options) => {
+      npmVersion(stack, (command, args, options) => {
         assert.equal(command, "npm");
         assert.deepEqual(args, [
           "view",
-          "@house-rules/application@0.2.0",
+          "@house-rules/stack@0.2.0",
           "--json",
           "--registry=https://registry.npmjs.org",
         ]);
@@ -268,21 +275,21 @@ describe("publish report and recovery inputs", () => {
       const npm = () => {
         throw error;
       };
-      if (code === "E404") assert.equal(npmVersion(application, npm), undefined);
+      if (code === "E404") assert.equal(npmVersion(stack, npm), undefined);
       else
         assert.throws(
-          () => npmVersion(application, npm),
+          () => npmVersion(stack, npm),
           (caught) => caught === error,
         );
     }
     const error = Object.assign(new Error("network down"), { stdout: "not json" });
     assert.throws(
       () =>
-        npmVersion(application, () => {
+        npmVersion(stack, () => {
           throw error;
         }),
       (caught) => caught === error,
     );
-    assert.throws(() => npmVersion(application, () => "not json"), SyntaxError);
+    assert.throws(() => npmVersion(stack, () => "not json"), SyntaxError);
   });
 });

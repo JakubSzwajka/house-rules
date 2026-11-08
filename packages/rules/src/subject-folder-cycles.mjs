@@ -3,16 +3,14 @@ import { subjectFolderPatterns } from "./dependency-cruiser.cjs";
 
 function packageRootFor(source, packagePattern) {
   const match = packagePattern.exec(source);
-  return match?.[1] ?? match?.[2];
+  return match?.[1];
 }
 
 function subjectFolderFor(source, packageRoot, packagePattern, adapterPattern, testPattern) {
   if (packageRootFor(source, packagePattern) !== packageRoot) return undefined;
   if (adapterPattern.test(source) || testPattern.test(source)) return undefined;
 
-  const sourceRoot = /\/src\/(?:read-models|projections)\//u.test(packageRoot)
-    ? `${packageRoot}/`
-    : `${packageRoot}/src/`;
+  const sourceRoot = `${packageRoot}/src/`;
   if (!source.startsWith(sourceRoot)) return undefined;
   const [subject, file] = source.slice(sourceRoot.length).split("/");
   if (!subject || file === undefined) return undefined;
@@ -53,14 +51,8 @@ export function findCycles(graph) {
 
 export function findSubjectFolderCycles(modules, config, baseDir = process.cwd()) {
   const patterns = subjectFolderPatterns(config);
-  const packagePattern = new RegExp(
-    patterns.folder ? `(?:${patterns.package}|${patterns.folder})` : patterns.package,
-  );
-  const adapterPattern = new RegExp(
-    patterns.folder
-      ? `(?:${patterns.adapter}|${patterns.folder.replace(/^\^\((.*)\)\/$/u, "^$1/")}adapters/)`
-      : patterns.adapter,
-  );
+  const packagePattern = new RegExp(patterns.package);
+  const adapterPattern = new RegExp(patterns.adapter);
   const testPattern = new RegExp(patterns.test);
 
   const normalize = (source) => {

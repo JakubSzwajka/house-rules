@@ -58,6 +58,23 @@ const retiredRules = [
   "no-folder-module-cycles",
   "ways-in-do-not-import-module-values",
   "folder-modules-public-entry-only",
+  "command-kind",
+  "feature-file",
+  "feature-builders",
+  "contract-entry-is-browser-safe",
+  "features-do-not-import-outer-folders",
+  "read-models-import-packages-only",
+  "read-models-public-entry-only",
+  "ways-in-import-app-folders-only",
+  "ways-in-do-not-import-read-model-values",
+  "ways-in-import-contracts-only",
+  "ways-in-do-not-import-other-ways",
+  "composition-does-not-import-ways-in",
+  "domain-imports-no-house-rules",
+  "application-does-not-import-event-log",
+  "app-folders",
+  "no-app-feature-cycles",
+  "house-rules-migrations",
 ] as const;
 
 const ruleCell = (row: RuleRow): string => {

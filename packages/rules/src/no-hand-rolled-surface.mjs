@@ -11,7 +11,7 @@ const SURFACES = [
     methods: new Set(["make", "get", "post", "put", "patch", "delete", "del", "head", "options"]),
   },
 ];
-const DEFAULT_ALLOW = ["packages/application/**"];
+const DEFAULT_ALLOW = [];
 
 function moduleSurface(source) {
   const slash = source.lastIndexOf("/");
@@ -58,11 +58,11 @@ export const noHandRolledSurfaceRule = {
     docs: {
       url: ruleDocsUrl("no-hand-rolled-surface"),
       description:
-        "Forbid building MCP tools, RPCs, and HTTP API endpoints by hand outside the application package; build them from a contract.",
+        "Forbid building MCP tools, RPCs, and HTTP API endpoints by hand; serve the model through a Domain.Api.",
     },
     messages: {
       handRolled:
-        "{{call}} builds a surface by hand. Describe a feature with defineFeature, expose it through defineWay, and let the router build the surface.",
+        "{{call}} builds a surface by hand. Model the action as an Alchemy Domain command or view and serve its Domain.Api with @alchemy.run/domain/Http, /Ai or /Cli.",
     },
     schema: [
       {

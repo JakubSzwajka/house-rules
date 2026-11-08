@@ -6,8 +6,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const runGit = (args) => execFileSync("git", args, { encoding: "utf8" });
-const folders = [
-  "rules",
+const folders = ["rules", "stack", "domain-postgres"];
+const retiredRecoveryOnlyFolders = [
   "domain",
   "application",
   "auth-jwt",
@@ -28,12 +28,13 @@ const folders = [
   "push-node",
   "email",
   "projects",
+  "capability",
 ];
-const retiredRecoveryOnlyFolders = ["capability"];
-const CURRENT_NAME =
-  /^@house-rules\/(?:rules|domain|application|auth-jwt|identity|party|migrations|call-audit|comments|node-host|express-host|work-items|notes|relations|event-log|contacts|notifications|push|push-node|email|projects)$/u;
-const RECOVERABLE_NAME =
-  /^@house-rules\/(?:rules|domain|application|auth-jwt|identity|party|migrations|call-audit|comments|node-host|express-host|work-items|notes|relations|event-log|contacts|notifications|push|push-node|email|projects|capability)$/u;
+const CURRENT_NAME = /^@house-rules\/(?:rules|stack|domain-postgres)$/u;
+const RECOVERABLE_NAME = new RegExp(
+  `^@house-rules/(?:${[...folders, ...retiredRecoveryOnlyFolders].join("|")})$`,
+  "u",
+);
 
 function publishedTags(summary, names = CURRENT_NAME) {
   assert.ok(Array.isArray(summary.publishedPackages), "publish summary needs publishedPackages");

@@ -13,9 +13,6 @@ import { noComputedImportRule } from "./no-computed-import.mjs";
 import { noHandRolledSurfaceRule } from "./no-hand-rolled-surface.mjs";
 import { noHandRunEffectRule } from "./no-hand-run-effect.mjs";
 import { testingExportsOnlyInTestsRule } from "./testing-exports-only-in-tests.mjs";
-import { featureFileRule } from "./feature-file.mjs";
-import { featureBuildersRule } from "./feature-builders.mjs";
-import { commandKindRule } from "./command-kind.mjs";
 import { esmOnlyEffectRule } from "./esm-only-effect.mjs";
 import { ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL } from "./rule-docs.mjs";
 
@@ -33,9 +30,6 @@ const plugin = {
     "design-no-unknown-token": designNoUnknownTokenRule,
     "design-scale-value": designScaleValueRule,
     "design-css-layers": designCssLayersRule,
-    "feature-file": featureFileRule,
-    "feature-builders": featureBuildersRule,
-    "command-kind": commandKindRule,
     "esm-only-effect": esmOnlyEffectRule,
     "no-hand-rolled-surface": noHandRolledSurfaceRule,
     "no-hand-run-effect": noHandRunEffectRule,
@@ -64,7 +58,6 @@ plugin.configs.recommended = [
     },
     rules: {
       "house-rules/comment-discipline": "error",
-      "house-rules/command-kind": "error",
     },
   },
 ];
@@ -91,9 +84,9 @@ plugin.configs.testing = [
   },
 ];
 
-// Use the same roots as layout(), including app descriptor dependency trees.
-function featuresConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
-  const caller = "featuresConfig()";
+// Use the same roots as layout().
+function workspaceConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
+  const caller = "workspaceConfig()";
   const packageRoots = layoutOptions.rootsOption(packagesDir, "packagesDir", caller);
   const appRoots = layoutOptions.rootsOption(appsDir, "appsDir", caller);
   layoutOptions.disjointRoots(appRoots, packageRoots, caller);
@@ -120,12 +113,7 @@ function featuresConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
     {
       files: ["**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
       rules: {
-        "house-rules/feature-file": ["error", appOptions],
         "house-rules/esm-only-effect": [
-          "error",
-          { ...appOptions, packagesDir: packageRoots.entries },
-        ],
-        "house-rules/feature-builders": [
           "error",
           { ...appOptions, packagesDir: packageRoots.entries },
         ],
@@ -140,7 +128,7 @@ function featuresConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
         "house-rules/no-hand-run-effect": "error",
       },
     },
-    // Package source a contract entry may reach. Dependency Cruiser records no edge for import(at).
+    // Dependency Cruiser records no edge for a computed import(), so the layout checks would miss it.
     {
       files: [...packageRoots.entries, ...appRoots.entries].map(
         (root) => `${root}/*/src/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}`,
@@ -153,12 +141,12 @@ function featuresConfig({ packagesDir = "packages", appsDir = "apps" } = {}) {
   ];
 }
 
-plugin.configs.features = featuresConfig();
+plugin.configs.workspace = workspaceConfig();
 
 // A block with only `name` and `ignores` is a global ignore: ESLint never reads those paths.
 plugin.configs.nextHost = [
   { name: "house-rules/next-host", ignores: [...hosts.HOSTS.next.eslintIgnores] },
 ];
 
-export { featuresConfig, plugin, ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL };
+export { plugin, ruleAnchor, ruleDocsUrl, RULES_PAGE_URL, SITE_URL, workspaceConfig };
 export default plugin;

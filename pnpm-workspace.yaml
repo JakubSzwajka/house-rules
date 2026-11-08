@@ -25,7 +25,9 @@ packageExtensions:
 # @swc/core ships its native binary as an optional dependency; its script only adds a wasm fallback.
 # lefthook's script runs `lefthook install`, which `prepare` already runs.
 # esbuild, pulled in by the site's Astro, ships its binary as an optional dependency; its script only checks it.
+# workerd, pulled in by @alchemy.run/cloudflare for local Workers, ships its binary as an optional dependency too.
 allowBuilds:
   "@swc/core": false
   esbuild: false
   lefthook: false
+  workerd: false

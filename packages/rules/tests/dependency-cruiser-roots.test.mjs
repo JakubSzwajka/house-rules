@@ -6,7 +6,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { Linter } from "eslint";
 import { layout } from "../src/dependency-cruiser.cjs";
-import { featuresConfig } from "../src/index.mjs";
+import { workspaceConfig } from "../src/index.mjs";
 import { cruiseFixture, fromPaths, violatedRules } from "./dependency-cruiser-helpers.mjs";
 
 const layoutBin = fileURLToPath(new URL("../bin/layout.mjs", import.meta.url));
@@ -36,14 +36,6 @@ test("several roots become one alternation in every pattern that names them", ()
   assert.equal(rules["packages-do-not-import-apps"].to.path, `^${apps}/`);
   assert.equal(rules["apps-do-not-import-other-apps"].from.path, `^(${apps}/[^/]+)/`);
   assert.equal(rules["packages-imported-by-name"].from.path, `^((?:${apps}|${packages})/[^/]+)/`);
-  assert.equal(
-    rules["ways-in-do-not-import-read-model-values"].from.path,
-    `^${apps}/[^/]+/src/ways-in(?:/|$)`,
-  );
-  assert.equal(
-    rules["features-do-not-import-outer-folders"].from.path,
-    `^(${apps}/[^/]+/src/features/[^/]+)/`,
-  );
   assert.equal(rules["package-root-files"].module.path, `^${packages}/[^/]+/src/[^/]+$`);
   assert.equal(
     rules["no-ownerless-files"].module.path[0],
@@ -54,21 +46,7 @@ test("several roots become one alternation in every pattern that names them", ()
     all
       .filter(({ name }) => name === "domain-does-not-import-adapters")
       .map(({ from }) => from.path),
-    [
-      `^(${packages}/[^/]+)/src/`,
-      `^(${packages}/[^/]+)/src/`,
-      `^(${apps}/[^/]+/src/(?:read-models|projections)/[^/]+)/`,
-      `^(${apps}/[^/]+/src/(?:read-models|projections)/[^/]+)/`,
-    ],
-  );
-  assert.deepEqual(
-    all
-      .filter(({ name }) => name === "contract-entry-is-browser-safe")
-      .map(({ from }) => from.path),
-    [
-      `^${packages}/[^/]+/src/contract[.]ts$`,
-      `(?:^${apps}/[^/]+/src/projections/[^/]+/contract[.]ts$|^${apps}/[^/]+/src/read-models/(?:[^/]+/|)index[.]ts$|^${apps}/[^/]+/src/features/(?:[^/]+/|)index[.]ts$|^${apps}/[^/]+/src/ways-in/[^/]+/endpoints[.]ts$)`,
-    ],
+    [`^(${packages}/[^/]+)/src/`, `^(${packages}/[^/]+)/src/`],
   );
   const declarations = byName(
     layout({ scope: "@acme/", ...ROOTS, generatedDeclarationFiles: ["env.d.ts"] }),
@@ -78,25 +56,9 @@ test("several roots become one alternation in every pattern that names them", ()
     `^${apps}/[^/]+/(?:env[.]d[.]ts)$`,
   );
   assert.equal(
-    byName(layout({ scope: "@acme/", appsDir: "examples/*/apps" }))["app-folders"].module.path,
-    "^examples/[^/]+/apps/[^/]+/src/",
-  );
-});
-
-test("MCP-only and system-only read-model indexes are independent browser-safety roots", async () => {
-  const tree = {
-    "apps/web/src/read-models/mcp-query/index.ts": 'import "node:fs"; export const query = {};',
-    "apps/web/src/read-models/system-query/index.ts": 'import "node:fs"; export const query = {};',
-    "apps/web/src/ways-in/mcp/way.ts": "export const way = {};",
-    "apps/web/src/ways-in/events/way.ts": "export const way = {};",
-  };
-  const violations = await violatedRules(tree, layout({ scope: "@acme/" }));
-  assert.deepEqual(
-    fromPaths(violations).filter((line) => line.startsWith("contract-entry-is-browser-safe:")),
-    [
-      "contract-entry-is-browser-safe: apps/web/src/read-models/mcp-query/index.ts -> fs",
-      "contract-entry-is-browser-safe: apps/web/src/read-models/system-query/index.ts -> fs",
-    ],
+    byName(layout({ scope: "@acme/", appsDir: "examples/*/apps" }))["apps-do-not-import-other-apps"]
+      .from.path,
+    "^(examples/[^/]+/apps/[^/]+)/",
   );
 });
 
@@ -167,9 +129,7 @@ test("appsDir and packagesDir reject empty lists, absolute paths, .., other glob
 test("the layout rules hold in every root of a two-root workspace", async () => {
   const violations = await violatedRules("two-roots", layout({ scope: "@acme/", ...ROOTS }));
   assert.deepEqual(fromPaths(violations), [
-    "app-folders: examples/shop/apps/api/src/stray.ts",
     "apps-do-not-import-other-apps: apps/web/src/main.ts -> examples/shop/apps/api/src/main.ts",
-    "features-do-not-import-outer-folders: examples/shop/apps/api/src/features/show-order/handler.ts -> examples/shop/apps/api/src/composition/index.ts",
     "no-ownerless-files: examples/shop/apps/api/src/ways-in/helpers.ts",
     "no-ownerless-files: examples/shop/packages/orders/src/types.ts",
     "package-root-files: examples/shop/packages/orders/src/types.ts",
@@ -177,7 +137,6 @@ test("the layout rules hold in every root of a two-root workspace", async () => 
     "packages-do-not-import-apps: packages/catalog/src/catalog/leak.ts -> examples/shop/apps/api/src/main.ts",
     "packages-imported-by-name: packages/catalog/src/catalog/deep.ts -> examples/shop/packages/orders/src/order/order.ts",
     "packages-public-entry-only: packages/catalog/src/catalog/deep.ts -> examples/shop/packages/orders/src/order/order.ts",
-    "ways-in-import-contracts-only: examples/shop/apps/api/src/ways-in/routes.ts -> examples/shop/packages/api-runtime/src/index.ts",
   ]);
 });
 
@@ -189,7 +148,7 @@ test("with the default roots, the same workspace checks only apps/ and packages/
   );
 });
 
-test("house-rules-layout finds package and subject-folder cycles and manifests in every root", async () => {
+test("house-rules-layout finds package and subject-folder cycles in every root", async () => {
   const config = layout({ scope: "@acme/", ...ROOTS });
   const { status, stderr } = await cruiseFixture("two-roots-cycles", config, ({ workspace }) => {
     writeFileSync(
@@ -210,14 +169,10 @@ test("house-rules-layout finds package and subject-folder cycles and manifests i
     stderr,
     /examples\/shop\/packages\/orders\/src\/line -> examples\/shop\/packages\/orders\/src\/order -> examples\/shop\/packages\/orders\/src\/line/u,
   );
-  assert.match(
-    stderr,
-    /examples\/shop\/packages\/orders\/package\.json: "\.\/browser\/\*" is exported; only "\." and "\.\/contract" may be/u,
-  );
 });
 
-test("featuresConfig() takes the same root lists as layout()", () => {
-  const config = featuresConfig(ROOTS);
+test("workspaceConfig() takes the same root lists as layout()", () => {
+  const config = workspaceConfig(ROOTS);
   const rulesAt = (code, filename) =>
     new Linter()
       .verify(code, config, { filename })
@@ -233,24 +188,14 @@ test("featuresConfig() takes the same root lists as layout()", () => {
   assert.deepEqual(rulesAt(computed, "examples/shop/apps/api/src/ways-in/web/load.ts"), [
     "house-rules/no-computed-import",
   ]);
-  const loose = "export const helper = 1;";
-  assert.deepEqual(rulesAt(loose, "examples/shop/apps/api/src/features/show-order/node.ts"), [
-    "house-rules/feature-file",
-  ]);
-  assert.deepEqual(rulesAt(loose, "apps/web/src/features/show-order/node.ts"), [
-    "house-rules/feature-file",
-  ]);
-  assert.deepEqual(
-    rulesAt(loose, "examples/shop/apps/api/src/features/show/tests/show.test.ts"),
-    [],
-  );
-  assert.throws(() => featuresConfig({ packagesDir: [] }), /featuresConfig\(\): packagesDir/u);
+  assert.deepEqual(rulesAt(computed, "examples/shop/apps/api/src/tests/load.test.ts"), []);
+  assert.throws(() => workspaceConfig({ packagesDir: [] }), /workspaceConfig\(\): packagesDir/u);
   assert.throws(
-    () => featuresConfig({ appsDir: "examples/**/apps" }),
-    /featuresConfig\(\): appsDir entry/u,
+    () => workspaceConfig({ appsDir: "examples/**/apps" }),
+    /workspaceConfig\(\): appsDir entry/u,
   );
   assert.throws(
-    () => featuresConfig({ appsDir: "src", packagesDir: "src" }),
-    /featuresConfig\(\): appsDir "src" and packagesDir "src" overlap/u,
+    () => workspaceConfig({ appsDir: "src", packagesDir: "src" }),
+    /workspaceConfig\(\): appsDir "src" and packagesDir "src" overlap/u,
   );
 });

@@ -5,7 +5,6 @@ const {
   caseless,
   disjointRoots,
   escape,
-  layerOptions,
   nameListOption,
   pathListOption,
   pathOption,
@@ -20,11 +19,9 @@ const DEFAULTS = {
   publicEntry: "src/index.ts",
   internalDir: "src/internal",
   adaptersDir: "src/adapters",
-  facadeFile: "src/facade.ts",
   testsDir: "tests",
 };
 const DEFAULT_NAME_LISTS = {
-  appEntryFiles: ["main.ts", "index.ts"],
   ownerlessNames: ["utils", "helpers", "misc"],
   mechanismNames: [
     "types",
@@ -38,7 +35,7 @@ const DEFAULT_NAME_LISTS = {
     "interfaces",
     "internal",
   ],
-  packageRootFiles: ["index.ts", "facade.ts", "storage.ts"],
+  packageRootFiles: ["index.ts"],
   adapterPackages: [],
 };
 // Empty by default, so a layout that names none keeps the rule's 0.11.0 shape.
@@ -53,50 +50,24 @@ const DEFAULT_ADAPTER_IMPORTS = Object.freeze([
 const OPTION_NAMES = new Set([
   "scope",
   "host",
-  "layers",
   "adapterImports",
-  "trustedContractPackages",
   ...Object.keys(DEFAULTS),
   ...Object.keys(DEFAULT_NAME_LISTS),
   ...Object.keys(DEFAULT_PATH_LISTS),
 ]);
 const BUILT_IN_TEST_DIRS = new Set(["test", "tests", "__tests__"]);
-// Fixed on purpose: the one extra entry a package may declare, as "./contract" in its exports.
-const CONTRACT_ENTRY = "src/contract[.]ts";
-// An installed contract entry is the source file, from a git dependency, or its build in dist/, from
-// the registry. node_modules is never followed, so it is trusted by name only. The framework's own is
-// checked as a workspace file in its repo, and its browser bundle is tested there.
-const INSTALLED_CONTRACT_ENTRY = `(?:${CONTRACT_ENTRY}|dist/contract[.](?:js|d[.]ts))`;
-const TRUSTED_CONTRACT_PACKAGES = Object.freeze([
-  "@house-rules/application",
-  "@house-rules/domain",
-  "@house-rules/identity",
-]);
-// Installed Effect browser doors are trusted explicitly; computed/private encoding imports fail.
-const EFFECT_BROWSER_MODULES =
-  "(?:index|[A-Z][A-Za-z0-9]*|encoding/index|(?:http|unstable/http)/(?:index|[A-Z][A-Za-z0-9]*))[.]js";
-// Effect's SQL modules, under any build folder: effect/sql and effect/sql/* in 4.x, effect/unstable/sql on RCs.
-// Ways never import them, even when a project's adapterImports leaves them out.
-const EFFECT_SQL = "(?:^|/)node_modules/effect/(?:[^/]+/|)(?:unstable/|)sql(?:[/.]|$)";
-const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u;
 
-function trustedContractPackagesOption(names) {
-  if (
-    !Array.isArray(names) ||
-    names.some((name) => typeof name !== "string" || !PACKAGE_NAME.test(name))
-  ) {
-    throw new TypeError(
-      'layout(): trustedContractPackages must be an array of package names, such as "@acme/catalogue".',
-    );
-  }
-  return [...TRUSTED_CONTRACT_PACKAGES, ...names].map(escape);
-}
-
+const RETIRED_KITS =
+  "with the retired house-rules kits. Apps build on Alchemy Domain, which has no app areas, facades or contract doors. Remove the option.";
 const REMOVED_OPTIONS = {
   adapterImportsSeverity:
     "layout(): adapterImportsSeverity was removed in 0.8.0. adapter-imports-only-in-adapters is always an error: move the import into an adapter, or name the package in adapterPackages.",
   serverEntryFiles:
-    "layout(): serverEntryFiles was removed in 0.16.0. Put root wiring in src/composition/ as composition({ modules, features, ways, may, system }); ways may import the root, and main.ts passes way values into it. Use toFetchHandler for the router. Remove the option. See @house-rules/rules docs/dependency-cruiser.md.",
+    "layout(): serverEntryFiles was removed in 0.16.0. Remove the option. See @house-rules/rules docs/dependency-cruiser.md.",
+  layers: `layout(): layers was removed ${RETIRED_KITS}`,
+  appEntryFiles: `layout(): appEntryFiles was removed ${RETIRED_KITS}`,
+  facadeFile: `layout(): facadeFile was removed ${RETIRED_KITS}`,
+  trustedContractPackages: `layout(): trustedContractPackages was removed ${RETIRED_KITS}`,
 };
 
 const unique = (values) => [...new Set(values)];
@@ -120,15 +91,6 @@ function patterns(options) {
   const apps = appRoots.pattern;
   const packages = packageRoots.pattern;
   const tests = pathOption(settings.testsDir, "testsDir");
-  const layers = layerOptions(settings.layers ?? {}, host ? { waysIn: host.waysInLayer } : {});
-  const projectionAreas = `(?:${layers.readModels}|${layers.projections})`;
-  const layerRoot = (layer) => `^${apps}/[^/]+/src/${layer}(?:/|$)`;
-  // A host app has only its host's entry files, so the generic main.ts and index.ts stay out unless named.
-  const ownEntryFiles = settings.appEntryFiles ?? (host ? [] : DEFAULT_NAME_LISTS.appEntryFiles);
-  const entryFiles = unique([
-    ...nameListOption(ownEntryFiles, "appEntryFiles", { allowEmpty: true }),
-    ...(host ? host.appEntryFiles.map(escape) : []),
-  ]);
   const ownerless = nameListOption(
     settings.ownerlessNames ?? DEFAULT_NAME_LISTS.ownerlessNames,
     "ownerlessNames",
@@ -169,8 +131,6 @@ function patterns(options) {
   );
 
   const publicEntry = pathOption(settings.publicEntry, "publicEntry");
-  const facadeFile = pathOption(settings.facadeFile, "facadeFile");
-  const trustedContracts = trustedContractPackagesOption(settings.trustedContractPackages ?? []);
   const adapterImports = adapterImportsOption(
     settings.adapterImports ?? DEFAULT_ADAPTER_IMPORTS,
     scope,
@@ -184,102 +144,29 @@ function patterns(options) {
     appRoot: `^(${apps}/[^/]+)/`,
     sourceRoot: `^(?:${apps}|${packages})/[^/]+/src(?:/|$)`,
     publicEntry: `${publicEntry}$`,
-    publicEntries: `(?:${publicEntry}|${CONTRACT_ENTRY})$`,
-    contractEntry: `^${packages}/[^/]+/${CONTRACT_ENTRY}$`,
-    appDescriptorEntry: `(?:^${apps}/[^/]+/src/${layers.projections}/[^/]+/contract[.]ts$|^${apps}/[^/]+/src/${layers.readModels}/(?:[^/]+/|)index[.]ts$|^${apps}/[^/]+/src/${layers.features}/(?:[^/]+/|)index[.]ts$|^${apps}/[^/]+/src/${layers.waysIn}/[^/]+/endpoints[.]ts$)`,
-    // Safe-regex counts `?` on a group as nesting, so optional groups are written `(?:x|)`.
-    // Follow workspace contracts; trust only the listed installed browser doors.
-    browserSafe: [
-      `^${apps}/[^/]+/src/${layers.features}/(?:[^/]+/|)index[.]ts$`,
-      `^${apps}/[^/]+/src/${layers.readModels}/(?:[^/]+/|)index[.]ts$`,
-      `^${apps}/[^/]+/src/${layers.waysIn}/[^/]+/endpoints[.]ts$`,
-      `^${apps}/[^/]+/src/${projectionAreas}/[^/]+/(?!adapters/|(?:index|facade|storage)[.]ts$|(?:.*/|)(?:${testDirs})/|.*${testFile}).+`,
-      `^${packages}/[^/]+/(?!${adapters}(?:/|$)|(?:${publicEntry}|${facadeFile}|src/storage[.]ts)$|src/(?:.*/|)(?:${testDirs})/|.*${testFile})src/`,
-      `(?:^|/)node_modules/effect/dist/${EFFECT_BROWSER_MODULES}$`,
-      `(?:^|/)node_modules/(?:${trustedContracts.join("|")})/${INSTALLED_CONTRACT_ENTRY}$`,
-    ],
     internalRoot: `^${packages}/[^/]+/${pathOption(settings.internalDir, "internalDir")}(?:/|$)`,
-    featuresRoot: layerRoot(layers.features),
-    readModelsRoot: layerRoot(layers.readModels),
-    projectionsRoot: layerRoot(layers.projections),
-    projectionContract: `^${apps}/[^/]+/src/${layers.projections}/[^/]+/contract[.]ts$`,
-    readModelValues: `^${apps}/[^/]+/src/${layers.readModels}/(?:[^/]+/|)index[.]ts$`,
-    waysInRoot: layerRoot(layers.waysIn),
-    waysInPage: host?.singleWayArea
-      ? `^(${apps}/[^/]+/src)/${layers.waysIn}/(?:.*/|)(?:(?:${host.waysInPageFiles.join("|")})[.][cm]?[jt]sx?$|(?:${host.waysInMetadataFiles.join("|")})[.][^./]+$|${host.privateFolderPrefix}[^/]+/.+)`
-      : `^(${apps}/[^/]+/src)/${layers.waysIn}/[^/]+/page/`,
-    waysInThirdParty:
-      "(?:^|/)node_modules/(?![.]pnpm/|@house-rules/|@effect/sql-|@effect/platform-|effect/)[^/]+/",
-    waysInImporter: `^(${apps}/[^/]+/src)/${layers.waysIn}(?:/|$)`,
-    // Refused from every way file, type-only imports included. The value allowlist below admits all of
-    // effect, so these are carved out of it and reported by their own rule. Workspace adapter packages
-    // count the same as installed ones, or their contract door and main types would stay open.
-    waysInAdapterImports: unique([
-      EFFECT_SQL,
-      ...adapterImports.installed,
-      ...adapterImports.workspace.map(({ path }) => path),
-    ]),
-    waysInValues: [
-      `^$1/(?:${layers.features}|${layers.composition}|${layers.waysIn})/`,
-      `^${apps}/[^/]+/src/${layers.readModels}/(?:[^/]+/|)index[.]ts$`,
-      `^${packages}/[^/]+/${CONTRACT_ENTRY}$`,
-      `^${packages}/(?:application|domain)/${publicEntry}$`,
-      `(?:^|/)node_modules/(?:@[^/]+/|)[^/]+/${INSTALLED_CONTRACT_ENTRY}$`,
-      `(?:^|/)node_modules/@house-rules/(?:application|domain)/(?:src/index[.]ts|dist/index[.](?:js|d[.]ts))$`,
-      "(?:^|/)node_modules/effect/",
-    ],
-    featureFolder: `^(${apps}/[^/]+/src/${layers.features}/[^/]+)/`,
-    readModelFolder: `^(${apps}/[^/]+/src/${layers.readModels}/[^/]+)/`,
-    projectionFolder: `^(${apps}/[^/]+/src/${layers.projections}/[^/]+)/`,
-    wayFolder: host?.singleWayArea
-      ? `^(${apps}/[^/]+/src/${layers.waysIn})/`
-      : `^(${apps}/[^/]+/src/${layers.waysIn}/[^/]+)/`,
-    folderCode: `^(${apps}/[^/]+/src/${projectionAreas}/[^/]+)/`,
-    folderSource: `^${apps}/[^/]+/src/${projectionAreas}/[^/]+/`,
-    folderAdapters: `^${apps}/[^/]+/src/${projectionAreas}/[^/]+/adapters/`,
-    folderAdapterImporters: `^${apps}/[^/]+/src/${projectionAreas}/[^/]+/(?:adapters/|(?:index|facade)[.]ts$)`,
-    folderRootFile: `^${apps}/[^/]+/src/${projectionAreas}/[^/]+/[^/]+$`,
-    folderRootFileAllowed: `^${apps}/[^/]+/src/${projectionAreas}/[^/]+/(?:${rootFiles.join("|")}|contract[.]ts)$`,
-    folderSubject: `^(${apps}/[^/]+/src/${projectionAreas}/[^/]+)/(?!adapters/|(?:${testDirs})/)[^/]+/`,
-    domainPackage: `^${packages}/domain/src/`,
-    applicationPackage: `^${packages}/application/src/`,
-    eventLogImport: `(?:^@house-rules/event-log(?:/|$)|(?:^|/)node_modules/@house-rules/event-log/|^${packages}/event-log/)`,
-    houseRulesImport: `(?:^@house-rules/|(?:^|/)node_modules/@house-rules/|^${packages}/(?!domain/)[^/]+/)`,
-    compositionRoot: layerRoot(layers.composition),
-    appFolder: `^${apps}/[^/]+/`,
     // null when no file is named, so the rule keeps its 0.11.0 shape.
     generatedDeclaration: declarations && `^${apps}/[^/]+/${declarations}$`,
-    appSource: `^${apps}/[^/]+/src/`,
-    appLayerOrEntry: [
-      `^${apps}/[^/]+/src/(?:${Object.values(layers).join("|")})/`,
-      ...(entryFiles.length ? [`^${apps}/[^/]+/src/(?:${entryFiles.join("|")})$`] : []),
-    ],
     ownerlessPath: [
       `^(?:${apps}|${packages})/(?:.*/)?(?:${ownerless.join("|")})(?:[.][^/]*)?(?:/|$)`,
       ...(mechanism.length
-        ? [
-            `^${packages}/[^/]+/(?:.*/)?(?:${mechanism.join("|")})(?:[.][^/]*)?(?:/|$)`,
-            `^${apps}/[^/]+/src/${layers.readModels}/[^/]+/(?:.*/)?(?:${mechanism.join("|")})(?:[.][^/]*)?(?:/|$)`,
-          ]
+        ? [`^${packages}/[^/]+/(?:.*/)?(?:${mechanism.join("|")})(?:[.][^/]*)?(?:/|$)`]
         : []),
     ],
     packageRootFile: `^${packages}/[^/]+/src/[^/]+$`,
     packageRootFileAllowed: `^${packages}/[^/]+/src/(?:${rootFiles.join("|")})$`,
-    contractEntryFile: `^${packages}/[^/]+/${CONTRACT_ENTRY}$`,
-    // $1 is the package folder. Only the public entry and the facade wire the package's own adapters.
+    // $1 is the package folder. Only the public entry wires the package's own adapters.
     packageCode: `^(${packages}/[^/]+)/src/`,
     adapterImporters: [
       `^${packages}/[^/]+/${adapters}(?:/|$)`,
       `^${packages}/[^/]+/${publicEntry}$`,
-      `^${packages}/[^/]+/${facadeFile}$`,
     ],
     ownAdapters: `^$1/${adapters}(?:/|$)`,
     ownAdapterTests: `^$1/${adapters}/tests(?:/|$)`,
     // A file in a subject folder, and the package's own root barrel ($1 is the package folder).
     subjectFile: `^(${packages}/[^/]+)/src/[^/]+/`,
-    ownRootBarrel: `^$1/(?:${publicEntry}|${facadeFile}|${CONTRACT_ENTRY})$`,
+    ownRootBarrel: `^$1/${publicEntry}$`,
     notSubjectFolder: [
-      "^$1/$2(?:/|$)",
       `^${packages}/[^/]+/${adapters}(?:/|$)`,
       `^${packages}/[^/]+/src/(?:${testDirs})(?:/|$)`,
     ],

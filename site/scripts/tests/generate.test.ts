@@ -61,6 +61,23 @@ describe("rules page", () => {
     "no-folder-module-cycles",
     "ways-in-do-not-import-module-values",
     "folder-modules-public-entry-only",
+    "command-kind",
+    "feature-file",
+    "feature-builders",
+    "contract-entry-is-browser-safe",
+    "features-do-not-import-outer-folders",
+    "read-models-import-packages-only",
+    "read-models-public-entry-only",
+    "ways-in-import-app-folders-only",
+    "ways-in-do-not-import-read-model-values",
+    "ways-in-import-contracts-only",
+    "ways-in-do-not-import-other-ways",
+    "composition-does-not-import-ways-in",
+    "domain-imports-no-house-rules",
+    "application-does-not-import-event-log",
+    "app-folders",
+    "no-app-feature-cycles",
+    "house-rules-migrations",
   ];
   const rowAnchors = text
     .split("\n")
@@ -79,14 +96,20 @@ describe("rules page", () => {
     assert.equal(allAnchors.filter((anchor) => anchor === "retired-v1-rules").length, 1);
   });
 
-  it("moves the old feature rule hashes to the retirement notice", () => {
+  it("moves the old feature and kit rule hashes to the retirement notice", () => {
     assert.equal(rowAnchors.length, rows.length);
     assert.equal(allAnchors.length, rows.length + retired.length);
-    for (const id of ["use-case-is-capability", "node-file", "entry-from-app-node"]) {
+    for (const id of [
+      "use-case-is-capability",
+      "node-file",
+      "entry-from-app-node",
+      "feature-file",
+      "feature-builders",
+      "command-kind",
+    ]) {
       assert.equal(allAnchors.filter((anchor) => anchor === id).length, 1);
       assert.ok(!rowAnchors.includes(id));
     }
-    for (const id of ["feature-file", "feature-builders"]) assert.ok(rowAnchors.includes(id));
   });
 
   it("keeps all retired hashes on one notice, not on current rows", () => {
@@ -111,7 +134,8 @@ describe("rules page", () => {
       "comment-discipline",
       "no-hand-rolled-surface",
       "shadcn",
-      "house-rules-migrations",
+      "no-package-cycles",
+      "exact-pins",
       "strict-compiler-flags",
       "noReExportAll",
     ]) {
@@ -163,7 +187,7 @@ describe("llms.txt", () => {
     for (const part of [`${SITE_URL}/start/`, `${SITE_URL}/rules/`, "`AGENTS.md`", GITHUB_REPO]) {
       assert.ok(text.includes(part), `llms.txt misses ${part}`);
     }
-    assert.ok(text.includes("node_modules/@house-rules/application/AGENTS.md"));
+    assert.ok(text.includes("node_modules/@house-rules/stack/AGENTS.md"));
   });
 
   it("is the only file the build adds", () => {

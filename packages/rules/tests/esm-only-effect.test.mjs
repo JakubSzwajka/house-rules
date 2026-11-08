@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { it } from "node:test";
 import { Linter } from "eslint";
-import { featuresConfig } from "../src/index.mjs";
+import { workspaceConfig } from "../src/index.mjs";
 
 const root = mkdtempSync(path.join(tmpdir(), "esm-effect-"));
 for (const [folder, json] of Object.entries({
@@ -12,8 +12,8 @@ for (const [folder, json] of Object.entries({
   "apps/test": {},
   "packages/tests": { dependencies: { effect: "4.0.3" } },
   "packages/test": { devDependencies: { effect: "4.0.3" } },
-  "packages/domain": { name: "@house-rules/domain" },
-  "packages/application": { name: "@house-rules/application" },
+  "packages/model": { name: "@acme/model", peerDependencies: { effect: "4.0.3" } },
+  "packages/named": { name: "@house-rules/domain" },
   "packages/plain": {},
   "packages/rules": { name: "@house-rules/rules", dependencies: { effect: "4.0.3" } },
 })) {
@@ -22,7 +22,7 @@ for (const [folder, json] of Object.entries({
 }
 const lint = (code, file) =>
   new Linter({ cwd: root })
-    .verify(code, featuresConfig(), { filename: path.join(root, file) })
+    .verify(code, workspaceConfig(), { filename: path.join(root, file) })
     .filter((m) => m.ruleId === "house-rules/esm-only-effect" || m.fatal)
     .map((m) => m.messageId ?? m.message);
 const forms = [
@@ -43,12 +43,11 @@ for (const folder of [
   "apps/test",
   "packages/tests",
   "packages/test",
-  "packages/domain",
-  "packages/application",
+  "packages/model",
 ])
   for (const code of forms)
     it(`requires ESM in ${folder}: ${code}`, () =>
-      assert.deepEqual(lint(code, `${folder}/src/composition/main.ts`), ["esm"]));
+      assert.deepEqual(lint(code, `${folder}/src/main.ts`), ["esm"]));
 for (const code of [
   'function f(require) { require("x") }',
   'const module = { require: (x) => x }; module.require("x")',
@@ -61,6 +60,7 @@ for (const code of [
     assert.deepEqual(lint(code, "apps/tests/src/main.ts"), []));
 for (const file of [
   "packages/plain/src/main.js",
+  "packages/named/src/main.ts",
   "apps/tests/scripts/main.ts",
   "apps/tests/src/tests/main.ts",
   "packages/tests/src/test/main.ts",

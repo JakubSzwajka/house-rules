@@ -12,7 +12,8 @@
     },
     "test": {
       "dependsOn": ["typecheck"],
-      "cache": false
+      "cache": false,
+      "passThroughEnv": ["DATABASE_URL", "DOMAIN_STORE"]
     }
   }
 }

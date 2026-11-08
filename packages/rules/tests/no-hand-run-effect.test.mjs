@@ -6,7 +6,7 @@ import plugin from "../src/index.mjs";
 const TEST_FILE = "apps/api/src/features/show-booking/tests/show-booking.test.ts";
 
 function lint(code, filename = TEST_FILE) {
-  const messages = new Linter().verify(code, plugin.configs.features, { filename });
+  const messages = new Linter().verify(code, plugin.configs.workspace, { filename });
   assert.equal(
     messages.some((message) => message.fatal),
     false,
@@ -161,7 +161,7 @@ function shadow() {
   assert.deepEqual(lint(code), []);
 });
 
-test("the nodes preset covers every test folder the cruiser names", () => {
+test("the workspace preset covers every test folder the cruiser names", () => {
   const code =
     'import { Effect } from "effect";\nexport const run = () => Effect.runPromise(Effect.void);';
   for (const filename of [
@@ -210,7 +210,7 @@ function inner(Effect) {
   assert.deepEqual(lint(code), []);
 });
 
-test("the nodes preset runs it on test files only", () => {
+test("the workspace preset runs it on test files only", () => {
   const code =
     'import { Effect } from "effect";\nexport const run = () => Effect.runPromise(Effect.void);';
   for (const filename of [

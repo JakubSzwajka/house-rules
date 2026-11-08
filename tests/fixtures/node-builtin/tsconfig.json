@@ -1,8 +1,0 @@
-{
-  "extends": "../../../tsconfig.base.json",
-  "compilerOptions": {
-    "types": ["node"],
-    "typeRoots": ["../../../packages/node-host/node_modules/@types"]
-  },
-  "include": ["main.ts"]
-}

@@ -86,49 +86,6 @@ export async function cruiseFixture(fixture, config, inspect) {
       },
       "effect@4.0.0",
     );
-    // Installed contract entries: the framework's own, built as the registry ships it, and a
-    // source one, as a git dependency ships it, that nobody vouched for.
-    if (!existsSync(path.join(workspace, "packages/application/package.json")))
-      await stubPackage(
-        workspace,
-        {
-          name: "@house-rules/application",
-          exports: {
-            ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
-            "./contract": { types: "./dist/contract.d.ts", default: "./dist/contract.js" },
-          },
-        },
-        {
-          "dist/index.js": 'export * from "./facade.js";\n',
-          "dist/facade.js": 'export * from "node:fs";\n',
-          "dist/contract.js": 'export * from "./facade.js";\n',
-        },
-        "@house-rules+application@0.13.1",
-      );
-    await stubPackage(
-      workspace,
-      {
-        name: "@house-rules/identity",
-        exports: { ".": "./dist/index.js", "./contract": "./dist/contract.js" },
-      },
-      {
-        "dist/index.js": "export const bindLogin = {};",
-        "dist/contract.js": "export const bindLogin = {};",
-      },
-      "@house-rules+identity@0.3.0",
-    );
-    await stubPackage(
-      workspace,
-      {
-        name: "@acme/installed",
-        exports: { ".": "./src/index.ts", "./contract": "./src/contract.ts" },
-      },
-      {
-        "src/index.ts": 'export * from "./facade.ts";\n',
-        "src/facade.ts": 'export * from "node:fs";\n',
-        "src/contract.ts": 'export * from "./facade.ts";\n',
-      },
-    );
     for (const name of ["@effect/sql-pg", "@effect/platform-node", "pg"]) {
       await stubPackage(
         workspace,

@@ -1,8 +1,21 @@
 # house-rules
 
-A TypeScript workspace template with shared checks, exact pins and commit hooks. The [rules plugin](packages/rules/README.md) owns the presets. [AGENTS.md](AGENTS.md) is the law; [CONTEXT.md](CONTEXT.md) defines the words. The [docs site](https://stack.kubaszwajka.com) explains the template to people.
+A TypeScript workspace template for apps built on [Alchemy Domain](https://alchemy.run/domain), with shared checks, exact pins and commit hooks. Apps model their backend as aggregates, commands, events, views and policies; `@house-rules/stack` adds sign-in, permissions and reusable modules on top. [AGENTS.md](AGENTS.md) is the law; [CONTEXT.md](CONTEXT.md) defines the words. The [docs site](https://stack.kubaszwajka.com) explains the template to people.
 
-## Start
+## Play with the example
+
+[examples/booking](examples/booking/README.md) is a small booking backend on the stack: bookings, payments with a deadline, policies acting as a system actor, a private view, and one Api served as HTTP, RPC, MCP and a CLI. With Node 24 and pnpm, from the repo root:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm db:up
+DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55432/house_rules pnpm --filter @example/booking-server dev
+curl localhost:3000/MakeBooking -H 'authorization: Bearer ann-token' --json '{"target":"b-1","input":{"guestName":"Grace","amount":100}}'
+```
+
+The server keeps its data in Postgres on `http://localhost:3000` and keeps it across restarts; `DOMAIN_STORE=memory` runs it in memory with no database. The [example's README](examples/booking/README.md) lists the dev tokens, more calls, the CLI, MCP, Clerk sign-in and the Cloudflare deploy.
+
+## Start a new app
 
 Use the Node version in `.nvmrc` and the exact pnpm version in `package.json`. Corepack selects it.
 
@@ -11,146 +24,79 @@ gh repo create my-app --private --clone --template JakubSzwajka/house-rules
 cd my-app
 corepack enable
 pnpm install --frozen-lockfile
-docker compose up -d
 pnpm check
 pnpm test
 ```
 
-Install sets up lefthook and patches `tsc` with `effect-tsgo patch`. Each database suite creates and drops its own database through `TEST_DATABASE_ADMIN_URL`. Local Postgres listens on port 55435.
+Install sets up lefthook and patches `tsc` with `effect-tsgo patch`. Tests that host a model need Postgres: run `pnpm db:up` (Docker) first, or set `DOMAIN_STORE=memory` to run them on `Domain.InMemory`.
 
-Write your own `VISION.md`. Remove `examples/` in your new project and remove its roots from the workspace and thin configs. Keep your code in `apps/` and `packages/`. The [booking guide](examples/booking/README.md) shows the framework before you remove it.
+Then follow [Start a new app from scratch](packages/stack/README.md#start-a-new-app-from-scratch) in the stack README: permissions, your own aggregate beside a stack module, the model and its Api, roles, stories, sign-in with dev tokens or Clerk, one Api test, and serving it locally the way the booking server does. Its code is a passing test, `packages/stack/src/tests/new-app.test.ts`.
+
+Write your own `VISION.md`. Keep your code in `apps/` and `packages/`. Once your app runs, remove `examples/` and its roots from the workspace and thin configs.
 
 ## Layout
 
 ```text
-apps/                        your apps
-examples/booking/            private reference app and its domain packages
+apps/                        your apps (servers, web)
 packages/
-  domain/                    descriptors, callers, graphs, modules and units
-  application/               entry points, bindings, execution, ways and clients
-  auth-jwt/                  token verification plug
-  call-audit/                feature audit plug
-  comments/                  comments module
-  identity/                  login bindings, passwords, OIDC and Who plug
-  migrations/                module migration runner
-  node-host/                 plain fetch handler on a Node socket
-  express-host/              optional real Express listener, shared Node bridge
-  party/                     people, organisations, relationships and roles
-  rules/                     shared checks and presets
+  rules/                     @house-rules/rules: ESLint, Biome, TypeScript and Dependency Cruiser presets and bins
+  stack/                     @house-rules/stack: actor, access, auth and reusable domain modules
+  domain-postgres/           @house-rules/domain-postgres: a Postgres Platform for Alchemy Domain
+examples/booking/
+  packages/domain/           booking reference model: bookings, payments and their rules
+  apps/server/               hosts the model on Postgres (or in memory) on Node, on Cloudflare Durable Objects
+docs/                        release and local registry guides
 site/                        private Astro docs site
-skills/house-rules/           agent guide router
+skills/house-rules/          agent guide router
 tests/                       root wiring and fence tests
 ```
 
-App source has these areas:
+## The stack package
 
-```text
-src/
-  features/<name>/           index.ts with one feature and handler, tests/
-  read-models/<name>/        defineReadModel query and handler, tests/
-  projections/<name>/        optional published-view SQL query infrastructure
-  ways-in/<name>/            HTTP/MCP endpoints, hooks or UTC schedules
-  composition/              mount, link, plug, open ways, schedule
-  main.ts                   join the root and ways, start the Host
+`@house-rules/stack` is the one framework package. Its door is `src/index.ts`: the core (actor, access, auth with Clerk, JWT and dev-token providers) by name, and the reusable modules as namespaces: `Comments`, `Contacts`, `Delivery`, `Notes`, `Notifications`, `Organisations`, `Projects`, `Relations` and `WorkItems`. An app spreads a module's block lists into its own model, as the stack's new-app test does:
+
+```ts
+export class Kitchen extends Domain.Model("Kitchen", {
+  aggregates: [...Notes.aggregates, Recipe],
+  views: [...Notes.views],
+}) {}
 ```
 
-Domain modules are packages, including app-owned ones such as `examples/booking/packages/bookings`. A module owns its tables, migrations and object rules. Its public doors are `index.ts` and optional browser-safe `contract.ts`. A read model composes declared read-only module operations. Optional app projections select published views, never private tables.
+Every client-sent command lists `middleware: [Session]`, rejects `Forbidden`, and starts its `decide` with `yield* requirePermission(...)`. `SessionLive` resolves the signed-in person through an `AuthProvider` slot and turns roles into permissions with `Roles`. Policies act as system actors with explicit grants. Effect runs the last listed middleware first, so a guard that reads the actor goes before `Session`: `[Guard, Session]`. See the [stack README](packages/stack/README.md), its [AGENTS.md](packages/stack/AGENTS.md) and [DESIGN.md](packages/stack/DESIGN.md), which maps every old house-rules concept to its replacement.
 
-## How a call runs
+## The example
 
-```text
-request -> way (Who, Mean) -> app entry point -> app May role check
-  record -> feature identity -> person/system closures -> approval -> one unit
-    handler -> declared edges -> module or projection operations
-               |
-            step trace
-```
-
-Application's `defineFeature` puts one app action and its handler in `features/<name>/index.ts`. A feature is its own entry. Its handler only calls declared edges, so the file stays browser-safe. `features/index.ts` exports only Features. Composition declares built-in roles and system permissions, and plugs `Party.may()` once. Party owns custom roles and assignments. The runtime publishes the operation permission catalogue.
-
-Domain's `defineOperation` describes module or projection work. Modules export `<Module>Operations` from `./contract`. Application's `bindOperation` captures their services in composition. Features and read models are exposed directly through ways, hooks or schedules. defineReadModel lives in read-models/<name>/index.ts with its schemas and handler; ReadModels is its registry. Both kinds use the same executor. Explicit kind, not readOnly, distinguishes queries from commands. BREAKING authoring migration: the default recommended lint preset now rejects readOnly:true defineFeature calls and unresolved command flags. Move queries to direct defineReadModel calls in read-models/<name>/index.ts and split Features and ReadModels registries. Keep projection infrastructure in projections/. The runtime still accepts legacy descriptors. The [command-kind guide](packages/rules/docs/command-kind.md) explains the conservative loader fences, including every nonliteral dynamic import in production src and literal loading of modules containing finished features or builder wrappers. They do not prove arbitrary JavaScript behavior or handler purity.
-
-A plain edge keeps the caller. `asSystem(target, reason)` switches that branch to the system and never back. A feature derives its permission closures and flags from the graph. Approval runs once. Only the feature runtime opens a production unit; handlers and modules join it. A failed write rolls back the graph's stored changes, not external provider effects.
-
-Every inner call rechecks its own permission against the permissions loaded at feature start.
-
-Ways import values from kits, `effect`, package contract doors, feature/read-model indexes, composition and their own folder. Other package main entries allow types only. Build concrete plugs in composition and pass them into ways. The root receives ways from `main.ts`; it never imports them.
-
-Expected errors declare a kind. Application maps that kind to a fixed status and code. Ways may change message text only. Unavailable and plumbing errors use fixed public messages; driver details stay internal. Defects answer generic 500.
-
-## Packages and guides
-
-This is the approved stable release inventory. Exact versions and pins are recorded in [release-20261027/versions.json](docs/tasks/release-20261027/versions.json); publication still happens only through `.github/workflows/publish.yml`.
-
-| Package | Version | Guide |
-| --- | --- | --- |
-| `@house-rules/rules` | `0.20.1` | [Rules](packages/rules/README.md) |
-| `@house-rules/domain` | `0.2.1` | [Domain](packages/domain/README.md) |
-| `@house-rules/application` | `0.3.0` | [Application](packages/application/README.md) |
-| `@house-rules/auth-jwt` | `0.1.1` | [JWT](packages/auth-jwt/README.md) |
-| `@house-rules/identity` | `0.1.1` | [Identity](packages/identity/README.md) |
-| `@house-rules/party` | `0.1.1` | [Party](packages/party/README.md) |
-| `@house-rules/migrations` | `0.4.1` | [Migrations](packages/migrations/README.md) |
-| `@house-rules/call-audit` | `0.7.1` | [Audit](packages/call-audit/README.md) |
-| `@house-rules/comments` | `0.2.1` | [Comments](packages/comments/README.md) |
-| `@house-rules/node-host` | `0.2.1` | [Node Host](packages/node-host/README.md) |
-| `@house-rules/express-host` | `0.1.0` | [Express Host](packages/express-host/README.md) |
-| `@house-rules/work-items` | `0.1.1` | [Work Items](packages/work-items/README.md) |
-| `@house-rules/notes` | `0.1.1` | [Notes](packages/notes/README.md) |
-| `@house-rules/relations` | `0.1.1` | [Relations](packages/relations/README.md) |
-| `@house-rules/event-log` | `0.1.1` | [Event Log](packages/event-log/README.md) |
-| `@house-rules/contacts` | `0.1.1` | [Contacts](packages/contacts/README.md) |
-| `@house-rules/notifications` | `0.1.1` | [Notifications](packages/notifications/README.md) |
-| `@house-rules/push` | `0.1.1` | [Push](packages/push/README.md) |
-| `@house-rules/push-node` | `0.1.0` | [Push Node](packages/push-node/README.md) |
-| `@house-rules/email` | `0.1.1` | [Email](packages/email/README.md) |
-| `@house-rules/projects` | `0.1.1` | [Projects](packages/projects/README.md) |
-
-Each framework package an app mounts ships `AGENTS.md`. Load the [house-rules skill](skills/house-rules/SKILL.md) to find the right guide.
-
-Use [house-rules-design](skills/house-rules-design/SKILL.md) to turn a brief or app change into an approval view. Write `plan.json`, validate and render it with `pnpm plan view plan.json -o design.html`, or compare designs with `pnpm plan diff plan.json plan.next.json -o change.html`. After approval, build and require an empty built-map diff plus passing check/test. Keep the approved plan alongside the code; the [booking example](examples/booking/apps/api/README.md) shows the map commands.
-
-The 18 TypeScript packages publish JavaScript and declarations in `dist/`. Workspace imports still read `src/`. Plain Node and TypeScript consumers need no source loader or Next transpile setting. Rules is plain JavaScript with no build step. Consumer configs extend presets and set project values; they never copy a preset.
+`examples/booking` shows a full app on the stack: a domain package that imports only `@alchemy.run/domain`, `effect` and `@house-rules/stack`, and a server that hosts it. Use it as a reference, then delete it.
 
 ## Checks and CI
 
 ```text
-pnpm check -> pins -> migrations -> environment -> Biome -> ESLint
+pnpm check -> pins -> environment -> Biome -> ESLint
            -> workspace typechecks -> Dependency Cruiser -> layout/cycles
 pnpm test  -> root Node tests -> workspace tests
 ```
 
-Warnings fail Biome and ESLint. All Dependency Cruiser rules have error severity. See the [rules table](packages/rules/README.md#rules-and-checks) for the checked rules and their limits. Tests of retired names scan live code and docs, with exact exceptions for intentional absence proofs and the old rule anchor.
+Warnings fail Biome and ESLint. All Dependency Cruiser rules have error severity. See the [rules table](packages/rules/README.md#rules-and-checks) for the checked rules and their limits.
 
-CI starts Postgres, installs the frozen lockfile, then runs check, test, packed-consumer, the booking API build and the site build. The booking example serves a Vite/React shadcn dashboard with real sign-in through `/api` and read-only MCP at `/mcp`. Every new login gets the member role. Its build writes the page to `dist/web`, then bundles `src/main.ts` for Node. Production requires ACCOUNTS_SIGNING_KEY, a private P-256 JWK, and APP_ORIGIN over HTTPS for Secure cookies. Optional MCP_AUTH_ISSUER adds the real OIDC MCP provider; without it MCP stays closed. The devLocal test issuer is mounted only in development/test.
-
-`pnpm run packed-consumer` builds and packs all 21 public packages, installs them in a cold npm consumer, and checks Node, TypeScript, browser contracts, layout and migration behavior. It needs the registry. `pnpm acceptance` clones committed HEAD into a temp folder and runs frozen install, check and test. It cannot see uncommitted work.
+CI installs the frozen lockfile, then runs check, test, packed-consumer and the site build. `pnpm run packed-consumer` packs rules, stack and domain-postgres, installs them in a cold npm consumer, then loads and typechecks them; it needs the registry. `pnpm acceptance` clones committed HEAD into a temp folder and runs frozen install, check and test.
 
 ## Pins and environment
 
-Pin every dependency exactly, including workspace pins. Keep the existing package manager and lockfile. New dependencies and version changes need approval. Install scripts stay denied in `allowBuilds`; release-age exceptions also need approval.
+Pin every dependency exactly, including workspace pins. New dependencies and version changes need approval. Install scripts stay denied in `allowBuilds`; release-age exceptions also need approval.
 
-Effect runtime packages share version 4.0.3. A workspace with `@effect/platform-node` also declares `@effect/platform-node-shared` directly at that version. TypeScript is 7.0.2; `@effect/tsgo` is 0.45.0. The ESLint parser still needs the TypeScript 6.0.3 package extension. Dependency Cruiser uses SWC and prints an expected `missing-typescript-transpiler` notice.
+Effect packages share version 4.1.2 and Alchemy packages 2.0.0-beta.85. A workspace with `@effect/platform-node` also declares `@effect/platform-node-shared` at the same version. TypeScript is 7.0.2; `@effect/tsgo` is 0.45.0. The ESLint parser still needs the TypeScript 6.0.3 package extension. Dependency Cruiser uses SWC and prints an expected `missing-typescript-transpiler` notice.
 
-Declare every variable in `.env.schema`, without secrets. Store local secrets only in ignored `.env.local` or `.env.*.local` files. `pnpm env:check` validates values. Use `pnpm exec varlock run -- <cmd>` to inject them. Varlock and Turbo telemetry stay off.
+Declare every variable in `.env.schema`, without secrets. Store local secrets only in ignored `.env.local` or `.env.*.local` files. `pnpm env:check` validates values; `pnpm exec varlock run -- <cmd>` injects them.
 
 ## Review and the fence
 
 Lefthook runs check then test before every commit. Pi's interceptor and `scripts/vcs-command-policy.mjs` block hook bypasses. `.agents/settings.json` holds the Claude-format hook, but Claude needs it in `.claude/settings.json` to load it. The fence is adapted from [rat-stack](https://github.com/joelhooks/rat-stack); [NOTICE](NOTICE) keeps the attribution and license.
 
-Checks do not replace review. Review module boundaries, explicit Actor arguments, object policy, fixed public error messages and SQL ownership inside procedural bodies. A plug must pass the pull-out test: removing it and its `Layer.provide` line leaves the rest building and passing. Test each exposed agent tool for A/B access under fake actors. MCP stays read-only unless the owner approves writes.
+Checks do not replace review. Review object access in aggregate state, system grants, and A/B access tests for every exposed agent tool. MCP stays read-only unless the owner approves writes.
 
-The reference [booking app](examples/booking/README.md) shows booking and payment writes in one feature, a system refund edge, shared Party/Identity operations and an exposed read model backed by a private SQL projection. [TESTS.md](examples/booking/TESTS.md) names its proof and remaining gaps. Its [app map](examples/booking/apps/api/MAP.md) is generated; the freshness test never writes it. Run `pnpm --filter @example/api map` for the app map, with `--json`, `--mermaid` or `--write` to select output or refresh MAP.md.
+## Releases
 
-## Change the template
-
-Keep thin configs, CI, hooks, environment checks and wiring tests when you adapt the stack. Match roots in `pnpm-workspace.yaml`, `layout()` and `featuresConfig()`. A Next app uses `host: "next"` and the Next preset; it already has a Host.
-
-For a browser client, export endpoint descriptors from `ways-in/<name>/endpoints.ts`. Both the router and client read those descriptors. Bindings and storage never enter a contract dependency tree. See [clients and endpoints](packages/application/README.md#endpoints-clients-and-failures).
-
-The site has a home page, a handwritten start page and a generated rules page. Ask before adding a page. Change rule docs and the rules README first, then run `pnpm --filter @house-rules/site generate`. Never edit generated rules by hand.
-
-Only `.github/workflows/publish.yml` publishes packages. A release bumps each package and every workspace pin on it together, with approval. Do not publish by hand. See [the release guide](docs/release.md) for the workflow and how to adopt it.
+Three packages publish, only through `.github/workflows/publish.yml`: `@house-rules/rules`, `@house-rules/stack` and `@house-rules/domain-postgres`. A release bumps a package and every workspace pin on it together, with approval. See [the release guide](docs/release.md) and, for trying changes in another app without npm, [the local registry guide](docs/local-registry.md).
 
 ## Commands
 

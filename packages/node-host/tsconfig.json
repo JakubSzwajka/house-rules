@@ -1,9 +1,0 @@
-{
-  "extends": "@house-rules/rules/tsconfig/strict.json",
-  "compilerOptions": {
-    "types": ["node"],
-    "lib": ["ES2024", "DOM", "DOM.Iterable"],
-    "allowImportingTsExtensions": true
-  },
-  "include": ["src/**/*.ts"]
-}
