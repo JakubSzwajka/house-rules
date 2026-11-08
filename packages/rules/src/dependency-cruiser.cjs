@@ -50,102 +50,7 @@ function layout(options = {}) {
       rule(
         "packages-public-entry-only",
         { path: p.workspaceRoot },
-        { path: `${p.packagesRoot}[^/]+/(?!${p.publicEntries})`, pathNot: "^$1/" },
-      ),
-      // A contract entry is what a browser bundle loads, so everything it reaches must be browser-safe.
-      rule(
-        "contract-entry-is-browser-safe",
-        { path: p.contractEntry },
-        {
-          reachable: true,
-          pathNot: p.browserSafe,
-        },
-      ),
-      rule(
-        "features-do-not-import-outer-folders",
-        { path: p.featureFolder, pathNot: p.testPath },
-        { path: [p.waysInRoot, p.compositionRoot], reachable: true },
-      ),
-      rule(
-        "read-models-import-packages-only",
-        { path: p.readModelFolder, pathNot: p.testPath },
-        { path: p.appFolder, pathNot: ["^$1/", p.projectionContract] },
-      ),
-      rule(
-        "read-models-import-packages-only",
-        { path: p.projectionFolder, pathNot: p.testPath },
-        { path: p.appFolder, pathNot: "^$1/" },
-      ),
-      rule(
-        "ways-in-import-app-folders-only",
-        { path: p.waysInRoot, pathNot: p.testPath },
-        {
-          path: p.appFolder,
-          pathNot: [
-            p.waysInRoot,
-            p.featuresRoot,
-            p.compositionRoot,
-            p.readModelsRoot,
-            p.projectionsRoot,
-          ],
-        },
-      ),
-      rule(
-        "ways-in-do-not-import-read-model-values",
-        { path: p.waysInRoot, pathNot: p.testPath },
-        {
-          path: [p.readModelsRoot, p.projectionsRoot],
-          pathNot: p.readModelValues,
-          dependencyTypesNot: ["type-only"],
-        },
-      ),
-      // Check every way file, including barrels. Do not follow composition into its captured services.
-      // SQL and adapter imports are skipped here and refused by the third rule, so each reports once.
-      rule(
-        "ways-in-import-contracts-only",
-        { path: p.waysInImporter, pathNot: [p.testPath, p.waysInPage] },
-        {
-          pathNot: [...p.waysInValues, ...p.waysInAdapterImports],
-          dependencyTypesNot: ["type-only"],
-        },
-      ),
-      rule(
-        "ways-in-import-contracts-only",
-        { path: p.waysInPage, pathNot: p.testPath },
-        {
-          pathNot: [...p.waysInValues, p.waysInThirdParty, ...p.waysInAdapterImports],
-          dependencyTypesNot: ["type-only"],
-        },
-      ),
-      rule(
-        "ways-in-import-contracts-only",
-        { path: p.waysInImporter, pathNot: p.testPath },
-        { path: p.waysInAdapterImports },
-      ),
-      rule(
-        "ways-in-do-not-import-other-ways",
-        { path: p.wayFolder, pathNot: p.testPath },
-        { path: p.waysInRoot, pathNot: "^$1/", reachable: true },
-      ),
-      rule(
-        "composition-does-not-import-ways-in",
-        { path: p.compositionRoot },
-        { path: p.waysInRoot, reachable: true },
-      ),
-      rule(
-        "read-models-public-entry-only",
-        { path: `(?:${p.folderCode}|^)` },
-        { path: `${p.folderSource}(?!(?:index|contract)[.]ts$)`, pathNot: "^$1/" },
-      ),
-      rule(
-        "domain-imports-no-house-rules",
-        { path: p.domainPackage },
-        { path: p.houseRulesImport },
-      ),
-      rule(
-        "application-does-not-import-event-log",
-        { path: p.applicationPackage },
-        { path: p.eventLogImport },
+        { path: `${p.packagesRoot}[^/]+/(?!${p.publicEntry})`, pathNot: "^$1/" },
       ),
       rule(
         "no-unresolved-deep-package-imports",
@@ -165,18 +70,10 @@ function layout(options = {}) {
         p.generatedDeclaration ? { pathNot: p.generatedDeclaration } : {},
         { couldNotResolve: true },
       ),
-      moduleRule("app-folders", {
-        path: p.appSource,
-        pathNot: [...p.appLayerOrEntry, p.testPath],
-      }),
       moduleRule("no-ownerless-files", { path: p.ownerlessPath }),
       moduleRule("package-root-files", {
-        path: p.folderRootFile,
-        pathNot: [p.folderRootFileAllowed, p.testPath],
-      }),
-      moduleRule("package-root-files", {
         path: p.packageRootFile,
-        pathNot: [p.packageRootFileAllowed, p.testPath, p.contractEntryFile],
+        pathNot: [p.packageRootFileAllowed, p.testPath],
       }),
       rule(
         "domain-does-not-import-adapters",
@@ -188,56 +85,20 @@ function layout(options = {}) {
         { path: p.packageCode, pathNot: [...p.adapterImporters, p.testPath] },
         { path: p.ownAdapterTests },
       ),
-      // A subject reaches another subject directly, never through the package's own index.ts or
-      // facade.ts: that barrel re-exports every subject, so it would hide a cycle from the
-      // subject-folder check. storage.ts stays importable.
+      // A subject reaches another subject directly, never through the package's own index.ts: that
+      // barrel re-exports every subject, so it would hide a cycle from the subject-folder check.
       rule(
         "subjects-do-not-import-package-root",
-        {
-          path: p.subjectFile,
-          pathNot: [...p.notSubjectFolder.slice(1), p.testPath],
-        },
+        { path: p.subjectFile, pathNot: [...p.notSubjectFolder, p.testPath] },
         { path: p.ownRootBarrel },
       ),
-      // Domain code names its storage port; only an adapter imports SQL or platform packages.
+      // Domain code stays free of SQL and platform packages; only an adapter imports them.
       // A listed workspace package gets its own rule, with an exact exception for its own folder,
       // so it may import its own files and no other package's folder can pass for it.
       rule(
         "adapter-imports-only-in-adapters",
         { path: p.packageSourceRoot, pathNot: p.adapterCode },
         { path: p.adapterImports.installed },
-      ),
-      rule(
-        "contract-entry-is-browser-safe",
-        { path: p.appDescriptorEntry },
-        { reachable: true, pathNot: p.browserSafe },
-      ),
-      rule(
-        "domain-does-not-import-adapters",
-        { path: p.folderCode, pathNot: p.folderAdapterImporters },
-        { path: "^$1/adapters/", pathNot: "^$1/adapters/tests/" },
-      ),
-      rule(
-        "domain-does-not-import-adapters",
-        { path: p.folderCode, pathNot: [p.folderAdapterImporters, p.testPath] },
-        { path: "^$1/adapters/tests/" },
-      ),
-      rule(
-        "subjects-do-not-import-package-root",
-        { path: p.folderSubject, pathNot: p.testPath },
-        { path: "^$1/(?:index|facade|contract)[.]ts$" },
-      ),
-      rule(
-        "adapter-imports-only-in-adapters",
-        { path: p.folderSource, pathNot: p.folderAdapters },
-        { path: p.adapterImports.installed },
-      ),
-      ...p.adapterImports.workspace.map(({ path }) =>
-        rule(
-          "adapter-imports-only-in-adapters",
-          { path: p.folderSource, pathNot: p.folderAdapters },
-          { path },
-        ),
       ),
       ...p.adapterImports.workspace.map(({ folder, path }) =>
         rule(
@@ -275,10 +136,6 @@ function subjectFolderPatterns(config) {
   }
   return {
     package: sourceRule.from.path,
-    folder: rules.find(
-      ({ name, from }) =>
-        name === "domain-does-not-import-adapters" && from.path !== sourceRule.from.path,
-    )?.from.path,
     adapter: adapterPath.replace(/^\^\$1\//u, `^${packageMatch[1]}/`),
     test: testRule.to.path,
   };

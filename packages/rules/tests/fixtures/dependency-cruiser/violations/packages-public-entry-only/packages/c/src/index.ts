@@ -1,1 +1,1 @@
-export { contract } from "./contract";
+export const c = { name: "c" };

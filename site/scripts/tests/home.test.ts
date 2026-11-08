@@ -13,18 +13,13 @@ const quotedRefusals = [
       "Blocked hook bypass. Do not use --no-verify, git commit -n, core.hooksPath, or LEFTHOOK=0.",
   },
   {
-    source: "packages/rules/bin/migrations.mjs",
-    quote: "`  ${relative(file)}:${line}: ${message}`",
-  },
-  {
-    source: "packages/rules/bin/migrations.mjs",
-    quote: 'SQL names "${tableName(name)}", a table ${other} owns.',
+    source: "packages/rules/src/no-hand-run-effect.mjs",
+    quote: "{{call}} runs an Effect by hand.",
   },
   { source: "packages/rules/src/no-hand-rolled-surface.mjs", quote: "builds a surface by hand." },
 ] as const;
 
-const tableRefusal =
-  'packages/trips/src/list.ts:1: SQL names "bookings", a table packages/bookings owns.';
+const runRefusal = "Effect.runPromise runs an Effect by hand.";
 const demoSource = join(siteRoot, "src", "components", "refusal-demo.astro");
 
 const index = join(siteRoot, "dist", "index.html");
@@ -107,7 +102,7 @@ describe("home links", () => {
     );
     assert.deepEqual(links, [
       "/start/#what-happens-on-commit",
-      "/rules/#house-rules-migrations",
+      "/rules/#no-hand-run-effect",
       "/rules/#no-hand-rolled-surface",
     ]);
     for (const link of links) assert.ok(liveTarget(link), link);
@@ -120,10 +115,10 @@ describe("built home page", { skip }, () => {
     const page = text(html);
     assert.match(html, /role="tablist"[^>]*hidden/, "the tablist is not hidden until JS runs");
     for (const { quote } of quotedRefusals) {
-      // The template-hole quotes are source-only; the page carries the filled-in refusal below.
-      if (!quote.includes("${")) assert.ok(page.includes(quote), quote);
+      // The placeholder quotes are source-only; the page carries the filled-in refusal below.
+      if (!quote.includes("{{")) assert.ok(page.includes(quote), quote);
     }
-    assert.ok(page.includes(tableRefusal), tableRefusal);
+    assert.ok(page.includes(runRefusal), runRefusal);
     assert.doesNotMatch(html, /<article[^>]*class="[^"]*panel/, "a panel is an article");
     assert.ok(page.includes(`${readRuleRows().length} rules`), "rule count");
     assert.ok(page.includes(`${TOOLS.length} tools`), "tool count");

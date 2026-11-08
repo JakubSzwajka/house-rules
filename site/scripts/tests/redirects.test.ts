@@ -53,28 +53,40 @@ describe("Caddy redirects", () => {
     );
   });
 
-  it("keeps removed module rules at the retirement notice and renamed rules at their rows", () => {
+  it("keeps removed module rules at the retirement notice", () => {
     for (const [tool, id] of [
       ["dependency-cruiser", "modules-import-modules-and-packages-only"],
       ["dependency-cruiser", "modules-import-other-modules-through-index"],
       ["node", "no-folder-module-cycles"],
     ])
       assert.equal(redirects.get(`/rules/${tool}/${id}/`), "/rules/#retired-v1-rules");
-    for (const [tool, oldId, id] of [
-      [
-        "dependency-cruiser",
-        "nodes-do-not-import-outer-folders",
-        "features-do-not-import-outer-folders",
-      ],
-      ["node", "no-app-node-cycles", "no-app-feature-cycles"],
-      [
-        "dependency-cruiser",
-        "ways-in-do-not-import-module-values",
-        "ways-in-do-not-import-read-model-values",
-      ],
-      ["dependency-cruiser", "folder-modules-public-entry-only", "read-models-public-entry-only"],
+  });
+
+  it("keeps the retired kit rule paths, renamed ones included, at the retirement notice", () => {
+    for (const [tool, id] of [
+      ["eslint", "command-kind"],
+      ["eslint", "feature-file"],
+      ["eslint", "feature-builders"],
+      ["dependency-cruiser", "contract-entry-is-browser-safe"],
+      ["dependency-cruiser", "nodes-do-not-import-outer-folders"],
+      ["dependency-cruiser", "features-do-not-import-outer-folders"],
+      ["dependency-cruiser", "read-models-import-packages-only"],
+      ["dependency-cruiser", "folder-modules-public-entry-only"],
+      ["dependency-cruiser", "read-models-public-entry-only"],
+      ["dependency-cruiser", "ways-in-import-app-folders-only"],
+      ["dependency-cruiser", "ways-in-do-not-import-module-values"],
+      ["dependency-cruiser", "ways-in-do-not-import-read-model-values"],
+      ["dependency-cruiser", "ways-in-import-contracts-only"],
+      ["dependency-cruiser", "ways-in-do-not-import-other-ways"],
+      ["dependency-cruiser", "composition-does-not-import-ways-in"],
+      ["dependency-cruiser", "domain-imports-no-house-rules"],
+      ["dependency-cruiser", "application-does-not-import-event-log"],
+      ["dependency-cruiser", "app-folders"],
+      ["node", "no-app-node-cycles"],
+      ["node", "no-app-feature-cycles"],
+      ["node", "house-rules-migrations"],
     ])
-      assert.equal(redirects.get(`/rules/${tool}/${oldId}/`), `/rules/#${id}`);
+      assert.equal(redirects.get(`/rules/${tool}/${id}/`), "/rules/#retired-rules", id);
   });
 
   it("keeps redirect paths unique and adds no wildcard", () => {

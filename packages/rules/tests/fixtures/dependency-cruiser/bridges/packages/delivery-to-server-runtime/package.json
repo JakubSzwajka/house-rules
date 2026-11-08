@@ -1,1 +1,0 @@
-{"name": "@acme/delivery-to-server-runtime", "exports": {".": "./src/index.ts", "./contract": "./src/contract.ts"}}

@@ -39,25 +39,18 @@ const cases: readonly {
     link: "/start/#what-happens-on-commit",
   },
   {
-    id: "table",
-    tab: "Read another package's table",
+    id: "run",
+    tab: "Run an Effect by hand in a test",
     gutter: "1",
-    code: "sql`select * from bookings`",
-    // The path is made up for the example, so the label says so.
-    outputLabel: "Example output",
-    // packages/rules/bin/migrations.mjs:92 (path:line prefix, `report`) and :237 (message), first sentence
-    refusal: [
-      { code: "packages/trips/src/list.ts:1" },
-      ": SQL names ",
-      { code: '"bookings"' },
-      ", a table ",
-      { code: "packages/bookings" },
-      " owns.",
-    ],
+    code: "await Effect.runPromise(program)",
+    // packages/rules/src/no-hand-run-effect.mjs:53, message "handRun", first sentence
+    refusal: [{ code: "Effect.runPromise" }, " runs an Effect by hand."],
     plain: [
-      "The trips package may not read the bookings table. The bookings package owns it, so call its service.",
+      "Tests run Effects through ",
+      { code: "@effect/vitest" },
+      ", so the harness owns the scope, the clock and the cleanup.",
     ],
-    link: "/rules/#house-rules-migrations",
+    link: "/rules/#no-hand-run-effect",
   },
   {
     id: "tool",
@@ -66,7 +59,7 @@ const cases: readonly {
     code: 'Tool.make("remove_trip", …)',
     // packages/rules/src/no-hand-rolled-surface.mjs:62, message "handRolled", first sentence
     refusal: [{ code: "Tool.make" }, " builds a surface by hand."],
-    plain: ["An MCP tool must be built from a contract, not written by hand."],
+    plain: ["An MCP tool comes from the model's served Domain.Api, not from code written by hand."],
     link: "/rules/#no-hand-rolled-surface",
   },
 ];

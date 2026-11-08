@@ -108,10 +108,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { ESLint } from "eslint";
-import houseRules, { featuresConfig } from "@house-rules/rules";
+import houseRules, { workspaceConfig } from "@house-rules/rules";
 import { layout } from "@house-rules/rules/dependency-cruiser";
-import { verifyRoundTwo } from "./command-kind-round2-fixture.mjs";
-import { verifyRoundThree } from "./command-kind-round3-fixture.mjs";
 
 assert.equal(houseRules.meta.name, "@house-rules/rules");
 assert.equal(houseRules.configs.recommended[0].rules["house-rules/comment-discipline"], "error");
@@ -135,23 +133,20 @@ for (const preset of [
 const pins = spawnSync("node_modules/.bin/house-rules-pins", ["pinned.json"], { encoding: "utf8" });
 assert.equal(pins.status, 0, pins.stderr);
 assert.match(pins.stdout, /pins: every dependency is exact in pinned[.]json/);
-const migrations = spawnSync("node_modules/.bin/house-rules-migrations", [], { encoding: "utf8" });
-assert.equal(migrations.status, 0, migrations.stderr);
-assert.match(migrations.stdout, /migrations: no SQL migrations found/);
+assert.equal(existsSync("node_modules/.bin/house-rules-migrations"), false);
 const layoutBin = spawnSync("node_modules/.bin/house-rules-layout", [], { encoding: "utf8" });
 assert.equal(layoutBin.status, 0, layoutBin.stderr);
 assert.match(layoutBin.stdout, /layout: no package or subject-folder cycles/);
 assert.deepEqual(houseRules.configs.testing[0].rules, {
   "house-rules/testing-exports-only-in-tests": "error",
 });
-assert.equal(houseRules.configs.features[0].rules["house-rules/no-hand-rolled-surface"], "error");
+assert.equal(houseRules.configs.workspace[0].rules["house-rules/no-hand-rolled-surface"], "error");
 assert.equal(
-  houseRules.configs.features[0].rules["house-rules/testing-exports-only-in-tests"],
+  houseRules.configs.workspace[0].rules["house-rules/testing-exports-only-in-tests"],
   "error",
 );
-assert.equal(houseRules.configs.features[1].rules["house-rules/feature-file"][0], "error");
-assert.equal(houseRules.configs.features[1].rules["house-rules/feature-builders"][0], "error");
-assert.equal(houseRules.configs.features[2].rules["house-rules/no-hand-run-effect"], "error");
+assert.equal(houseRules.configs.workspace[1].rules["house-rules/esm-only-effect"][0], "error");
+assert.equal(houseRules.configs.workspace[2].rules["house-rules/no-hand-run-effect"], "error");
 
 const presetUrl = new URL(import.meta.resolve("@house-rules/rules/dependency-cruiser"));
 for (const sibling of ["layout-option-parsers.cjs", "layout-patterns.cjs", "hosts.cjs"]) {
@@ -159,57 +154,15 @@ for (const sibling of ["layout-option-parsers.cjs", "layout-patterns.cjs", "host
 }
 const dependencyCruiserConfig = createRequire(import.meta.url)("./.dependency-cruiser.cjs");
 assert.deepEqual(dependencyCruiserConfig, layout({ scope: "@acme/" }));
-assert.equal(dependencyCruiserConfig.forbidden.length, 37);
-assert.ok(dependencyCruiserConfig.forbidden.some(({ name, severity }) => name === "ways-in-import-contracts-only" && severity === "error"));
+assert.equal(dependencyCruiserConfig.forbidden.length, 16);
+assert.ok(dependencyCruiserConfig.forbidden.some(({ name, severity }) => name === "adapter-imports-only-in-adapters" && severity === "error"));
 assert.equal(dependencyCruiserConfig.options.parser, "swc");
 
-await verifyRoundTwo({ ESLint, houseRules, root: path.resolve("ancestor/src/round-two-consumer") });
-console.log("packed physical round two graphs: installed recommended-only verified");
-await verifyRoundThree({ ESLint, houseRules, root: path.resolve("round-three-consumer") });
-console.log("packed physical round three graphs: installed recommended-only verified");
-const defaultOnly = new ESLint({ overrideConfigFile: true, overrideConfig: houseRules.configs.recommended });
-const commandSource = 'import { defineFeature as build } from "@house-rules/application/contract"; export const probe = build("probe", { flags: { readOnly: true } });';
-const commandPath = "custom/api/src/features/probe/index.ts";
-assert.equal((await defaultOnly.calculateConfigForFile(commandPath)).rules["house-rules/command-kind"][0], 2);
-const [wrongKind] = await defaultOnly.lintText(commandSource, { filePath: commandPath });
-assert.deepEqual(wrongKind.messages.map(({ruleId, severity}) => ({ruleId, severity})), [{ruleId: "house-rules/command-kind", severity: 2}]);
-const [command] = await defaultOnly.lintText(commandSource.replace("readOnly: true", "readOnly: false"), { filePath: commandPath });
-assert.deepEqual(command.messages, []);
-const [query] = await defaultOnly.lintText(commandSource.replace("defineFeature", "defineReadModel").replace("flags: { readOnly: true }", "edges: []"), { filePath: "custom/api/src/read-models/probe/index.ts" });
-assert.deepEqual(query.messages, []);
-const put = (file, code) => {
-  mkdirSync(path.dirname(file), { recursive: true });
-  writeFileSync(file, code);
-};
-put("pnpm-workspace.yaml", 'packages:\\n  - "modules/*"\\n');
-put("modules/bridge/package.json", '{"name":"@packed/bridge","exports": {".": "./src/index.ts"}}');
-put("modules/bridge/src/index.ts", 'export { defineFeature as make } from "@house-rules/application/contract";');
-for (const file of ["custom/api/src/test/make.ts", "custom/api/src/tests/make.ts", "custom/api/scripts/make.ts"])
-  put(file, 'import { defineFeature } from "@house-rules/application/contract"; export const make = (n, o) => defineFeature(n, o);');
-for (const [name, source, file = commandPath] of [
-  ...[
-    ['call', 'defineFeature.call(null, "p", { flags: { readOnly: true } })'],
-    ['apply', 'defineFeature.apply(null, ["p", { flags: { readOnly: true } }])'],
-    ['bind', 'defineFeature.bind(null)("p", { flags: { readOnly: true } })'],
-    ['Reflect.apply', 'Reflect.apply(defineFeature, null, ["p", { flags: { readOnly: true } }])'],
-    ['sequence', '(0, defineFeature)("p", { flags: { readOnly: true } })'],
-  ].map(([name, expression]) => [name, 'import { defineFeature } from "@house-rules/application/contract"; ' + expression + ';']),
-  ['namespace destructure', 'import * as kit from "@house-rules/application/contract"; const { defineFeature: make } = kit; make("p", { flags: { readOnly: true } });'],
-  ['dynamic import', 'const { defineFeature: make } = await import("@house-rules/application/contract"); make("p", { flags: { readOnly: true } });'],
-  ...['__proto__', '"__proto__"'].flatMap((key) => ['js', 'mjs'].map((extension) => [key + extension, commandSource.replace('flags: { readOnly: true }', key + ': { flags: { readOnly: true } }'), commandPath.replace(/ts$/u, extension)])),
-  ...['../../test/make.ts', '../../tests/make.ts', '../../../scripts/make.ts', '@packed/bridge'].map((from) => [from, 'import { make } from "' + from + '"; make("p", { flags: { readOnly: true } });']),
-  ['feature named test', commandSource, 'custom/api/src/features/test/index.ts'],
-  ['feature named tests', commandSource, 'custom/api/src/features/tests/index.ts'],
-]) {
-  const [result] = await defaultOnly.lintText(source, { filePath: file });
-  assert.ok(result.messages.some(({ ruleId, severity }) => ruleId === "house-rules/command-kind" && severity === 2), name + JSON.stringify(result.messages));
-  console.log("packed recommended-only rejects: " + name);
-}
-const insideSrc = new ESLint({ cwd: path.resolve("custom/api/src"), overrideConfigFile: true, overrideConfig: houseRules.configs.recommended });
-assert.ok((await insideSrc.lintText(commandSource, { filePath: path.resolve(commandPath) }))[0].messages.some(({ ruleId, severity }) => ruleId === "house-rules/command-kind" && severity === 2));
-const fullApp = new ESLint({ overrideConfigFile: true, overrideConfig: [...houseRules.configs.recommended, ...featuresConfig({ appsDir: ["custom"], packagesDir: ["modules"] })] });
-assert.deepEqual((await fullApp.lintText(commandSource.replace("defineFeature", "defineReadModel").replace("flags: { readOnly: true }", "edges: []"), { filePath: "custom/api/src/read-models/probe/index.ts" }))[0].messages, []);
-console.log("packed recommended-only: cwd inside src enforced; false command and direct read model clean; full app query clean");
+assert.deepEqual(Object.keys(houseRules.rules).filter((name) => /command-kind|feature-/u.test(name)), []);
+const fullApp = new ESLint({ overrideConfigFile: true, overrideConfig: [...houseRules.configs.recommended, ...workspaceConfig({ appsDir: ["custom"], packagesDir: ["modules"] })] });
+const [surface] = await fullApp.lintText('import { Tool } from "effect/unstable/ai";\\nexport const tool = Tool.make("ping");\\n', { filePath: "custom/api/src/mcp/tool.ts" });
+assert.deepEqual(surface.messages.map(({ ruleId, severity }) => ({ ruleId, severity })), [{ ruleId: "house-rules/no-hand-rolled-surface", severity: 2 }]);
+console.log("packed workspace preset: hand-rolled surface rejected");
 const eslint = new ESLint({ cwd: process.cwd(), overrideConfigFile: "eslint.config.mjs" });
 const passing = await eslint.lintFiles(["pass.js", "pass.ts"]);
 assert.deepEqual(
@@ -284,7 +237,7 @@ assert.deepEqual(
   );
 }
 
-test("packs and installs the exact package before linting fresh JS, TS, Markdown, design, and shadcn fixtures, loading the dependency-cruiser preset, resolving the config presets, and running the pins, migrations, and layout bins", async () => {
+test("packs and installs the exact package before linting fresh JS, TS, Markdown, design, and shadcn fixtures, loading the dependency-cruiser preset, resolving the config presets, and running the pins and layout bins", async () => {
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "house-rules-pack-"));
   const packageDirectory = path.join(temporaryDirectory, "package");
   const fixtureDirectory = path.join(temporaryDirectory, "fixture");
@@ -304,14 +257,6 @@ test("packs and installs the exact package before linting fresh JS, TS, Markdown
     assert.ok(packageArchive, "npm pack did not produce a tarball");
 
     await writeFixtureFiles(fixtureDirectory);
-    await writeFile(
-      path.join(fixtureDirectory, "command-kind-round2-fixture.mjs"),
-      await readFile(new URL("./command-kind-round2-fixture.mjs", import.meta.url), "utf8"),
-    );
-    await writeFile(
-      path.join(fixtureDirectory, "command-kind-round3-fixture.mjs"),
-      await readFile(new URL("./command-kind-round3-fixture.mjs", import.meta.url), "utf8"),
-    );
     const packageJsonPath = path.join(fixtureDirectory, "package.json");
     const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
     packageJson.dependencies["@house-rules/rules"] =

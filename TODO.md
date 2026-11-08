@@ -18,7 +18,7 @@ Open work, not alternate law.
 
 ## Rules
 
-- [ ] Decide which `@house-rules/rules` checks still apply to Alchemy apps. The feature, read-model, way, migration and SQL rules describe the retired kits; other apps still consume them, so they stay until those apps move.
+- [ ] Release `@house-rules/rules` with the retired-kit checks removed (feature, read-model, way, migration and SQL rules, `configs.features` renamed to `configs.workspace`). Apps on 0.20.1 keep the old checks until they upgrade.
 - [ ] Consider lint rules for the new block rules: `requirePermission` first in a guarded `decide`, `Forbidden` in `rejects`, no `Date.now()` or `Clock` in a model, kebab-case kind-suffixed file names.
 
 ## Decisions still open
