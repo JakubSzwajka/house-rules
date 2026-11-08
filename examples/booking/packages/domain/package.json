@@ -1,0 +1,26 @@
+{
+  "name": "@example/booking-domain",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Booking reference model on Alchemy Domain: bookings, payments and their rules.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@alchemy.run/domain": "2.0.0-beta.85",
+    "@house-rules/stack": "workspace:0.1.0",
+    "alchemy": "2.0.0-beta.85",
+    "effect": "4.1.2"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.1.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}

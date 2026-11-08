@@ -1,38 +1,13 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { assertCleanTarball, assertTarballRulesAreLive } from "./tarball-content.mjs";
-import { assertNextHost } from "./packed-next-host.mjs";
-import { assertPackedExpressHost, expressConsumerFiles } from "./packed-express-host.mjs";
-import { workspaceConsumerFiles } from "./packed-workspace.mjs";
-import {
-  assertContractRuleIsLive,
-  assertFrameworkContents,
-  assertPackedComments,
-  commentsConsumerFiles,
-} from "./packed-comments.mjs";
-import { assertPackedAuth, authConsumerFiles } from "./packed-auth.mjs";
-import { SUPPORT_MODULES, supportImportLines } from "./packed-support-modules.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
-const PUBLISHED_IN_BUILD_ORDER = [
-  "migrations",
-  "domain",
-  "application",
-  "auth-jwt",
-  "identity",
-  "party",
-  "call-audit",
-  "comments",
-  "node-host",
-  "express-host",
-  "rules",
-  ...SUPPORT_MODULES,
-];
+const PUBLISHED = ["rules", "stack"];
 const ALLOWED_TOP = new Set(["package.json", "README.md", "AGENTS.md", "LICENSE"]);
 
 const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
@@ -42,7 +17,6 @@ const run = (command, args, cwd, options = {}) => {
     cwd,
     encoding: "utf8",
     stdio: options.capture ? ["ignore", "pipe", "pipe"] : "inherit",
-    env: { ...process.env, ...options.env },
   });
 };
 const write = (base, files) => {
@@ -71,11 +45,7 @@ function checkTarball(folder, tarball) {
     run("tar", ["-xzOf", tarball, "package/package.json"], root, { capture: true }),
   );
   assert.equal(packed.private, undefined, `${source.name} must not be private`);
-  assert.doesNotMatch(
-    JSON.stringify(packed),
-    /"workspace:/u,
-    `${source.name} ships a workspace: spec`,
-  );
+  assert.doesNotMatch(JSON.stringify(packed), /"workspace:/u, `${source.name} ships workspace:`);
   const listed = new Set(source.files);
   for (const file of files) {
     const top = file.split("/")[0];
@@ -85,210 +55,82 @@ function checkTarball(folder, tarball) {
     );
   }
   assertCleanTarball(source.name, tarball, root);
-  assertFrameworkContents(source, packed, files);
   if (source.publishConfig?.exports === undefined) return;
   assert.deepEqual(packed.exports, source.publishConfig.exports, `${source.name} exports`);
   for (const target of targets(source.publishConfig.exports)) {
     assert.ok(files.includes(target), `${source.name}: ${target} is missing from the tarball`);
   }
+  assert.ok(files.includes("AGENTS.md"), `${source.name} ships no AGENTS.md`);
   assert.ok(!files.some((file) => file.startsWith("src/")), `${source.name} ships src/`);
-  assert.ok(!files.some((file) => /(?:^|\/)tests\//u.test(file)), `${source.name} ships tests`);
 }
 
-const sourceState = () => ({
-  head: run("git", ["rev-parse", "HEAD"], root, { capture: true }).trim(),
-  status: run("git", ["status", "--porcelain=v1", "--untracked-files=all"], root, {
-    capture: true,
-  }).trim(),
-});
+const STACK_PROBE = `import * as Effect from "effect/Effect";
+import { authorOf, CurrentActor, person, requirePermission, Roles, system } from "@house-rules/stack";
+const permissions = await Effect.runPromise(
+  Effect.gen(function* () {
+    return (yield* Roles).permissionsOf(["member", "unknown"]);
+  }).pipe(Effect.provide(Roles.layer({ member: ["notes:write"] }))),
+);
+assert.deepEqual(permissions, ["notes:write"]);
+const write = Effect.map(requirePermission("notes:write"), authorOf);
+assert.equal(await Effect.runPromise(Effect.provideService(write, CurrentActor, person("ann", { permissions }))), "ann");
+assert.equal(
+  await Effect.runPromise(Effect.provideService(write, CurrentActor, system("digest", ["notes:write"]))),
+  "system:digest",
+);
+const refused = await Effect.runPromise(Effect.flip(Effect.provideService(write, CurrentActor, person("bob"))));
+assert.equal(refused._tag, "Forbidden");
+`;
+
 const work = mkdtempSync(path.join(os.tmpdir(), "house-rules-consumer-"));
-const proof = {
-  command: `${process.env.KEEP === "1" ? "KEEP=1 " : ""}pnpm run packed-consumer`,
-  cwd: root,
-  node: process.version,
-  startedAt: new Date().toISOString(),
-  source: sourceState(),
-  tarballs: {},
-  exitCode: 1,
-};
 try {
   const packs = path.join(work, "packs");
   const tarballs = {};
-  for (const folder of PUBLISHED_IN_BUILD_ORDER) {
+  for (const folder of PUBLISHED) {
     const out = run(
       "pnpm",
       ["pack", "--pack-destination", packs],
       path.join(root, "packages", folder),
-      { capture: true },
+      {
+        capture: true,
+      },
     );
     const tarball = out.trim().split("\n").pop().trim();
     assert.match(tarball, /\.tgz$/u, `pnpm pack printed no tarball for ${folder}:\n${out}`);
     checkTarball(folder, tarball);
-    const name = readJson(path.join(root, "packages", folder, "package.json")).name;
-    tarballs[name] = tarball;
-    const bytes = readFileSync(tarball);
-    proof.tarballs[name] = {
-      path: tarball,
-      sha256: createHash("sha256").update(bytes).digest("hex"),
-      integrity: `sha512-${createHash("sha512").update(bytes).digest("base64")}`,
-    };
+    tarballs[readJson(path.join(root, "packages", folder, "package.json")).name] = tarball;
   }
 
   const pins = readJson(path.join(root, "package.json")).devDependencies;
-  const effect = readJson(path.join(root, "packages/application/package.json")).peerDependencies
-    .effect;
-  const platformNode = readJson(path.join(root, "packages/migrations/package.json"))
-    .devDependencies["@effect/platform-node"];
+  const peers = readJson(path.join(root, "packages/stack/package.json")).peerDependencies;
   const app = path.join(work, "app");
   write(app, {
     "package.json": {
       name: "consumer",
       private: true,
       type: "module",
-      workspaces: ["apps/*", "packages/*"],
       dependencies: {
         ...Object.fromEntries(
           Object.entries(tarballs).map(([name, file]) => [name, `file:${file}`]),
         ),
-        effect,
-        "@effect/platform-node": platformNode,
-        "@effect/platform-node-shared": effect,
+        ...peers,
       },
-      devDependencies: {
-        "@shadcn/lint": pins["@shadcn/lint"],
-        "@swc/core": pins["@swc/core"],
-        "dependency-cruiser": pins["dependency-cruiser"],
-        eslint: pins.eslint,
-      },
+      devDependencies: { "@swc/core": pins["@swc/core"], eslint: pins.eslint },
     },
-    "run.mjs": `import assert from "node:assert/strict";
-${supportImportLines()}
-import * as domain from "@house-rules/domain";
-import * as domainContract from "@house-rules/domain/contract";
-import * as application from "@house-rules/application";
-import * as contract from "@house-rules/application/contract";
-import * as migrations from "@house-rules/migrations";
-import * as callAudit from "@house-rules/call-audit";
-import { NodeRuntime as NodePlatform, NodeServices } from "@effect/platform-node";
-import { Context, Effect, FileSystem, Layer, Schema } from "effect";
-assert.equal(typeof domain.defineOperation, "function");
-assert.equal(typeof domain.errorKind, "function");
-assert.equal(typeof application.bindOperation, "function");
-assert.equal(typeof application.defineFeature, "function");
-assert.equal(typeof application.defineWay, "function");
-for (const name of ["implement", "defineContract", "Grant", "route", "toTool", "toMcpHandler", "mount", "problemView"])
-  assert.equal(Object.hasOwn(application, name), false, name);
-for (const name of ["defineContract", "toTool", "NoInput", "defineOperation", "errorKind"])
-  assert.equal(Object.hasOwn(contract, name), false, name);
-assert.equal(contract.defineFeature, application.defineFeature);
-assert.equal(typeof domain.defineModule, "function");
-for (const { name, main, contract } of supportPackages) {
-  assert.ok(Object.keys(main).length > 0, name + " main entry exports");
-  if (contract !== null) assert.ok(Object.keys(contract).length > 0, name + " contract entry exports");
-}
-assert.equal(domainContract.ActorId, domain.ActorId);
-assert.equal(domainContract.UnitOfWorkFailed, domain.UnitOfWorkFailed);
-assert.notEqual(migrations.Migrations, undefined);
-assert.notEqual(callAudit.CallAudit, undefined);
-const actor = domain.Actor.make({ id: domain.ActorId.make("cold") });
-const state = { builds: 0, releases: 0, channel: "" };
-const write = domain.defineOperation("cold_write_operation", {
-  description: "Check installed transactions and Node services.",
-  input: domain.NoInput, output: Schema.String, failure: Schema.Never,
-  permission: null, transactional: true,
-});
-const feature = application.defineFeature("cold_write", {
-  ...write, edges: [write], handler: (input, { call }) => call(write, input),
-});
-const binding = application.bindOperation(write, () => Effect.gen(function* () {
-  yield* domain.UnitOfWork.required;
-  return "stable";
-}));
-const features = [feature];
-const who = { resolve: () => Effect.succeed(actor) };
-const way = application.defineWay({ name: "web", path: "/", protocol: "http", features,
-  endpoints: [application.endpoint(feature)], who, mean: application.Mean.no });
-const ways = [way];
-const lifecycle = Layer.effectDiscard(Effect.acquireRelease(
-  Effect.sync(() => { state.builds++; }), () => Effect.sync(() => { state.releases++; })));
-const watch = Layer.succeed(application.CallWatch, application.CallWatch.of({ around: (_entry, _input, work) => Effect.gen(function* () {
-  state.channel = yield* application.CallChannel;
-  return yield* work;
-}) }));
-const Probe = Context.Reference("cold/Probe", { defaultValue: () => ({}) });
-const probeLayer = Layer.succeed(Probe, {});
-const modules = { mounts: [{ service: Probe, operations: [write], bind: () => [binding], layer: probeLayer }],
-  layer: Layer.mergeAll(application.StepTrace.layer(), domain.memoryUnitOfWork, lifecycle, watch) };
-const layer = application.Runtime.layer({ mounts: modules.mounts, features, ways }).pipe(Layer.provideMerge(Layer.merge(probeLayer, modules.layer)));
-const app = application.composition({ modules, features, ways, may: Effect.succeed(application.May.fixed([])), system: [] });
-const router = application.toFetchHandler(app);
-const incoming = { headers: new Headers(), url: "http://packed.test/" };
-assert.equal(state.builds, 0);
-try {
-  const deniedWay = application.defineWay({ ...way, name: "denied", who: { resolve: () => Effect.fail(new application.Refused({ status: 401, code: "missing", message: "Sign in." })) } });
-  const denied = application.composition({ modules, features, ways: [deniedWay], may: Effect.succeed(application.May.fixed([])), system: [] });
-  try { assert.equal((await application.admit(denied, incoming, { way: "denied" })).ok, false); }
-  finally { await denied.dispose(); }
-  const admitted = await application.admit(app, incoming, { way: "web", channel: "api" });
-  assert.equal(admitted.ok, true);
-  if (!admitted.ok) throw new Error("Expected admission to succeed.");
-  assert.deepEqual(await application.call(app, feature, {}, incoming, { way: "web", admitted: admitted.value }), { ok: true, value: "stable" });
-  assert.equal(state.channel, "api");
-  const response = await router(new Request("http://packed.test/cold_write", { method: "POST", body: "{}", headers: { "content-type": "application/json" } }));
-  assert.equal(response.status, 200);
-  assert.equal(await response.json(), "stable");
-  assert.equal(state.builds, 2);
-} finally { await router.dispose(); await app.dispose(); }
-assert.equal(state.releases, 2);
-assert.equal((await router(new Request("http://packed.test/cold_write"))).status, 503);
-assert.equal((await application.call(app, feature, {}, incoming, { way: "web" })).ok, false);
-NodePlatform.runMain(Effect.gen(function* () {
-  assert.equal(yield* (yield* FileSystem.FileSystem).exists("package.json"), true);
-  const value = yield* application.runFeature(feature, {}).pipe(
-    Effect.provideContext(application.May.context(application.May.fixed([]), { features, system: [], via: "node" })),
-    Effect.provideService(application.CurrentActor, actor));
-  assert.equal(value, "stable");
-  yield* Effect.log("cold install: transactional feature, admission, in-process call, router, lazy build/disposal and Node services pass");
-}).pipe(Effect.provide(Layer.merge(layer, NodeServices.layer))));
-`,
-    ...commentsConsumerFiles,
-    ...authConsumerFiles,
-    ...expressConsumerFiles,
+    "stack.mjs": `import assert from "node:assert/strict";\n${STACK_PROBE}console.log("cold install: packed stack authorizes a person and a system actor");\n`,
+    "stack.ts": `declare const assert: Record<"equal" | "deepEqual", (a: unknown, b: unknown) => void>;\n${STACK_PROBE}`,
     "rules.mjs": [
       'import assert from "node:assert/strict";',
       'import rules from "@house-rules/rules";',
-      'assert.equal(typeof rules.rules["feature-file"], "object");',
-      'assert.equal(typeof rules.rules["feature-builders"], "object");',
-      'assert.equal(Object.hasOwn(rules.rules, "use-case-is-capability"), false);',
+      'assert.equal(typeof rules.rules["comment-discipline"], "object");',
       'console.log("cold install: packed rules plugin loads in plain node");',
-      "",
-    ].join("\n"),
-    "host.mjs": [
-      'import assert from "node:assert/strict";',
-      'import { serve } from "@house-rules/node-host";',
-      'const host = await serve(async () => new Response("packed host"), { port: 0, hostname: "127.0.0.1" });',
-      "try {",
-      '  assert.equal(await (await fetch(host.url)).text(), "packed host");',
-      "} finally { await host.close(); }",
-      'console.log("cold install: packed Node host serves a real socket");',
       "",
     ].join("\n"),
     "tsconfig.json": {
       extends: "@house-rules/rules/tsconfig/effect.json",
-      compilerOptions: { allowImportingTsExtensions: true },
-      include: ["run.ts", "comments.ts", "auth.ts", "apps/**/*.ts", "packages/**/*.ts"],
+      include: ["stack.ts"],
     },
-    "tsconfig.web.json": {
-      extends: "@house-rules/rules/tsconfig/web.json",
-      compilerOptions: { allowImportingTsExtensions: true },
-      include: ["packages/catalogue/src/contract.ts"],
-    },
-    ".dependency-cruiser.cjs":
-      'module.exports = require("@house-rules/rules/dependency-cruiser").layout({ scope: "@consumer/", trustedContractPackages: ["@house-rules/comments"] });\n',
-    ...workspaceConsumerFiles,
   });
-
-  write(app, { "run.ts": readFileSync(path.join(app, "run.mjs"), "utf8") });
   for (const lock of ["package-lock.json", "pnpm-lock.yaml", "yarn.lock"]) {
     assert.equal(existsSync(path.join(app, lock)), false, `cold consumer has ${lock}`);
   }
@@ -297,49 +139,12 @@ NodePlatform.runMain(Effect.gen(function* () {
     ["install", "--no-audit", "--no-fund", "--ignore-scripts", "--package-lock=false"],
     app,
   );
-  run("npm", ["ls", "effect", "@effect/platform-node", "@effect/platform-node-shared"], app);
-  const shared = readJson(path.join(app, "node_modules/@effect/platform-node-shared/package.json"));
-  assert.equal(shared.version, effect, "cold install resolves the matching Node shared package");
-  console.log(
-    `cold install pair: effect ${effect}, platform-node/shared ${platformNode}; no input lockfile`,
-  );
-  run(process.execPath, ["--no-experimental-strip-types", "host.mjs"], app);
   run(process.execPath, ["--no-experimental-strip-types", "rules.mjs"], app);
-  run(process.execPath, ["--no-experimental-strip-types", "run.mjs"], app);
-  assertPackedComments(app, { run, write, failure });
-  assertPackedAuth(app, { run });
-  const tsc = path.join(root, "node_modules/.bin/tsc");
-  assertPackedExpressHost(app, tsc, { run });
-  run(tsc, ["--project", "tsconfig.json"], app);
-  run(tsc, ["--project", "tsconfig.web.json"], app);
-  run(
-    path.join(app, "node_modules/.bin/depcruise"),
-    ["--config", ".dependency-cruiser.cjs", "--output-type", "err-long", "apps", "packages"],
-    app,
-  );
-  run(process.execPath, ["node_modules/@house-rules/rules/bin/layout.mjs"], app);
-
-  assertContractRuleIsLive(app, { write, failure });
-  assertNextHost(app, tsc, { run, write, readJson, failure });
+  run(process.execPath, ["--no-experimental-strip-types", "stack.mjs"], app);
+  run(path.join(root, "node_modules/.bin/tsc"), ["--project", "tsconfig.json", "--noEmit"], app);
   assertTarballRulesAreLive(work, root);
-  console.log("packed consumer: tarballs, plain node, tsc, layout rules and the Next host pass");
-  proof.exitCode = 0;
+  console.log("packed consumer: rules and stack tarballs install, load and typecheck cold");
 } finally {
-  proof.finishedAt = new Date().toISOString();
-  proof.sourceAfter = sourceState();
-  write(work, { "proof.json": proof });
-  console.log(
-    `packed consumer exit: ${proof.exitCode}; metadata: ${path.join(work, "proof.json")}`,
-  );
   if (process.env.KEEP === "1") console.log(`kept ${work}`);
   else rmSync(work, { recursive: true, force: true });
-}
-
-function failure(command, args, cwd) {
-  try {
-    run(command, args, cwd, { capture: true });
-  } catch (error) {
-    return `${error.stdout}${error.stderr}`;
-  }
-  return "";
 }

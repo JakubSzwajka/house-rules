@@ -1,0 +1,8 @@
+{
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["src/**/*.ts", "alchemy.run.ts", "vitest.config.ts"]
+}

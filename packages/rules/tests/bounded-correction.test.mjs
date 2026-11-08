@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { it } from "node:test";
@@ -19,12 +19,6 @@ const lint = (cwd, code, file) =>
         m.ruleId === "house-rules/esm-only-effect" ||
         m.fatal,
     );
-for (const name of ["comments", "party", "identity"]) {
-  it(`allows the real finished ${name} descriptor and binder door`, () => {
-    const file = `packages/${name}/src/index.ts`;
-    assert.deepEqual(lint(repo, readFileSync(path.join(repo, file), "utf8"), file), []);
-  });
-}
 for (const [name, binder] of [
   ["comments", "bindComments"],
   ["party", "bindParty"],

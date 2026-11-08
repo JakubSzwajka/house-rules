@@ -1,0 +1,58 @@
+{
+  "name": "@house-rules/stack",
+  "version": "0.1.0",
+  "description": "Auth, access and reusable domain modules for apps built on Alchemy Domain.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist",
+    "AGENTS.md",
+    "DESIGN.md",
+    "README.md"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JakubSzwajka/house-rules.git",
+    "directory": "packages/stack"
+  },
+  "bugs": {
+    "url": "https://github.com/JakubSzwajka/house-rules/issues"
+  },
+  "homepage": "https://github.com/JakubSzwajka/house-rules",
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "prepack": "pnpm run build",
+    "typecheck": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "jose": "6.2.15"
+  },
+  "peerDependencies": {
+    "@alchemy.run/domain": "2.0.0-beta.85",
+    "alchemy": "2.0.0-beta.85",
+    "effect": "4.1.2"
+  },
+  "devDependencies": {
+    "@alchemy.run/domain": "2.0.0-beta.85",
+    "@effect/platform-node": "4.1.2",
+    "@effect/platform-node-shared": "4.1.2",
+    "@effect/vitest": "4.1.2",
+    "alchemy": "2.0.0-beta.85",
+    "effect": "4.1.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}

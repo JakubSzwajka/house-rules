@@ -19,6 +19,7 @@ const ROOTS = {
   appsDir: ["apps", "examples/booking/apps"],
   packagesDir: ["packages", "examples/booking/packages"],
 };
+const CRUISE_ROOTS = { appsDir: ["apps"], packagesDir: ["packages"] };
 
 describe("thin configs over the house plugin", () => {
   it("tsconfig.base.json extends the Effect preset and does not replace its plugin block", () => {
@@ -53,11 +54,7 @@ describe("thin configs over the house plugin", () => {
     );
     const { layout } = require(`${PLUGIN}/dependency-cruiser`);
     const config = require("../.dependency-cruiser.cjs");
-    const rules = layout({
-      scope: "@example/",
-      ...ROOTS,
-      adapterPackages: ["migrations"],
-    }).forbidden;
+    const rules = layout({ scope: "@example/", ...CRUISE_ROOTS }).forbidden;
     for (const rule of rules) {
       if (rule.name === "no-unresolved-imports") continue;
       const expected = rules.filter(({ name }) => name === rule.name);
@@ -66,43 +63,17 @@ describe("thin configs over the house plugin", () => {
     }
   });
 
-  it(".dependency-cruiser.cjs names @house-rules/migrations as an adapter package, and only it", () => {
-    const { layout } = require(`${PLUGIN}/dependency-cruiser`);
+  it(".dependency-cruiser.cjs names no adapter packages: adapter imports stay in adapters", () => {
     const config = require("../.dependency-cruiser.cjs");
     const rule = config.forbidden.find(({ name }) => name === "adapter-imports-only-in-adapters");
     assert.equal(rule.severity, "error");
-    assert.deepEqual(rule.from.pathNot, [
-      "^(?:packages|examples/booking/packages)/[^/]+/src/adapters(?:/|$)",
-      "^(?:packages|examples/booking/packages)/(?:migrations)/",
-    ]);
-    const folderRules = config.forbidden.filter(
-      ({ name, from }) => name === rule.name && from.path.includes("read-models"),
-    );
-    const expectedFolderRules = layout({
-      scope: "@example/",
-      ...ROOTS,
-      adapterPackages: ["migrations"],
-    }).forbidden.filter(
-      ({ name, from }) => name === rule.name && from.path.includes("read-models"),
-    );
-    assert.deepEqual(folderRules, expectedFolderRules);
-    assert.equal(folderRules.length, 1);
-    const appsPattern =
-      ROOTS.appsDir.length === 1 ? ROOTS.appsDir[0] : `(?:${ROOTS.appsDir.join("|")})`;
-    for (const folderRule of folderRules) {
-      assert.equal(folderRule.severity, "error");
-      assert.equal(
-        folderRule.from.pathNot,
-        `^${appsPattern}/[^/]+/src/(?:read-models|projections)/[^/]+/adapters/`,
-      );
-      assert.deepEqual(folderRule.to, rule.to);
-    }
+    assert.deepEqual(rule.from.pathNot, ["^packages/[^/]+/src/adapters(?:/|$)"]);
   });
 
   it(".dependency-cruiser.cjs excludes only the in-repo plugin on top of the preset's excludes", () => {
     const { layout } = require(`${PLUGIN}/dependency-cruiser`);
     const config = require("../.dependency-cruiser.cjs");
-    const preset = layout({ scope: "@example/", ...ROOTS }).options.exclude.path;
+    const preset = layout({ scope: "@example/", ...CRUISE_ROOTS }).options.exclude.path;
     assert.equal(config.options.exclude.path, `${preset}|^packages/rules/`);
   });
 
@@ -187,7 +158,8 @@ describe("thin configs over the house plugin", () => {
       readJson("packages/rules/package.json").bin["house-rules-layout"],
       "bin/layout.mjs",
     );
-    assert.match(scripts.check, /pnpm run migrations &&/);
+    assert.match(scripts.check, /^pnpm run pins && pnpm run env:check && /);
+    assert.doesNotMatch(scripts.check, /migrations/);
     assert.match(scripts.check, /pnpm run deps && pnpm run layout$/);
   });
 
@@ -199,7 +171,7 @@ describe("thin configs over the house plugin", () => {
     };
 
     const preset = featuresConfig(ROOTS);
-    for (const app of ["apps/api", "apps/web", "examples/booking/apps/api"]) {
+    for (const app of ["apps/api", "examples/booking/apps/server"]) {
       const file = `${app}/src/features/wiring-probe/index.ts`;
       const config = await eslint.calculateConfigForFile(file);
       for (const block of preset) {
@@ -260,7 +232,7 @@ describe("thin configs over the house plugin", () => {
     assert.deepEqual(
       await rulesFor(
         "export const load = (name: string) => import(name);\n",
-        "packages/bookings/src/booking/wiring-probe.ts",
+        "examples/booking/packages/domain/src/booking/wiring-probe.ts",
       ),
       ["house-rules/command-kind", "house-rules/no-computed-import"],
     );
@@ -282,7 +254,7 @@ describe("thin configs over the house plugin", () => {
     );
     assert.deepEqual(
       await rulesFor(
-        'import { MigrationsTesting } from "@house-rules/migrations";\nexport const db = MigrationsTesting;\n',
+        'import { StackTesting } from "@house-rules/stack";\nexport const fake = StackTesting;\n',
         "apps/api/src/composition/wiring-probe.ts",
       ),
       ["house-rules/testing-exports-only-in-tests"],

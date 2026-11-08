@@ -26,18 +26,18 @@ test("local versions share a UTC millisecond timestamp and retain the base versi
 
 test("packed pins become exact local versions without mutating the source", () => {
   const source = {
-    name: "@house-rules/application",
-    version: "0.2.0",
-    dependencies: { "@house-rules/domain": "workspace:0.2.0", effect: "4.0.3" },
-    devDependencies: { "@house-rules/domain": "0.2.0" },
-    peerDependencies: { "@house-rules/domain": "^0.2.0" },
-    optionalDependencies: { "@house-rules/domain": "workspace:*" },
+    name: "@house-rules/stack",
+    version: "0.1.0",
+    dependencies: { "@house-rules/rules": "workspace:0.1.0", effect: "4.1.2" },
+    devDependencies: { "@house-rules/rules": "0.1.0" },
+    peerDependencies: { "@house-rules/rules": "^0.1.0" },
+    optionalDependencies: { "@house-rules/rules": "workspace:*" },
     publishConfig: { registry: "https://registry.npmjs.org", exports: { ".": "./dist/index.js" } },
   };
   const original = structuredClone(source);
   const versions = {
-    "@house-rules/application": "0.2.0-local.20261025123456789",
-    "@house-rules/domain": "0.2.0-local.20261025123456789",
+    "@house-rules/stack": "0.1.0-local.20261025123456789",
+    "@house-rules/rules": "0.1.0-local.20261025123456789",
   };
   const packed = rewriteManifest(source, versions);
   assert.equal(packed.version, versions[source.name]);
@@ -47,9 +47,9 @@ test("packed pins become exact local versions without mutating the source", () =
     "peerDependencies",
     "optionalDependencies",
   ]) {
-    assert.equal(packed[field]["@house-rules/domain"], versions["@house-rules/domain"]);
+    assert.equal(packed[field]["@house-rules/rules"], versions["@house-rules/rules"]);
   }
-  assert.equal(packed.dependencies.effect, "4.0.3");
+  assert.equal(packed.dependencies.effect, "4.1.2");
   assert.deepEqual(packed.publishConfig.exports, source.publishConfig.exports);
   assert.equal(packed.publishConfig.registry, "http://127.0.0.1:4873");
   assert.equal(packed.publishConfig.tag, "local");
@@ -88,16 +88,15 @@ test("selection includes transitive local dependencies and rejects unknown packa
     manifest: { name: `@house-rules/${name}`, dependencies },
   });
   const packages = [
-    pkg("work-items", { "@house-rules/application": "workspace:0.2.0" }),
-    pkg("application", { "@house-rules/domain": "workspace:0.2.0" }),
-    pkg("domain"),
+    pkg("app-kit", { "@house-rules/stack": "workspace:0.1.0" }),
+    pkg("stack", { "@house-rules/rules": "workspace:0.20.1" }),
     pkg("rules"),
   ];
   assert.deepEqual(
-    selectPackages(packages, ["work-items"]).map((entry) => entry.manifest.name),
-    ["@house-rules/domain", "@house-rules/application", "@house-rules/work-items"],
+    selectPackages(packages, ["app-kit"]).map((entry) => entry.manifest.name),
+    ["@house-rules/rules", "@house-rules/stack", "@house-rules/app-kit"],
   );
-  assert.equal(selectPackages(packages, ["domain", "@house-rules/domain"]).length, 1);
+  assert.equal(selectPackages(packages, ["rules", "@house-rules/rules"]).length, 1);
   assert.deepEqual(selectPackages(packages, []), []);
   assert.throws(() => selectPackages(packages, ["missing"]), /Unknown public package/u);
 });

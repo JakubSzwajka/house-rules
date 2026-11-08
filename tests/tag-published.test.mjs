@@ -2,13 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { recoverPublished, tagPublished } from "../scripts/tag-published.mjs";
 import {
-  application,
+  stack,
   comments,
-  callAudit,
-  authJwt,
-  identity,
   party,
-  migrations,
+  rules,
   head,
   metadata,
   provenance,
@@ -21,8 +18,8 @@ import {
 describe("tags for published packages", () => {
   it("tags and pushes only the packages in pnpm\'s successful publish report", () => {
     const { git, calls } = fakeGit();
-    const tags = ["@house-rules/application@0.2.0", "@house-rules/migrations@0.3.0"];
-    assert.deepEqual(tagPublished({ publishedPackages: [application, migrations] }, git), tags);
+    const tags = ["@house-rules/stack@0.2.0", "@house-rules/rules@0.21.0"];
+    assert.deepEqual(tagPublished({ publishedPackages: [stack, rules] }, git), tags);
     assert.deepEqual(
       calls.filter(([command, option]) => command === "tag" && option !== "--list"),
       tags.map((tag) => ["tag", tag, head]),
@@ -35,43 +32,11 @@ describe("tags for published packages", () => {
     ]);
   });
 
-  it("accepts the Node Host in a successful report", () => {
-    const { git } = fakeGit();
-    assert.deepEqual(
-      tagPublished(
-        { publishedPackages: [{ name: "@house-rules/node-host", version: "0.1.0" }] },
-        git,
-      ),
-      ["@house-rules/node-host@0.1.0"],
-    );
-  });
-
-  it("accepts a support module in a successful report", () => {
-    const { git } = fakeGit();
-    assert.deepEqual(
-      tagPublished(
-        { publishedPackages: [{ name: "@house-rules/event-log", version: "0.1.0" }] },
-        git,
-      ),
-      ["@house-rules/event-log@0.1.0"],
-    );
-  });
-
-  it("accepts the auth and party first releases and the exact-peer bumps", async () => {
-    const packages = [application, authJwt, identity, party, comments, callAudit];
-    const tags = [
-      "@house-rules/application@0.2.0",
-      "@house-rules/auth-jwt@0.1.0",
-      "@house-rules/identity@0.1.0",
-      "@house-rules/party@0.1.0",
-      "@house-rules/comments@0.2.0",
-      "@house-rules/call-audit@0.7.0",
-    ];
-    const published = fakeGit();
-    assert.deepEqual(tagPublished({ publishedPackages: packages }, published.git), tags);
+  it("recovers retired packages at their release commits, but never tags them from a summary", async () => {
+    const tags = ["@house-rules/comments@0.2.1", "@house-rules/party@0.1.1"];
     const recovered = fakeGit();
     assert.deepEqual(
-      await recoverPublished(packages, recovered.git, metadata, recoveryOptions),
+      await recoverPublished([comments, party], recovered.git, metadata, recoveryOptions),
       tags,
     );
     assert.deepEqual(recovered.calls.at(-1), [
@@ -86,6 +51,9 @@ describe("tags for published packages", () => {
       [],
     );
     assert.deepEqual(unpublished.calls, [["rev-parse", "HEAD"]]);
+    const summary = fakeGit();
+    assert.throws(() => tagPublished({ publishedPackages: [comments] }, summary.git));
+    assert.deepEqual(summary.calls, []);
   });
 
   it("does nothing when no package was published", () => {
@@ -95,23 +63,23 @@ describe("tags for published packages", () => {
   });
 
   it("leaves an existing triggering tag alone when it points at HEAD", () => {
-    const { git, calls } = fakeGit({ "@house-rules/application@0.2.0": head });
-    assert.deepEqual(tagPublished({ publishedPackages: [application, migrations] }, git), [
-      "@house-rules/migrations@0.3.0",
+    const { git, calls } = fakeGit({ "@house-rules/stack@0.2.0": head });
+    assert.deepEqual(tagPublished({ publishedPackages: [stack, rules] }, git), [
+      "@house-rules/rules@0.21.0",
     ]);
     assert.deepEqual(calls.at(-1), [
       "push",
       "--atomic",
       "origin",
-      "refs/tags/@house-rules/application@0.2.0",
-      "refs/tags/@house-rules/migrations@0.3.0",
+      "refs/tags/@house-rules/stack@0.2.0",
+      "refs/tags/@house-rules/rules@0.21.0",
     ]);
   });
 
   it("refuses to move an existing tag on another commit, before any write", () => {
-    const { git, calls } = fakeGit({ "@house-rules/application@0.2.0": "b".repeat(40) });
+    const { git, calls } = fakeGit({ "@house-rules/stack@0.2.0": "b".repeat(40) });
     assert.throws(
-      () => tagPublished({ publishedPackages: [migrations, application] }, git),
+      () => tagPublished({ publishedPackages: [rules, stack] }, git),
       /another commit/u,
     );
     assert.ok(
@@ -123,7 +91,7 @@ describe("tags for published packages", () => {
 
   it("recovers after publish succeeded, tagging failed, and the rerun publishes nothing", async () => {
     const { git, calls } = fakeGit();
-    const packages = [application, migrations];
+    const packages = [stack, rules];
     const registry = metadata;
     let fail = true;
     const failingGit = (args) => {
@@ -143,8 +111,8 @@ describe("tags for published packages", () => {
       "push",
       "--atomic",
       "origin",
-      "refs/tags/@house-rules/application@0.2.0",
-      "refs/tags/@house-rules/migrations@0.3.0",
+      "refs/tags/@house-rules/stack@0.2.0",
+      "refs/tags/@house-rules/rules@0.21.0",
     ]);
   });
 
@@ -152,41 +120,41 @@ describe("tags for published packages", () => {
     const { git, calls } = fakeGit();
     assert.deepEqual(
       await recoverPublished(
-        [application, migrations],
+        [stack, rules],
         git,
-        (pkg) => (pkg === application ? metadata(pkg) : undefined),
+        (pkg) => (pkg === stack ? metadata(pkg) : undefined),
         recoveryOptions,
       ),
-      ["@house-rules/application@0.2.0"],
+      ["@house-rules/stack@0.2.0"],
     );
     assert.deepEqual(calls.at(-1), [
       "push",
       "--atomic",
       "origin",
-      "refs/tags/@house-rules/application@0.2.0",
+      "refs/tags/@house-rules/stack@0.2.0",
     ]);
   });
 
   it("recovers a tag for the retired capability package on an old release commit", async () => {
     const capability = { name: "@house-rules/capability", version: "0.13.1" };
     const { git, calls } = fakeGit();
-    assert.deepEqual(
-      await recoverPublished([capability, migrations], git, metadata, recoveryOptions),
-      ["@house-rules/capability@0.13.1", "@house-rules/migrations@0.3.0"],
-    );
+    assert.deepEqual(await recoverPublished([capability, rules], git, metadata, recoveryOptions), [
+      "@house-rules/capability@0.13.1",
+      "@house-rules/rules@0.21.0",
+    ]);
     assert.deepEqual(calls.at(-1), [
       "push",
       "--atomic",
       "origin",
       "refs/tags/@house-rules/capability@0.13.1",
-      "refs/tags/@house-rules/migrations@0.3.0",
+      "refs/tags/@house-rules/rules@0.21.0",
     ]);
   });
 
   it("skips versions whose provenance source is not HEAD, ignoring gitHead", async () => {
     const { git, calls } = fakeGit();
     assert.deepEqual(
-      await recoverPublished([application], git, (pkg) => ({ ...metadata(pkg), gitHead: head }), {
+      await recoverPublished([stack], git, (pkg) => ({ ...metadata(pkg), gitHead: head }), {
         attestations: async () => provenance("b".repeat(40)),
       }),
       [],
@@ -195,27 +163,27 @@ describe("tags for published packages", () => {
   });
 
   it("dry-runs matching versions without git writes, even with an existing tag", async () => {
-    const { git, calls } = fakeGit({ "@house-rules/application@0.2.0": head });
+    const { git, calls } = fakeGit({ "@house-rules/stack@0.2.0": head });
     const reports = [];
     assert.deepEqual(
-      await recoverPublished([application, migrations], git, metadata, {
+      await recoverPublished([stack, rules], git, metadata, {
         ...recoveryOptions,
         dryRun: true,
         report: (line) => reports.push(line),
       }),
-      ["@house-rules/migrations@0.3.0"],
+      ["@house-rules/rules@0.21.0"],
     );
     assert.equal(reports.length, 2);
-    assert.match(reports[0], new RegExp(`application@0.2.0 commit ${head}`, "u"));
+    assert.match(reports[0], new RegExp(`stack@0.2.0 commit ${head}`, "u"));
     assert.ok(
       calls.every(([cmd, option]) => cmd === "rev-parse" || (cmd === "tag" && option === "--list")),
     );
   });
 
   it("dry-run still rejects conflicting tags before any write", async () => {
-    const { git, calls } = fakeGit({ "@house-rules/application@0.2.0": "b".repeat(40) });
+    const { git, calls } = fakeGit({ "@house-rules/stack@0.2.0": "b".repeat(40) });
     await assert.rejects(
-      recoverPublished([application], git, metadata, { ...recoveryOptions, dryRun: true }),
+      recoverPublished([stack], git, metadata, { ...recoveryOptions, dryRun: true }),
       /another commit/u,
     );
     assert.ok(
@@ -228,14 +196,12 @@ describe("tags for published packages", () => {
       (pkg) => ({ ...metadata(pkg), name: "@other/app" }),
       (pkg) => ({ ...metadata(pkg), version: "99.0.0" }),
       (pkg) => {
-        if (pkg === migrations) throw new Error("registry unavailable");
+        if (pkg === rules) throw new Error("registry unavailable");
         return metadata(pkg);
       },
     ]) {
       const { git, calls } = fakeGit();
-      await assert.rejects(
-        recoverPublished([application, migrations], git, registry, recoveryOptions),
-      );
+      await assert.rejects(recoverPublished([stack, rules], git, registry, recoveryOptions));
       assert.deepEqual(calls, [["rev-parse", "HEAD"]]);
     }
   });
@@ -260,7 +226,7 @@ describe("tags for published packages", () => {
       const { git, calls } = fakeGit();
       let fetched = 0;
       await assert.rejects(
-        recoverPublished([application, migrations], git, metadata, {
+        recoverPublished([stack, rules], git, metadata, {
           attestations: async (url) => {
             assert.equal(url, provenanceUrl);
             return fetched++ === 0 ? provenance() : broken();
@@ -271,7 +237,7 @@ describe("tags for published packages", () => {
     }
     for (const dist of [undefined, {}, { attestations: {} }, { attestations: { url: "" } }]) {
       const { git, calls } = fakeGit();
-      await assert.rejects(recoverPublished([application], git, (pkg) => ({ ...pkg, dist })));
+      await assert.rejects(recoverPublished([stack], git, (pkg) => ({ ...pkg, dist })));
       assert.deepEqual(calls, [["rev-parse", "HEAD"]]);
     }
   });
@@ -280,8 +246,8 @@ describe("tags for published packages", () => {
     for (const summary of [
       {},
       { publishedPackages: [{ name: "@other/app", version: "1.0.0" }] },
-      { publishedPackages: [{ ...application, version: "latest" }] },
-      { publishedPackages: [application, application] },
+      { publishedPackages: [{ ...stack, version: "latest" }] },
+      { publishedPackages: [stack, stack] },
       // The retired capability package is never published again, so a summary may not name it.
       { publishedPackages: [{ name: "@house-rules/capability", version: "0.17.0" }] },
     ]) {

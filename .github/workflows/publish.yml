@@ -1,8 +1,7 @@
 name: Publish packages
 
-# Publishes the 21 public @house-rules packages to npm: rules, domain, application, auth-jwt, identity,
-# party, migrations, call-audit, comments, node-host, express-host, work-items, notes, relations, event-log, contacts,
-# notifications, push, push-node, email, projects. The retired @house-rules/capability is never published again.
+# Publishes the two public @house-rules packages to npm: rules and stack. The retired packages
+# (capability, domain, application, the hosts, plugs and old modules) are never published again.
 # `pnpm publish -r` skips private packages and every version already on the registry, so one run
 # publishes exactly the packages whose version was bumped.
 # Package PRs use ci.yml. PR verification here runs only for changes to publish machinery.
@@ -11,9 +10,9 @@ name: Publish packages
 # tests, builds, runs the packed consumer and dry-runs the publish. Its first step refuses a manual
 # publish run from any ref but exactly refs/heads/main.
 # `publish` is the only job with `id-token: write` and NPM_TOKEN. It runs only after `verify`, on a push
-# of a package tag such as `@house-rules/application@0.1.0`, or on a manual run on main with `publish` ticked.
+# of a package tag such as `@house-rules/stack@0.1.0`, or on a manual run on main with `publish` ticked.
 # NPM_TOKEN is a repository secret: an npm granular token with publish rights on the @house-rules scope.
-# tests/published-packages.test.mjs parses this file and guards that split.
+# tests/publish-workflow.test.mjs parses this file and guards that split.
 on:
   push:
     tags:
@@ -53,20 +52,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: house_rules
-          POSTGRES_PASSWORD: house_rules
-          POSTGRES_DB: house_rules
-        ports:
-          - 55435:5432
-        options: >-
-          --health-cmd "pg_isready -U house_rules -d house_rules"
-          --health-interval 3s
-          --health-timeout 3s
-          --health-retries 20
     steps:
       # GitHub's `==` ignores case, so the publish job's `github.ref == 'refs/heads/main'` also
       # matches a branch named MAIN. This shell comparison is exact, and `publish` needs `verify`.

@@ -1,42 +1,22 @@
 import assert from "node:assert/strict";
 import { existsSync, globSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { assertPackedComments } from "../scripts/packed-comments.mjs";
 import { parseWorkflow, PR_PATHS } from "./publish-workflow-assertions.mjs";
 
-const BUILT = [
-  "domain",
-  "application",
-  "auth-jwt",
-  "identity",
-  "party",
-  "migrations",
-  "call-audit",
-  "comments",
-  "node-host",
-  "express-host",
-  "work-items",
-  "notes",
-  "relations",
-  "event-log",
-  "contacts",
-  "notifications",
-  "push",
-  "email",
-  "projects",
-];
-const WITH_MIGRATIONS = [
-  "call-audit",
-  "comments",
-  "identity",
-  "party",
-  ...BUILT.slice(10).filter((folder) => folder !== "email"),
-];
-const PUBLISHED = [...BUILT, "push-node", "rules"];
-const DOCS = new Set(["AGENTS.md", "README.md"]);
-
+const PUBLISHED = ["rules", "stack"];
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const manifest = (folder) => JSON.parse(read(`packages/${folder}/package.json`));
+const root = new URL("../", import.meta.url);
+const workspaceManifests = () =>
+  globSync(
+    [
+      "apps/*/package.json",
+      "packages/*/package.json",
+      "examples/*/apps/*/package.json",
+      "examples/*/packages/*/package.json",
+      "site/package.json",
+    ],
+    { cwd: root },
+  ).map((path) => ({ path, pkg: JSON.parse(read(path)) }));
 
 function targets(value) {
   if (typeof value === "string") return [value];
@@ -45,119 +25,66 @@ function targets(value) {
 }
 
 describe("published packages", () => {
-  it("matches the complete stable release inventory", () => {
-    const versions = JSON.parse(read("docs/tasks/release-20261027/versions.json"));
-    assert.deepEqual(
-      Object.keys(versions).sort(),
-      PUBLISHED.map((folder) => `@house-rules/${folder}`).sort(),
+  it("only @house-rules/rules and @house-rules/stack are public", () => {
+    const publicNames = workspaceManifests()
+      .filter(({ pkg }) => pkg.private !== true)
+      .map(({ pkg }) => pkg.name)
+      .sort();
+    assert.deepEqual(publicNames, ["@house-rules/rules", "@house-rules/stack"]);
+    assert.match(
+      read("scripts/packed-consumer.mjs"),
+      /^const PUBLISHED = \["rules", "stack"\];$/mu,
     );
-    assert.equal(Object.keys(versions).length, PUBLISHED.length);
-    for (const version of Object.values(versions)) assert.match(version, /^\d+\.\d+\.\d+$/u);
-    for (const folder of PUBLISHED) {
-      const name = `@house-rules/${folder}`;
-      assert.equal(manifest(folder).version, versions[name], name);
-    }
   });
 
   for (const folder of PUBLISHED) {
     it(`packages/${folder} is public and names its folder for provenance`, () => {
-      const pkg = manifest(folder);
-      assert.equal(pkg.private, undefined);
+      const pkg = JSON.parse(read(`packages/${folder}/package.json`));
+      assert.equal(pkg.name, `@house-rules/${folder}`);
       assert.equal(pkg.publishConfig?.access, "public");
       assert.equal(pkg.repository?.url, "git+https://github.com/JakubSzwajka/house-rules.git");
       assert.equal(pkg.repository?.directory, `packages/${folder}`);
+      assert.match(pkg.version, /^\d+\.\d+\.\d+$/u);
     });
   }
 
-  for (const folder of BUILT) {
-    it(`packages/${folder} ships dist/ and keeps src/ for the workspace`, () => {
-      const pkg = manifest(folder);
-      assert.ok(existsSync(new URL(`../packages/${folder}/tsconfig.build.json`, import.meta.url)));
-      assert.equal(pkg.scripts.build, "tsc --project tsconfig.build.json");
-      assert.equal(pkg.scripts.prepack, "pnpm run build");
-      const extra = WITH_MIGRATIONS.includes(folder) ? ["migrations"] : [];
-      assert.deepEqual(
-        pkg.files.filter((file) => !DOCS.has(file)),
-        ["dist", ...extra],
-      );
-      for (const target of targets(pkg.exports)) assert.match(target, /^\.\/src\/[a-z]+\.ts$/u);
-      const published = targets(pkg.publishConfig.exports);
-      assert.ok(published.length > 0);
-      for (const target of published) assert.match(target, /^\.\/dist\/[a-z]+\.(?:js|d\.ts)$/u);
-      assert.deepEqual(Object.keys(pkg.publishConfig.exports), Object.keys(pkg.exports));
-    });
-  }
-
-  it("the kits and additions peer on the released exact kit versions and Effect 4.0.3", () => {
-    const kits = { "@house-rules/application": "0.3.0", "@house-rules/domain": "0.2.1" };
-    assert.equal(manifest("domain").version, "0.2.1");
-    assert.equal(manifest("application").version, "0.3.0");
-    assert.equal(manifest("comments").version, "0.2.1");
-    assert.equal(manifest("call-audit").version, "0.7.1");
-    for (const folder of ["auth-jwt", "identity", "party"]) {
-      assert.equal(manifest(folder).version, "0.1.1");
-    }
-    assert.equal(manifest("express-host").version, "0.1.0");
-    assert.equal(manifest("push-node").version, "0.1.0");
-    assert.deepEqual(manifest("domain").peerDependencies, { effect: "4.0.3" });
-    assert.deepEqual(manifest("application").peerDependencies, {
-      "@house-rules/domain": "0.2.1",
-      effect: "4.0.3",
-    });
-    for (const folder of ["comments", "auth-jwt", "identity", "party"]) {
-      assert.deepEqual(manifest(folder).peerDependencies, { ...kits, effect: "4.0.3" }, folder);
-    }
-    assert.deepEqual(manifest("call-audit").peerDependencies, {
-      "@house-rules/application": "0.3.0",
-      effect: "4.0.3",
-    });
-    assert.equal(
-      manifest("express-host").dependencies["@house-rules/node-host"],
-      "workspace:0.2.1",
+  it("packages/stack ships dist/ and keeps src/ for the workspace", () => {
+    const pkg = JSON.parse(read("packages/stack/package.json"));
+    assert.ok(existsSync(new URL("packages/stack/tsconfig.build.json", root)));
+    assert.equal(pkg.scripts.build, "tsc --project tsconfig.build.json");
+    assert.equal(pkg.scripts.prepack, "pnpm run build");
+    assert.deepEqual(
+      pkg.files.filter((file) => !file.endsWith(".md")),
+      ["dist"],
     );
-    for (const folder of WITH_MIGRATIONS) {
-      assert.equal(manifest(folder).houseRules.migrations, "migrations");
+    assert.deepEqual(pkg.exports, { ".": "./src/index.ts" });
+    assert.deepEqual(Object.keys(pkg.publishConfig.exports), Object.keys(pkg.exports));
+    for (const target of targets(pkg.publishConfig.exports)) {
+      assert.match(target, /^\.\/dist\/index\.(?:js|d\.ts)$/u);
+    }
+  });
+
+  it("packages/stack peers on exact Alchemy and Effect versions that the workspace uses", () => {
+    const { peerDependencies, devDependencies } = JSON.parse(read("packages/stack/package.json"));
+    for (const [name, version] of Object.entries(peerDependencies)) {
+      assert.match(version, /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u, name);
+      assert.equal(devDependencies[name], version, name);
+    }
+    for (const { path, pkg } of workspaceManifests()) {
+      for (const name of Object.keys(peerDependencies)) {
+        const pin = pkg.dependencies?.[name] ?? pkg.devDependencies?.[name];
+        if (pin !== undefined) assert.equal(pin, peerDependencies[name], `${path} ${name}`);
+      }
     }
   });
 
   it("Node platform consumers pin the shared package to the same Effect version", () => {
-    const repoEffect = manifest("application").peerDependencies.effect;
-    const paths = globSync(
-      ["apps/*/package.json", "packages/*/package.json", "site/package.json"],
-      {
-        cwd: new URL("../", import.meta.url),
-      },
-    );
-    for (const path of paths) {
-      const pkg = JSON.parse(read(path));
-      const dependencies = {
-        ...pkg.peerDependencies,
-        ...pkg.optionalDependencies,
-        ...pkg.devDependencies,
-        ...pkg.dependencies,
-      };
+    for (const { path, pkg } of workspaceManifests()) {
+      const dependencies = { ...pkg.peerDependencies, ...pkg.devDependencies, ...pkg.dependencies };
       if (!Object.hasOwn(dependencies, "@effect/platform-node")) continue;
-      const effect = dependencies.effect ?? repoEffect;
-      assert.equal(dependencies["@effect/platform-node"], effect, path);
-      assert.equal(dependencies["@effect/platform-node-shared"], effect, path);
+      assert.equal(dependencies["@effect/platform-node"], dependencies.effect, path);
+      assert.equal(dependencies["@effect/platform-node-shared"], dependencies.effect, path);
     }
-  });
-
-  it("packed comments helper failures escape to the consumer command", () => {
-    const failure = new Error("comments process failed");
-    assert.throws(
-      () =>
-        assertPackedComments("/unused", {
-          run: () => {
-            throw failure;
-          },
-        }),
-      (error) => error === failure,
-    );
-    assert.match(
-      read("scripts/packed-consumer.mjs"),
-      /assertPackedComments\(app, \{ run, write, failure \}\);/u,
-    );
   });
 
   it("every PR keeps the full CI gate without a duplicate publish verification", () => {
@@ -170,10 +97,10 @@ describe("published packages", () => {
     assert.equal(ci.jobs.check["timeout-minutes"], 30);
     const steps = ci.jobs.check.steps;
     for (const command of [
+      "pnpm install --frozen-lockfile",
       "pnpm check",
       "pnpm test",
       "pnpm run packed-consumer",
-      "pnpm --filter @example/api build",
       "pnpm --filter @house-rules/site build",
     ]) {
       const matches = steps.filter((step) => step.run === command);

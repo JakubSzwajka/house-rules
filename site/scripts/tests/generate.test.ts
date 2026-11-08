@@ -163,7 +163,7 @@ describe("llms.txt", () => {
     for (const part of [`${SITE_URL}/start/`, `${SITE_URL}/rules/`, "`AGENTS.md`", GITHUB_REPO]) {
       assert.ok(text.includes(part), `llms.txt misses ${part}`);
     }
-    assert.ok(text.includes("node_modules/@house-rules/application/AGENTS.md"));
+    assert.ok(text.includes("node_modules/@house-rules/stack/AGENTS.md"));
   });
 
   it("is the only file the build adds", () => {

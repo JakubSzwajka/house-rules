@@ -1,98 +1,150 @@
-# Booking reference app
+# Booking example
 
-This app shows one booking crossing module boundaries without crossing their storage boundaries. Bookings owns the booking and its owner policy. Billing owns payment state and a fake provider. MyBookings reads their published views in Postgres. The app joins their operations into features. It is a runnable reference, not a payment service: the provider records calls but never contacts a bank.
+A small booking backend on [Alchemy Domain](https://alchemy.run/domain) and `@house-rules/stack`. A person books a stay for a guest and pays for it. The payment opens with a 24-hour deadline, the fake provider charges it, and cancelling a booking refunds a paid payment. Each person reads their own bookings.
 
-## Reading order
+The same model runs in memory on Node for local play and on Cloudflare Durable Objects in production.
 
-1. Start at `apps/api/src/features/index.ts`. Features holds only feature identities. Composition declares member, partner, org-admin and admin roles in `access.ts`, alongside the system permission list and the May plug. Admin holds the permissions it delegates to member and partner; `party:admin` alone cannot grant them.
-2. Read `apps/api/src/features/make-booking/index.ts`. One defineFeature call includes its handler. Input reuses module fields; the handler calls only its declared booking and payment edges. A feature is its own entry and stays browser-safe.
-3. Read `packages/bookings/src/contract.ts` and `packages/billing/src/contract.ts`, then their subject operations and binders. BookingsOperations and BillingOperations describe module work with defineOperation. bindOperation captures services in composition. Each module owns its rules, storage, migrations and memory/Postgres adapters. Writes join the feature's open unit. Their migrations publish booking_read and payment_read; neither module queries the other's tables.
-4. Read `apps/api/src/read-models/my-bookings/index.ts` for the exposed defineReadModel query, then `apps/api/src/projections/my-bookings`, starting at contract.ts, then the facade and Postgres adapter. MyBookingsOperations publishes the read operation. MyBookings selects booking_read, payment_read and Party's party_staff_read. SQL filters bookings by owner or current org staff through EXISTS. Its left payment join requires the payment owner to match the booking owner; unmatched payments stay null. It has no memory adapter.
-5. Read `apps/api/src/ways-in`. Web exposes real accounts, booking and role-management features at /api. Web uses browser confirmation for approval. MCP exposes the two reads and uses human elicitation, not agent consent.
-6. Follow `apps/api/src/composition`: modules.ts chooses the single mount list and all adapters/infrastructure; sign-in.ts defines providers and Who; access.ts defines roles, system permissions and May; app.ts reads startup config and creates the app. There is no index barrel. Host settings flow from app.ts into sign-in.ts without a second environment read. Composition supplies the catalogue before modules, captures mount bindings once, acquires Runtime and resolves May, then captures Runtime in the first-sign-in hook. First sign-in creates a Party person, assigns the default role as system and binds Identity in one unit. Every new login gets member, including remote MCP. One Party.may() plug resolves roles for every way. Application supplies PermissionCatalogue from the mounts before module acquisition, and Runtime.permissions exposes that same array. A gate role check precedes the module's object relation check. Main passes ways-in/hooks/first-sign-in.ts and ways-in/schedules/nightly-cleanup.ts into createApp. Both use explicit Mean.allow and system starts, never Who. The hook runs a command; the schedule selects with the due_payments read model and runs expire_payment commands. The nightly UTC cron 0 3 * * * waits for the next tick, runs due_payments, then expire_payment sequentially, one unit per item. Billing.duePayments is read-only; Billing.expireOne conditionally expires one still-pending due payment and is safe to repeat. Failures roll back only that item. Disposal stops the clock; there is no catch-up or multi-process lease.
-7. Finish at `apps/api/src/main.ts`. It passes ways into composition, gives the router's fetch handler to Node Host, and disposes the router before composition.
+## What it shows
+
+| Idea | Where |
+| --- | --- |
+| Two aggregates, each deciding its own commands | `packages/domain/src/booking/booking.aggregate.ts`, `packages/domain/src/payment/payment.aggregate.ts` |
+| Permissions checked in `decide`, owner and organisation checked against the aggregate's state | `MakeBooking`, `CancelBooking` |
+| Policies that react to events as the `billing` system actor | `payment/booking-payment.policy.ts`, `payment/payment-settlement.policy.ts` |
+| A deadline as a scheduled command | `PaymentSettlement` schedules `ExpirePayment` at the payment's `expiresAt` |
+| An outside system | `payment/payment-provider.external.ts`; the fake adapter is `apps/server/src/fake-payment-provider.ts` |
+| A view that is a security boundary | `my-bookings.view.ts`: only you read your bookings |
+| Roles turned into permissions once per request | `roles.ts`, `apps/server/src/auth.ts` |
+| One Api served as plain HTTP with OpenAPI, Effect RPC, MCP and a CLI | `booking.api.ts`, `apps/server/src/routes.ts`, `apps/server/src/cli.ts` |
 
 ```text
-ways-in -> Features / ReadModels -> module operations -> Bookings and Billing data
-                    -> MyBookingsOperations -> published views
-composition chooses adapters, binds operations and plugs sockets
+MakeBooking ─▶ BookingMade ─▶ BookingPayment ─▶ OpenPayment ─▶ PaymentOpened
+                                                                   │
+                         PaymentSettlement ◀────────────────────────┘
+                         ├─ schedules ExpirePayment (24 hours) ─▶ PaymentExpired, if still pending
+                         └─ PaymentProvider.charge ─▶ RecordCharge ─▶ PaymentPaid
+CancelBooking ─▶ BookingCancelled ─▶ BookingPayment ─▶ CancelPayment
+                         ├─ pending: PaymentCancelled
+                         └─ paid: PaymentRefundStarted ─▶ PaymentProvider.refund ─▶ RecordRefund ─▶ PaymentRefunded
 ```
 
-Then follow `apps/api/src/features/cancel-booking`. Its refund edge switches to system with reason `refund after cancel`. One approval and one unit surround cancellation and refund. A failed refund rolls back database writes, not external provider effects. In-process `call` from application allows approval; a handler's scoped `call` only follows declared edges.
+The fake provider declines charges over 1000, so a large booking stays `pending` until its deadline expires it.
 
-Use `apps/api/MAP.md` to navigate callers and closures. `TESTS.md` maps the reference behaviors to exact tests and lists unproved claims.
+## Layout
 
-## App map
+```text
+packages/domain/           @example/booking-domain: the model, imports only Alchemy, effect and @house-rules/stack
+  src/booking/             Booking aggregate, MakeBooking, CancelBooking
+  src/payment/             Payment aggregate, its commands, policies and the PaymentProvider declaration
+  src/my-bookings.view.ts  MyBookings, keyed by person
+  src/booking.model.ts     the Model and its handlers Layer
+  src/booking.api.ts       BookingApi: what clients may send and read
+  src/tests/               stories
+apps/server/               @example/booking-server: hosting
+  src/local.ts             Node server, in memory
+  src/cli.ts               a CLI over the local server
+  src/booking-worker.ts    Cloudflare Worker on Durable Objects
+  alchemy.run.ts           the stack that deploys the Worker
+  src/tests/               Api test in memory, HTTP smoke test
+```
 
-[MAP.md](apps/api/MAP.md) connects ways, features and their declared operation edges to package and projection folders. Run `pnpm --filter @example/api map` for text, add `--json` or `--mermaid` for those formats, or `--write` to refresh MAP.md. Generation uses memory storage, no sign-in providers and a frozen clock. It starts no Host and calls no features. The source helper reads the feature registry imports, literal builder calls and package manifests. Missing or ambiguous facts fail generation. Paths are app-relative for app code and repo-relative for packages. The layers header is fixed, not extracted from layout rules. The freshness test compares without writing.
+## Run it locally
 
-## Run and limits
-
-From the repo root, with the pinned Node and pnpm:
+With Node 24 and pnpm, from the repo root:
 
 ```sh
-docker compose up -d
-MIGRATION_DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/booking_dev pnpm --filter @example/api migrate
-NODE_ENV=development pnpm --filter @example/api build
-STORAGE=postgres DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/booking_dev APP_ORIGIN=http://192.168.1.23:3000 NODE_ENV=development pnpm --filter @example/api seed
-cd examples/booking/apps/api
-STORAGE=postgres DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/booking_dev APP_ORIGIN=http://192.168.1.23:3000 PORT=3000 NODE_ENV=development pnpm exec varlock run --path ../../../../ -- node dist/main.js
+pnpm install
+cd examples/booking/apps/server && node src/local.ts
 ```
 
-Create the database first if it does not exist, for example with `docker exec house-rules-postgres-1 psql -U house_rules -d postgres -c 'create database booking_dev'`. Use a fresh demo database if those emails already belong to accounts with different passwords; the seed preserves existing credentials. Open http://192.168.1.23:3000 or http://localhost:3000 and sign up. The page loads your profile, creating the bound Party person. In another shell at the repo root, grant admin with server access:
+The server listens on `http://localhost:3000` (set `PORT` to change it). Everything lives in memory and is gone when it stops. Then, in another shell (curl 7.82 or later, for `--json`):
 
 ```sh
-STORAGE=postgres DATABASE_URL=postgres://house_rules:house_rules@127.0.0.1:55435/booking_dev APP_ORIGIN=http://192.168.1.23:3000 NODE_ENV=development pnpm --filter @example/api grant-admin admin@example.test
+curl localhost:3000/MakeBooking -H 'authorization: Bearer ann-token' \
+  --json '{"target":"b-1","input":{"guestName":"Grace","amount":100}}'
+curl localhost:3000/MyBookings/ann -H 'authorization: Bearer ann-token'
 ```
 
-Reload the page to see the admin role. Unknown or unbound accounts fail with a message to sign in once first. Ordinary sign-up never grants admin based on email. The explicit development seed below creates a demo admin. The development signing key is ephemeral; restarting requires signing in again.
+The OpenAPI document is at `http://localhost:3000/openapi.json`.
 
-The dashboard has Overview, Bookings, Organisations, People, Roles, Audit and Framework screens, linked by URL hashes. Data loads when a screen opens and refreshes after mutations. New items use dialog forms; table row menus hold edits and removals. Destructive actions require an AlertDialog confirmation. Notifications include HTTP status, public code, message and a copyable request id. People and Audit appear only with the required permissions. A global admin sees everyone; an org admin sees only people and assignments in their own organisations. These filters run in SQL.
+### Dev tokens
 
-Roles loads the catalogue automatically. Permission checkboxes are grouped by resource and disabled when the person lacks that permission in the chosen scope. Custom roles can be edited or deleted from their row menu; built-in roles cannot. The user menu holds password change and sign-out. The profile API does not expose email, so the menu shows the person's name and roles.
+| Token | Person | Organisation | Role |
+| --- | --- | --- | --- |
+| `ann-token` | ann | none | member |
+| `carol-token` | carol | acme | member |
+| `dave-token` | dave | acme | org-admin |
+| `gus-token` | gus | none | guest, no permissions |
 
-The Audit page is global-admin-only and shows the latest 50 calls across people. The fixed bottom "Under the hood" dock merges this tab's calls with the signed-in person's own audit, linked by request id. It refreshes automatically while open; enable "Include reads" for read-only calls. Expand a row for detail, with JSON available only inside its nested Raw section. The tab log belongs to the signed-in person and clears on sign-in, sign-up, sign-out or a changed profile id. Signed-out attempts do not carry into another person's log. `my_activity` filters by actor in the reader's SQL, not in the page.
+Members make, cancel and read their own bookings. An org admin may also cancel any booking made for their organisation.
 
-## Organisation bookings
+### More calls
 
-In New booking, choose Personal or an organisation in the For select. The table shows an Org column and All/Personal/org filters. Organisation detail has a Bookings tab using the same table. The API list is already filtered in SQL; the page filter only narrows that result.
+```sh
+# book for your organisation, then let its admin cancel it
+curl localhost:3000/MakeBooking -H 'authorization: Bearer carol-token' \
+  --json '{"target":"acme-1","input":{"guestName":"Ivy","amount":80,"orgId":"acme"}}'
+curl localhost:3000/CancelBooking -H 'authorization: Bearer dave-token' \
+  --json '{"target":"acme-1","input":{"reason":"duplicate"}}'
+curl localhost:3000/MyBookings/carol -H 'authorization: Bearer carol-token'
 
-Sign in as Dave to see both Acme bookings. Carol sees the same rows as Acme staff and can cancel either as org admin. Alice sees her personal booking, not Acme's. Plain staff may view an org colleague's booking but cannot cancel it. Row cancellation appears only for the owner or current org staff with scoped admin permission, and still needs bookings:cancel. Removing staff cuts off read/list access on the next request. Owners retain access to their own bookings.
+# refusals answer with their tag and status
+curl localhost:3000/MakeBooking -H 'authorization: Bearer gus-token' \
+  --json '{"target":"g-1","input":{"guestName":"Jo","amount":10}}'   # 403 Forbidden
+curl localhost:3000/MyBookings/ann -H 'authorization: Bearer carol-token'   # 403 NotYourBookings
+curl localhost:3000/MyBookings/ann                                       # 401 Unauthenticated
+```
 
-The module asks Party through declared edges after loading its booking, inside the write unit. Creating for an unrelated org fails forbidden. Unauthorized show/cancel is not_found. Org-admin includes booking read/write/cancel and billing:charge as well as Party management; it grants no authority in another org.
+### CLI
 
-## Seed and organisations walkthrough
+The CLI talks Effect RPC to `$BOOKING_URL/rpc` (default `http://localhost:3000`) as `$BOOKING_TOKEN` (default `ann-token`). From `examples/booking/apps/server`:
 
-`pnpm --filter @example/api seed` is tooling, not a public feature. It refuses `NODE_ENV=production` and uses Identity and Party services in a script-owned unit. Re-running it keeps the same accounts, relations and assignments, and creates no duplicate demo bookings. Dave makes `demo-acme-1` and `demo-acme-2` for Acme. Alice makes `demo-personal-1`. Each has a 100-unit payment. All five accounts use `@example.test` and password `house-rules-demo`:
+```sh
+node src/cli.ts --help
+node src/cli.ts make-booking --target b-2 --guest-name Grace --amount 120
+node src/cli.ts my-bookings get --key ann
+node src/cli.ts cancel-booking --target b-2
+BOOKING_TOKEN=gus-token node src/cli.ts make-booking --target b-3 --guest-name Hal --amount 10
+```
 
-| Account | Roles and membership |
-| --- | --- |
-| alice | member |
-| bob | partner |
-| carol | org-admin scoped to Acme, id `acme` |
-| dave | member, Acme staff |
-| admin | global admin |
+A rejection prints its JSON on stderr and exits with 1.
 
-The Demo accounts list appears inside the tabbed sign-in card only when Vite builds with `NODE_ENV=development`, or serves its dev page. They prefill credentials and submit the existing `sign_in` form. A normal production build removes them. There is no new public path, runtime environment endpoint or seed-enabled feature. Setting only the server's NODE_ENV after a production page build cannot enable these buttons.
+### MCP
 
-1. Sign in as Carol. Open Organisations, then Acme. The Members tab loads Carol and Dave, not Alice or Bob.
-2. Open Invitations and choose Invite. Select Staff, no role, or Organisation admin to delegate Carol's scoped powers. Copy the one-time code shown in the dialog. The picker excludes roles whose permissions Carol does not hold, including Member.
-3. Sign in as Alice and accept the code. Alice becomes Acme staff; an attached role is assigned through a system edge in the same transaction. A reused code fails with generic not_found. Codes expire after seven days; revocation needs confirmation.
-4. Alice can also create a separate organisation as a member. Its creator gets only `org-admin` in that org through the system edge with reason `creator of organisation`. Carol cannot invite into or list invitations in Alice's org.
-5. Choose Remove member from a member's row menu and confirm. Their org-scoped assignments are revoked, but their global roles stay. Removing the last org admin fails with conflict.
+The server serves every call that returns once as an MCP tool at `http://localhost:3000/mcp` (streamable HTTP, protocol 2025-11-25): `BookingApi_MakeBooking_send`, `BookingApi_CancelBooking_send`, `BookingApi_MyBookings_get`, `_list` and `_snapshot`. The MCP client signs in like any other client, with `authorization: Bearer ann-token`.
 
-Web uses Mean.allow only after the page's confirm dialog for lifted needsApproval features. The dialog is the person's approval, not a server-verifiable token. Direct authenticated HTTP callers can also invoke these features. MCP remains Mean.elicitation. All role and object checks still run. APP_ORIGIN adds the exact LAN origin; localhost:3000 stays allowed. booking_session is HttpOnly/SameSite=Lax and is not Secure over plain HTTP. HTTPS adds Secure. Session writes retain exact-origin CSRF, including sign-up and sign-in.
+## Sign in with Clerk
 
-Use the root's pinned Node and pnpm. Start Postgres with `docker compose up -d`, run `pnpm --filter @example/api build`, then run through the root's validated environment. `composition/app.ts` exports `modulePlan({ provider?, log?, identity?, settings? })`, resolving sign-in options before passing them to the single mount list in modules.ts. Pass the plan to `createApp`; raw-service scripts and tests use application's `planLayer(modulePlan())`. modules.ts selects all storage, including the audit Record plug, from `STORAGE`, defaulting to `memory`. The Postgres plug shares the modules' PgClient; memory uses the supplied `log` or a new audit log. Set `STORAGE=postgres` and `DATABASE_URL` for Postgres; a missing or empty URL fails configuration rather than falling back. Apply module migrations before serving with `pnpm --filter @example/api migrate` and `MIGRATION_DATABASE_URL` set in .env.local. The origin, port and MCP issuer also come from `.env.schema`.
+Set `CLERK_ISSUER` and the local server verifies Clerk session tokens, from the `authorization` header or the `__session` cookie, instead of dev tokens:
 
-Tests create and drop their own databases. `composition/tests/database.ts` provides a ConfigProvider with `STORAGE=postgres` and that test database URL to the same modules layer. Payment-provider and memory audit-log doubles remain explicit options.
+```sh
+CLERK_ISSUER=https://your-app.clerk.accounts.dev node src/local.ts
+```
 
-With memory storage MyBookings returns unavailable, never memory rows. Unset MCP auth fails closed. The web way uses Identity's passwords provider, configured in composition/sign-in.ts and mounted with storage in composition/modules.ts. Identity pairs its signer with an auth-jwt verifier and accepts a bearer token or the booking_session HttpOnly cookie. The demo web issuer remains only for tests that inject their own Who. The Vite/React shadcn dashboard is served by Node Host on the API origin. The build writes dist/web before bundling the API. The nightly clock is scoped to this process; no real payment integration is supplied.
+Optional: `CLERK_JWT_KEY` (the PEM public key, to verify without fetching JWKS) and `CLERK_AUTHORIZED_PARTIES` (comma-separated origins). Every signed-in person is a member. Clerk's organisation roles `org:member` and `org:admin` map to member and org-admin, and the active organisation becomes the person's organisation.
 
-POST /api/sign_up and /api/sign_in are public system starts, not anonymous people. Both require an exact allowed Origin or Referer for CSRF, even without a cookie. Successful answers set the session and omit token from the body. Invalid credentials return 200 with `{ "_tag": "InvalidCredentials" }` and no cookie; the transactional attempt count commits. POST /api/sign_out clears the session. POST /api/change_password needs the person's identity:update permission and current password.
+## Deploy to Cloudflare
 
-The app calls IdentityOperations.signUp, signIn and changePassword through its features. Sign-out only clears the cookie. Identity owns the password table in migration 0002; there is no app-owned accounts module.
+`apps/server/alchemy.run.ts` declares one Worker hosting the same model on Durable Objects, serving plain HTTP, OpenAPI and `/rpc`. The Worker always uses Clerk, so `CLERK_ISSUER` is required. With Cloudflare credentials for alchemy, from `examples/booking/apps/server`:
 
-Set ACCOUNTS_SIGNING_KEY to a private P-256 JWK and optionally ACCOUNTS_ISSUER. These existing environment names configure `Identity.passwords({ issuer, signingKey })`; use `Identity.oidc({ issuer, jwks, audience? })` instead when no local passwords are needed. Without a key, the passwords provider logs a warning and creates an ephemeral key only when NODE_ENV, trimmed and lowercased, is exactly development or test in the active ConfigProvider and, when present, the host environment. All other values, including missing configuration, refuse that fallback. Email never grants admin. The shell-only grant-admin script grants global admin to an existing passwords account after its first authenticated request. Production requires --yes-production. Production starts with ACCOUNTS_SIGNING_KEY and omits the test-only devLocal web issuer. Set APP_ORIGIN to the public HTTPS origin for Secure cookies. MCP_AUTH_ISSUER optionally adds the real OIDC MCP provider; unset MCP stays closed. A missing production signing key fails startup with typed IdentityProviderInvalid and names ACCOUNTS_SIGNING_KEY.
+```sh
+CLERK_ISSUER=https://your-app.clerk.accounts.dev pnpm exec alchemy deploy
+pnpm exec alchemy destroy
+```
 
-The gate at feature start checks every permission in the closure. Every inner call rechecks its own permission against the permissions loaded at start. Both checks are required.
+## Tests
+
+```sh
+pnpm --filter @example/booking-domain exec vitest run   # stories
+pnpm --filter @example/booking-server exec vitest run   # Api in memory and the HTTP server
+```
+
+## What the old example had that this one drops
+
+- The React dashboard, the app map (`MAP.md`) and the plan tooling.
+- Identity's passwords, sign-up, sign-in, change-password, the first-sign-in hook and grant-admin. Clerk or dev tokens sign people in, and roles come from the auth provider.
+- Party: organisations, members, invitations and custom roles. An organisation is the `orgId` the auth provider gives, and org admin is a role.
+- Postgres, migrations, Docker, seed data, storage adapters, units of work and the audit log. Alchemy stores the events, and every command is traced.
+- The nightly expiry job. Each payment schedules its own expiry when it opens.
+- Features, operations, ways and composition. Commands, a view, policies and one Api replace them.
+- Org staff reading a colleague's booking. Only the owner reads their bookings, and an org admin may cancel organisation bookings.
