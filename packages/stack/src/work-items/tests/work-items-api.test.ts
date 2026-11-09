@@ -8,7 +8,7 @@ import { devTokens } from "../../auth/dev-tokens.ts";
 import { SessionLive } from "../../auth/session-live.ts";
 import { sessionClient } from "../../auth/session.middleware.ts";
 import * as WorkItems from "../index.ts";
-import { ann, Model, w1 } from "./fixtures.ts";
+import { ann, claudeId, Model, w1, w2 } from "./fixtures.ts";
 
 const { board, WorkItemsPermissions } = WorkItems;
 
@@ -25,9 +25,16 @@ const World = Layer.mergeAll(SessionLive, WorkItems.workflowConfig(board)).pipe(
         "ann-token": { subject: "ann", orgId: null, roles: ["member"] },
         "bob-token": { subject: "bob", orgId: null, roles: ["member"] },
         "eve-token": { subject: "eve", orgId: null, roles: [] },
+        "claude-token": {
+          subject: "claude",
+          orgId: null,
+          roles: ["agent"],
+          agent: { name: "Claude", forPerson: "ann" },
+        },
       }),
       Roles.layer({
         member: [WorkItemsPermissions.read, WorkItemsPermissions.write],
+        agent: [WorkItemsPermissions.read, WorkItemsPermissions.write],
       }),
     ),
   ),
@@ -55,6 +62,23 @@ describe("WorkItemsApi", () => {
       const eve = yield* as("eve-token");
       const refused = yield* eve.ContainerWorkItems.get("p-1").pipe(Effect.flip);
       expect(refused._tag).toBe("Forbidden");
+    }).pipe(Effect.scoped, Effect.provide(World)),
+  );
+
+  it.live("lets an agent token claim an item and read the items it holds", () =>
+    Effect.gen(function* () {
+      const annClient = yield* as("ann-token");
+      yield* annClient.CreateWorkItem(w2, { title: "Answer the mail", container: "p-2" });
+      const claude = yield* as("claude-token");
+      const claimed = yield* claude.ClaimWorkItem(w2);
+      const card = yield* claude.WorkItemCard.snapshot(w2, { atLeast: claimed });
+      expect(card.state).toMatchObject({ holder: "claude", status: "doing" });
+      const held = yield* claude.HeldWorkItems.get(claudeId, {
+        atLeast: { stream: `WorkItemCard/${w2}`, version: card.cursor },
+      });
+      expect(Object.keys(held?.items ?? {})).toEqual([w2]);
+      const taken = yield* annClient.ClaimWorkItem(w2).pipe(Effect.flip);
+      expect(taken).toMatchObject({ _tag: "WorkItemHeld", holder: "claude" });
     }).pipe(Effect.scoped, Effect.provide(World)),
   );
 });

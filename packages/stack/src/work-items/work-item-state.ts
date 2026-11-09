@@ -1,5 +1,5 @@
 import * as Schema from "effect/Schema";
-import { PersonId } from "../actor/actor.ts";
+import { PartyId } from "../actor/actor.ts";
 import type { WorkItemChildAdopted } from "./adopt-child.command.ts";
 import type { WorkItemAssigned } from "./assign-work-item.command.ts";
 import type { WorkItemStatusChanged } from "./change-work-item-status.command.ts";
@@ -16,7 +16,7 @@ export const WorkItemFields = Schema.Struct({
   body: Schema.String,
   status: Schema.String,
   closedAt: Schema.NullOr(Schema.Int),
-  holder: Schema.NullOr(PersonId),
+  holder: Schema.NullOr(PartyId),
   container: Schema.NullOr(Schema.String),
   parent: Schema.NullOr(Schema.Struct({ id: WorkItemId, confirmed: Schema.Boolean })),
   children: Schema.Array(WorkItemId),

@@ -1,7 +1,7 @@
 import * as Domain from "@alchemy.run/domain";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
-import { authorOf } from "../actor/actor.ts";
+import { authorOf, partyOf } from "../actor/actor.ts";
 import { Forbidden } from "../access/forbidden.rejection.ts";
 import { can } from "../access/permission.ts";
 import { requirePermission } from "../access/require-permission.ts";
@@ -92,7 +92,7 @@ export class WorkItem extends Domain.Aggregate("WorkItem", {
     }),
     ClaimWorkItem: Effect.fn(function* (s, _cmd, { now }) {
       const actor = yield* requirePermission(WorkItemsPermissions.write);
-      if (actor._tag !== "Person")
+      if (actor._tag === "System")
         return yield* new Forbidden({ permission: WorkItemsPermissions.write });
       if (s === null) return yield* new WorkItemNotFound();
       const w = yield* CurrentWorkflow;
@@ -114,7 +114,7 @@ export class WorkItem extends Domain.Aggregate("WorkItem", {
     ReleaseWorkItem: Effect.fn(function* (s, _cmd, { now }) {
       const actor = yield* requirePermission(WorkItemsPermissions.write);
       if (s === null) return yield* new WorkItemNotFound();
-      const self = actor._tag === "Person" ? actor.id : null;
+      const self = partyOf(actor);
       if (s.holder !== null && s.holder !== self && !can(actor, WorkItemsPermissions.assign))
         return yield* new NotHolder({ holder: s.holder });
       const w = yield* CurrentWorkflow;

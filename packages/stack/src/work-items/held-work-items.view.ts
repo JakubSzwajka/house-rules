@@ -1,6 +1,6 @@
 import * as Domain from "@alchemy.run/domain";
 import * as Effect from "effect/Effect";
-import { PersonId } from "../actor/actor.ts";
+import { PartyId } from "../actor/actor.ts";
 import { Forbidden } from "../access/forbidden.rejection.ts";
 import { requirePermission } from "../access/require-permission.ts";
 import { Session } from "../auth/session.middleware.ts";
@@ -20,7 +20,7 @@ const drop = (v: Held, _: unknown, { source }: Change): Held => ({
 
 export class HeldWorkItems extends Domain.View("HeldWorkItems", {
   from: [WorkItemCard],
-  key: PersonId,
+  key: PartyId,
   keyOf: {
     WorkItemAssigned: {
       lost: ({ event }) => event.from ?? undefined,
