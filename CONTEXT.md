@@ -10,7 +10,7 @@ An **Aggregate** holds state whose rules must hold in one transaction, keyed by 
 
 A **Command** is a request to change something, named `<Verb><Noun>`. It targets one aggregate, lists the events it may record, the rejections it may return and its middleware.
 
-An **Event** is a fact the business records, named in the past tense. Events are the record: nothing else is stored. Events that record a change by someone carry `by`, from `authorOf(actor)`.
+An **Event** is a fact the business records, named in the past tense. Events are the record: nothing else is stored. Events that record a change by someone carry `by` and `for`, from `attributionOf(actor)`: `by` is the author, and **for** is the Person an Agent acted for, else `null`.
 
 A **Rejection** is a way a command is refused, returned from `decide` and listed in the command's `rejects`. `Forbidden` (403) is the stack's shared rejection for a missing permission.
 
@@ -32,9 +32,9 @@ A **Platform** (the **domain store**) is the Layer that hosts a model: it stores
 
 An **Actor** is who is acting: a **Person** (a signed-in user), an **Agent** or a **System** actor (a named policy, saga or webhook). **CurrentActor** is the request context that carries it with each command to its aggregate.
 
-A **Party** is an actor that can own, author and hold things: a Person or an Agent. Its id is a **PartyId**; `PersonId` and `AgentId` are both PartyIds and share one namespace.
+A **Party** is an actor that can own, author and hold things: a Person or an Agent. Its id is a **PartyId**; `PersonId` and `AgentId` are both PartyIds. An AgentId starts with `agent:` and a PersonId never does, so a person and an agent never share an id.
 
-An **Agent** is a program, such as Claude, that works for one Person. It has its own id, a name, its own token and its own roles, usually a subset of its person's. `authorOf` names the agent, and **actingFor** names the person it works for. Object checks treat an agent as itself, never as its person and never as a system actor.
+An **Agent** is a program, such as Claude, that works for one Person. It has its own id, a name, its own token and its own roles, usually a subset of its person's. `authorOf` names the agent, **actingFor** names the person it works for, and each event it records keeps that person in `for`. Object checks treat an agent as itself, never as its person and never as a system actor.
 
 A **Permission** is a `resource:action` string a block checks with **requirePermission**. A module publishes its strings as `<Module>Permissions`.
 
@@ -44,7 +44,7 @@ A **system grant** is the explicit permission list a system actor holds. It is a
 
 An **AuthProvider** is the slot that answers who is signed in: it turns request headers into a **Principal** (`subject`, `orgId`, `roles`, and `agent` for an agent). `devTokens` fills it for tests and local play; Clerk or JWT providers fill it in production.
 
-**Session** is the middleware a command or view lists to require a signed-in person or agent. **SessionLive** implements it over an `AuthProvider` and `Roles`; with no principal it fails `Unauthenticated` (401).
+**Session** is the middleware a command or view lists to require a signed-in person or agent. **SessionLive** implements it over an `AuthProvider` and `Roles`; with no principal, a person subject that starts with `agent:`, or an agent id without it, it fails `Unauthenticated` (401). A token that claims a delegation it cannot prove, such as a malformed `act` claim, signs in as nobody, never as the person.
 
 **Object access** is who may touch one aggregate (owner, members, holders). It lives in the aggregate's state and is checked in `decide` after the permission, with its own rejection such as `NotAuthor`.
 

@@ -9,15 +9,19 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import {
+  ActedFor,
   type AuthProvider,
-  authorOf,
+  agent,
+  attributionOf,
   CurrentActor,
   clerk,
   devTokens,
   Forbidden,
   Notes,
   type Principal,
+  PartyId,
   PersonId,
+  partyOf,
   person,
   type RoleDefinitions,
   Roles,
@@ -38,12 +42,14 @@ export type RecipeId = typeof RecipeId.Type;
 
 export class RecipeAdded extends Domain.Event("RecipeAdded", {
   by: Schema.String,
-  owner: PersonId,
+  for: ActedFor,
+  owner: PartyId,
   title: Schema.String,
 }) {}
 
 export class RecipeRenamed extends Domain.Event("RecipeRenamed", {
   by: Schema.String,
+  for: ActedFor,
   title: Schema.String,
 }) {}
 
@@ -71,7 +77,7 @@ export class RenameRecipe extends Domain.Command("RenameRecipe", {
   rejects: [Forbidden, NoSuchRecipe, NotRecipeOwner],
 }) {}
 
-const Written = Schema.TaggedStruct("Written", { owner: PersonId, title: Schema.String });
+const Written = Schema.TaggedStruct("Written", { owner: PartyId, title: Schema.String });
 
 export class Recipe extends Domain.Aggregate("Recipe", {
   id: RecipeId,
@@ -82,20 +88,16 @@ export class Recipe extends Domain.Aggregate("Recipe", {
     AddRecipe: Effect.fn(function* (recipe, cmd) {
       const actor = yield* requirePermission(RecipePermissions.write);
       if (recipe._tag !== "Unwritten") return yield* new RecipeExists();
-      return [
-        new RecipeAdded({
-          by: authorOf(actor),
-          owner: PersonId.make(authorOf(actor)),
-          title: cmd.title,
-        }),
-      ];
+      const owner = partyOf(actor);
+      if (owner === null) return yield* new Forbidden({ permission: RecipePermissions.write });
+      return [new RecipeAdded({ ...attributionOf(actor), owner, title: cmd.title })];
     }),
     RenameRecipe: Effect.fn(function* (recipe, cmd) {
       const actor = yield* requirePermission(RecipePermissions.write);
       if (recipe._tag !== "Written") return yield* new NoSuchRecipe();
-      if (authorOf(actor) !== recipe.owner) return yield* new NotRecipeOwner();
+      if (partyOf(actor) !== recipe.owner) return yield* new NotRecipeOwner();
       if (recipe.title === cmd.title) return [];
-      return [new RecipeRenamed({ by: authorOf(actor), title: cmd.title })];
+      return [new RecipeRenamed({ ...attributionOf(actor), title: cmd.title })];
     }),
   },
   evolve: {
@@ -159,6 +161,30 @@ describe("a new app: one own aggregate beside the Notes module", () => {
       Story.provide(CurrentActor, ann),
       Story.when(soup, new AddRecipe({ title: "Soup" })),
       Story.then(soup, added),
+    ),
+  );
+
+  it.effect("an agent adds a recipe it owns itself, recorded for its person", () =>
+    story(
+      Story.provide(CurrentActor, agent("agent:claude", "ann", { permissions: KitchenRoles.cook })),
+      Story.when(soup, new AddRecipe({ title: "Soup" })),
+      Story.then(
+        soup,
+        new RecipeAdded({
+          by: "agent:claude",
+          for: PersonId.make("ann"),
+          owner: PartyId.make("agent:claude"),
+          title: "Soup",
+        }),
+      ),
+      Story.when(soup, new RenameRecipe({ title: "Stew" })),
+      Story.then(
+        soup,
+        new RecipeRenamed({ by: "agent:claude", for: PersonId.make("ann"), title: "Stew" }),
+      ),
+      Story.provide(CurrentActor, ann),
+      Story.when(soup, new RenameRecipe({ title: "Broth" })),
+      Story.rejected(new NotRecipeOwner()),
     ),
   );
 

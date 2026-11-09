@@ -25,7 +25,7 @@ Entering a closed category (done or cancelled) stamps `closedAt` with the comman
 
 ## Holders
 
-`ClaimWorkItem` makes the caller the holder and moves the item to the claim state. A closed item fails `WorkItemClosed`, an item someone else holds fails `WorkItemHeld { holder }`, and a repeat claim records nothing. A holder is a party: a person or an agent, by its `PartyId`. An agent claims, holds and releases as itself, so `HeldWorkItems("claude")` lists what the agent holds, and its person cannot release it without `work_items:assign`. A system actor's claim fails `Forbidden`.
+`ClaimWorkItem` makes the caller the holder and moves the item to the claim state. A closed item fails `WorkItemClosed`, an item someone else holds fails `WorkItemHeld { holder }`, and a repeat claim records nothing. A holder is a party: a person or an agent, by its `PartyId`. An agent claims, holds and releases as itself, so `HeldWorkItems("agent:claude")` lists what the agent holds, and its person cannot release it without `work_items:assign`. A system actor's claim fails `Forbidden`.
 
 `ReleaseWorkItem` clears the holder and moves the item from `release.from` to `release.to`. The holder may release; anyone else needs `work_items:assign`, or fails `NotHolder { holder }`. An unheld item outside `release.from` records nothing. `AssignWorkItem { holder }` sets or clears any holder, a person or an agent, and needs `work_items:assign`. Neither assign nor release changes status, except release's own move.
 
@@ -56,7 +56,7 @@ Since a parent must already exist and be a root, and an item with a parent canno
 | AdoptChild `{ child }` | WorkItemChildAdopted | WorkItemNotFound, TooDeep | link |
 | ConfirmParent, RefuseParent | WorkItemParentConfirmed, WorkItemParentRefused | none | link |
 
-Permissions are `work_items:read`, `work_items:write`, `work_items:assign` and `work_items:link`; only the policy's system actor `hierarchyKeeper` holds `link`. Titles are trimmed, 1 to 200 characters; bodies up to 20,000. A container is any string id, such as a project id; none means the inbox. An unchanged edit records nothing. Changes record `by`.
+Permissions are `work_items:read`, `work_items:write`, `work_items:assign` and `work_items:link`; only the policy's system actor `hierarchyKeeper` holds `link`. Titles are trimmed, 1 to 200 characters; bodies up to 20,000. A container is any string id, such as a project id; none means the inbox. An unchanged edit records nothing. Changes record `by` and `for`, the person an agent acted for (else `null`). A due date is exactly `YYYY-MM-DD`, ten characters, and a real calendar day.
 
 ## Views
 

@@ -16,7 +16,7 @@ One publishable package replaces the old kits (`domain`, `application`), the hos
 | May, Party.may, permission closures | `Roles` turns role names into permissions once per request; each `decide` and `validate` calls `requirePermission` |
 | object policy inside modules | the aggregate's own state, checked in `decide` |
 | `asSystem` | a policy or webhook provides `system(name, permissions)` as `CurrentActor` |
-| Party, agent principals | `Agent` in `Actor`: its own id, name and roles, working for one `Person` (`actingFor`); it signs in with its own token and is checked as itself |
+| Party, agent principals | `Agent` in `Actor`: its own `agent:` id, name and roles, working for one `Person` (`actingFor`); it signs in with its own token, is checked as itself, and its events record `for`, its person |
 | Approval, Mean | dropped from the stack: an app gates an agent with its own rules |
 | UnitOfWork, migrations, Postgres adapters | gone: one aggregate commits in one transaction; the platform stores events (on Node, `@house-rules/domain-postgres` in Postgres) |
 | node-host, express-host | gone: `@house-rules/domain-postgres` or `Domain.InMemory` on Node, Cloudflare Durable Objects on Cloudflare |
@@ -71,7 +71,7 @@ Effect 4.1.2 runs a command's middleware list from the **last** entry to the fir
 - Every command a client sends lists `middleware: [Session]` and `Forbidden` in `rejects`, and its `decide` starts with `yield* requirePermission(<Module>Permissions.x)`. Commands only policies send (system-only) still check a permission; the system actor holds it by explicit grant.
 - Object access lives in the aggregate's state: owner, members, holders. Check it in `decide` after the permission. A wrong owner is its own rejection (`NotAuthor`, `NotMember`), usually with `httpApiStatus: 403`; use 404 where even existence must stay hidden, as `Organisations.NotMember` does. An agent passes an object check only as itself, by its own id; only a system actor skips the check (`actor._tag !== "System"`, never `actor._tag === "Person"`).
 - Event tags are unique across every module an app composes, so module events carry a module prefix when the bare name is generic (`EdgeRelated`, `NotificationDelivered`, `OrganisationMemberAdded`).
-- Events that record a change by someone carry `by: Schema.String`, from `authorOf(actor)`.
+- Events that record a change by someone carry `by: Schema.String` and `for: ActedFor`, from `...attributionOf(actor)`. `for` is the person an agent acted for, else `null`; it decodes as `null` from older events. A policy that passes a change on carries `by` and `for` through.
 - Time comes from `decide`'s third argument `{ now }`. Never `Date.now()`, `Clock` or randomness in a model. Ids come from the caller (the command's target).
 - `evolve` and `reply` are total and never fail.
 - Views that hold anything private list `middleware: [Session]` and check access in `validate`.
