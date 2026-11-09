@@ -1,5 +1,5 @@
 import * as Domain from "@alchemy.run/domain";
-import { Forbidden, PersonId, Session } from "@house-rules/stack";
+import { ActedFor, Forbidden, PartyId, Session } from "@house-rules/stack";
 import * as Schema from "effect/Schema";
 import { BookingId } from "./booking.id.ts";
 
@@ -7,7 +7,8 @@ export const Amount = Schema.Int.check(Schema.isGreaterThan(0));
 
 export class BookingMade extends Domain.Event("BookingMade", {
   by: Schema.String,
-  owner: PersonId,
+  for: ActedFor,
+  owner: PartyId,
   orgId: Schema.NullOr(Schema.String),
   guestName: Schema.String,
   amount: Amount,

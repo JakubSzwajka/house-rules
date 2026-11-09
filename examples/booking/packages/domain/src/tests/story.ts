@@ -1,5 +1,5 @@
 import { Story } from "@alchemy.run/domain/Story";
-import { person } from "@house-rules/stack";
+import { agent, person } from "@house-rules/stack";
 import { Booking } from "../booking/booking.aggregate.ts";
 import { BookingId } from "../booking/booking.id.ts";
 import { BookingHandlers, BookingModel } from "../booking.model.ts";
@@ -22,6 +22,14 @@ export const dave = person("dave", {
   orgId: "acme",
 });
 export const guest = person("gus", { roles: ["guest"] });
+export const claude = agent("agent:claude", "ann", {
+  roles: ["member"],
+  permissions: BookingRoles.member,
+});
+export const otherAgent = agent("agent:helper", "ann", {
+  roles: ["member"],
+  permissions: BookingRoles.member,
+});
 
 export const b1 = BookingId.make("b-1");
 export const booking1 = Booking.ref(b1);

@@ -1,5 +1,5 @@
 import * as Domain from "@alchemy.run/domain";
-import { authorOf, Forbidden, PersonId, requirePermission, Session } from "@house-rules/stack";
+import { Forbidden, PartyId, partyOf, requirePermission, Session } from "@house-rules/stack";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import { Payment, PaymentStatus } from "./payment/payment.aggregate.ts";
@@ -37,7 +37,7 @@ const update =
 
 export class MyBookings extends Domain.View("MyBookings", {
   from: [Booking, Payment],
-  key: PersonId,
+  key: PartyId,
   middleware: [Session],
   rejects: [Forbidden, NotYourBookings],
   keyOf: {
@@ -73,6 +73,6 @@ export class MyBookings extends Domain.View("MyBookings", {
   },
   validate: Effect.fn(function* (request) {
     const actor = yield* requirePermission(BookingPermissions.read);
-    if (request.key !== authorOf(actor)) return yield* new NotYourBookings();
+    if (request.key !== partyOf(actor)) return yield* new NotYourBookings();
   }),
 }) {}
