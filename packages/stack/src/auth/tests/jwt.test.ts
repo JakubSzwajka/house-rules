@@ -113,4 +113,36 @@ describe("jwt", () => {
       );
     }),
   );
+
+  it.effect("signs out a token whose act claim is present but malformed", () =>
+    Effect.gen(function* () {
+      const agents = jwt({ key: { secret }, issuer, agent: agentFromAct });
+      const malformed = [
+        { sub: "" },
+        {},
+        { sub: 7 },
+        { sub: "claude" },
+        { sub: "system:billing" },
+        { sub: "agent:" },
+        { sub: "agent:claude", name: 7 },
+        { sub: "agent:claude", name: "" },
+        null,
+        "agent:claude",
+        ["agent:claude"],
+      ];
+      for (const act of malformed)
+        expect(yield* authenticate(agents, yield* sign({ act }))).toEqual(Option.none());
+    }),
+  );
+
+  it("tells an absent act claim from a malformed one", () => {
+    expect(agentFromAct({ sub: "ann" })).toEqual({ _tag: "None" });
+    expect(agentFromAct({ sub: "ann", act: { sub: "" } })._tag).toBe("Malformed");
+    expect(agentFromAct({ sub: "agent:x", act: { sub: "agent:claude" } })._tag).toBe("Malformed");
+    expect(agentFromAct({ act: { sub: "agent:claude" } })._tag).toBe("Malformed");
+    expect(agentFromAct({ sub: "ann", act: { sub: "agent:claude" } })).toEqual({
+      _tag: "Agent",
+      agent: { id: "agent:claude", name: "agent:claude", forPerson: "ann" },
+    });
+  });
 });

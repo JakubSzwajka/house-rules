@@ -2,6 +2,7 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import {
   createLocalJWKSet,
   createRemoteJWKSet,
@@ -12,6 +13,7 @@ import {
   type JWTVerifyGetKey,
   jwtVerify,
 } from "jose";
+import { AgentId, PersonId } from "../actor/actor.ts";
 import { AuthProvider } from "./auth-provider.ts";
 import { credentialOf } from "./credential.ts";
 import type { Principal } from "./principal.ts";
@@ -23,6 +25,11 @@ export interface AgentClaims {
   readonly name: string;
   readonly forPerson: string;
 }
+
+export type Delegation =
+  | { readonly _tag: "None" }
+  | { readonly _tag: "Agent"; readonly agent: AgentClaims }
+  | { readonly _tag: "Malformed"; readonly reason: string };
 
 export type JwtKey =
   | { readonly jwksUrl: string }
@@ -39,35 +46,49 @@ export interface JwtOptions {
   readonly subject?: (claims: Claims) => string | undefined;
   readonly orgId?: (claims: Claims) => string | null;
   readonly roles?: (claims: Claims) => ReadonlyArray<string>;
-  readonly agent?: (claims: Claims) => AgentClaims | undefined;
+  readonly agent?: (claims: Claims) => Delegation;
 }
 
 const text = (value: unknown): string | undefined =>
   typeof value === "string" && value !== "" ? value : undefined;
 
-export const agentFromAct = (claims: Claims): AgentClaims | undefined => {
+const malformed = (reason: string): Delegation => ({ _tag: "Malformed", reason });
+const isAgentId = Schema.is(AgentId);
+const isPersonId = Schema.is(PersonId);
+
+export const agentFromAct = (claims: Claims): Delegation => {
+  if (!Object.hasOwn(claims, "act")) return { _tag: "None" };
   const act = claims["act"];
-  if (typeof act !== "object" || act === null) return undefined;
+  if (typeof act !== "object" || act === null || Array.isArray(act))
+    return malformed("act is not an object");
   const actor = act as Record<string, unknown>;
   const id = text(actor["sub"]);
+  if (id === undefined || !isAgentId(id)) return malformed("act.sub is not an agent id");
   const forPerson = text(claims.sub);
-  if (id === undefined || forPerson === undefined) return undefined;
-  return { id, name: text(actor["name"]) ?? id, forPerson };
+  if (forPerson === undefined || !isPersonId(forPerson)) return malformed("sub is not a person id");
+  if (Object.hasOwn(actor, "name") && text(actor["name"]) === undefined)
+    return malformed("act.name is not a name");
+  return { _tag: "Agent", agent: { id, name: text(actor["name"]) ?? id, forPerson } };
 };
 
 export const principalWithAgent = (
   principal: Principal,
   claims: Claims,
-  agent: ((claims: Claims) => AgentClaims | undefined) | undefined,
-): Principal => {
-  const found = agent === undefined ? undefined : agent(claims);
-  return found === undefined
-    ? principal
-    : {
+  agent: ((claims: Claims) => Delegation) | undefined,
+): Option.Option<Principal> => {
+  const found: Delegation = agent === undefined ? { _tag: "None" } : agent(claims);
+  switch (found._tag) {
+    case "None":
+      return Option.some(principal);
+    case "Malformed":
+      return Option.none();
+    case "Agent":
+      return Option.some({
         ...principal,
-        subject: found.id,
-        agent: { name: found.name, forPerson: found.forPerson },
-      };
+        subject: found.agent.id,
+        agent: { name: found.agent.name, forPerson: found.agent.forPerson },
+      });
+  }
 };
 
 const stringsOf = (value: unknown): ReadonlyArray<string> =>
@@ -164,15 +185,13 @@ export const jwt = (options: JwtOptions) =>
   tokenProvider(options, (claims) => {
     const subject = options.subject === undefined ? claims.sub : options.subject(claims);
     if (subject === undefined || subject === "") return Option.none();
-    return Option.some(
-      principalWithAgent(
-        {
-          subject,
-          orgId: options.orgId === undefined ? null : options.orgId(claims),
-          roles: options.roles === undefined ? stringsOf(claims["roles"]) : options.roles(claims),
-        },
-        claims,
-        options.agent,
-      ),
+    return principalWithAgent(
+      {
+        subject,
+        orgId: options.orgId === undefined ? null : options.orgId(claims),
+        roles: options.roles === undefined ? stringsOf(claims["roles"]) : options.roles(claims),
+      },
+      claims,
+      options.agent,
     );
   });

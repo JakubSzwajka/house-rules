@@ -28,6 +28,7 @@ export { Session, sessionClient, Unauthenticated } from "./auth/session.middlewa
 export { type ClerkOptions, clerk } from "./auth/clerk.ts";
 export {
   type AgentClaims,
+  type Delegation,
   agentFromAct,
   type Claims,
   type JwtKey,

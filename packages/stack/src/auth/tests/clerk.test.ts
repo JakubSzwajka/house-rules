@@ -7,6 +7,7 @@ import * as Option from "effect/Option";
 import { exportSPKI, generateKeyPair, type JWTPayload, SignJWT } from "jose";
 import { AuthProvider } from "../auth-provider.ts";
 import { clerk } from "../clerk.ts";
+import { agentFromAct } from "../jwt.ts";
 
 const issuer = "https://clerk.example.test";
 const app = "https://app.example.test";
@@ -129,9 +130,14 @@ describe("clerk", () => {
         issuer,
         jwtKey,
         agent: (claims) =>
-          typeof claims["agent"] === "string" && typeof claims.sub === "string"
-            ? { id: claims["agent"], name: "Claude", forPerson: claims.sub }
-            : undefined,
+          !Object.hasOwn(claims, "agent")
+            ? { _tag: "None" }
+            : typeof claims["agent"] === "string" && typeof claims.sub === "string"
+              ? {
+                  _tag: "Agent",
+                  agent: { id: claims["agent"], name: "Claude", forPerson: claims.sub },
+                }
+              : { _tag: "Malformed", reason: "agent is not a string" },
       });
       expect(yield* authenticate(agents, bearer(signed))).toEqual(
         Option.some({
@@ -144,6 +150,24 @@ describe("clerk", () => {
       expect(yield* authenticate(provider, bearer(signed))).toEqual(
         Option.some({ subject: "user_ann", orgId: null, roles: [] }),
       );
+      expect(yield* authenticate(agents, bearer(yield* token({})))).toEqual(
+        Option.some({ subject: "user_ann", orgId: null, roles: [] }),
+      );
+      expect(yield* authenticate(agents, bearer(yield* token({ agent: 7 })))).toEqual(
+        Option.none(),
+      );
+    }),
+  );
+
+  it.effect("signs out a token whose act claim is malformed when agentFromAct reads it", () =>
+    Effect.gen(function* () {
+      const agents = clerk({ issuer, jwtKey, agent: agentFromAct });
+      const person = yield* token({});
+      expect(yield* authenticate(agents, bearer(person))).toEqual(
+        Option.some({ subject: "user_ann", orgId: null, roles: [] }),
+      );
+      for (const act of [{ sub: "" }, {}, { sub: "claude" }, { sub: 7 }, "agent:claude"])
+        expect(yield* authenticate(agents, bearer(yield* token({ act })))).toEqual(Option.none());
     }),
   );
 });
