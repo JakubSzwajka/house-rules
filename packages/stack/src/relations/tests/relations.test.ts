@@ -3,6 +3,7 @@ import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Schedule from "effect/Schedule";
 import * as Layer from "effect/Layer";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import { Roles } from "../../access/roles.ts";
@@ -163,7 +164,11 @@ describe("GraphApi over Session", () => {
         to: "doc:9",
       });
       const edges = yield* ann.NodeEdges.get("doc:9").pipe(
-        Effect.repeat({ until: (state) => (state?.in.length ?? 0) > 0, times: 50 }),
+        Effect.repeat({
+          until: (state) => (state?.in.length ?? 0) > 0,
+          schedule: Schedule.spaced("20 millis"),
+          times: 100,
+        }),
       );
       expect(edges).toEqual({ out: [], in: [{ type: "contains", node: "folder:9" }] });
       const bob = yield* as("bob-token");
