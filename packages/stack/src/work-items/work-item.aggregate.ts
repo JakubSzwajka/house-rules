@@ -65,6 +65,8 @@ export class WorkItem extends Domain.Aggregate("WorkItem", {
           closedAt: isClosed(w, w.initial) ? DateTime.toEpochMillis(now) : null,
           container: parent === null ? (cmd.container ?? null) : null,
           parent,
+          priority: cmd.priority ?? null,
+          due: cmd.due ?? null,
           by: authorOf(actor),
         }),
       ];
@@ -72,10 +74,20 @@ export class WorkItem extends Domain.Aggregate("WorkItem", {
     EditWorkItem: Effect.fn(function* (s, cmd) {
       const actor = yield* requirePermission(WorkItemsPermissions.write);
       if (s === null) return yield* new WorkItemNotFound();
-      const title = cmd.title ?? s.title;
-      const body = cmd.body ?? s.body;
-      if (title === s.title && body === s.body) return [];
-      return [new WorkItemEdited({ title, body, by: authorOf(actor) })];
+      const edited = {
+        title: cmd.title ?? s.title,
+        body: cmd.body ?? s.body,
+        priority: cmd.priority === undefined ? s.priority : cmd.priority,
+        due: cmd.due === undefined ? s.due : cmd.due,
+      };
+      if (
+        edited.title === s.title &&
+        edited.body === s.body &&
+        edited.priority === s.priority &&
+        edited.due === s.due
+      )
+        return [];
+      return [new WorkItemEdited({ ...edited, by: authorOf(actor) })];
     }),
     ChangeWorkItemStatus: Effect.fn(function* (s, cmd, { now }) {
       const actor = yield* requirePermission(WorkItemsPermissions.write);
