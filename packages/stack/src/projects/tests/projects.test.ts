@@ -2,7 +2,7 @@ import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import { agent, system } from "../../actor/actor.ts";
+import { agent, PersonId, system } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import * as Projects from "../index.ts";
@@ -63,7 +63,12 @@ describe("projects", () => {
       Story.when(project1, new EditProject({ name: "Alpha One" })),
       Story.then(
         project1,
-        new ProjectEdited({ name: "Alpha One", description: "", by: "agent:claude" }),
+        new ProjectEdited({
+          name: "Alpha One",
+          description: "",
+          by: "agent:claude",
+          for: PersonId.make("ann"),
+        }),
       ),
     ),
   );

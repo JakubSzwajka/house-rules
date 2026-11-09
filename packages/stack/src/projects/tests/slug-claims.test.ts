@@ -1,7 +1,7 @@
 import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
-import { person } from "../../actor/actor.ts";
+import { agent, PersonId, person } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import * as Projects from "../index.ts";
@@ -30,6 +30,7 @@ const {
   ProjectsPermissions,
   ProjectSlugClaimed,
   ProjectSlugReleased,
+  ProjectCreated,
   ProjectSlugReserved,
   SlugTaken,
   UnknownStatus,
@@ -141,4 +142,40 @@ describe("slug claims", () => {
       ),
     ),
   );
+
+  it.effect("carries the person an agent acts for through the slug policy", () => {
+    const attribution = { by: "agent:claude", for: PersonId.make("ann") };
+    return story(
+      Story.provide(
+        CurrentActor,
+        agent("agent:claude", "ann", { permissions: [ProjectsPermissions.write] }),
+      ),
+      Story.provide(ProjectSettings, defaultStatuses),
+      Story.when(alphaClaim, new CreateProject({ project: p1, name: "Alpha" })),
+      Story.then(
+        alphaClaim,
+        new ProjectSlugReserved({
+          project: p1,
+          name: "Alpha",
+          status: "active",
+          description: "",
+          ...attribution,
+        }),
+      ),
+      Story.then(
+        project1,
+        new ProjectCreated({
+          slug: alpha,
+          name: "Alpha",
+          status: "active",
+          description: "",
+          ...attribution,
+        }),
+      ),
+      Story.when(betaClaim, new ChangeProjectSlug({ project: p1 })),
+      Story.then(betaClaim, new ProjectSlugClaimed({ project: p1, ...attribution })),
+      Story.then(project1, new ProjectSlugChanged({ from: alpha, to: beta, ...attribution })),
+      Story.then(alphaClaim, new ProjectSlugReleased({ project: p1 })),
+    );
+  });
 });

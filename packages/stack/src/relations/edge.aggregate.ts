@@ -2,7 +2,7 @@ import * as Domain from "@alchemy.run/domain";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import { requirePermission } from "../access/require-permission.ts";
-import { authorOf } from "../actor/actor.ts";
+import { attributionOf } from "../actor/actor.ts";
 import { EdgeId, edgeId } from "./edge.id.ts";
 import { RelationsPermissions } from "./permissions.ts";
 import { EdgeIdMismatch, Endpoints, Relate, EdgeRelated } from "./relate.command.ts";
@@ -19,12 +19,14 @@ export class Edge extends Domain.Aggregate("Edge", {
       const expected = edgeId(cmd.from, cmd.type, cmd.to);
       if (id !== expected) return yield* new EdgeIdMismatch({ expected });
       if (s !== null) return [];
-      return [new EdgeRelated({ from: cmd.from, type: cmd.type, to: cmd.to, by: authorOf(actor) })];
+      return [
+        new EdgeRelated({ from: cmd.from, type: cmd.type, to: cmd.to, ...attributionOf(actor) }),
+      ];
     }),
     Unrelate: Effect.fn(function* (s) {
       const actor = yield* requirePermission(RelationsPermissions.write);
       if (s === null) return [];
-      return [new EdgeUnrelated({ ...s, by: authorOf(actor) })];
+      return [new EdgeUnrelated({ ...s, ...attributionOf(actor) })];
     }),
   },
   evolve: {

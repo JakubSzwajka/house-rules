@@ -12,6 +12,7 @@ import {
   WorkItemTitle,
 } from "./work-item.id.ts";
 import { WorkflowConfig } from "./workflow-config.middleware.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export class WorkItemCreated extends Domain.Event("WorkItemCreated", {
   title: Schema.String,
@@ -23,6 +24,7 @@ export class WorkItemCreated extends Domain.Event("WorkItemCreated", {
   priority: PriorityField,
   due: DueField,
   by: Schema.String,
+  for: ActedFor,
 }) {}
 
 export class WorkItemExists extends Domain.Rejection(

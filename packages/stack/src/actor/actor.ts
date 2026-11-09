@@ -1,3 +1,4 @@
+import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
 export const PartyId = Schema.String.pipe(Schema.brand("PartyId"));
@@ -91,6 +92,21 @@ export const system = (name: string, permissions: ReadonlyArray<string> = []): S
 
 export const authorOf = (actor: Actor): string =>
   actor._tag === "System" ? `system:${actor.name}` : actor.id;
+
+export const ActedFor = Schema.NullOr(PersonId).pipe(
+  Schema.withDecodingDefaultKey(Effect.succeed(null)),
+  Schema.withConstructorDefault(Effect.succeed(null)),
+);
+
+export interface Attribution {
+  readonly by: string;
+  readonly for: PersonId | null;
+}
+
+export const attributionOf = (actor: Actor): Attribution => ({
+  by: authorOf(actor),
+  for: actor._tag === "Agent" ? actor.forPerson : null,
+});
 
 export const partyOf = (actor: Actor): PartyId | null =>
   actor._tag === "System" ? null : actor.id;

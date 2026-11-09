@@ -1,7 +1,7 @@
 import * as Domain from "@alchemy.run/domain";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
-import { authorOf } from "../actor/actor.ts";
+import { attributionOf } from "../actor/actor.ts";
 import { requirePermission } from "../access/require-permission.ts";
 import { ProjectSettings } from "./project-settings.context.ts";
 import { ChangeProjectSlug, ProjectSlugClaimed } from "./change-project-slug.command.ts";
@@ -32,7 +32,7 @@ export class SlugClaim extends Domain.Aggregate("SlugClaim", {
           name: cmd.name,
           status,
           description: cmd.description ?? "",
-          by: authorOf(actor),
+          ...attributionOf(actor),
         }),
       ];
     }),
@@ -40,7 +40,7 @@ export class SlugClaim extends Domain.Aggregate("SlugClaim", {
       const actor = yield* requirePermission(ProjectsPermissions.write);
       if (s.project === cmd.project) return [];
       if (s.project !== null) return yield* new SlugTaken({ project: s.project });
-      return [new ProjectSlugClaimed({ project: cmd.project, by: authorOf(actor) })];
+      return [new ProjectSlugClaimed({ project: cmd.project, ...attributionOf(actor) })];
     }),
     ReleaseSlug: Effect.fn(function* (s, cmd) {
       yield* requirePermission(ProjectsPermissions.settle);

@@ -3,6 +3,7 @@ import * as Schema from "effect/Schema";
 import { Forbidden } from "../access/forbidden.rejection.ts";
 import { Session } from "../auth/session.middleware.ts";
 import { ProjectId, ProjectSlug } from "./project.id.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export class ProjectCreated extends Domain.Event("ProjectCreated", {
   slug: ProjectSlug,
@@ -10,6 +11,7 @@ export class ProjectCreated extends Domain.Event("ProjectCreated", {
   status: Schema.String,
   description: Schema.String,
   by: Schema.String,
+  for: ActedFor,
 }) {}
 
 export class ProjectExists extends Domain.Rejection("ProjectExists", {}, { httpApiStatus: 409 }) {}
@@ -23,6 +25,7 @@ export class OpenProject extends Domain.Command("OpenProject", {
     status: Schema.String,
     description: Schema.String,
     by: Schema.String,
+    for: ActedFor,
   },
   events: [ProjectCreated],
   rejects: [Forbidden, ProjectExists],

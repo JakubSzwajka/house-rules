@@ -1,9 +1,13 @@
 export {
+  ActedFor,
   type Actor,
   actingFor,
   Agent,
   AgentId,
   agent,
+  agentIdPrefix,
+  type Attribution,
+  attributionOf,
   authorOf,
   type Party,
   PartyId,

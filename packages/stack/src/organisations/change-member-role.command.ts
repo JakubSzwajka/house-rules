@@ -1,7 +1,7 @@
 import * as Domain from "@alchemy.run/domain";
 import * as Schema from "effect/Schema";
 import { Forbidden } from "../access/forbidden.rejection.ts";
-import { PersonId } from "../actor/actor.ts";
+import { PersonId, ActedFor } from "../actor/actor.ts";
 import { Session } from "../auth/session.middleware.ts";
 import { LastAdmin } from "./last-admin.rejection.ts";
 import { NotAdmin } from "./not-admin.rejection.ts";
@@ -13,6 +13,7 @@ export class OrganisationMemberRoleChanged extends Domain.Event("OrganisationMem
   person: PersonId,
   role: Schema.String,
   by: Schema.String,
+  for: ActedFor,
 }) {}
 
 export class ChangeMemberRole extends Domain.Command("ChangeMemberRole", {

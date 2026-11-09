@@ -95,7 +95,7 @@ describe("Organisation", () => {
       Story.when(globex, new CreateOrganisation({ name: "Globex", admin: ann })),
       Story.then(
         globex,
-        new OrganisationCreated({ name: "Globex", admin: ann, by: "agent:claude" }),
+        new OrganisationCreated({ name: "Globex", admin: ann, by: "agent:claude", for: ann }),
       ),
     ),
   );

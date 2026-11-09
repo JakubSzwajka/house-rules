@@ -79,7 +79,7 @@ describe("work item priority and due date", () => {
       Story.rejected(new Forbidden({ permission: WorkItemsPermissions.write })),
       ...as(claude),
       Story.when(item1, new EditWorkItem({ priority: "high" })),
-      Story.then(item1, edited({ priority: "high", by: "agent:claude" })),
+      Story.then(item1, edited({ priority: "high", by: "agent:claude", for: ann })),
     ),
   );
 
@@ -138,6 +138,7 @@ describe("work item priority and due date", () => {
         editedBefore,
       );
       expect(state).toMatchObject({ title: "Fix it", priority: null, due: null, holder: null });
+      expect([createdBefore.for, editedBefore.for]).toEqual([null, null]);
       const stored = yield* Schema.decodeEffect(WorkItemState)({
         title: "Fix the roof",
         body: "",

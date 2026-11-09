@@ -6,7 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import { Roles } from "../../access/roles.ts";
-import { agent, person, system } from "../../actor/actor.ts";
+import { agent, person, PersonId, system } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import { devTokens } from "../../auth/dev-tokens.ts";
 import { SessionLive } from "../../auth/session-live.ts";
@@ -96,7 +96,10 @@ describe("Edge", () => {
         agent("agent:claude", "ann", { permissions: ["relations:write"] }),
       ),
       Story.when(contains, relate),
-      Story.then(contains, new EdgeRelated({ ...ends, by: "agent:claude" })),
+      Story.then(
+        contains,
+        new EdgeRelated({ ...ends, by: "agent:claude", for: PersonId.make("ann") }),
+      ),
     ),
   );
 

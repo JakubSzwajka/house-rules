@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import { can } from "../access/permission.ts";
 import { requirePermission } from "../access/require-permission.ts";
-import { authorOf } from "../actor/actor.ts";
+import { attributionOf, authorOf } from "../actor/actor.ts";
 import { AddComment, CommentAdded, CommentExists } from "./add-comment.command.ts";
 import { CommentId } from "./comment.id.ts";
 import { CommentNotFound } from "./comment-not-found.rejection.ts";
@@ -41,7 +41,7 @@ export class Comment extends Domain.Aggregate("Comment", {
       if (s._tag !== "None") return yield* new CommentExists();
       const invalid = tooLong(cmd.body);
       if (invalid) return yield* invalid;
-      return [new CommentAdded({ target: cmd.target, by: authorOf(actor), body: cmd.body })];
+      return [new CommentAdded({ target: cmd.target, ...attributionOf(actor), body: cmd.body })];
     }),
     EditComment: Effect.fn(function* (s, cmd) {
       const actor = yield* requirePermission(CommentsPermissions.write);
@@ -50,17 +50,19 @@ export class Comment extends Domain.Aggregate("Comment", {
       if (posted.by !== authorOf(actor)) return yield* new NotAuthor({ author: posted.by });
       const invalid = tooLong(cmd.body);
       if (invalid) return yield* invalid;
-      return [new CommentEdited({ target: posted.target, by: posted.by, body: cmd.body })];
+      return [
+        new CommentEdited({ target: posted.target, ...attributionOf(actor), body: cmd.body }),
+      ];
     }),
     DeleteComment: Effect.fn(function* (s) {
       const actor = yield* requirePermission(CommentsPermissions.write);
       if (s._tag === "Deleted") return [];
       const posted = postedFor(s);
       if (posted._tag !== "Posted") return yield* posted;
-      const by = authorOf(actor);
-      if (posted.by !== by && !can(actor, CommentsPermissions.moderate))
+      const attribution = attributionOf(actor);
+      if (posted.by !== attribution.by && !can(actor, CommentsPermissions.moderate))
         return yield* new NotAuthor({ author: posted.by });
-      return [new CommentDeleted({ target: posted.target, by })];
+      return [new CommentDeleted({ target: posted.target, ...attribution })];
     }),
   },
   evolve: {

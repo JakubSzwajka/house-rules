@@ -9,10 +9,12 @@ import { Comment } from "./comment.aggregate.ts";
 import { CommentId } from "./comment.id.ts";
 import { CommentsPermissions } from "./permissions.ts";
 import { TargetKey, targetKey } from "../target/target.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export const CommentItem = Schema.Struct({
   id: CommentId,
   by: Schema.String,
+  for: ActedFor,
   body: Schema.String,
   postedAt: Schema.Int,
   editedAt: Schema.NullOr(Schema.Int),
@@ -37,6 +39,7 @@ export class CommentsOnTarget extends Domain.View("CommentsOnTarget", {
         {
           id: source.id,
           by: e.by,
+          for: e.for,
           body: e.body,
           postedAt: DateTime.toEpochMillis(at),
           editedAt: null,

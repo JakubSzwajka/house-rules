@@ -3,7 +3,7 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import { Forbidden } from "../access/forbidden.rejection.ts";
 import { requirePermission } from "../access/require-permission.ts";
-import { authorOf, type PersonId } from "../actor/actor.ts";
+import { attributionOf, type PersonId } from "../actor/actor.ts";
 import { Session } from "../auth/session.middleware.ts";
 import { AddMember, AlreadyMember, OrganisationMemberAdded } from "./add-member.command.ts";
 import { ChangeMemberRole, OrganisationMemberRoleChanged } from "./change-member-role.command.ts";
@@ -36,7 +36,7 @@ const asAdmin = Effect.fn(function* (s: OrganisationState) {
   if (actor._tag !== "System" && founded?.members[actor.id] !== ADMIN_ROLE)
     return yield* new NotAdmin();
   if (founded === undefined) return yield* new OrganisationNotFound();
-  return { members: founded.members, by: authorOf(actor) };
+  return { members: founded.members, attribution: attributionOf(actor) };
 });
 
 const roleOf = (members: Members, person: PersonId) =>
@@ -63,29 +63,31 @@ export class Organisation extends Domain.Aggregate("Organisation", {
       if (s._tag === "Founded") return yield* new OrganisationExists();
       const admin = cmd.admin ?? (actor._tag === "Person" ? actor.id : undefined);
       if (admin === undefined) return yield* new AdminRequired();
-      return [new OrganisationCreated({ name: cmd.name, admin, by: authorOf(actor) })];
+      return [new OrganisationCreated({ name: cmd.name, admin, ...attributionOf(actor) })];
     }),
     AddMember: Effect.fn(function* (s, cmd) {
-      const { members, by } = yield* asAdmin(s);
+      const { members, attribution } = yield* asAdmin(s);
       const role = roleOf(members, cmd.person);
       if (role === cmd.role) return [];
       if (role !== undefined) return yield* new AlreadyMember({ person: cmd.person, role });
-      return [new OrganisationMemberAdded({ person: cmd.person, role: cmd.role, by })];
+      return [new OrganisationMemberAdded({ person: cmd.person, role: cmd.role, ...attribution })];
     }),
     ChangeMemberRole: Effect.fn(function* (s, cmd) {
-      const { members, by } = yield* asAdmin(s);
+      const { members, attribution } = yield* asAdmin(s);
       const role = roleOf(members, cmd.person);
       if (role === undefined) return yield* new NotMember({ person: cmd.person });
       if (role === cmd.role) return [];
       if (isLastAdmin(members, cmd.person)) return yield* new LastAdmin();
-      return [new OrganisationMemberRoleChanged({ person: cmd.person, role: cmd.role, by })];
+      return [
+        new OrganisationMemberRoleChanged({ person: cmd.person, role: cmd.role, ...attribution }),
+      ];
     }),
     RemoveMember: Effect.fn(function* (s, cmd) {
-      const { members, by } = yield* asAdmin(s);
+      const { members, attribution } = yield* asAdmin(s);
       if (roleOf(members, cmd.person) === undefined)
         return yield* new NotMember({ person: cmd.person });
       if (isLastAdmin(members, cmd.person)) return yield* new LastAdmin();
-      return [new OrganisationMemberRemoved({ person: cmd.person, by })];
+      return [new OrganisationMemberRemoved({ person: cmd.person, ...attribution })];
     }),
   },
   evolve: {

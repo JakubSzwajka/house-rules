@@ -12,6 +12,7 @@ import {
   WorkItemTitle,
 } from "./work-item.id.ts";
 import { WorkItemNotFound } from "./work-item-not-found.rejection.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export class WorkItemEdited extends Domain.Event("WorkItemEdited", {
   title: Schema.String,
@@ -19,6 +20,7 @@ export class WorkItemEdited extends Domain.Event("WorkItemEdited", {
   priority: PriorityField,
   due: DueField,
   by: Schema.String,
+  for: ActedFor,
 }) {}
 
 export class EditWorkItem extends Domain.Command("EditWorkItem", {

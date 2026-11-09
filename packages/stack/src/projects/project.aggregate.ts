@@ -1,7 +1,7 @@
 import * as Domain from "@alchemy.run/domain";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
-import { authorOf } from "../actor/actor.ts";
+import { attributionOf } from "../actor/actor.ts";
 import { Forbidden } from "../access/forbidden.rejection.ts";
 import { requirePermission } from "../access/require-permission.ts";
 import { Session } from "../auth/session.middleware.ts";
@@ -35,13 +35,13 @@ export class Project extends Domain.Aggregate("Project", {
       yield* requirePermission(ProjectsPermissions.settle);
       if (s !== null) return s.slug === cmd.slug ? [] : yield* new ProjectExists();
       const { slug, name, status, description, by } = cmd;
-      return [new ProjectCreated({ slug, name, status, description, by })];
+      return [new ProjectCreated({ slug, name, status, description, by, for: cmd.for })];
     }),
     SwitchProjectSlug: Effect.fn(function* (s, cmd) {
       yield* requirePermission(ProjectsPermissions.settle);
       if (s === null) return yield* new ProjectNotFound();
       if (s.slug === cmd.slug) return [];
-      return [new ProjectSlugChanged({ from: s.slug, to: cmd.slug, by: cmd.by })];
+      return [new ProjectSlugChanged({ from: s.slug, to: cmd.slug, by: cmd.by, for: cmd.for })];
     }),
     EditProject: Effect.fn(function* (s, cmd) {
       const actor = yield* requirePermission(ProjectsPermissions.write);
@@ -49,7 +49,7 @@ export class Project extends Domain.Aggregate("Project", {
       const name = cmd.name ?? s.name;
       const description = cmd.description ?? s.description;
       if (name === s.name && description === s.description) return [];
-      return [new ProjectEdited({ name, description, by: authorOf(actor) })];
+      return [new ProjectEdited({ name, description, ...attributionOf(actor) })];
     }),
     ChangeProjectStatus: Effect.fn(function* (s, cmd) {
       const actor = yield* requirePermission(ProjectsPermissions.write);
@@ -58,7 +58,9 @@ export class Project extends Domain.Aggregate("Project", {
       if (!statuses.includes(cmd.status))
         return yield* new UnknownStatus({ status: cmd.status, statuses });
       if (s.status === cmd.status) return [];
-      return [new ProjectStatusChanged({ from: s.status, to: cmd.status, by: authorOf(actor) })];
+      return [
+        new ProjectStatusChanged({ from: s.status, to: cmd.status, ...attributionOf(actor) }),
+      ];
     }),
   },
   evolve: {

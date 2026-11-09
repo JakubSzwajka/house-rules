@@ -2,7 +2,7 @@ import * as Domain from "@alchemy.run/domain";
 import * as Schema from "effect/Schema";
 import { Forbidden } from "../access/forbidden.rejection.ts";
 import { Session } from "../auth/session.middleware.ts";
-import { PartyId } from "../actor/actor.ts";
+import { PartyId, ActedFor } from "../actor/actor.ts";
 import { TransitionNotAllowed } from "./transition-not-allowed.rejection.ts";
 import { WorkItemId } from "./work-item.id.ts";
 import { WorkItemNotFound } from "./work-item-not-found.rejection.ts";
@@ -13,6 +13,7 @@ export class WorkItemClaimed extends Domain.Event("WorkItemClaimed", {
   from: Schema.String,
   to: Schema.String,
   by: Schema.String,
+  for: ActedFor,
 }) {}
 
 export class WorkItemClosed extends Domain.Rejection(

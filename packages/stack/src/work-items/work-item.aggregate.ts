@@ -1,7 +1,7 @@
 import * as Domain from "@alchemy.run/domain";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
-import { authorOf, partyOf } from "../actor/actor.ts";
+import { attributionOf, partyOf } from "../actor/actor.ts";
 import { Forbidden } from "../access/forbidden.rejection.ts";
 import { can } from "../access/permission.ts";
 import { requirePermission } from "../access/require-permission.ts";
@@ -67,7 +67,7 @@ export class WorkItem extends Domain.Aggregate("WorkItem", {
           parent,
           priority: cmd.priority ?? null,
           due: cmd.due ?? null,
-          by: authorOf(actor),
+          ...attributionOf(actor),
         }),
       ];
     }),
@@ -87,20 +87,20 @@ export class WorkItem extends Domain.Aggregate("WorkItem", {
         edited.due === s.due
       )
         return [];
-      return [new WorkItemEdited({ ...edited, by: authorOf(actor) })];
+      return [new WorkItemEdited({ ...edited, ...attributionOf(actor) })];
     }),
     ChangeWorkItemStatus: Effect.fn(function* (s, cmd, { now }) {
       const actor = yield* requirePermission(WorkItemsPermissions.write);
       if (s === null) return yield* new WorkItemNotFound();
       if (s.status === cmd.status) return [];
       const moved = yield* move(yield* CurrentWorkflow, s, cmd.status, now);
-      return [new WorkItemStatusChanged({ ...moved, by: authorOf(actor) })];
+      return [new WorkItemStatusChanged({ ...moved, ...attributionOf(actor) })];
     }),
     AssignWorkItem: Effect.fn(function* (s, cmd) {
       const actor = yield* requirePermission(WorkItemsPermissions.assign);
       if (s === null) return yield* new WorkItemNotFound();
       if (s.holder === cmd.holder) return [];
-      return [new WorkItemAssigned({ from: s.holder, to: cmd.holder, by: authorOf(actor) })];
+      return [new WorkItemAssigned({ from: s.holder, to: cmd.holder, ...attributionOf(actor) })];
     }),
     ClaimWorkItem: Effect.fn(function* (s, _cmd, { now }) {
       const actor = yield* requirePermission(WorkItemsPermissions.write);
@@ -119,7 +119,7 @@ export class WorkItem extends Domain.Aggregate("WorkItem", {
           holder: actor.id,
           from: moved.from,
           to: moved.to,
-          by: authorOf(actor),
+          ...attributionOf(actor),
         }),
       ];
     }),
@@ -135,7 +135,7 @@ export class WorkItem extends Domain.Aggregate("WorkItem", {
         s.status === w.release.from
           ? yield* move(w, s, w.release.to, now)
           : { from: s.status, to: s.status, closedAt: s.closedAt };
-      return [new WorkItemReleased({ holder: s.holder, ...moved, by: authorOf(actor) })];
+      return [new WorkItemReleased({ holder: s.holder, ...moved, ...attributionOf(actor) })];
     }),
     AdoptChild: Effect.fn(function* (s, cmd) {
       yield* requirePermission(WorkItemsPermissions.link);

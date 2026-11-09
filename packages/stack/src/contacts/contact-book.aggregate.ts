@@ -2,7 +2,7 @@ import * as Domain from "@alchemy.run/domain";
 import * as Effect from "effect/Effect";
 import { Forbidden } from "../access/forbidden.rejection.ts";
 import { requirePermission } from "../access/require-permission.ts";
-import { authorOf } from "../actor/actor.ts";
+import { type Attribution, attributionOf } from "../actor/actor.ts";
 import { Session } from "../auth/session.middleware.ts";
 import { AddContact } from "./add-contact.command.ts";
 import { ContactAdded } from "./contact-added.event.ts";
@@ -42,12 +42,12 @@ const primaryChange = (
   contactId: string,
   type: ContactType,
   purposes: ReadonlyArray<string>,
-  by: string,
+  attribution: Attribution,
 ) => {
   const previous = claimsFor(s, contactId, type, purposes);
   return Object.keys(previous).length === 0
     ? []
-    : [new PrimaryContactChanged({ contactId, previous, by })];
+    : [new PrimaryContactChanged({ contactId, previous, ...attribution })];
 };
 
 export class ContactBook extends Domain.Aggregate("ContactBook", {
@@ -64,7 +64,7 @@ export class ContactBook extends Domain.Aggregate("ContactBook", {
   ],
   decide: {
     AddContact: Effect.fn(function* (s, cmd, { id }) {
-      const by = authorOf(yield* asOwner(id));
+      const attribution = attributionOf(yield* asOwner(id));
       if (contactIn(s, cmd.contactId))
         return yield* new DuplicateContact({ contactId: cmd.contactId });
       if (cmd.type === "postal" && cmd.value !== undefined)
@@ -80,28 +80,28 @@ export class ContactBook extends Domain.Aggregate("ContactBook", {
         value,
         details: cmd.details ?? {},
         purposes,
-        by,
+        ...attribution,
       });
       if (!cmd.primary) return [added];
-      return [added, ...primaryChange(s, cmd.contactId, cmd.type, purposes, by)];
+      return [added, ...primaryChange(s, cmd.contactId, cmd.type, purposes, attribution)];
     }),
     RemoveContact: Effect.fn(function* (s, cmd, { id }) {
-      const by = authorOf(yield* asOwner(id));
+      const attribution = attributionOf(yield* asOwner(id));
       if (!contactIn(s, cmd.contactId))
         return yield* new ContactNotFound({ contactId: cmd.contactId });
-      return [new ContactRemoved({ contactId: cmd.contactId, by })];
+      return [new ContactRemoved({ contactId: cmd.contactId, ...attribution })];
     }),
     SetPrimaryContact: Effect.fn(function* (s, cmd, { id }) {
-      const by = authorOf(yield* asOwner(id));
+      const attribution = attributionOf(yield* asOwner(id));
       const contact = contactIn(s, cmd.contactId);
       if (!contact) return yield* new ContactNotFound({ contactId: cmd.contactId });
       const purposes = cmd.purposes ?? contact.purposes;
       if (purposes.some((purpose) => !contact.purposes.includes(purpose)))
         return yield* new InvalidContact({ reason: "purpose-not-offered" });
-      return primaryChange(s, cmd.contactId, contact.type, purposes, by);
+      return primaryChange(s, cmd.contactId, contact.type, purposes, attribution);
     }),
     RequestVerification: Effect.fn(function* (s, cmd, { id }) {
-      const by = authorOf(yield* asOwner(id));
+      const attribution = attributionOf(yield* asOwner(id));
       const contact = contactIn(s, cmd.contactId);
       if (!contact) return yield* new ContactNotFound({ contactId: cmd.contactId });
       if (contact.type === "postal" || contact.value === null)
@@ -112,39 +112,49 @@ export class ContactBook extends Domain.Aggregate("ContactBook", {
           contactId: cmd.contactId,
           type: contact.type,
           address: contact.value,
-          by,
+          ...attribution,
         }),
       ];
     }),
     VerifyContact: Effect.fn(function* (s, cmd) {
-      const by = authorOf(yield* requirePermission(ContactsPermissions.verify));
+      const attribution = attributionOf(yield* requirePermission(ContactsPermissions.verify));
       const contact = contactIn(s, cmd.contactId);
       if (contact?.value !== cmd.address)
         return yield* new ContactNotFound({ contactId: cmd.contactId });
       if (contact.verifiedAt !== null) return [];
-      return [new ContactVerified({ contactId: cmd.contactId, by })];
+      return [new ContactVerified({ contactId: cmd.contactId, ...attribution })];
     }),
     ImportVerifiedContact: Effect.fn(function* (s, cmd) {
-      const by = authorOf(yield* requirePermission(ContactsPermissions.import));
+      const attribution = attributionOf(yield* requirePermission(ContactsPermissions.import));
       const email = normalize("email", cmd.email);
       const existing = findByValue(s, "email", email);
       if (existing) {
         const [contactId, contact] = existing;
         const verified =
-          contact.verifiedAt === null ? [new ContactVerified({ contactId, by })] : [];
+          contact.verifiedAt === null ? [new ContactVerified({ contactId, ...attribution })] : [];
         if (!cmd.primary) return verified;
-        return [...verified, ...primaryChange(s, contactId, "email", contact.purposes, by)];
+        return [
+          ...verified,
+          ...primaryChange(s, contactId, "email", contact.purposes, attribution),
+        ];
       }
       if (contactIn(s, cmd.contactId))
         return yield* new DuplicateContact({ contactId: cmd.contactId });
       const purposes = [...new Set(cmd.purposes)];
       const { contactId } = cmd;
       const facts = [
-        new ContactAdded({ contactId, type: "email", value: email, details: {}, purposes, by }),
-        new ContactVerified({ contactId, by }),
+        new ContactAdded({
+          contactId,
+          type: "email",
+          value: email,
+          details: {},
+          purposes,
+          ...attribution,
+        }),
+        new ContactVerified({ contactId, ...attribution }),
       ];
       if (!cmd.primary) return facts;
-      return [...facts, ...primaryChange(s, contactId, "email", purposes, by)];
+      return [...facts, ...primaryChange(s, contactId, "email", purposes, attribution)];
     }),
   },
   evolve: {

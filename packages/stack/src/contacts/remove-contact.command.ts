@@ -5,10 +5,12 @@ import { Session } from "../auth/session.middleware.ts";
 import { ContactBookId, ContactId } from "./contact-book.id.ts";
 import { ContactNotFound } from "./contact-not-found.rejection.ts";
 import { NotContactOwner } from "./not-contact-owner.rejection.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export class ContactRemoved extends Domain.Event("ContactRemoved", {
   contactId: Schema.String,
   by: Schema.String,
+  for: ActedFor,
 }) {}
 
 export class RemoveContact extends Domain.Command("RemoveContact", {

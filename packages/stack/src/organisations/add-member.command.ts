@@ -1,7 +1,7 @@
 import * as Domain from "@alchemy.run/domain";
 import * as Schema from "effect/Schema";
 import { Forbidden } from "../access/forbidden.rejection.ts";
-import { PersonId } from "../actor/actor.ts";
+import { PersonId, ActedFor } from "../actor/actor.ts";
 import { Session } from "../auth/session.middleware.ts";
 import { NotAdmin } from "./not-admin.rejection.ts";
 import { OrgId, RoleName } from "./organisation.id.ts";
@@ -17,6 +17,7 @@ export class OrganisationMemberAdded extends Domain.Event("OrganisationMemberAdd
   person: PersonId,
   role: Schema.String,
   by: Schema.String,
+  for: ActedFor,
 }) {}
 
 export class AddMember extends Domain.Command("AddMember", {

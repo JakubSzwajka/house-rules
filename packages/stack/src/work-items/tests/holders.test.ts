@@ -36,7 +36,13 @@ const {
 } = WorkItems;
 
 const claimed = (holder: PartyId = ann) =>
-  new WorkItemClaimed({ holder, from: "todo", to: "doing", by: holder });
+  new WorkItemClaimed({
+    holder,
+    from: "todo",
+    to: "doing",
+    by: holder,
+    for: holder === claudeId ? ann : null,
+  });
 
 describe("holders", () => {
   it.effect("claims an unheld item and moves it to the claim state", () =>
@@ -138,6 +144,7 @@ describe("holders", () => {
           to: "todo",
           closedAt: null,
           by: "agent:claude",
+          for: ann,
         }),
       ),
       Story.view(HeldWorkItems, claudeId, { items: {} }),

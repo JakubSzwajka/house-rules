@@ -4,11 +4,13 @@ import { Forbidden } from "../access/forbidden.rejection.ts";
 import { Session } from "../auth/session.middleware.ts";
 import { ProjectId, ProjectName } from "./project.id.ts";
 import { ProjectNotFound } from "./project-not-found.rejection.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export class ProjectEdited extends Domain.Event("ProjectEdited", {
   name: Schema.String,
   description: Schema.String,
   by: Schema.String,
+  for: ActedFor,
 }) {}
 
 export class EditProject extends Domain.Command("EditProject", {

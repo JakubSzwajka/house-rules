@@ -6,6 +6,7 @@ import { ProjectId, ProjectName, ProjectSlug } from "./project.id.ts";
 import { ProjectsConfig } from "./projects-config.middleware.ts";
 import { SlugTaken } from "./slug-taken.rejection.ts";
 import { UnknownStatus } from "./unknown-status.rejection.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export class ProjectSlugReserved extends Domain.Event("ProjectSlugReserved", {
   project: ProjectId,
@@ -13,6 +14,7 @@ export class ProjectSlugReserved extends Domain.Event("ProjectSlugReserved", {
   status: Schema.String,
   description: Schema.String,
   by: Schema.String,
+  for: ActedFor,
 }) {}
 
 export class CreateProject extends Domain.Command("CreateProject", {

@@ -1,7 +1,16 @@
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
-import { actingFor, agent, authorOf, partyOf, person, system } from "../../index.ts";
+import {
+  ActedFor,
+  actingFor,
+  agent,
+  attributionOf,
+  authorOf,
+  partyOf,
+  person,
+  system,
+} from "../../index.ts";
 import { Actor, AgentId, PersonId } from "../actor.ts";
 
 const ann = person("ann", { orgId: "acme" });
@@ -18,6 +27,29 @@ describe("Actor", () => {
     expect([ann, claude, billing].map(partyOf)).toEqual(["ann", "agent:claude", null]);
     expect([ann, claude, billing].map(actingFor)).toEqual(["ann", "ann", null]);
   });
+
+  it("attributes a change to its author and, for an agent, to the person it acts for", () => {
+    expect([ann, claude, billing].map(attributionOf)).toEqual([
+      { by: "ann", for: null },
+      { by: "agent:claude", for: "ann" },
+      { by: "system:billing", for: null },
+    ]);
+  });
+
+  it.effect("decodes a missing for as null and refuses an agent id in it", () =>
+    Effect.gen(function* () {
+      const Recorded = Schema.Struct({ by: Schema.String, for: ActedFor });
+      expect(yield* Schema.decodeEffect(Recorded)({ by: "ann" })).toEqual({
+        by: "ann",
+        for: null,
+      });
+      const refused = yield* Schema.decodeEffect(Recorded)({
+        by: "agent:claude",
+        for: "agent:other",
+      }).pipe(Effect.flip);
+      expect(refused._tag).toBe("SchemaError");
+    }),
+  );
 
   it("names an agent by its id when no name is given", () => {
     expect(agent("agent:claude", "ann")).toEqual({
