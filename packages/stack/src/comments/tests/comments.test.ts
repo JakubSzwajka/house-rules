@@ -115,18 +115,24 @@ describe("Comments", () => {
   it.effect("lets an agent author its own comments, and not its person's", () =>
     story(
       Story.given(c2, posted),
-      Story.provide(CurrentActor, agent("claude", "ann", { permissions: [read, write] })),
+      Story.provide(CurrentActor, agent("agent:claude", "ann", { permissions: [read, write] })),
       Story.when(c1, new Comments.AddComment({ target: booking, body: "on it" })),
-      Story.then(c1, new Comments.CommentAdded({ target: booking, by: "claude", body: "on it" })),
+      Story.then(
+        c1,
+        new Comments.CommentAdded({ target: booking, by: "agent:claude", body: "on it" }),
+      ),
       Story.when(c1, new Comments.EditComment({ body: "done" })),
-      Story.then(c1, new Comments.CommentEdited({ target: booking, by: "claude", body: "done" })),
+      Story.then(
+        c1,
+        new Comments.CommentEdited({ target: booking, by: "agent:claude", body: "done" }),
+      ),
       Story.when(c2, new Comments.EditComment({ body: "rewritten" })),
       Story.rejected(new Comments.NotAuthor({ author: "ann" })),
       Story.when(c2, new Comments.DeleteComment()),
       Story.rejected(new Comments.NotAuthor({ author: "ann" })),
       Story.provide(CurrentActor, ann),
       Story.when(c1, new Comments.DeleteComment()),
-      Story.rejected(new Comments.NotAuthor({ author: "claude" })),
+      Story.rejected(new Comments.NotAuthor({ author: "agent:claude" })),
     ),
   );
 

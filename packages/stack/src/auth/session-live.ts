@@ -1,6 +1,7 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { type Actor, AgentId, PersonId } from "../actor/actor.ts";
 import { CurrentActor } from "../actor/current-actor.context.ts";
 import { Roles } from "../access/roles.ts";
@@ -9,6 +10,8 @@ import type { Principal } from "./principal.ts";
 import { Session, Unauthenticated } from "./session.middleware.ts";
 
 const posesAsSystem = (id: string) => id.startsWith("system:");
+const isPersonId = Schema.is(PersonId);
+const isAgentId = Schema.is(AgentId);
 
 const actorOf = (
   principal: Principal,
@@ -17,7 +20,8 @@ const actorOf = (
   // authorOf writes system actors as "system:<name>"; a subject like that could pose as one.
   if (posesAsSystem(principal.subject)) return Option.none();
   const roles = [...principal.roles];
-  if (principal.agent === undefined)
+  if (principal.agent === undefined) {
+    if (!isPersonId(principal.subject)) return Option.none();
     return Option.some({
       _tag: "Person",
       id: PersonId.make(principal.subject),
@@ -25,12 +29,13 @@ const actorOf = (
       roles,
       permissions: [...permissions],
     });
+  }
   const { name, forPerson } = principal.agent;
   if (
-    principal.subject === "" ||
+    !isAgentId(principal.subject) ||
+    !isPersonId(forPerson) ||
     forPerson === "" ||
-    posesAsSystem(forPerson) ||
-    forPerson === principal.subject
+    posesAsSystem(forPerson)
   )
     return Option.none();
   return Option.some({

@@ -51,13 +51,13 @@ describe("Notes", () => {
 
   it.effect("adds a note by an agent as its own author, and refuses one without the grant", () =>
     story(
-      Story.provide(CurrentActor, agent("claude", "ann", { permissions: [read, write] })),
+      Story.provide(CurrentActor, agent("agent:claude", "ann", { permissions: [read, write] })),
       Story.when(n1, new Notes.AddNote({ target: booking, body: "drafted a reply" })),
       Story.then(
         n1,
-        new Notes.NoteAdded({ target: booking, by: "claude", body: "drafted a reply" }),
+        new Notes.NoteAdded({ target: booking, by: "agent:claude", body: "drafted a reply" }),
       ),
-      Story.provide(CurrentActor, agent("reader", "ann", { permissions: [read] })),
+      Story.provide(CurrentActor, agent("agent:reader", "ann", { permissions: [read] })),
       Story.when(n2, new Notes.AddNote({ target: booking, body: "hi" })),
       Story.rejected(new Forbidden({ permission: write })),
     ),

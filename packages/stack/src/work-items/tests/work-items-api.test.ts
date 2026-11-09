@@ -26,7 +26,7 @@ const World = Layer.mergeAll(SessionLive, WorkItems.workflowConfig(board)).pipe(
         "bob-token": { subject: "bob", orgId: null, roles: ["member"] },
         "eve-token": { subject: "eve", orgId: null, roles: [] },
         "claude-token": {
-          subject: "claude",
+          subject: "agent:claude",
           orgId: null,
           roles: ["agent"],
           agent: { name: "Claude", forPerson: "ann" },
@@ -72,13 +72,13 @@ describe("WorkItemsApi", () => {
       const claude = yield* as("claude-token");
       const claimed = yield* claude.ClaimWorkItem(w2);
       const card = yield* claude.WorkItemCard.snapshot(w2, { atLeast: claimed });
-      expect(card.state).toMatchObject({ holder: "claude", status: "doing" });
+      expect(card.state).toMatchObject({ holder: "agent:claude", status: "doing" });
       const held = yield* claude.HeldWorkItems.get(claudeId, {
         atLeast: { stream: `WorkItemCard/${w2}`, version: card.cursor },
       });
       expect(Object.keys(held?.items ?? {})).toEqual([w2]);
       const taken = yield* annClient.ClaimWorkItem(w2).pipe(Effect.flip);
-      expect(taken).toMatchObject({ _tag: "WorkItemHeld", holder: "claude" });
+      expect(taken).toMatchObject({ _tag: "WorkItemHeld", holder: "agent:claude" });
     }).pipe(Effect.scoped, Effect.provide(World)),
   );
 });

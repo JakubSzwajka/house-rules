@@ -124,7 +124,7 @@ describe("clerk", () => {
 
   it.effect("reads an agent only through the agent option", () =>
     Effect.gen(function* () {
-      const signed = yield* token({ agent: "claude" });
+      const signed = yield* token({ agent: "agent:claude" });
       const agents = clerk({
         issuer,
         jwtKey,
@@ -135,7 +135,7 @@ describe("clerk", () => {
       });
       expect(yield* authenticate(agents, bearer(signed))).toEqual(
         Option.some({
-          subject: "claude",
+          subject: "agent:claude",
           orgId: null,
           roles: [],
           agent: { name: "Claude", forPerson: "user_ann" },

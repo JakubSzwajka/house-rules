@@ -123,13 +123,13 @@ describe("SessionLive", () => {
       const world = worldWith(
         devTokens({
           "claude-token": {
-            subject: "claude",
+            subject: "agent:claude",
             orgId: null,
             roles: ["greeter"],
             agent: { name: "Claude", forPerson: "ann" },
           },
           "idle-token": {
-            subject: "idle",
+            subject: "agent:idle",
             orgId: null,
             roles: [],
             agent: { name: "Idle", forPerson: "ann" },
@@ -140,7 +140,7 @@ describe("SessionLive", () => {
         Effect.scoped,
         Effect.provide(world),
       );
-      expect(reply).toEqual({ by: "claude" });
+      expect(reply).toEqual({ by: "agent:claude" });
       const refused = yield* greet(sessionClient("idle-token"), "d-7").pipe(
         Effect.flip,
         Effect.scoped,
@@ -161,12 +161,43 @@ describe("SessionLive", () => {
       const world = worldWith(
         devTokens({
           "posing-agent": agentToken("system:billing", "ann"),
-          "for-system": agentToken("claude", "system:billing"),
-          "for-itself": agentToken("claude", "claude"),
-          "for-nobody": agentToken("claude", ""),
+          "for-system": agentToken("agent:claude", "system:billing"),
+          "for-itself": agentToken("agent:claude", "agent:claude"),
+          "for-nobody": agentToken("agent:claude", ""),
+          "for-an-agent": agentToken("agent:claude", "agent:other"),
         }),
       );
-      for (const token of ["posing-agent", "for-system", "for-itself", "for-nobody"]) {
+      for (const token of [
+        "posing-agent",
+        "for-system",
+        "for-itself",
+        "for-nobody",
+        "for-an-agent",
+      ]) {
+        const refused = yield* greet(sessionClient(token), `d-${token}`).pipe(
+          Effect.flip,
+          Effect.scoped,
+          Effect.provide(world),
+        );
+        expect(refused._tag).toBe("Unauthenticated");
+      }
+    }),
+  );
+
+  it.live("refuses an agent whose id could pose as a person, and a person with an agent id", () =>
+    Effect.gen(function* () {
+      const world = worldWith(
+        devTokens({
+          "ann-as-agent": {
+            subject: "ann",
+            orgId: null,
+            roles: ["greeter"],
+            agent: { name: "Ann", forPerson: "bob" },
+          },
+          "agent-as-person": { subject: "agent:x", orgId: null, roles: ["greeter"] },
+        }),
+      );
+      for (const token of ["ann-as-agent", "agent-as-person"]) {
         const refused = yield* greet(sessionClient(token), `d-${token}`).pipe(
           Effect.flip,
           Effect.scoped,

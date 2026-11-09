@@ -45,7 +45,7 @@ const World = SessionLive.pipe(
         "bob-token": { subject: "bob", orgId: null, roles: ["member"] },
         "eve-token": { subject: "eve", orgId: null, roles: ["guest"] },
         "claude-token": {
-          subject: "claude",
+          subject: "agent:claude",
           orgId: null,
           roles: ["member"],
           agent: { name: "Claude", forPerson: "ann" },

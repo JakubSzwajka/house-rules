@@ -23,8 +23,8 @@ export const item3 = WorkItem.ref(w3);
 export const ann = PersonId.make("ann");
 export const bob = PersonId.make("bob");
 export const worker = (id: string) => person(id, { permissions: [WorkItemsPermissions.write] });
-export const claudeId = AgentId.make("claude");
-export const claude = agent("claude", "ann", {
+export const claudeId = AgentId.make("agent:claude");
+export const claude = agent("agent:claude", "ann", {
   name: "Claude",
   permissions: [WorkItemsPermissions.write],
 });

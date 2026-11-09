@@ -111,7 +111,7 @@ describe("holders", () => {
   it.effect("refuses an agent without the permission, and a person on an agent's item", () =>
     story(
       Story.given(item1, created(), claimed(claudeId)),
-      ...as(agent("idle", "ann")),
+      ...as(agent("agent:idle", "ann")),
       Story.when(item1, new ClaimWorkItem()),
       Story.rejected(new Forbidden({ permission: WorkItemsPermissions.write })),
       ...as(worker("ann")),
@@ -137,7 +137,7 @@ describe("holders", () => {
           from: "doing",
           to: "todo",
           closedAt: null,
-          by: "claude",
+          by: "agent:claude",
         }),
       ),
       Story.view(HeldWorkItems, claudeId, { items: {} }),

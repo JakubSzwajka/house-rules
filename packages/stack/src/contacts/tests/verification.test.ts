@@ -165,7 +165,7 @@ describe("ContactsApi over Session", () => {
     "bob-token": { subject: "bob", orgId: null, roles: ["member"] },
     "eve-token": { subject: "ann", orgId: null, roles: [] },
     "claude-token": {
-      subject: "claude",
+      subject: "agent:claude",
       orgId: null,
       roles: ["member"],
       agent: { name: "Claude", forPerson: "ann" },

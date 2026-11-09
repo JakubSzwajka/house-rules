@@ -85,12 +85,18 @@ describe("Edge", () => {
 
   it.effect("lets an agent with the grant relate as itself, and refuses one without it", () =>
     story(
-      Story.provide(CurrentActor, agent("reader", "ann", { permissions: ["relations:read"] })),
+      Story.provide(
+        CurrentActor,
+        agent("agent:reader", "ann", { permissions: ["relations:read"] }),
+      ),
       Story.when(contains, relate),
       Story.rejected(new Forbidden({ permission: "relations:write" })),
-      Story.provide(CurrentActor, agent("claude", "ann", { permissions: ["relations:write"] })),
+      Story.provide(
+        CurrentActor,
+        agent("agent:claude", "ann", { permissions: ["relations:write"] }),
+      ),
       Story.when(contains, relate),
-      Story.then(contains, new EdgeRelated({ ...ends, by: "claude" })),
+      Story.then(contains, new EdgeRelated({ ...ends, by: "agent:claude" })),
     ),
   );
 

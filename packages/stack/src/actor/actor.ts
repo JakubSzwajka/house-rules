@@ -3,10 +3,21 @@ import * as Schema from "effect/Schema";
 export const PartyId = Schema.String.pipe(Schema.brand("PartyId"));
 export type PartyId = typeof PartyId.Type;
 
-export const PersonId = PartyId.pipe(Schema.brand("PersonId"));
+export const agentIdPrefix = "agent:";
+
+const isAgentId = (id: string): boolean =>
+  id.startsWith(agentIdPrefix) && id.length > agentIdPrefix.length;
+
+export const PersonId = PartyId.check(
+  Schema.makeFilter((id: string) => !id.startsWith(agentIdPrefix), {
+    expected: `a person id that does not start with "${agentIdPrefix}"`,
+  }),
+).pipe(Schema.brand("PersonId"));
 export type PersonId = typeof PersonId.Type;
 
-export const AgentId = PartyId.pipe(Schema.brand("AgentId"));
+export const AgentId = PartyId.check(
+  Schema.makeFilter(isAgentId, { expected: `an agent id that starts with "${agentIdPrefix}"` }),
+).pipe(Schema.brand("AgentId"));
 export type AgentId = typeof AgentId.Type;
 
 export const Person = Schema.TaggedStruct("Person", {

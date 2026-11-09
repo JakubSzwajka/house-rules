@@ -114,13 +114,13 @@ describe("MarkRead", () => {
     ),
   );
 
-  it.effect("refuses an agent, even for its own person's inbox or its own id", () =>
+  it.effect("refuses an agent, even for its own person's inbox", () =>
     story(
       Story.given(inbox, created(n1)),
-      Story.provide(CurrentActor, agent("claude", "ann", { permissions: [P.read, P.write] })),
+      Story.provide(CurrentActor, agent("agent:claude", "ann", { permissions: [P.read, P.write] })),
       Story.when(inbox, new MarkRead({ notificationIds: "all" })),
       Story.rejected(new NotInboxOwner()),
-      Story.when(Inbox.ref(PersonId.make("claude")), new SetQuietHours({ quietHours: null })),
+      Story.when(inbox, new SetQuietHours({ quietHours: null })),
       Story.rejected(new NotInboxOwner()),
     ),
   );

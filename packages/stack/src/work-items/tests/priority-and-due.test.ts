@@ -79,7 +79,7 @@ describe("work item priority and due date", () => {
       Story.rejected(new Forbidden({ permission: WorkItemsPermissions.write })),
       ...as(claude),
       Story.when(item1, new EditWorkItem({ priority: "high" })),
-      Story.then(item1, edited({ priority: "high", by: "claude" })),
+      Story.then(item1, edited({ priority: "high", by: "agent:claude" })),
     ),
   );
 

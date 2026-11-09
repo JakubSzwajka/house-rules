@@ -121,11 +121,14 @@ describe("ContactBook", () => {
     story(
       Story.provide(
         CurrentActor,
-        agent("claude", "ann", { orgId: "acme", permissions: [P.write, P.manageOrg] }),
+        agent("agent:claude", "ann", { orgId: "acme", permissions: [P.write, P.manageOrg] }),
       ),
       Story.when(book, addEmail("c1", "ann@example.com")),
       Story.rejected(new Contacts.NotContactOwner()),
-      Story.when(ContactBook.ref(ContactBookId.make("claude")), addEmail("c1", "c@example.com")),
+      Story.when(
+        ContactBook.ref(ContactBookId.make("agent:claude")),
+        addEmail("c1", "c@example.com"),
+      ),
       Story.rejected(new Contacts.NotContactOwner()),
       Story.when(ContactBook.ref(ContactBookId.make("acme")), addEmail("c1", "billing@acme.test")),
       Story.rejected(new Contacts.NotContactOwner()),

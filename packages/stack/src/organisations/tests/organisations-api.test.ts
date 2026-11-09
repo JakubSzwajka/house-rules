@@ -2,9 +2,12 @@ import { platformForTests } from "@house-rules/domain-postgres";
 import * as Domain from "@alchemy.run/domain";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Headers from "effect/http/Headers";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import { Roles } from "../../access/roles.ts";
 import { PersonId } from "../../actor/actor.ts";
+import { AuthProvider } from "../../auth/auth-provider.ts";
 import { devTokens } from "../../auth/dev-tokens.ts";
 import { SessionLive } from "../../auth/session-live.ts";
 import { sessionClient } from "../../auth/session.middleware.ts";
@@ -26,7 +29,7 @@ class OrganisationsApi extends Domain.Api("OrganisationsApi", {
 
 const acme = OrgId.make("acme");
 const World = SessionLive.pipe(
-  Layer.provide(
+  Layer.provideMerge(
     Layer.mergeAll(
       withMemberships(
         devTokens({
@@ -34,10 +37,16 @@ const World = SessionLive.pipe(
           "bob-token": { subject: "bob", orgId: "acme", roles: [] },
           "carol-token": { subject: "carol", orgId: "acme", roles: ["auditor"] },
           "claude-token": {
-            subject: "claude",
+            subject: "agent:claude",
             orgId: "acme",
             roles: ["auditor"],
             agent: { name: "Claude", forPerson: "ann" },
+          },
+          "shadow-token": {
+            subject: "ann",
+            orgId: "acme",
+            roles: [],
+            agent: { name: "Shadow", forPerson: "bob" },
           },
         }),
       ),
@@ -88,13 +97,35 @@ describe("Organisations over the Api", () => {
       expect(stranger._tag).toBe("NotMember");
       const claude = yield* as("claude-token");
       const agentRead = yield* claude.Organisation.get(acme).pipe(Effect.flip);
-      expect(agentRead).toMatchObject({ _tag: "NotMember", person: "claude" });
+      expect(agentRead).toMatchObject({ _tag: "NotMember", person: "agent:claude" });
       const forAnn = yield* claude.PersonOrganisations.get(PersonId.make("ann")).pipe(Effect.flip);
       expect(forAnn._tag).toBe("NotYourself");
 
       yield* ann.RemoveMember(acme, { person: PersonId.make("bob") });
       const removed = yield* bob.Organisation.get(acme).pipe(Effect.flip);
       expect(removed._tag).toBe("Forbidden");
+    }).pipe(Effect.scoped, Effect.provide(World)),
+  );
+
+  it.live("never gives an agent its person's or a namesake's organisation role", () =>
+    Effect.gen(function* () {
+      const ann = yield* as("ann-token");
+      yield* ann.CreateOrganisation(acme, { name: "Acme" });
+      const auth = yield* AuthProvider;
+      const principalOf = (token: string) =>
+        auth.authenticate(Headers.fromInput({ authorization: `Bearer ${token}` }));
+      expect(Option.map(yield* principalOf("ann-token"), (p) => p.roles)).toEqual(
+        Option.some(["user", "admin"]),
+      );
+      expect(Option.map(yield* principalOf("shadow-token"), (p) => p.roles)).toEqual(
+        Option.some([]),
+      );
+      expect(Option.map(yield* principalOf("claude-token"), (p) => p.roles)).toEqual(
+        Option.some(["auditor"]),
+      );
+      const shadow = yield* as("shadow-token");
+      const refused = yield* shadow.Organisation.get(acme).pipe(Effect.flip);
+      expect(refused._tag).toBe("Unauthenticated");
     }).pipe(Effect.scoped, Effect.provide(World)),
   );
 });

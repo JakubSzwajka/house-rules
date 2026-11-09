@@ -53,15 +53,18 @@ describe("projects", () => {
     story(
       ...existingAlpha,
       ...asWriter,
-      Story.provide(CurrentActor, agent("reader", "ann")),
+      Story.provide(CurrentActor, agent("agent:reader", "ann")),
       Story.when(project1, new EditProject({ name: "Alpha One" })),
       Story.rejected(new Forbidden({ permission: ProjectsPermissions.write })),
       Story.provide(
         CurrentActor,
-        agent("claude", "ann", { permissions: [ProjectsPermissions.write] }),
+        agent("agent:claude", "ann", { permissions: [ProjectsPermissions.write] }),
       ),
       Story.when(project1, new EditProject({ name: "Alpha One" })),
-      Story.then(project1, new ProjectEdited({ name: "Alpha One", description: "", by: "claude" })),
+      Story.then(
+        project1,
+        new ProjectEdited({ name: "Alpha One", description: "", by: "agent:claude" }),
+      ),
     ),
   );
 

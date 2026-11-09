@@ -82,14 +82,17 @@ describe("jwt", () => {
 
   it.effect("keeps a token with an act claim a person unless the agent option reads it", () =>
     Effect.gen(function* () {
-      const delegated = yield* sign({ roles: ["agent"], act: { sub: "claude", name: "Claude" } });
+      const delegated = yield* sign({
+        roles: ["agent"],
+        act: { sub: "agent:claude", name: "Claude" },
+      });
       expect(yield* authenticate(jwt({ key: { secret }, issuer }), delegated)).toEqual(
         Option.some({ subject: "ann", orgId: null, roles: ["agent"] }),
       );
       const agents = jwt({ key: { secret }, issuer, agent: agentFromAct });
       expect(yield* authenticate(agents, delegated)).toEqual(
         Option.some({
-          subject: "claude",
+          subject: "agent:claude",
           orgId: null,
           roles: ["agent"],
           agent: { name: "Claude", forPerson: "ann" },
@@ -99,13 +102,13 @@ describe("jwt", () => {
       expect(yield* authenticate(agents, plain)).toEqual(
         Option.some({ subject: "ann", orgId: null, roles: ["member"] }),
       );
-      const nameless = yield* sign({ act: { sub: "claude" } });
+      const nameless = yield* sign({ act: { sub: "agent:claude" } });
       expect(yield* authenticate(agents, nameless)).toEqual(
         Option.some({
-          subject: "claude",
+          subject: "agent:claude",
           orgId: null,
           roles: [],
-          agent: { name: "claude", forPerson: "ann" },
+          agent: { name: "agent:claude", forPerson: "ann" },
         }),
       );
     }),

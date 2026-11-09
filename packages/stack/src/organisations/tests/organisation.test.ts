@@ -85,7 +85,7 @@ describe("Organisation", () => {
   it.effect("checks an agent as itself: never an admin by default, not a member", () =>
     story(
       founded,
-      Story.provide(CurrentActor, agent("claude", "ann", { permissions: all })),
+      Story.provide(CurrentActor, agent("agent:claude", "ann", { permissions: all })),
       Story.when(acme, new AddMember({ person: carol, role: "member" })),
       Story.rejected(new NotAdmin()),
       Story.when(acme, new RemoveMember({ person: bob })),
@@ -93,7 +93,10 @@ describe("Organisation", () => {
       Story.when(globex, new CreateOrganisation({ name: "Globex" })),
       Story.rejected(new AdminRequired()),
       Story.when(globex, new CreateOrganisation({ name: "Globex", admin: ann })),
-      Story.then(globex, new OrganisationCreated({ name: "Globex", admin: ann, by: "claude" })),
+      Story.then(
+        globex,
+        new OrganisationCreated({ name: "Globex", admin: ann, by: "agent:claude" }),
+      ),
     ),
   );
 
