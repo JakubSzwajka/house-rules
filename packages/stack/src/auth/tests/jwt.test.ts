@@ -5,7 +5,7 @@ import type * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
 import { AuthProvider } from "../auth-provider.ts";
-import { jwt } from "../jwt.ts";
+import { agentFromAct, jwt } from "../jwt.ts";
 
 const issuer = "https://id.example.test";
 const secret = "a-shared-secret-of-at-least-thirty-two-bytes";
@@ -79,4 +79,70 @@ describe("jwt", () => {
       );
     }),
   );
+
+  it.effect("keeps a token with an act claim a person unless the agent option reads it", () =>
+    Effect.gen(function* () {
+      const delegated = yield* sign({
+        roles: ["agent"],
+        act: { sub: "agent:claude", name: "Claude" },
+      });
+      expect(yield* authenticate(jwt({ key: { secret }, issuer }), delegated)).toEqual(
+        Option.some({ subject: "ann", orgId: null, roles: ["agent"] }),
+      );
+      const agents = jwt({ key: { secret }, issuer, agent: agentFromAct });
+      expect(yield* authenticate(agents, delegated)).toEqual(
+        Option.some({
+          subject: "agent:claude",
+          orgId: null,
+          roles: ["agent"],
+          agent: { name: "Claude", forPerson: "ann" },
+        }),
+      );
+      const plain = yield* sign({ roles: ["member"] });
+      expect(yield* authenticate(agents, plain)).toEqual(
+        Option.some({ subject: "ann", orgId: null, roles: ["member"] }),
+      );
+      const nameless = yield* sign({ act: { sub: "agent:claude" } });
+      expect(yield* authenticate(agents, nameless)).toEqual(
+        Option.some({
+          subject: "agent:claude",
+          orgId: null,
+          roles: [],
+          agent: { name: "agent:claude", forPerson: "ann" },
+        }),
+      );
+    }),
+  );
+
+  it.effect("signs out a token whose act claim is present but malformed", () =>
+    Effect.gen(function* () {
+      const agents = jwt({ key: { secret }, issuer, agent: agentFromAct });
+      const malformed = [
+        { sub: "" },
+        {},
+        { sub: 7 },
+        { sub: "claude" },
+        { sub: "system:billing" },
+        { sub: "agent:" },
+        { sub: "agent:claude", name: 7 },
+        { sub: "agent:claude", name: "" },
+        null,
+        "agent:claude",
+        ["agent:claude"],
+      ];
+      for (const act of malformed)
+        expect(yield* authenticate(agents, yield* sign({ act }))).toEqual(Option.none());
+    }),
+  );
+
+  it("tells an absent act claim from a malformed one", () => {
+    expect(agentFromAct({ sub: "ann" })).toEqual({ _tag: "None" });
+    expect(agentFromAct({ sub: "ann", act: { sub: "" } })._tag).toBe("Malformed");
+    expect(agentFromAct({ sub: "agent:x", act: { sub: "agent:claude" } })._tag).toBe("Malformed");
+    expect(agentFromAct({ act: { sub: "agent:claude" } })._tag).toBe("Malformed");
+    expect(agentFromAct({ sub: "ann", act: { sub: "agent:claude" } })).toEqual({
+      _tag: "Agent",
+      agent: { id: "agent:claude", name: "agent:claude", forPerson: "ann" },
+    });
+  });
 });

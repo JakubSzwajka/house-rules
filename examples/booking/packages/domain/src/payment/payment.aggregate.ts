@@ -1,5 +1,5 @@
 import * as Domain from "@alchemy.run/domain";
-import { PersonId, requirePermission } from "@house-rules/stack";
+import { PartyId, requirePermission } from "@house-rules/stack";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
@@ -23,7 +23,7 @@ export const PaymentStatus = Schema.Literals([
 export type PaymentStatus = typeof PaymentStatus.Type;
 
 const Opened = Schema.TaggedStruct("Opened", {
-  owner: PersonId,
+  owner: PartyId,
   amount: Amount,
   status: PaymentStatus,
   chargeId: Schema.NullOr(Schema.String),

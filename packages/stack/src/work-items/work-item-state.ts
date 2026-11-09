@@ -1,5 +1,5 @@
 import * as Schema from "effect/Schema";
-import { PersonId } from "../actor/actor.ts";
+import { PartyId } from "../actor/actor.ts";
 import type { WorkItemChildAdopted } from "./adopt-child.command.ts";
 import type { WorkItemAssigned } from "./assign-work-item.command.ts";
 import type { WorkItemStatusChanged } from "./change-work-item-status.command.ts";
@@ -9,14 +9,16 @@ import type { WorkItemCreated } from "./create-work-item.command.ts";
 import type { WorkItemEdited } from "./edit-work-item.command.ts";
 import type { WorkItemParentRefused } from "./refuse-parent.command.ts";
 import type { WorkItemReleased } from "./release-work-item.command.ts";
-import { WorkItemId } from "./work-item.id.ts";
+import { DueField, PriorityField, WorkItemId } from "./work-item.id.ts";
 
 export const WorkItemFields = Schema.Struct({
   title: Schema.String,
   body: Schema.String,
   status: Schema.String,
   closedAt: Schema.NullOr(Schema.Int),
-  holder: Schema.NullOr(PersonId),
+  holder: Schema.NullOr(PartyId),
+  priority: PriorityField,
+  due: DueField,
   container: Schema.NullOr(Schema.String),
   parent: Schema.NullOr(Schema.Struct({ id: WorkItemId, confirmed: Schema.Boolean })),
   children: Schema.Array(WorkItemId),
@@ -38,11 +40,19 @@ export const foldWorkItem = {
     status: e.status,
     closedAt: e.closedAt,
     holder: null,
+    priority: e.priority,
+    due: e.due,
     container: e.container,
     parent: e.parent === null ? null : { id: e.parent, confirmed: false },
     children: [],
   }),
-  WorkItemEdited: live((i, e: WorkItemEdited) => ({ ...i, title: e.title, body: e.body })),
+  WorkItemEdited: live((i, e: WorkItemEdited) => ({
+    ...i,
+    title: e.title,
+    body: e.body,
+    priority: e.priority,
+    due: e.due,
+  })),
   WorkItemStatusChanged: live((i, e: WorkItemStatusChanged) => ({
     ...i,
     status: e.to,

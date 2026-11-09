@@ -4,7 +4,7 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import { can, type Permission } from "../access/permission.ts";
 import { requirePermission } from "../access/require-permission.ts";
-import { authorOf, PersonId } from "../actor/actor.ts";
+import { attributionOf, PersonId } from "../actor/actor.ts";
 import { CurrentActor } from "../actor/current-actor.context.ts";
 import { EmailAddress } from "../delivery/email.external.ts";
 import { PushSubscription } from "../delivery/push.external.ts";
@@ -52,7 +52,7 @@ export type InboxState = typeof InboxState.Type;
 const owner = Effect.fn("requireInboxOwner")(function* (permission: Permission, inbox: PersonId) {
   const actor = yield* requirePermission(permission);
   if (actor._tag !== "Person" || actor.id !== inbox) return yield* new NotInboxOwner();
-  return authorOf(actor);
+  return attributionOf(actor);
 });
 
 const reachable = (s: InboxState, channel: Channel) =>
@@ -155,44 +155,46 @@ export class Inbox extends Domain.Aggregate("Inbox", {
       ];
     }),
     MarkRead: Effect.fn(function* (s, cmd, { id, now }) {
-      const by = yield* owner(NotificationsPermissions.write, id);
+      const attribution = yield* owner(NotificationsPermissions.write, id);
       const notificationIds = s.notifications
         .filter((n) => n.readAt === null)
         .filter((n) => cmd.notificationIds === "all" || cmd.notificationIds.includes(n.id))
         .map((n) => n.id);
       if (notificationIds.length === 0) return [];
-      return [new NotificationsRead({ notificationIds, at: DateTime.toEpochMillis(now), by })];
+      return [
+        new NotificationsRead({ notificationIds, at: DateTime.toEpochMillis(now), ...attribution }),
+      ];
     }),
     SetPreference: Effect.fn(function* (s, cmd, { id }) {
-      const by = yield* owner(NotificationsPermissions.write, id);
+      const attribution = yield* owner(NotificationsPermissions.write, id);
       if (savedFor(s, cmd.category, cmd.channel) === cmd.enabled) return [];
       return [
         new PreferenceSet({
           category: cmd.category,
           channel: cmd.channel,
           enabled: cmd.enabled,
-          by,
+          ...attribution,
         }),
       ];
     }),
     SetQuietHours: Effect.fn(function* (_, cmd, { id }) {
-      const by = yield* owner(NotificationsPermissions.write, id);
-      return [new QuietHoursSet({ quietHours: cmd.quietHours, by })];
+      const attribution = yield* owner(NotificationsPermissions.write, id);
+      return [new QuietHoursSet({ quietHours: cmd.quietHours, ...attribution })];
     }),
     SetEmailAddress: Effect.fn(function* (s, cmd, { id }) {
-      const by = yield* owner(NotificationsPermissions.write, id);
+      const attribution = yield* owner(NotificationsPermissions.write, id);
       if (s.email === cmd.address) return [];
-      return [new EmailAddressSet({ address: cmd.address, by })];
+      return [new EmailAddressSet({ address: cmd.address, ...attribution })];
     }),
     AddDevice: Effect.fn(function* (s, cmd, { id }) {
-      const by = yield* owner(NotificationsPermissions.write, id);
+      const attribution = yield* owner(NotificationsPermissions.write, id);
       if (s.devices.some((d) => d.endpoint === cmd.subscription.endpoint)) return [];
-      return [new DeviceAdded({ subscription: cmd.subscription, by })];
+      return [new DeviceAdded({ subscription: cmd.subscription, ...attribution })];
     }),
     RemoveDevice: Effect.fn(function* (s, cmd, { id }) {
-      const by = yield* owner(NotificationsPermissions.write, id);
+      const attribution = yield* owner(NotificationsPermissions.write, id);
       if (!s.devices.some((d) => d.endpoint === cmd.endpoint)) return [];
-      return [new DeviceRemoved({ endpoint: cmd.endpoint, by })];
+      return [new DeviceRemoved({ endpoint: cmd.endpoint, ...attribution })];
     }),
   },
   evolve: {

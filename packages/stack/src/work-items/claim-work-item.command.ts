@@ -2,17 +2,18 @@ import * as Domain from "@alchemy.run/domain";
 import * as Schema from "effect/Schema";
 import { Forbidden } from "../access/forbidden.rejection.ts";
 import { Session } from "../auth/session.middleware.ts";
-import { PersonId } from "../actor/actor.ts";
+import { PartyId, ActedFor } from "../actor/actor.ts";
 import { TransitionNotAllowed } from "./transition-not-allowed.rejection.ts";
 import { WorkItemId } from "./work-item.id.ts";
 import { WorkItemNotFound } from "./work-item-not-found.rejection.ts";
 import { WorkflowConfig } from "./workflow-config.middleware.ts";
 
 export class WorkItemClaimed extends Domain.Event("WorkItemClaimed", {
-  holder: PersonId,
+  holder: PartyId,
   from: Schema.String,
   to: Schema.String,
   by: Schema.String,
+  for: ActedFor,
 }) {}
 
 export class WorkItemClosed extends Domain.Rejection(
@@ -23,7 +24,7 @@ export class WorkItemClosed extends Domain.Rejection(
 
 export class WorkItemHeld extends Domain.Rejection(
   "WorkItemHeld",
-  { holder: PersonId },
+  { holder: PartyId },
   { httpApiStatus: 409 },
 ) {}
 

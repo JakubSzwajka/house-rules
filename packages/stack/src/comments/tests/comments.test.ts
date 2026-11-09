@@ -6,7 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import { Roles } from "../../access/roles.ts";
-import { person, system } from "../../actor/actor.ts";
+import { agent, person, PersonId, system } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import { devTokens } from "../../auth/dev-tokens.ts";
 import { SessionLive } from "../../auth/session-live.ts";
@@ -112,6 +112,46 @@ describe("Comments", () => {
     ),
   );
 
+  it.effect("lets an agent author its own comments, and not its person's", () =>
+    story(
+      Story.given(c2, posted),
+      Story.provide(CurrentActor, agent("agent:claude", "ann", { permissions: [read, write] })),
+      Story.when(c1, new Comments.AddComment({ target: booking, body: "on it" })),
+      Story.then(
+        c1,
+        new Comments.CommentAdded({
+          target: booking,
+          by: "agent:claude",
+          for: PersonId.make("ann"),
+          body: "on it",
+        }),
+      ),
+      Story.when(c1, new Comments.EditComment({ body: "done" })),
+      Story.then(
+        c1,
+        new Comments.CommentEdited({
+          target: booking,
+          by: "agent:claude",
+          for: PersonId.make("ann"),
+          body: "done",
+        }),
+      ),
+      Story.view(Comments.CommentsOnTarget, key, (v) =>
+        expect(v.comments.map((c) => [c.by, c.for])).toEqual([
+          ["agent:claude", "ann"],
+          ["ann", null],
+        ]),
+      ),
+      Story.when(c2, new Comments.EditComment({ body: "rewritten" })),
+      Story.rejected(new Comments.NotAuthor({ author: "ann" })),
+      Story.when(c2, new Comments.DeleteComment()),
+      Story.rejected(new Comments.NotAuthor({ author: "ann" })),
+      Story.provide(CurrentActor, ann),
+      Story.when(c1, new Comments.DeleteComment()),
+      Story.rejected(new Comments.NotAuthor({ author: "agent:claude" })),
+    ),
+  );
+
   it.effect("lets a moderator or a granted system actor delete anyone's comment", () =>
     story(
       Story.given(c1, posted),
@@ -145,6 +185,7 @@ describe("Comments", () => {
           {
             id: c2.id,
             by: "ann",
+            for: null,
             body: "first, edited",
             postedAt: Date.parse("2026-01-01T10:00:00Z"),
             editedAt: Date.parse("2026-01-01T12:00:00Z"),
@@ -152,6 +193,7 @@ describe("Comments", () => {
           {
             id: c1.id,
             by: "ann",
+            for: null,
             body: "second",
             postedAt: Date.parse("2026-01-01T11:00:00Z"),
             editedAt: null,

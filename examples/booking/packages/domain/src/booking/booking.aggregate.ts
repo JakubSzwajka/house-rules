@@ -1,5 +1,13 @@
 import * as Domain from "@alchemy.run/domain";
-import { type Actor, authorOf, can, PersonId, requirePermission } from "@house-rules/stack";
+import {
+  type Actor,
+  attributionOf,
+  can,
+  Forbidden,
+  PartyId,
+  partyOf,
+  requirePermission,
+} from "@house-rules/stack";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import { BookingPermissions } from "../permissions.ts";
@@ -19,7 +27,7 @@ import {
 } from "./make-booking.command.ts";
 
 const Booked = Schema.TaggedStruct("Booked", {
-  owner: PersonId,
+  owner: PartyId,
   orgId: Schema.NullOr(Schema.String),
   guestName: Schema.String,
   amount: Amount,
@@ -31,11 +39,11 @@ export const BookingState = Schema.Union([Schema.TaggedStruct("Unbooked", {}), B
 export type BookingState = typeof BookingState.Type;
 
 const mayCancel = (actor: Actor, booking: Booked): boolean =>
-  actor._tag === "Person" &&
-  (actor.id === booking.owner ||
-    (booking.orgId !== null &&
-      actor.orgId === booking.orgId &&
-      can(actor, BookingPermissions.cancelForOrg)));
+  partyOf(actor) === booking.owner ||
+  (actor._tag === "Person" &&
+    booking.orgId !== null &&
+    actor.orgId === booking.orgId &&
+    can(actor, BookingPermissions.cancelForOrg));
 
 export class Booking extends Domain.Aggregate("Booking", {
   id: BookingId,
@@ -49,10 +57,12 @@ export class Booking extends Domain.Aggregate("Booking", {
       const orgId = cmd.orgId ?? null;
       if (orgId !== null && (actor._tag !== "Person" || actor.orgId !== orgId))
         return yield* new NotOrgMember({ orgId });
+      const owner = partyOf(actor);
+      if (owner === null) return yield* new Forbidden({ permission: BookingPermissions.make });
       return [
         new BookingMade({
-          by: authorOf(actor),
-          owner: PersonId.make(authorOf(actor)),
+          ...attributionOf(actor),
+          owner,
           orgId,
           guestName: cmd.guestName,
           amount: cmd.amount,
@@ -66,7 +76,7 @@ export class Booking extends Domain.Aggregate("Booking", {
       if (booking.status === "cancelled") return [];
       return [
         new BookingCancelled({
-          by: authorOf(actor),
+          ...attributionOf(actor),
           owner: booking.owner,
           reason: cmd.reason ?? null,
         }),

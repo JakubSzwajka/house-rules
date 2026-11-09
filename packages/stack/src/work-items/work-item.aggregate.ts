@@ -1,7 +1,7 @@
 import * as Domain from "@alchemy.run/domain";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
-import { authorOf } from "../actor/actor.ts";
+import { attributionOf, partyOf } from "../actor/actor.ts";
 import { Forbidden } from "../access/forbidden.rejection.ts";
 import { can } from "../access/permission.ts";
 import { requirePermission } from "../access/require-permission.ts";
@@ -65,34 +65,46 @@ export class WorkItem extends Domain.Aggregate("WorkItem", {
           closedAt: isClosed(w, w.initial) ? DateTime.toEpochMillis(now) : null,
           container: parent === null ? (cmd.container ?? null) : null,
           parent,
-          by: authorOf(actor),
+          priority: cmd.priority ?? null,
+          due: cmd.due ?? null,
+          ...attributionOf(actor),
         }),
       ];
     }),
     EditWorkItem: Effect.fn(function* (s, cmd) {
       const actor = yield* requirePermission(WorkItemsPermissions.write);
       if (s === null) return yield* new WorkItemNotFound();
-      const title = cmd.title ?? s.title;
-      const body = cmd.body ?? s.body;
-      if (title === s.title && body === s.body) return [];
-      return [new WorkItemEdited({ title, body, by: authorOf(actor) })];
+      const edited = {
+        title: cmd.title ?? s.title,
+        body: cmd.body ?? s.body,
+        priority: cmd.priority === undefined ? s.priority : cmd.priority,
+        due: cmd.due === undefined ? s.due : cmd.due,
+      };
+      if (
+        edited.title === s.title &&
+        edited.body === s.body &&
+        edited.priority === s.priority &&
+        edited.due === s.due
+      )
+        return [];
+      return [new WorkItemEdited({ ...edited, ...attributionOf(actor) })];
     }),
     ChangeWorkItemStatus: Effect.fn(function* (s, cmd, { now }) {
       const actor = yield* requirePermission(WorkItemsPermissions.write);
       if (s === null) return yield* new WorkItemNotFound();
       if (s.status === cmd.status) return [];
       const moved = yield* move(yield* CurrentWorkflow, s, cmd.status, now);
-      return [new WorkItemStatusChanged({ ...moved, by: authorOf(actor) })];
+      return [new WorkItemStatusChanged({ ...moved, ...attributionOf(actor) })];
     }),
     AssignWorkItem: Effect.fn(function* (s, cmd) {
       const actor = yield* requirePermission(WorkItemsPermissions.assign);
       if (s === null) return yield* new WorkItemNotFound();
       if (s.holder === cmd.holder) return [];
-      return [new WorkItemAssigned({ from: s.holder, to: cmd.holder, by: authorOf(actor) })];
+      return [new WorkItemAssigned({ from: s.holder, to: cmd.holder, ...attributionOf(actor) })];
     }),
     ClaimWorkItem: Effect.fn(function* (s, _cmd, { now }) {
       const actor = yield* requirePermission(WorkItemsPermissions.write);
-      if (actor._tag !== "Person")
+      if (actor._tag === "System")
         return yield* new Forbidden({ permission: WorkItemsPermissions.write });
       if (s === null) return yield* new WorkItemNotFound();
       const w = yield* CurrentWorkflow;
@@ -107,14 +119,14 @@ export class WorkItem extends Domain.Aggregate("WorkItem", {
           holder: actor.id,
           from: moved.from,
           to: moved.to,
-          by: authorOf(actor),
+          ...attributionOf(actor),
         }),
       ];
     }),
     ReleaseWorkItem: Effect.fn(function* (s, _cmd, { now }) {
       const actor = yield* requirePermission(WorkItemsPermissions.write);
       if (s === null) return yield* new WorkItemNotFound();
-      const self = actor._tag === "Person" ? actor.id : null;
+      const self = partyOf(actor);
       if (s.holder !== null && s.holder !== self && !can(actor, WorkItemsPermissions.assign))
         return yield* new NotHolder({ holder: s.holder });
       const w = yield* CurrentWorkflow;
@@ -123,7 +135,7 @@ export class WorkItem extends Domain.Aggregate("WorkItem", {
         s.status === w.release.from
           ? yield* move(w, s, w.release.to, now)
           : { from: s.status, to: s.status, closedAt: s.closedAt };
-      return [new WorkItemReleased({ holder: s.holder, ...moved, by: authorOf(actor) })];
+      return [new WorkItemReleased({ holder: s.holder, ...moved, ...attributionOf(actor) })];
     }),
     AdoptChild: Effect.fn(function* (s, cmd) {
       yield* requirePermission(WorkItemsPermissions.link);

@@ -12,10 +12,10 @@ class App extends Domain.Model("App", {
 | Command | Permission | Rule |
 | --- | --- | --- |
 | `AddComment { target, body }` | `comments:write` | body at most 4000 UTF-16 units (`CommentTooLong`); an id is never reused (`CommentExists`) |
-| `EditComment { body }` | `comments:write` | only the author (`NotAuthor`); same length limit; `CommentNotFound` when missing or deleted |
+| `EditComment { body }` | `comments:write` | only the author (`NotAuthor`), and an agent is its own author, not its person; same length limit; `CommentNotFound` when missing or deleted |
 | `DeleteComment` | `comments:write` | the author, or anyone holding `comments:moderate` (`NotAuthor` otherwise); deleting a deleted comment records nothing |
 
-Reading `CommentsOnTarget` needs `comments:read`. Every command and the view go through `Session`; a missing permission is `Forbidden`. Events carry `by` (`authorOf(actor)`) and the target, so the view and any host policy can route them.
+Reading `CommentsOnTarget` needs `comments:read`. Every command and the view go through `Session`; a missing permission is `Forbidden`. Events carry `by` and `for` (`attributionOf(actor)`: the author, and the person an agent acted for or `null`) and the target, and `CommentsOnTarget` shows both, so the view and any host policy can route them.
 
 ## Target access
 

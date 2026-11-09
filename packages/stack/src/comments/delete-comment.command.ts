@@ -6,10 +6,12 @@ import { CommentId } from "./comment.id.ts";
 import { CommentNotFound } from "./comment-not-found.rejection.ts";
 import { NotAuthor } from "./not-author.rejection.ts";
 import { Target } from "../target/target.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export class CommentDeleted extends Domain.Event("CommentDeleted", {
   target: Target,
   by: Schema.String,
+  for: ActedFor,
 }) {}
 
 export class DeleteComment extends Domain.Command("DeleteComment", {

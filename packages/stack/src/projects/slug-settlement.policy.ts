@@ -35,11 +35,14 @@ export const SlugSettlementLive = SlugSettlement.toLayer(
         if (event._tag === "ProjectSlugReserved") {
           const { name, status, description, by } = event;
           yield* projects
-            .send(event.project, new OpenProject({ slug, name, status, description, by }))
+            .send(
+              event.project,
+              new OpenProject({ slug, name, status, description, by, for: event.for }),
+            )
             .pipe(Effect.catchTag("ProjectExists", release));
         } else {
           yield* projects
-            .send(event.project, new SwitchProjectSlug({ slug, by: event.by }))
+            .send(event.project, new SwitchProjectSlug({ slug, by: event.by, for: event.for }))
             .pipe(Effect.catchTag("ProjectNotFound", release));
         }
       },

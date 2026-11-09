@@ -6,7 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import { Roles } from "../../access/roles.ts";
-import { person, system } from "../../actor/actor.ts";
+import { agent, person, PersonId, system } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import { devTokens } from "../../auth/dev-tokens.ts";
 import { SessionLive } from "../../auth/session-live.ts";
@@ -49,6 +49,28 @@ describe("Notes", () => {
     ),
   );
 
+  it.effect("adds a note by an agent as its own author, and refuses one without the grant", () =>
+    story(
+      Story.provide(CurrentActor, agent("agent:claude", "ann", { permissions: [read, write] })),
+      Story.when(n1, new Notes.AddNote({ target: booking, body: "drafted a reply" })),
+      Story.then(
+        n1,
+        new Notes.NoteAdded({
+          target: booking,
+          by: "agent:claude",
+          for: PersonId.make("ann"),
+          body: "drafted a reply",
+        }),
+      ),
+      Story.view(Notes.NotesOnTarget, key, (v) =>
+        expect(v.notes.map((n) => [n.by, n.for])).toEqual([["agent:claude", "ann"]]),
+      ),
+      Story.provide(CurrentActor, agent("agent:reader", "ann", { permissions: [read] })),
+      Story.when(n2, new Notes.AddNote({ target: booking, body: "hi" })),
+      Story.rejected(new Forbidden({ permission: write })),
+    ),
+  );
+
   it.effect("refuses without the permission, past the limit, and never rewrites a note", () =>
     story(
       Story.given(n2, new Notes.NoteAdded({ target: booking, by: "ann", body: "first" })),
@@ -75,8 +97,20 @@ describe("Notes", () => {
       Story.then(n1, new Notes.NoteAdded({ target: booking, by: "ann", body: "second" })),
       Story.view(Notes.NotesOnTarget, key, {
         notes: [
-          { id: n2.id, by: "ann", body: "first", addedAt: Date.parse("2026-01-01T10:00:00Z") },
-          { id: n1.id, by: "ann", body: "second", addedAt: Date.parse("2026-01-01T11:00:00Z") },
+          {
+            id: n2.id,
+            by: "ann",
+            for: null,
+            body: "first",
+            addedAt: Date.parse("2026-01-01T10:00:00Z"),
+          },
+          {
+            id: n1.id,
+            by: "ann",
+            for: null,
+            body: "second",
+            addedAt: Date.parse("2026-01-01T11:00:00Z"),
+          },
         ],
       }),
       Story.view(Notes.NotesOnTarget, targetKey({ kind: "booking", id: "b-2" }), Story.none),

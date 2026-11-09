@@ -1,13 +1,13 @@
 import * as Domain from "@alchemy.run/domain";
-import { Forbidden, PersonId, Session } from "@house-rules/stack";
+import { Forbidden, PartyId, Session } from "@house-rules/stack";
 import * as Schema from "effect/Schema";
 import { BookingId } from "../booking/booking.id.ts";
 import { Amount } from "../booking/make-booking.command.ts";
 
-export class PaymentCancelled extends Domain.Event("PaymentCancelled", { owner: PersonId }) {}
+export class PaymentCancelled extends Domain.Event("PaymentCancelled", { owner: PartyId }) {}
 
 export class PaymentRefundStarted extends Domain.Event("PaymentRefundStarted", {
-  owner: PersonId,
+  owner: PartyId,
   chargeId: Schema.String,
   amount: Amount,
 }) {}

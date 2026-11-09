@@ -43,6 +43,6 @@ export class PersonOrganisations extends Domain.View("PersonOrganisations", {
   },
   validate: Effect.fn(function* (request) {
     const actor = yield* requirePermission(OrganisationsPermissions.read);
-    if (actor._tag === "Person" && actor.id !== request.key) return yield* new NotYourself();
+    if (actor._tag !== "System" && actor.id !== request.key) return yield* new NotYourself();
   }),
 }) {}

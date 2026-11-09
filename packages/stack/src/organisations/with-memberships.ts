@@ -13,7 +13,8 @@ export const withMemberships = <E, R>(provider: Layer.Layer<AuthProvider, E, R>)
       const auth = yield* AuthProvider;
       const organisations = yield* Organisation;
       const withRole = (principal: Principal) =>
-        principal.orgId === null
+        // An agent holds only the roles in its own token, never its person's membership.
+        principal.orgId === null || principal.agent !== undefined
           ? Effect.succeed(principal)
           : Effect.map(organisations.state(OrgId.make(principal.orgId)), (s) => {
               const role =

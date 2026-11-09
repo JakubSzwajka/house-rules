@@ -7,10 +7,12 @@ import { CommentNotFound } from "./comment-not-found.rejection.ts";
 import { CommentTooLong } from "./comment-too-long.rejection.ts";
 import { NotAuthor } from "./not-author.rejection.ts";
 import { Target } from "../target/target.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export class CommentEdited extends Domain.Event("CommentEdited", {
   target: Target,
   by: Schema.String,
+  for: ActedFor,
   body: Schema.String,
 }) {}
 

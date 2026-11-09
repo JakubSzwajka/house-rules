@@ -2,7 +2,7 @@ import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
-import { person, system } from "../../actor/actor.ts";
+import { agent, person, system } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import * as Contacts from "../index.ts";
 
@@ -114,6 +114,24 @@ describe("ContactBook", () => {
       ),
       Story.when(ContactBook.ref(ContactBookId.make("acme")), addEmail("c1", "billing@acme.test")),
       Story.then(ContactBook.ref(ContactBookId.make("acme")), email("c1", "billing@acme.test")),
+    ),
+  );
+
+  it.effect("refuses an agent, even for its own person's or its own book", () =>
+    story(
+      Story.provide(
+        CurrentActor,
+        agent("agent:claude", "ann", { orgId: "acme", permissions: [P.write, P.manageOrg] }),
+      ),
+      Story.when(book, addEmail("c1", "ann@example.com")),
+      Story.rejected(new Contacts.NotContactOwner()),
+      Story.when(
+        ContactBook.ref(ContactBookId.make("agent:claude")),
+        addEmail("c1", "c@example.com"),
+      ),
+      Story.rejected(new Contacts.NotContactOwner()),
+      Story.when(ContactBook.ref(ContactBookId.make("acme")), addEmail("c1", "billing@acme.test")),
+      Story.rejected(new Contacts.NotContactOwner()),
     ),
   );
 

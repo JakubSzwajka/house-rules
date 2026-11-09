@@ -1,12 +1,14 @@
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
-import { system } from "../../actor/actor.ts";
+import { agent, type PartyId, system } from "../../actor/actor.ts";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import * as WorkItems from "../index.ts";
 import {
   ann,
   as,
   bob,
+  claude,
+  claudeId,
   created,
   item1,
   item2,
@@ -33,8 +35,14 @@ const {
   WorkItemStatusChanged,
 } = WorkItems;
 
-const claimed = (holder = ann) =>
-  new WorkItemClaimed({ holder, from: "todo", to: "doing", by: holder });
+const claimed = (holder: PartyId = ann) =>
+  new WorkItemClaimed({
+    holder,
+    from: "todo",
+    to: "doing",
+    by: holder,
+    for: holder === claudeId ? ann : null,
+  });
 
 describe("holders", () => {
   it.effect("claims an unheld item and moves it to the claim state", () =>
@@ -78,12 +86,84 @@ describe("holders", () => {
     ),
   );
 
-  it.effect("lets only people hold items", () =>
+  it.effect("lets no system actor hold an item", () =>
     story(
       Story.given(item1, created()),
       ...as(system("bot", [WorkItemsPermissions.write])),
       Story.when(item1, new ClaimWorkItem()),
       Story.rejected(new Forbidden({ permission: WorkItemsPermissions.write })),
+    ),
+  );
+
+  it.effect("lets an agent claim and hold an item as itself", () =>
+    story(
+      Story.given(item1, created()),
+      Story.given(item2, created(), claimed(ann)),
+      ...as(claude),
+      Story.when(item1, new ClaimWorkItem()),
+      Story.then(item1, claimed(claudeId)),
+      Story.when(item1, new ClaimWorkItem()),
+      Story.then(item1),
+      Story.when(item2, new ClaimWorkItem()),
+      Story.rejected(new WorkItemHeld({ holder: ann })),
+      Story.view(HeldWorkItems, claudeId, (v) => {
+        expect(Object.keys(v.items)).toEqual([w1]);
+        expect(v.items[w1]).toMatchObject({ status: "doing", holder: claudeId });
+      }),
+      Story.view(HeldWorkItems, ann, (v) => expect(Object.keys(v.items)).toEqual([w2])),
+    ),
+  );
+
+  it.effect("refuses an agent without the permission, and a person on an agent's item", () =>
+    story(
+      Story.given(item1, created(), claimed(claudeId)),
+      ...as(agent("agent:idle", "ann")),
+      Story.when(item1, new ClaimWorkItem()),
+      Story.rejected(new Forbidden({ permission: WorkItemsPermissions.write })),
+      ...as(worker("ann")),
+      Story.when(item1, new ClaimWorkItem()),
+      Story.rejected(new WorkItemHeld({ holder: claudeId })),
+      Story.when(item1, new ReleaseWorkItem()),
+      Story.rejected(new NotHolder({ holder: claudeId })),
+    ),
+  );
+
+  it.effect("lets an agent release its own item and not its person's", () =>
+    story(
+      Story.given(item1, created(), claimed(claudeId)),
+      Story.given(item2, created(), claimed(ann)),
+      ...as(claude),
+      Story.when(item2, new ReleaseWorkItem()),
+      Story.rejected(new NotHolder({ holder: ann })),
+      Story.when(item1, new ReleaseWorkItem()),
+      Story.then(
+        item1,
+        new WorkItemReleased({
+          holder: claudeId,
+          from: "doing",
+          to: "todo",
+          closedAt: null,
+          by: "agent:claude",
+          for: ann,
+        }),
+      ),
+      Story.view(HeldWorkItems, claudeId, { items: {} }),
+    ),
+  );
+
+  it.effect("assigns an item to an agent and back to a person", () =>
+    story(
+      ...as(lead),
+      Story.given(item1, created()),
+      Story.when(item1, new WorkItems.AssignWorkItem({ holder: claudeId })),
+      Story.then(item1, new WorkItemAssigned({ from: null, to: claudeId, by: "lea" })),
+      Story.view(HeldWorkItems, claudeId, (v) =>
+        expect(v.items[w1]).toMatchObject({ holder: claudeId }),
+      ),
+      Story.when(item1, new WorkItems.AssignWorkItem({ holder: ann })),
+      Story.then(item1, new WorkItemAssigned({ from: claudeId, to: ann, by: "lea" })),
+      Story.view(HeldWorkItems, claudeId, { items: {} }),
+      Story.view(HeldWorkItems, ann, (v) => expect(Object.keys(v.items)).toEqual([w1])),
     ),
   );
 

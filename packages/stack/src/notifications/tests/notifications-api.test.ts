@@ -44,6 +44,12 @@ const World = SessionLive.pipe(
         "ann-token": { subject: "ann", orgId: null, roles: ["member"] },
         "bob-token": { subject: "bob", orgId: null, roles: ["member"] },
         "eve-token": { subject: "eve", orgId: null, roles: ["guest"] },
+        "claude-token": {
+          subject: "agent:claude",
+          orgId: null,
+          roles: ["member"],
+          agent: { name: "Claude", forPerson: "ann" },
+        },
       }),
       Roles.layer({ member: [P.read, P.write], guest: [] }),
     ),
@@ -103,6 +109,9 @@ describe("Notifications over the Api", () => {
       expect(peek._tag).toBe("NotInboxOwner");
       const meddle = yield* bob.MarkRead(annId, { notificationIds: "all" }).pipe(Effect.flip);
       expect(meddle._tag).toBe("NotInboxOwner");
+      const claude = yield* as("claude-token");
+      const agentPeek = yield* claude.MyInbox.get(annId).pipe(Effect.flip);
+      expect(agentPeek._tag).toBe("NotInboxOwner");
       const eve = yield* as("eve-token");
       const guest = yield* eve.MyInbox.get(PersonId.make("eve")).pipe(Effect.flip);
       expect(guest._tag).toBe("Forbidden");

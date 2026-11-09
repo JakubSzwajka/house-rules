@@ -28,7 +28,13 @@ export { WorkItemParentRefused, RefusalReason, RefuseParent } from "./refuse-par
 export { NotHolder, ReleaseWorkItem, WorkItemReleased } from "./release-work-item.command.ts";
 export { TransitionNotAllowed } from "./transition-not-allowed.rejection.ts";
 export { WorkItem } from "./work-item.aggregate.ts";
-export { WorkItemBody, WorkItemId, WorkItemTitle } from "./work-item.id.ts";
+export {
+  WorkItemBody,
+  WorkItemDue,
+  WorkItemId,
+  WorkItemPriority,
+  WorkItemTitle,
+} from "./work-item.id.ts";
 export { WorkItemCard } from "./work-item-card.view.ts";
 export { WorkItemNotFound } from "./work-item-not-found.rejection.ts";
 export { WorkItemFields, WorkItemState } from "./work-item-state.ts";

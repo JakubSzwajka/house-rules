@@ -41,11 +41,11 @@ Slugs are the claim's id: 1 to 64 characters, starting with a lowercase letter o
 | OpenProject, SwitchProjectSlug | Project | ProjectCreated, ProjectSlugChanged | ProjectExists, ProjectNotFound |
 | ReleaseSlug | SlugClaim | ProjectSlugReleased | none |
 
-Every command also rejects `Forbidden`. Names are trimmed and 1 to 200 characters. Descriptions are plain text, empty by default. An unchanged edit and a status the project already has record nothing. Archiving is `ChangeProjectStatus` to the app's archived status, never a delete. Every event but `ProjectSlugReleased` records `by`, the requester; the system commands carry the requester's `by` from the claim.
+Every command also rejects `Forbidden`. Names are trimmed and 1 to 200 characters. Descriptions are plain text, empty by default. An unchanged edit and a status the project already has record nothing. Archiving is `ChangeProjectStatus` to the app's archived status, never a delete. Every event but `ProjectSlugReleased` records `by`, the requester, and `for`, the person an agent requester acted for (else `null`); the system commands carry the requester's `by` and `for` from the claim.
 
 ## Access
 
-People need `projects:write` for every client command, and `projects:read` to read a `Project` or the `ProjectDirectory` view. `OpenProject`, `SwitchProjectSlug` and `ReleaseSlug` need `projects:settle-slug`, which only `SlugSettlement`'s system actor `slugSettler` holds. Projects store no owner; an app that limits who may change a project composes that rule itself.
+People and agents need `projects:write` for every client command, and `projects:read` to read a `Project` or the `ProjectDirectory` view. `OpenProject`, `SwitchProjectSlug` and `ReleaseSlug` need `projects:settle-slug`, which only `SlugSettlement`'s system actor `slugSettler` holds. Projects store no owner; an app that limits who may change a project composes that rule itself.
 
 ## Reads
 

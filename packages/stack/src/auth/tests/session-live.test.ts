@@ -117,4 +117,94 @@ describe("SessionLive", () => {
       expect(refused._tag).toBe("Unauthenticated");
     }),
   );
+
+  it.live("signs an agent in as its own party, with its own roles", () =>
+    Effect.gen(function* () {
+      const world = worldWith(
+        devTokens({
+          "claude-token": {
+            subject: "agent:claude",
+            orgId: null,
+            roles: ["greeter"],
+            agent: { name: "Claude", forPerson: "ann" },
+          },
+          "idle-token": {
+            subject: "agent:idle",
+            orgId: null,
+            roles: [],
+            agent: { name: "Idle", forPerson: "ann" },
+          },
+        }),
+      );
+      const reply = yield* greet(sessionClient("claude-token"), "d-6").pipe(
+        Effect.scoped,
+        Effect.provide(world),
+      );
+      expect(reply).toEqual({ by: "agent:claude" });
+      const refused = yield* greet(sessionClient("idle-token"), "d-7").pipe(
+        Effect.flip,
+        Effect.scoped,
+        Effect.provide(world),
+      );
+      expect(refused._tag).toBe("Forbidden");
+    }),
+  );
+
+  it.live("refuses an agent that poses as a system actor, acts for one or for itself", () =>
+    Effect.gen(function* () {
+      const agentToken = (subject: string, forPerson: string) => ({
+        subject,
+        orgId: null,
+        roles: ["greeter"],
+        agent: { name: "Claude", forPerson },
+      });
+      const world = worldWith(
+        devTokens({
+          "posing-agent": agentToken("system:billing", "ann"),
+          "for-system": agentToken("agent:claude", "system:billing"),
+          "for-itself": agentToken("agent:claude", "agent:claude"),
+          "for-nobody": agentToken("agent:claude", ""),
+          "for-an-agent": agentToken("agent:claude", "agent:other"),
+        }),
+      );
+      for (const token of [
+        "posing-agent",
+        "for-system",
+        "for-itself",
+        "for-nobody",
+        "for-an-agent",
+      ]) {
+        const refused = yield* greet(sessionClient(token), `d-${token}`).pipe(
+          Effect.flip,
+          Effect.scoped,
+          Effect.provide(world),
+        );
+        expect(refused._tag).toBe("Unauthenticated");
+      }
+    }),
+  );
+
+  it.live("refuses an agent whose id could pose as a person, and a person with an agent id", () =>
+    Effect.gen(function* () {
+      const world = worldWith(
+        devTokens({
+          "ann-as-agent": {
+            subject: "ann",
+            orgId: null,
+            roles: ["greeter"],
+            agent: { name: "Ann", forPerson: "bob" },
+          },
+          "agent-as-person": { subject: "agent:x", orgId: null, roles: ["greeter"] },
+        }),
+      );
+      for (const token of ["ann-as-agent", "agent-as-person"]) {
+        const refused = yield* greet(sessionClient(token), `d-${token}`).pipe(
+          Effect.flip,
+          Effect.scoped,
+          Effect.provide(world),
+        );
+        expect(refused._tag).toBe("Unauthenticated");
+      }
+    }),
+  );
 });

@@ -5,12 +5,14 @@ import { Session } from "../auth/session.middleware.ts";
 import { CommentId } from "./comment.id.ts";
 import { CommentTooLong } from "./comment-too-long.rejection.ts";
 import { Target } from "../target/target.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export class CommentExists extends Domain.Rejection("CommentExists", {}, { httpApiStatus: 409 }) {}
 
 export class CommentAdded extends Domain.Event("CommentAdded", {
   target: Target,
   by: Schema.String,
+  for: ActedFor,
   body: Schema.String,
 }) {}
 

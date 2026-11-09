@@ -9,10 +9,12 @@ import { Note } from "./note.aggregate.ts";
 import { NoteId } from "./note.id.ts";
 import { NotesPermissions } from "./permissions.ts";
 import { TargetKey, targetKey } from "../target/target.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export const NoteItem = Schema.Struct({
   id: NoteId,
   by: Schema.String,
+  for: ActedFor,
   body: Schema.String,
   addedAt: Schema.Int,
 });
@@ -33,7 +35,7 @@ export class NotesOnTarget extends Domain.View("NotesOnTarget", {
     NoteAdded: (v, e, { source, at }) => ({
       notes: [
         ...v.notes,
-        { id: source.id, by: e.by, body: e.body, addedAt: DateTime.toEpochMillis(at) },
+        { id: source.id, by: e.by, for: e.for, body: e.body, addedAt: DateTime.toEpochMillis(at) },
       ].sort(oldestFirst),
     }),
   },

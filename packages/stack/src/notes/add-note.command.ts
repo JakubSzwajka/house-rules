@@ -4,6 +4,7 @@ import { Forbidden } from "../access/forbidden.rejection.ts";
 import { Session } from "../auth/session.middleware.ts";
 import { NoteId } from "./note.id.ts";
 import { Target } from "../target/target.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export const MAX_NOTE_LENGTH = 4000;
 
@@ -17,6 +18,7 @@ export class NoteExists extends Domain.Rejection("NoteExists", {}, { httpApiStat
 export class NoteAdded extends Domain.Event("NoteAdded", {
   target: Target,
   by: Schema.String,
+  for: ActedFor,
   body: Schema.String,
 }) {}
 

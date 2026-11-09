@@ -1,6 +1,6 @@
 import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
-import { type Actor, person, PersonId } from "../../actor/actor.ts";
+import { type Actor, AgentId, agent, person, PersonId } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import * as WorkItems from "../index.ts";
 
@@ -23,6 +23,11 @@ export const item3 = WorkItem.ref(w3);
 export const ann = PersonId.make("ann");
 export const bob = PersonId.make("bob");
 export const worker = (id: string) => person(id, { permissions: [WorkItemsPermissions.write] });
+export const claudeId = AgentId.make("agent:claude");
+export const claude = agent("agent:claude", "ann", {
+  name: "Claude",
+  permissions: [WorkItemsPermissions.write],
+});
 export const lead = person("lea", {
   permissions: [WorkItemsPermissions.write, WorkItemsPermissions.assign],
 });

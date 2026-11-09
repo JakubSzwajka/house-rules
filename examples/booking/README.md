@@ -1,6 +1,6 @@
 # Booking example
 
-A small booking backend on [Alchemy Domain](https://alchemy.run/domain) and `@house-rules/stack`. A person books a stay for a guest and pays for it. The payment opens with a 24-hour deadline, the fake provider charges it, and cancelling a booking refunds a paid payment. Each person reads their own bookings.
+A small booking backend on [Alchemy Domain](https://alchemy.run/domain) and `@house-rules/stack`. A person, or an agent working for one, books a stay for a guest and pays for it. The payment opens with a 24-hour deadline, the fake provider charges it, and cancelling a booking refunds a paid payment. Each party reads its own bookings.
 
 The same model runs on Node with its data in Postgres (`@house-rules/domain-postgres`), in memory with `DOMAIN_STORE=memory`, and on Cloudflare Durable Objects.
 
@@ -10,6 +10,7 @@ The same model runs on Node with its data in Postgres (`@house-rules/domain-post
 | --- | --- |
 | Two aggregates, each deciding its own commands | `packages/domain/src/booking/booking.aggregate.ts`, `packages/domain/src/payment/payment.aggregate.ts` |
 | Permissions checked in `decide`, owner and organisation checked against the aggregate's state | `MakeBooking`, `CancelBooking` |
+| An agent as its own party: it owns and cancels its own bookings, and its events record `for`, the person it works for | `booking.aggregate.ts`, `tests/booking.test.ts` |
 | Policies that react to events as the `billing` system actor | `payment/booking-payment.policy.ts`, `payment/payment-settlement.policy.ts` |
 | A deadline as a scheduled command | `PaymentSettlement` schedules `ExpirePayment` at the payment's `expiresAt` |
 | An outside system | `payment/payment-provider.external.ts`; the fake adapter is `apps/server/src/fake-payment-provider.ts` |
@@ -36,7 +37,7 @@ The fake provider declines charges over 1000, so a large booking stays `pending`
 packages/domain/           @example/booking-domain: the model, imports only Alchemy, effect and @house-rules/stack
   src/booking/             Booking aggregate, MakeBooking, CancelBooking
   src/payment/             Payment aggregate, its commands, policies and the PaymentProvider declaration
-  src/my-bookings.view.ts  MyBookings, keyed by person
+  src/my-bookings.view.ts  MyBookings, keyed by party (person or agent)
   src/booking.model.ts     the Model and its handlers Layer
   src/booking.api.ts       BookingApi: what clients may send and read
   src/tests/               stories

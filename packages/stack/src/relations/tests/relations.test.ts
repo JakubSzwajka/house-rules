@@ -3,10 +3,11 @@ import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Schedule from "effect/Schedule";
 import * as Layer from "effect/Layer";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import { Roles } from "../../access/roles.ts";
-import { person, system } from "../../actor/actor.ts";
+import { agent, person, PersonId, system } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import { devTokens } from "../../auth/dev-tokens.ts";
 import { SessionLive } from "../../auth/session-live.ts";
@@ -83,6 +84,26 @@ describe("Edge", () => {
     ),
   );
 
+  it.effect("lets an agent with the grant relate as itself, and refuses one without it", () =>
+    story(
+      Story.provide(
+        CurrentActor,
+        agent("agent:reader", "ann", { permissions: ["relations:read"] }),
+      ),
+      Story.when(contains, relate),
+      Story.rejected(new Forbidden({ permission: "relations:write" })),
+      Story.provide(
+        CurrentActor,
+        agent("agent:claude", "ann", { permissions: ["relations:write"] }),
+      ),
+      Story.when(contains, relate),
+      Story.then(
+        contains,
+        new EdgeRelated({ ...ends, by: "agent:claude", for: PersonId.make("ann") }),
+      ),
+    ),
+  );
+
   it.effect("unrelates and drops the edge from both nodes", () =>
     story(
       Story.given(contains, related),
@@ -143,7 +164,11 @@ describe("GraphApi over Session", () => {
         to: "doc:9",
       });
       const edges = yield* ann.NodeEdges.get("doc:9").pipe(
-        Effect.repeat({ until: (state) => (state?.in.length ?? 0) > 0, times: 50 }),
+        Effect.repeat({
+          until: (state) => (state?.in.length ?? 0) > 0,
+          schedule: Schedule.spaced("20 millis"),
+          times: 100,
+        }),
       );
       expect(edges).toEqual({ out: [], in: [{ type: "contains", node: "folder:9" }] });
       const bob = yield* as("bob-token");

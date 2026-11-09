@@ -28,7 +28,7 @@ Grant `notifications:notify` to the system actor of whichever policy creates not
 | `SettleDelivery` | the delivery policy | `notifications:deliver` | `NotificationDelivered` or `NotificationDeliveryFailed`, once per notification and channel |
 | `ReleaseNotification` | scheduled by the delivery policy | `notifications:deliver`, else nothing | `NotificationReleased` |
 
-Another person, or a system actor, on someone's inbox gets `NotInboxOwner` (403). The `MyInbox` view (notifications newest first, unread count, preferences, quiet hours) checks `notifications:read` and the same ownership.
+Another person, an agent (even its own person's inbox) or a system actor on someone's inbox gets `NotInboxOwner` (403). The `MyInbox` view (notifications newest first, unread count, preferences, quiet hours) checks `notifications:read` and the same ownership.
 
 ## Rules
 

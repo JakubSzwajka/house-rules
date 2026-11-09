@@ -6,12 +6,14 @@ import { ContactBookId, ContactId } from "./contact-book.id.ts";
 import { ContactNotFound } from "./contact-not-found.rejection.ts";
 import { InvalidContact } from "./invalid-contact.rejection.ts";
 import { NotContactOwner } from "./not-contact-owner.rejection.ts";
+import { ActedFor } from "../actor/actor.ts";
 
 export class VerificationRequested extends Domain.Event("VerificationRequested", {
   contactId: Schema.String,
   type: Schema.Literals(["email", "phone"]),
   address: Schema.String,
   by: Schema.String,
+  for: ActedFor,
 }) {}
 
 export class RequestVerification extends Domain.Command("RequestVerification", {

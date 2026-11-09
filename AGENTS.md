@@ -43,7 +43,7 @@ CI runs frozen install, `pnpm check`, `pnpm test`, `pnpm run packed-consumer` an
 - Object access (owner, member, holder) lives in the aggregate's state and is checked after the permission, with its own rejection (`httpApiStatus: 403`).
 - Views that hold anything private list `middleware: [Session]` and authorize in `validate`.
 - Policies and webhooks have no session. They act as a system actor, `system(name, permissions)` provided as `CurrentActor`, holding only explicitly granted permissions. Every system grant is an owner decision. A system actor never borrows the author's roles.
-- Events that record a change by someone carry `by: authorOf(actor)`. Time comes from `decide`'s `{ now }`; ids come from the caller. Never `Date.now()`, `Clock` or randomness in a model.
+- Events that record a change by someone carry `by` and `for` from `attributionOf(actor)`: `for` is the Person an Agent acted for, else null. Time comes from `decide`'s `{ now }`; ids come from the caller. Never `Date.now()`, `Clock` or randomness in a model.
 - No storage ports, adapters, units of work, migrations or facades. The platform stores events; one aggregate commits in one transaction. A store outside the model is a Projection plus a port with a memory implementation.
 - Rules spanning aggregates get their own aggregate or a policy/saga, never a cross-aggregate transaction.
 - Expected failures are rejections or tagged errors. Never `throw`, never global `Error`.
@@ -55,9 +55,9 @@ Before editing, read Alchemy's installed skill (`packages/stack/node_modules/@al
 ## Tests
 
 - Tests sit in a `tests/` folder beside the code they test and use `@effect/vitest` (`it.effect`, `it.live`). Never `Effect.run*` or `ManagedRuntime.make` in tests.
-- Each model has a test that `Domain.verify(Model)` is empty. Stories (`@alchemy.run/domain/Story`) cover every command's happy path, every rejection, and each authorization case: permission holder, person without it, wrong owner or non-member, system actor. Every policy reaction and every view's state after the events it folds is tested.
+- Each model has a test that `Domain.verify(Model)` is empty. Stories (`@alchemy.run/domain/Story`) cover every command's happy path, every rejection, and each authorization case: permission holder, person without it, wrong owner or non-member, agent, system actor. Every policy reaction and every view's state after the events it folds is tested.
 - A client-facing module has one Api test through `SessionLive`, `devTokens` and `Roles`, so authentication runs end to end.
-- An agent gets the same access as its user. Every exposed MCP tool needs an A/B access test.
+- An agent is its own party: its id starts with `agent:`, it signs in with its own token, holds its own roles and passes object checks only as itself. A malformed delegation claim signs the token out, never in as the person. Every exposed MCP tool needs an A/B access test.
 
 ## Comments and docs
 
