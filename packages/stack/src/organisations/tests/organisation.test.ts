@@ -1,7 +1,7 @@
 import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
-import { person, PersonId, system } from "../../actor/actor.ts";
+import { agent, person, PersonId, system } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import {
@@ -32,6 +32,7 @@ class Organisations extends Domain.Model("Organisations", { aggregates, views })
 
 const story = Story.make(Organisations, {});
 const acme = Organisation.ref(OrgId.make("acme"));
+const globex = Organisation.ref(OrgId.make("globex"));
 const ann = PersonId.make("ann");
 const bob = PersonId.make("bob");
 const carol = PersonId.make("carol");
@@ -78,6 +79,21 @@ describe("Organisation", () => {
       Story.rejected(new AdminRequired()),
       Story.when(acme, new CreateOrganisation({ name: "Acme", admin: ann })),
       Story.then(acme, new OrganisationCreated({ name: "Acme", admin: ann, by: "system:clerk" })),
+    ),
+  );
+
+  it.effect("checks an agent as itself: never an admin by default, not a member", () =>
+    story(
+      founded,
+      Story.provide(CurrentActor, agent("claude", "ann", { permissions: all })),
+      Story.when(acme, new AddMember({ person: carol, role: "member" })),
+      Story.rejected(new NotAdmin()),
+      Story.when(acme, new RemoveMember({ person: bob })),
+      Story.rejected(new NotAdmin()),
+      Story.when(globex, new CreateOrganisation({ name: "Globex" })),
+      Story.rejected(new AdminRequired()),
+      Story.when(globex, new CreateOrganisation({ name: "Globex", admin: ann })),
+      Story.then(globex, new OrganisationCreated({ name: "Globex", admin: ann, by: "claude" })),
     ),
   );
 
@@ -189,8 +205,6 @@ describe("Organisation", () => {
 });
 
 describe("PersonOrganisations", () => {
-  const globex = Organisation.ref(OrgId.make("globex"));
-
   it.effect("lists each organisation a person belongs to, with their role", () =>
     story(
       founded,

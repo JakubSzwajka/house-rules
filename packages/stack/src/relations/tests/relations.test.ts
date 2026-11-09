@@ -6,7 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import { Roles } from "../../access/roles.ts";
-import { person, system } from "../../actor/actor.ts";
+import { agent, person, system } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import { devTokens } from "../../auth/dev-tokens.ts";
 import { SessionLive } from "../../auth/session-live.ts";
@@ -80,6 +80,17 @@ describe("Edge", () => {
       Story.provide(CurrentActor, system("linker", ["relations:write"])),
       Story.when(contains, relate),
       Story.then(contains, new EdgeRelated({ ...ends, by: "system:linker" })),
+    ),
+  );
+
+  it.effect("lets an agent with the grant relate as itself, and refuses one without it", () =>
+    story(
+      Story.provide(CurrentActor, agent("reader", "ann", { permissions: ["relations:read"] })),
+      Story.when(contains, relate),
+      Story.rejected(new Forbidden({ permission: "relations:write" })),
+      Story.provide(CurrentActor, agent("claude", "ann", { permissions: ["relations:write"] })),
+      Story.when(contains, relate),
+      Story.then(contains, new EdgeRelated({ ...ends, by: "claude" })),
     ),
   );
 

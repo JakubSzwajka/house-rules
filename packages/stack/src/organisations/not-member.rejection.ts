@@ -1,8 +1,8 @@
 import * as Domain from "@alchemy.run/domain";
-import { PersonId } from "../actor/actor.ts";
+import { PartyId } from "../actor/actor.ts";
 
 export class NotMember extends Domain.Rejection(
   "NotMember",
-  { person: PersonId },
+  { person: PartyId },
   { httpApiStatus: 404 },
 ) {}

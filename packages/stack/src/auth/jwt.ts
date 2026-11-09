@@ -18,6 +18,12 @@ import type { Principal } from "./principal.ts";
 
 export type Claims = JWTPayload;
 
+export interface AgentClaims {
+  readonly id: string;
+  readonly name: string;
+  readonly forPerson: string;
+}
+
 export type JwtKey =
   | { readonly jwksUrl: string }
   | { readonly jwks: JSONWebKeySet }
@@ -33,7 +39,36 @@ export interface JwtOptions {
   readonly subject?: (claims: Claims) => string | undefined;
   readonly orgId?: (claims: Claims) => string | null;
   readonly roles?: (claims: Claims) => ReadonlyArray<string>;
+  readonly agent?: (claims: Claims) => AgentClaims | undefined;
 }
+
+const text = (value: unknown): string | undefined =>
+  typeof value === "string" && value !== "" ? value : undefined;
+
+export const agentFromAct = (claims: Claims): AgentClaims | undefined => {
+  const act = claims["act"];
+  if (typeof act !== "object" || act === null) return undefined;
+  const actor = act as Record<string, unknown>;
+  const id = text(actor["sub"]);
+  const forPerson = text(claims.sub);
+  if (id === undefined || forPerson === undefined) return undefined;
+  return { id, name: text(actor["name"]) ?? id, forPerson };
+};
+
+export const principalWithAgent = (
+  principal: Principal,
+  claims: Claims,
+  agent: ((claims: Claims) => AgentClaims | undefined) | undefined,
+): Principal => {
+  const found = agent === undefined ? undefined : agent(claims);
+  return found === undefined
+    ? principal
+    : {
+        ...principal,
+        subject: found.id,
+        agent: { name: found.name, forPerson: found.forPerson },
+      };
+};
 
 const stringsOf = (value: unknown): ReadonlyArray<string> =>
   Array.isArray(value) ? value.filter((each): each is string => typeof each === "string") : [];
@@ -83,7 +118,7 @@ const keyOf = (
 };
 
 export const tokenProvider = (
-  options: Omit<JwtOptions, "subject" | "orgId" | "roles"> & {
+  options: Omit<JwtOptions, "subject" | "orgId" | "roles" | "agent"> & {
     readonly algorithms?: ReadonlyArray<string>;
   },
   principalOf: (claims: Claims) => Option.Option<Principal>,
@@ -129,9 +164,15 @@ export const jwt = (options: JwtOptions) =>
   tokenProvider(options, (claims) => {
     const subject = options.subject === undefined ? claims.sub : options.subject(claims);
     if (subject === undefined || subject === "") return Option.none();
-    return Option.some({
-      subject,
-      orgId: options.orgId === undefined ? null : options.orgId(claims),
-      roles: options.roles === undefined ? stringsOf(claims["roles"]) : options.roles(claims),
-    });
+    return Option.some(
+      principalWithAgent(
+        {
+          subject,
+          orgId: options.orgId === undefined ? null : options.orgId(claims),
+          roles: options.roles === undefined ? stringsOf(claims["roles"]) : options.roles(claims),
+        },
+        claims,
+        options.agent,
+      ),
+    );
   });

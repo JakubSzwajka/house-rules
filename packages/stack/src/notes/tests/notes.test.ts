@@ -6,7 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import { Roles } from "../../access/roles.ts";
-import { person, system } from "../../actor/actor.ts";
+import { agent, person, system } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import { devTokens } from "../../auth/dev-tokens.ts";
 import { SessionLive } from "../../auth/session-live.ts";
@@ -46,6 +46,20 @@ describe("Notes", () => {
         n2,
         new Notes.NoteAdded({ target: booking, by: "system:Import", body: "imported" }),
       ),
+    ),
+  );
+
+  it.effect("adds a note by an agent as its own author, and refuses one without the grant", () =>
+    story(
+      Story.provide(CurrentActor, agent("claude", "ann", { permissions: [read, write] })),
+      Story.when(n1, new Notes.AddNote({ target: booking, body: "drafted a reply" })),
+      Story.then(
+        n1,
+        new Notes.NoteAdded({ target: booking, by: "claude", body: "drafted a reply" }),
+      ),
+      Story.provide(CurrentActor, agent("reader", "ann", { permissions: [read] })),
+      Story.when(n2, new Notes.AddNote({ target: booking, body: "hi" })),
+      Story.rejected(new Forbidden({ permission: write })),
     ),
   );
 

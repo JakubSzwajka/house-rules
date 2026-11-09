@@ -164,6 +164,12 @@ describe("ContactsApi over Session", () => {
     "ann-token": { subject: "ann", orgId: null, roles: ["member"] },
     "bob-token": { subject: "bob", orgId: null, roles: ["member"] },
     "eve-token": { subject: "ann", orgId: null, roles: [] },
+    "claude-token": {
+      subject: "claude",
+      orgId: null,
+      roles: ["member"],
+      agent: { name: "Claude", forPerson: "ann" },
+    },
   });
 
   it.live("an owner adds, verifies through a delivered code and reads the book", () =>
@@ -209,6 +215,10 @@ describe("ContactsApi over Session", () => {
         );
         const bob = yield* as("bob-token");
         expect((yield* bob.ContactBook.get(annBook).pipe(Effect.flip))._tag).toBe(
+          "NotContactOwner",
+        );
+        const claude = yield* as("claude-token");
+        expect((yield* claude.ContactBook.get(annBook).pipe(Effect.flip))._tag).toBe(
           "NotContactOwner",
         );
         const eve = yield* as("eve-token");

@@ -1,11 +1,48 @@
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
-import { PersonId } from "../actor/actor.ts";
+import { type Actor, AgentId, PersonId } from "../actor/actor.ts";
 import { CurrentActor } from "../actor/current-actor.context.ts";
 import { Roles } from "../access/roles.ts";
 import { AuthProvider } from "./auth-provider.ts";
+import type { Principal } from "./principal.ts";
 import { Session, Unauthenticated } from "./session.middleware.ts";
+
+const posesAsSystem = (id: string) => id.startsWith("system:");
+
+const actorOf = (
+  principal: Principal,
+  permissions: ReadonlyArray<string>,
+): Option.Option<Actor> => {
+  // authorOf writes system actors as "system:<name>"; a subject like that could pose as one.
+  if (posesAsSystem(principal.subject)) return Option.none();
+  const roles = [...principal.roles];
+  if (principal.agent === undefined)
+    return Option.some({
+      _tag: "Person",
+      id: PersonId.make(principal.subject),
+      orgId: principal.orgId,
+      roles,
+      permissions: [...permissions],
+    });
+  const { name, forPerson } = principal.agent;
+  if (
+    principal.subject === "" ||
+    forPerson === "" ||
+    posesAsSystem(forPerson) ||
+    forPerson === principal.subject
+  )
+    return Option.none();
+  return Option.some({
+    _tag: "Agent",
+    id: AgentId.make(principal.subject),
+    name: name === "" ? principal.subject : name,
+    forPerson: PersonId.make(forPerson),
+    orgId: principal.orgId,
+    roles,
+    permissions: [...permissions],
+  });
+};
 
 export const SessionLive = Layer.effect(
   Session,
@@ -14,21 +51,14 @@ export const SessionLive = Layer.effect(
     const roles = yield* Roles;
     return (effect, { headers }) =>
       auth.authenticate(headers).pipe(
-        Effect.flatMap(
-          Option.match({
-            onNone: () => Effect.fail(new Unauthenticated()),
-            // authorOf writes system actors as "system:<name>"; a subject like that could pose as one.
-            onSome: (principal) =>
-              principal.subject.startsWith("system:")
-                ? Effect.fail(new Unauthenticated())
-                : Effect.provideService(effect, CurrentActor, {
-                    _tag: "Person",
-                    id: PersonId.make(principal.subject),
-                    orgId: principal.orgId,
-                    roles: [...principal.roles],
-                    permissions: [...roles.permissionsOf(principal.roles)],
-                  }),
-          }),
+        Effect.flatMap((principal) =>
+          Option.match(
+            Option.flatMap(principal, (p) => actorOf(p, roles.permissionsOf(p.roles))),
+            {
+              onNone: () => Effect.fail(new Unauthenticated()),
+              onSome: (actor) => Effect.provideService(effect, CurrentActor, actor),
+            },
+          ),
         ),
       );
   }),

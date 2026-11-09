@@ -1,11 +1,12 @@
 import * as Option from "effect/Option";
-import { type Claims, tokenProvider } from "./jwt.ts";
+import { type AgentClaims, type Claims, principalWithAgent, tokenProvider } from "./jwt.ts";
 
 export interface ClerkOptions {
   readonly issuer: string;
   readonly jwtKey?: string;
   readonly authorizedParties?: ReadonlyArray<string>;
   readonly clockTolerance?: number;
+  readonly agent?: (claims: Claims) => AgentClaims | undefined;
 }
 
 const text = (value: unknown): string | undefined =>
@@ -46,14 +47,20 @@ export const clerk = (options: ClerkOptions) => {
       const parties = options.authorizedParties ?? [];
       if (azp !== undefined && parties.length > 0 && !parties.includes(azp)) return Option.none();
       const organisation = organisationOf(claims);
-      return Option.some({
-        subject,
-        orgId: organisation.id ?? null,
-        roles:
-          organisation.id === undefined || organisation.role === undefined
-            ? []
-            : [clerkRole(organisation.role)],
-      });
+      return Option.some(
+        principalWithAgent(
+          {
+            subject,
+            orgId: organisation.id ?? null,
+            roles:
+              organisation.id === undefined || organisation.role === undefined
+                ? []
+                : [clerkRole(organisation.role)],
+          },
+          claims,
+          options.agent,
+        ),
+      );
     },
   );
 };

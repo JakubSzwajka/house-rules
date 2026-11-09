@@ -33,6 +33,12 @@ const World = SessionLive.pipe(
           "ann-token": { subject: "ann", orgId: "acme", roles: ["user"] },
           "bob-token": { subject: "bob", orgId: "acme", roles: [] },
           "carol-token": { subject: "carol", orgId: "acme", roles: ["auditor"] },
+          "claude-token": {
+            subject: "claude",
+            orgId: "acme",
+            roles: ["auditor"],
+            agent: { name: "Claude", forPerson: "ann" },
+          },
         }),
       ),
       Roles.layer({
@@ -80,6 +86,11 @@ describe("Organisations over the Api", () => {
       expect(refused._tag).toBe("Forbidden");
       const stranger = yield* carol.Organisation.get(acme).pipe(Effect.flip);
       expect(stranger._tag).toBe("NotMember");
+      const claude = yield* as("claude-token");
+      const agentRead = yield* claude.Organisation.get(acme).pipe(Effect.flip);
+      expect(agentRead).toMatchObject({ _tag: "NotMember", person: "claude" });
+      const forAnn = yield* claude.PersonOrganisations.get(PersonId.make("ann")).pipe(Effect.flip);
+      expect(forAnn._tag).toBe("NotYourself");
 
       yield* ann.RemoveMember(acme, { person: PersonId.make("bob") });
       const removed = yield* bob.Organisation.get(acme).pipe(Effect.flip);

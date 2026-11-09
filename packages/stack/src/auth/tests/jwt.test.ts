@@ -5,7 +5,7 @@ import type * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from "jose";
 import { AuthProvider } from "../auth-provider.ts";
-import { jwt } from "../jwt.ts";
+import { agentFromAct, jwt } from "../jwt.ts";
 
 const issuer = "https://id.example.test";
 const secret = "a-shared-secret-of-at-least-thirty-two-bytes";
@@ -76,6 +76,37 @@ describe("jwt", () => {
       const token = yield* sign({ roles: ["member", 7, "admin"] }, { rsa: true });
       expect(yield* authenticate(provider, token)).toEqual(
         Option.some({ subject: "ann", orgId: null, roles: ["member", "admin"] }),
+      );
+    }),
+  );
+
+  it.effect("keeps a token with an act claim a person unless the agent option reads it", () =>
+    Effect.gen(function* () {
+      const delegated = yield* sign({ roles: ["agent"], act: { sub: "claude", name: "Claude" } });
+      expect(yield* authenticate(jwt({ key: { secret }, issuer }), delegated)).toEqual(
+        Option.some({ subject: "ann", orgId: null, roles: ["agent"] }),
+      );
+      const agents = jwt({ key: { secret }, issuer, agent: agentFromAct });
+      expect(yield* authenticate(agents, delegated)).toEqual(
+        Option.some({
+          subject: "claude",
+          orgId: null,
+          roles: ["agent"],
+          agent: { name: "Claude", forPerson: "ann" },
+        }),
+      );
+      const plain = yield* sign({ roles: ["member"] });
+      expect(yield* authenticate(agents, plain)).toEqual(
+        Option.some({ subject: "ann", orgId: null, roles: ["member"] }),
+      );
+      const nameless = yield* sign({ act: { sub: "claude" } });
+      expect(yield* authenticate(agents, nameless)).toEqual(
+        Option.some({
+          subject: "claude",
+          orgId: null,
+          roles: [],
+          agent: { name: "claude", forPerson: "ann" },
+        }),
       );
     }),
   );

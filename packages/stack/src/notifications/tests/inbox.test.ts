@@ -2,7 +2,7 @@ import * as Domain from "@alchemy.run/domain";
 import { Story } from "@alchemy.run/domain/Story";
 import { describe, expect, it } from "@effect/vitest";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
-import { PersonId, person, system } from "../../actor/actor.ts";
+import { agent, PersonId, person, system } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import { Email } from "../../delivery/email.external.ts";
 import { Push } from "../../delivery/push.external.ts";
@@ -110,6 +110,17 @@ describe("MarkRead", () => {
       Story.given(inbox, created(n1)),
       Story.provide(CurrentActor, bob),
       Story.when(inbox, new MarkRead({ notificationIds: "all" })),
+      Story.rejected(new NotInboxOwner()),
+    ),
+  );
+
+  it.effect("refuses an agent, even for its own person's inbox or its own id", () =>
+    story(
+      Story.given(inbox, created(n1)),
+      Story.provide(CurrentActor, agent("claude", "ann", { permissions: [P.read, P.write] })),
+      Story.when(inbox, new MarkRead({ notificationIds: "all" })),
+      Story.rejected(new NotInboxOwner()),
+      Story.when(Inbox.ref(PersonId.make("claude")), new SetQuietHours({ quietHours: null })),
       Story.rejected(new NotInboxOwner()),
     ),
   );

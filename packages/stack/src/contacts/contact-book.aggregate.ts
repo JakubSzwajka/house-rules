@@ -194,7 +194,7 @@ export class ContactBook extends Domain.Aggregate("ContactBook", {
     rejects: [Forbidden, NotContactOwner],
     validate: Effect.fn(function* (request) {
       const actor = yield* requirePermission(ContactsPermissions.read);
-      if (actor._tag === "Person" && !manages(actor, request.key.id))
+      if (actor._tag !== "System" && !manages(actor, request.key.id))
         return yield* new NotContactOwner();
     }),
   },

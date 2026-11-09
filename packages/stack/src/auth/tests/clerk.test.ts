@@ -121,4 +121,29 @@ describe("clerk", () => {
       expect(warnings).toHaveLength(1);
     }),
   );
+
+  it.effect("reads an agent only through the agent option", () =>
+    Effect.gen(function* () {
+      const signed = yield* token({ agent: "claude" });
+      const agents = clerk({
+        issuer,
+        jwtKey,
+        agent: (claims) =>
+          typeof claims["agent"] === "string" && typeof claims.sub === "string"
+            ? { id: claims["agent"], name: "Claude", forPerson: claims.sub }
+            : undefined,
+      });
+      expect(yield* authenticate(agents, bearer(signed))).toEqual(
+        Option.some({
+          subject: "claude",
+          orgId: null,
+          roles: [],
+          agent: { name: "Claude", forPerson: "user_ann" },
+        }),
+      );
+      expect(yield* authenticate(provider, bearer(signed))).toEqual(
+        Option.some({ subject: "user_ann", orgId: null, roles: [] }),
+      );
+    }),
+  );
 });

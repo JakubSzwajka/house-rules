@@ -33,7 +33,7 @@ export type OrganisationState = typeof OrganisationState.Type;
 const asAdmin = Effect.fn(function* (s: OrganisationState) {
   const actor = yield* requirePermission(OrganisationsPermissions.manage);
   const founded = s._tag === "Founded" ? s : undefined;
-  if (actor._tag === "Person" && founded?.members[actor.id] !== ADMIN_ROLE)
+  if (actor._tag !== "System" && founded?.members[actor.id] !== ADMIN_ROLE)
     return yield* new NotAdmin();
   if (founded === undefined) return yield* new OrganisationNotFound();
   return { members: founded.members, by: authorOf(actor) };
@@ -104,7 +104,7 @@ export class Organisation extends Domain.Aggregate("Organisation", {
     rejects: [Forbidden, NotMember],
     validate: Effect.fn(function* (_request, s) {
       const actor = yield* requirePermission(OrganisationsPermissions.read);
-      if (actor._tag === "Person" && (s._tag !== "Founded" || !Object.hasOwn(s.members, actor.id)))
+      if (actor._tag !== "System" && (s._tag !== "Founded" || !Object.hasOwn(s.members, actor.id)))
         return yield* new NotMember({ person: actor.id });
     }),
   },

@@ -6,7 +6,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { Forbidden } from "../../access/forbidden.rejection.ts";
 import { Roles } from "../../access/roles.ts";
-import { person, system } from "../../actor/actor.ts";
+import { agent, person, system } from "../../actor/actor.ts";
 import { CurrentActor } from "../../actor/current-actor.context.ts";
 import { devTokens } from "../../auth/dev-tokens.ts";
 import { SessionLive } from "../../auth/session-live.ts";
@@ -109,6 +109,24 @@ describe("Comments", () => {
       Story.provide(CurrentActor, person("guest")),
       Story.when(c1, new Comments.DeleteComment()),
       Story.rejected(new Forbidden({ permission: write })),
+    ),
+  );
+
+  it.effect("lets an agent author its own comments, and not its person's", () =>
+    story(
+      Story.given(c2, posted),
+      Story.provide(CurrentActor, agent("claude", "ann", { permissions: [read, write] })),
+      Story.when(c1, new Comments.AddComment({ target: booking, body: "on it" })),
+      Story.then(c1, new Comments.CommentAdded({ target: booking, by: "claude", body: "on it" })),
+      Story.when(c1, new Comments.EditComment({ body: "done" })),
+      Story.then(c1, new Comments.CommentEdited({ target: booking, by: "claude", body: "done" })),
+      Story.when(c2, new Comments.EditComment({ body: "rewritten" })),
+      Story.rejected(new Comments.NotAuthor({ author: "ann" })),
+      Story.when(c2, new Comments.DeleteComment()),
+      Story.rejected(new Comments.NotAuthor({ author: "ann" })),
+      Story.provide(CurrentActor, ann),
+      Story.when(c1, new Comments.DeleteComment()),
+      Story.rejected(new Comments.NotAuthor({ author: "claude" })),
     ),
   );
 
