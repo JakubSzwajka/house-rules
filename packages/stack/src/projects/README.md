@@ -45,7 +45,7 @@ Every command also rejects `Forbidden`. Names are trimmed and 1 to 200 character
 
 ## Access
 
-People need `projects:write` for every client command, and `projects:read` to read a `Project` or the `ProjectDirectory` view. `OpenProject`, `SwitchProjectSlug` and `ReleaseSlug` need `projects:settle-slug`, which only `SlugSettlement`'s system actor `slugSettler` holds. Projects store no owner; an app that limits who may change a project composes that rule itself.
+People and agents need `projects:write` for every client command, and `projects:read` to read a `Project` or the `ProjectDirectory` view. `OpenProject`, `SwitchProjectSlug` and `ReleaseSlug` need `projects:settle-slug`, which only `SlugSettlement`'s system actor `slugSettler` holds. Projects store no owner; an app that limits who may change a project composes that rule itself.
 
 ## Reads
 

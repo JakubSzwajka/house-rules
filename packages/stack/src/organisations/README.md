@@ -16,7 +16,7 @@ class App extends Domain.Model("App", {
 | `ChangeMemberRole { person, role }` | `organisations:manage` | `NotMember` when the person is not a member; the same role records nothing |
 | `RemoveMember { person }` | `organisations:manage` | `NotMember` when the person is not a member |
 
-A person managing members must be an admin of that organisation (`NotAdmin`, also for an organisation that does not exist). A system actor holding the permission manages any organisation, so a webhook can sync from the provider; it gets `OrganisationNotFound` for one never created. Demoting or removing the last admin fails with `LastAdmin`, for everyone. Events carry `by` (`authorOf(actor)`).
+A person managing members must be an admin of that organisation (`NotAdmin`, also for an organisation that does not exist). A system actor holding the permission manages any organisation, so a webhook can sync from the provider; it gets `OrganisationNotFound` for one never created. An agent is checked as itself: it is not a member, so it gets `NotAdmin`, `NotMember` and `NotYourself` like a stranger, and `CreateOrganisation` by an agent needs an explicit `admin` (`AdminRequired`). Demoting or removing the last admin fails with `LastAdmin`, for everyone. Events carry `by` (`authorOf(actor)`).
 
 ## Reads
 

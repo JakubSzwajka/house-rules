@@ -32,7 +32,7 @@ The book id is the owner's party id: a person id, or an organisation id.
 | `VerifyContact` | trusted server code | `contacts:verify` | `ContactVerified`, or nothing when already verified |
 | `ImportVerifiedContact` | system, at first sign-in | `contacts:import` | only what changed: `ContactAdded`, `ContactVerified`, `PrimaryContactChanged` |
 
-The owner of a person book is that person. The owner of an organisation book is a person whose `orgId` is the book id and who holds `contacts:manage-org`. Anyone else gets `NotContactOwner` (403), and system actors are never owners. Clients read a book through the aggregate's `read` contract with `contacts:read`; a person may read only the books they own, and a system actor may read any.
+The owner of a person book is that person. The owner of an organisation book is a person whose `orgId` is the book id and who holds `contacts:manage-org`. Anyone else gets `NotContactOwner` (403). System actors and agents are never owners, not even of their person's book, for writes and reads. Clients read a book through the aggregate's `read` contract with `contacts:read`; a person may read only the books they own, and a system actor may read any.
 
 ## Rules
 

@@ -1,6 +1,6 @@
 # Work items
 
-Work items with a workflow the app configures, one holder and one level of children. Bodies are plain text; an app may render them as markdown.
+Work items with a workflow the app configures, a priority, a due date, one holder and one level of children. Bodies are plain text; an app may render them as markdown.
 
 ## Compose
 
@@ -25,9 +25,13 @@ Entering a closed category (done or cancelled) stamps `closedAt` with the comman
 
 ## Holders
 
-`ClaimWorkItem` makes the caller the holder and moves the item to the claim state. A closed item fails `WorkItemClosed`, an item someone else holds fails `WorkItemHeld { holder }`, and a repeat claim records nothing. Only people hold items; a system actor's claim fails `Forbidden`.
+`ClaimWorkItem` makes the caller the holder and moves the item to the claim state. A closed item fails `WorkItemClosed`, an item someone else holds fails `WorkItemHeld { holder }`, and a repeat claim records nothing. A holder is a party: a person or an agent, by its `PartyId`. An agent claims, holds and releases as itself, so `HeldWorkItems("claude")` lists what the agent holds, and its person cannot release it without `work_items:assign`. A system actor's claim fails `Forbidden`.
 
-`ReleaseWorkItem` clears the holder and moves the item from `release.from` to `release.to`. The holder may release; anyone else needs `work_items:assign`, or fails `NotHolder { holder }`. An unheld item outside `release.from` records nothing. `AssignWorkItem { holder }` sets or clears any holder and needs `work_items:assign`. Neither assign nor release changes status, except release's own move.
+`ReleaseWorkItem` clears the holder and moves the item from `release.from` to `release.to`. The holder may release; anyone else needs `work_items:assign`, or fails `NotHolder { holder }`. An unheld item outside `release.from` records nothing. `AssignWorkItem { holder }` sets or clears any holder, a person or an agent, and needs `work_items:assign`. Neither assign nor release changes status, except release's own move.
+
+## Priority and due date
+
+`priority` is `null` or one of `low`, `medium`, `high` and `urgent` (`WorkItemPriority`). `due` is `null` or a calendar day as `YYYY-MM-DD` (`WorkItemDue`); a day that does not exist, such as `2026-02-30`, fails the schema. Both are optional on `CreateWorkItem` and default to `null`. On `EditWorkItem` a missing key keeps the value and `null` clears it. `WorkItemCreated` and `WorkItemEdited` carry both, and events or state stored before the fields existed decode with `null`. The module does not sort or alert on them; apps do.
 
 ## Hierarchy
 
@@ -43,8 +47,8 @@ Since a parent must already exist and be a root, and an item with a parent canno
 
 | Command | Records | Rejects (besides `Forbidden`) | Permission |
 | --- | --- | --- | --- |
-| CreateWorkItem `{ title, body?, container?, parent? }` | WorkItemCreated | WorkItemExists | write |
-| EditWorkItem `{ title?, body? }` | WorkItemEdited | WorkItemNotFound | write |
+| CreateWorkItem `{ title, body?, container?, parent?, priority?, due? }` | WorkItemCreated | WorkItemExists | write |
+| EditWorkItem `{ title?, body?, priority?, due? }` | WorkItemEdited | WorkItemNotFound | write |
 | ChangeWorkItemStatus `{ status }` | WorkItemStatusChanged | WorkItemNotFound, TransitionNotAllowed | write |
 | AssignWorkItem `{ holder }` | WorkItemAssigned | WorkItemNotFound | assign |
 | ClaimWorkItem | WorkItemClaimed | WorkItemNotFound, WorkItemClosed, WorkItemHeld, TransitionNotAllowed | write |
@@ -78,7 +82,7 @@ const held = yield* api.HeldWorkItems.get(me, {
 
 - Moving an item or a subtree between parents or containers. It needs the same adopt flow plus children following their parent, by a policy.
 - Import, lifecycle hooks (`removeContainer`, `releaseHolder`) and system reads. A system reads views or `client.state`; the other two are policies reacting to the app's events.
-- Configurable title and body limits, holder kinds, container kinds and depth. The id schemas are static, holders are people, and one level is what a parent's own state can prove.
+- Configurable title and body limits, holder kinds, container kinds and depth. The id schemas are static, holders are parties, and one level is what a parent's own state can prove.
 - Paging and tree size limits: views hold their whole key.
 - Free JSON attributes and a holder at creation: apps keep their own data by item id, and assign after creating.
 - The access port. Apps scope who sees which container with their own views or `validate`.

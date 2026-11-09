@@ -14,7 +14,7 @@ class App extends Domain.Model("App", {
 | `AddNote { target, body }` | `notes:write` | body at most 4000 UTF-16 units (`NoteTooLong`); a note is written once (`NoteExists` on a used id) |
 | `NotesOnTarget` | `notes:read` | the view, through `Session` |
 
-There is no edit or delete: a note is a record. `NoteAdded` carries `by` (`authorOf(actor)`), the target and the body; it is the fact the old module returned to features.
+There is no edit or delete: a note is a record. `NoteAdded` carries `by` (`authorOf(actor)`, the agent's own id for an agent), the target and the body; it is the fact the old module returned to features.
 
 Notes are not comments with a flag. They share the shape of a target-keyed list, but their rule is the opposite (write once versus author-edit and moderated delete), their permissions are separate, and the whole module is one command. Merging would add a policy switch to every comments rule to save four short files.
 

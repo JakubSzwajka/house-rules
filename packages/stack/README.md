@@ -8,10 +8,10 @@ Sign-in, permissions and reusable domain modules for apps built on [Alchemy Doma
 
 | Part | Exports | Job |
 | --- | --- | --- |
-| Actor | `Actor`, `Person`, `PersonId`, `System`, `person`, `system`, `authorOf`, `CurrentActor` | who is acting: a signed-in person (an agent over MCP acts as its person) or a named system actor, carried with each command |
+| Actor | `Actor`, `Person`, `Agent`, `System`, `Party`, `PartyId`, `PersonId`, `AgentId`, `person`, `agent`, `system`, `authorOf`, `partyOf`, `actingFor`, `CurrentActor` | who is acting: a signed-in person, an agent (its own party, working for one person) or a named system actor, carried with each command |
 | Access | `Permission`, `can`, `requirePermission`, `Forbidden`, `Roles`, `RoleDefinitions` | permissions are `resource:action` strings; `Roles` turns role names into permissions once per request; `decide` checks them |
-| Auth | `AuthProvider`, `Principal`, `Session`, `SessionLive`, `Unauthenticated`, `sessionClient`, `credentialOf` | the `Session` RPC middleware over a provider slot; [auth README](src/auth/README.md) |
-| Auth providers | `clerk`, `jwt`, `devTokens` | Clerk session tokens (v1 `org_id`/`org_role` and v2 `o.id`/`o.rol` claims), any JWT issuer (JWKS, PEM or HS256 secret), fixed tokens for tests and local play |
+| Auth | `AuthProvider`, `Principal`, `AgentPrincipal`, `Session`, `SessionLive`, `Unauthenticated`, `sessionClient`, `credentialOf` | the `Session` RPC middleware over a provider slot; [auth README](src/auth/README.md) |
+| Auth providers | `clerk`, `jwt`, `agentFromAct`, `AgentClaims`, `devTokens` | Clerk session tokens (v1 `org_id`/`org_role` and v2 `o.id`/`o.rol` claims), any JWT issuer (JWKS, PEM or HS256 secret), fixed tokens for tests and local play; each can sign an agent in |
 | Target | `Target`, `TargetKey`, `targetKey` | `{ kind, id }` of an app's own object, shared by comments and notes |
 | `Comments` | module | flat comments on a target, author edits, moderated deletes; [README](src/comments/README.md) |
 | `Contacts` | module | email, phone and postal contacts per owner, primaries, verification by one-time code; [README](src/contacts/README.md) |
@@ -21,7 +21,7 @@ Sign-in, permissions and reusable domain modules for apps built on [Alchemy Doma
 | `Organisations` | module | organisations, members and their roles, `withMemberships` for providers without organisations; [README](src/organisations/README.md) |
 | `Projects` | module | projects with configurable statuses and unique slugs; [README](src/projects/README.md) |
 | `Relations` | module | typed, directed edges between opaque nodes; [README](src/relations/README.md) |
-| `WorkItems` | module | work items with an app-configured workflow, holders and one level of children; [README](src/work-items/README.md) |
+| `WorkItems` | module | work items with an app-configured workflow, a priority, a due date, a person or agent holder and one level of children; [README](src/work-items/README.md) |
 
 Each module is a namespace export. It brings its blocks, the block lists an app spreads into its model (`aggregates`, `views`, `policies`, only the kinds it has), its `<Module>Permissions` and, when it has policies, a `handlers` Layer.
 
@@ -203,6 +203,12 @@ export const DEV_TOKENS: Readonly<Record<string, Principal>> = {
   "ann-token": { subject: "ann", orgId: null, roles: ["cook"] },
   "bob-token": { subject: "bob", orgId: null, roles: ["cook"] },
   "gus-token": { subject: "gus", orgId: null, roles: ["guest"] },
+  "claude-token": {
+    subject: "claude",
+    orgId: null,
+    roles: ["kitchen-agent"],
+    agent: { name: "Claude", forPerson: "ann" },
+  },
 };
 
 export const AuthFromEnv = Layer.unwrap(

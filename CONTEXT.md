@@ -30,7 +30,11 @@ A **Platform** (the **domain store**) is the Layer that hosts a model: it stores
 
 ## Who and what may
 
-An **Actor** is who is acting: a **Person** (a signed-in user, or an agent acting as that user with the same permissions) or a **System** actor (a named policy, saga or webhook). **CurrentActor** is the request context that carries it with each command to its aggregate.
+An **Actor** is who is acting: a **Person** (a signed-in user), an **Agent** or a **System** actor (a named policy, saga or webhook). **CurrentActor** is the request context that carries it with each command to its aggregate.
+
+A **Party** is an actor that can own, author and hold things: a Person or an Agent. Its id is a **PartyId**; `PersonId` and `AgentId` are both PartyIds and share one namespace.
+
+An **Agent** is a program, such as Claude, that works for one Person. It has its own id, a name, its own token and its own roles, usually a subset of its person's. `authorOf` names the agent, and **actingFor** names the person it works for. Object checks treat an agent as itself, never as its person and never as a system actor.
 
 A **Permission** is a `resource:action` string a block checks with **requirePermission**. A module publishes its strings as `<Module>Permissions`.
 
@@ -38,9 +42,9 @@ A **Role** is a name that grants permissions. **Roles** turns a principal's role
 
 A **system grant** is the explicit permission list a system actor holds. It is an owner decision and never copies the roles of the person whose event caused the reaction.
 
-An **AuthProvider** is the slot that answers who is signed in: it turns request headers into a **Principal** (`subject`, `orgId`, `roles`). `devTokens` fills it for tests and local play; Clerk or JWT providers fill it in production.
+An **AuthProvider** is the slot that answers who is signed in: it turns request headers into a **Principal** (`subject`, `orgId`, `roles`, and `agent` for an agent). `devTokens` fills it for tests and local play; Clerk or JWT providers fill it in production.
 
-**Session** is the middleware a command or view lists to require a signed-in person. **SessionLive** implements it over an `AuthProvider` and `Roles`; with no principal it fails `Unauthenticated` (401).
+**Session** is the middleware a command or view lists to require a signed-in person or agent. **SessionLive** implements it over an `AuthProvider` and `Roles`; with no principal it fails `Unauthenticated` (401).
 
 **Object access** is who may touch one aggregate (owner, members, holders). It lives in the aggregate's state and is checked in `decide` after the permission, with its own rejection such as `NotAuthor`.
 

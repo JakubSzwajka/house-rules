@@ -17,7 +17,7 @@ class App extends Domain.Model("App", {
 
 - `Edge` is keyed by `edgeId(from, type, to)`, so one edge exists per triple. `Relate` records `EdgeRelated` once; relating again records nothing. `Unrelate` records `EdgeUnrelated`, and nothing when the edge is absent. A target that is not the `edgeId` of the command's endpoints is `EdgeIdMismatch`.
 - `NodeEdges` is keyed by node and holds its `out` and `in` links, each `{ type, node }`. A self edge shows in both.
-- `Relate` and `Unrelate` check `relations:write`; reading `NodeEdges` checks `relations:read`.
+- `Relate` and `Unrelate` check `relations:write`; reading `NodeEdges` checks `relations:read`. An agent with the grant relates as itself (`by` is its id).
 
 ## Relations are not authority
 

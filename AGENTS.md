@@ -55,9 +55,9 @@ Before editing, read Alchemy's installed skill (`packages/stack/node_modules/@al
 ## Tests
 
 - Tests sit in a `tests/` folder beside the code they test and use `@effect/vitest` (`it.effect`, `it.live`). Never `Effect.run*` or `ManagedRuntime.make` in tests.
-- Each model has a test that `Domain.verify(Model)` is empty. Stories (`@alchemy.run/domain/Story`) cover every command's happy path, every rejection, and each authorization case: permission holder, person without it, wrong owner or non-member, system actor. Every policy reaction and every view's state after the events it folds is tested.
+- Each model has a test that `Domain.verify(Model)` is empty. Stories (`@alchemy.run/domain/Story`) cover every command's happy path, every rejection, and each authorization case: permission holder, person without it, wrong owner or non-member, agent, system actor. Every policy reaction and every view's state after the events it folds is tested.
 - A client-facing module has one Api test through `SessionLive`, `devTokens` and `Roles`, so authentication runs end to end.
-- An agent gets the same access as its user. Every exposed MCP tool needs an A/B access test.
+- An agent is its own party: it signs in with its own token, holds its own roles and passes object checks only as itself. Every exposed MCP tool needs an A/B access test.
 
 ## Comments and docs
 

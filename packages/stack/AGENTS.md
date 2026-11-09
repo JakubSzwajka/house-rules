@@ -43,9 +43,9 @@ const Hosted = Everything.layer(
 
 ### Sign-in: Session, SessionLive, Roles, AuthProvider
 
-- `AuthProvider` is the slot: `authenticate(headers)` returns `Option<Principal>` (`subject`, `orgId`, `roles`). Fill it with `devTokens({...})` for tests and local play, `clerk({ issuer, jwtKey?, authorizedParties? })` or `jwt({ key, issuer, ... })` in production. See [src/auth/README.md](src/auth/README.md).
+- `AuthProvider` is the slot: `authenticate(headers)` returns `Option<Principal>` (`subject`, `orgId`, `roles`, and `agent: { name, forPerson }` for an agent). Fill it with `devTokens({...})` for tests and local play, `clerk({ issuer, jwtKey?, authorizedParties? })` or `jwt({ key, issuer, ... })` in production. See [src/auth/README.md](src/auth/README.md).
 - `Roles.layer(definitions)` maps role names to permissions once per request. Clerk organisation roles arrive as `org:<key>`; map those names too. Roles never reach a `decide`; permissions do.
-- `SessionLive` needs `AuthProvider` and `Roles`, and provides `CurrentActor` as a `Person` to every command and view that lists `middleware: [Session]`. No principal fails `Unauthenticated` (401). A subject starting with `system:` is refused.
+- `SessionLive` needs `AuthProvider` and `Roles`, and provides `CurrentActor` as a `Person`, or an `Agent` when the principal has `agent`, to every command and view that lists `middleware: [Session]`. No principal fails `Unauthenticated` (401). A subject or `forPerson` starting with `system:` is refused, and so is an agent that acts for itself.
 - Wire it once, in the server package, and host the model under it:
 
 ```ts
@@ -56,7 +56,8 @@ export const kitchenLive = <E, R>(auth: Layer.Layer<AuthProvider, E, R>) =>
   );
 ```
 
-- Clients send the bearer token with `sessionClient(token)`. An agent over MCP sends its user's token and acts as that user.
+- Clients send the bearer token with `sessionClient(token)`. An agent over MCP sends its own token and acts as itself: its own id in `by`, its own roles, its own holder id.
+- Object checks compare the agent's own id. Only a `System` actor skips them, so write `actor._tag !== "System"` (or `partyOf(actor)`), never `actor._tag === "Person"`, before an owner, member or holder check. Use `actingFor(actor)` to show "for <person>" or to check access on the person's behalf, and say so in the module's README.
 - With a provider that knows no organisations (JWT, dev tokens), `Organisations.withMemberships(provider)` adds the person's role in their active organisation.
 
 ## Fixed rules
@@ -116,7 +117,7 @@ Every event tag must be unique across every module an app composes. Prefix gener
 Tests sit in `tests/` beside the code and use `@effect/vitest` (`it.effect`, `it.live`), never `Effect.run*`.
 
 - One `Domain.verify(App)` test that expects `[]`.
-- Stories (`@alchemy.run/domain/Story`) for every command's happy path and every rejection. Stories skip middleware, so provide the actor: `Story.provide(CurrentActor, person("ann", { permissions: [...] }))`. Cover the permission holder, a person without it, the wrong owner and a system actor. Stub external systems with `Story.make(App, { layer: Handlers, stub: [PaymentProvider] })`.
+- Stories (`@alchemy.run/domain/Story`) for every command's happy path and every rejection. Stories skip middleware, so provide the actor: `Story.provide(CurrentActor, person("ann", { permissions: [...] }))`. Cover the permission holder, a person without it, the wrong owner, an agent (`agent("claude", "ann", { permissions: [...] })`) and a system actor. Stub external systems with `Story.make(App, { layer: Handlers, stub: [PaymentProvider] })`.
 - Every policy reaction and every view's state after the events it folds.
 - One Api test through `SessionLive`, `devTokens` and `Roles` over `platformForTests` from `@house-rules/domain-postgres` (a fresh Postgres schema per test, or `Domain.InMemory` with `DOMAIN_STORE=memory`), with `Api.clientInProcess` and `sessionClient(token)`. Read views with `{ atLeast: receipt }` after a write. It waits for the read key's own checkpoint (Alchemy `Model.ts:757`), so when the commit's last event routes to another key, the read times out with `ConsistencyTimeout`; watch the key and filter instead. Middleware is tested here, since stories skip it.
 
