@@ -30,6 +30,7 @@ const isCalendarDay = (date: string): boolean => {
 };
 
 export const WorkItemDue = Schema.String.check(
+  Schema.isBetweenLength(10, 10),
   Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/),
   Schema.makeFilter(isCalendarDay, { expected: "a calendar day as YYYY-MM-DD" }),
 );

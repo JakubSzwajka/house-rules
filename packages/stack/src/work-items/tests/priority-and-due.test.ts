@@ -94,12 +94,20 @@ describe("work item priority and due date", () => {
     ).toBe(false);
   });
 
+  it("refuses a due date with a trailing line terminator or any extra character", () => {
+    const padded = ["\n", "\r", "\r\n", "\u2028", "\u2029", " ", "0"].map(
+      (end) => `2026-03-01${end}`,
+    );
+    expect(padded.some(Schema.is(WorkItemDue))).toBe(false);
+    expect(["\n2026-03-01", "+2026-03-01", "02026-03-01"].some(Schema.is(WorkItemDue))).toBe(false);
+  });
+
   it.effect("refuses a command with an unknown priority or a day that does not exist", () =>
     Effect.gen(function* () {
       const decode = Schema.decodeUnknownEffect(CreateWorkItem);
       const valid = { _tag: "CreateWorkItem", title: "Fix the roof", ...urgentToday };
       expect(yield* decode(valid)).toMatchObject(urgentToday);
-      for (const bad of [{ priority: "someday" }, { due: "2026-02-30" }])
+      for (const bad of [{ priority: "someday" }, { due: "2026-02-30" }, { due: "2026-03-01\n" }])
         expect((yield* decode({ ...valid, ...bad }).pipe(Effect.flip))._tag).toBe("SchemaError");
     }),
   );
