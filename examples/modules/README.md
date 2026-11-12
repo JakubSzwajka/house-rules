@@ -28,6 +28,7 @@ The parts that must stay the same in every app stay in `@house-rules/stack`: the
 
 ## Rules for a copy
 
+- An app that already has data from a module, for example from an older `@house-rules/stack` that shipped it, copies the module with every event tag, field and aggregate, view and policy name unchanged. Its stored events then decode as before, with no data migration. Change it only after its tests and your stored data load from the copy.
 - An event tag is the name of stored data. Before your app has data, rename freely. After it has data, never rename or remove an event tag or field; add fields with a decoding default, the way `WorkItemCreated` decodes `priority` as `null`.
 - Event tags stay unique across the model. `Domain.verify(App)` reports duplicates.
 - Every rule in [AGENTS.md](../../AGENTS.md) applies to the copy as to your own code: `Session` and `Forbidden` on client commands, `requirePermission` first in `decide`, `by` and `for` on events, system actors with explicit grants.
