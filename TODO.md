@@ -8,7 +8,8 @@ Open work, not alternate law.
 - [ ] 3in1 copies the modules it uses (Comments, Contacts, Notes, Notifications, Organisations, Projects, Relations, WorkItems) into its own domain package, keeping event tags and fields, before it takes a stack release without them.
 - [ ] Land the booking example (`examples/booking/packages/domain`, `examples/booking/apps/server`) and its README, then drop the two placeholder tests.
 - [ ] Decide what the site says about the new model beyond the rules page, with the owner.
-- [ ] Release `@house-rules/stack` 0.1.0 through the publish workflow after the owner's yes. Confirm the `NPM_TOKEN` owner can create the new package name.
+- [x] Release `@house-rules/stack` 0.1.0 through the publish workflow.
+- [ ] Release `@house-rules/stack` 0.2.0 without the domain modules, which moved to `examples/modules`.
 - [ ] Decide whether to deprecate the retired packages on npm. That needs separate approval.
 
 ## Postgres platform spike
