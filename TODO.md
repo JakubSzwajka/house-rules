@@ -10,7 +10,9 @@ Open work, not alternate law.
 - [ ] Decide what the site says about the new model beyond the rules page, with the owner.
 - [x] Release `@house-rules/stack` 0.1.0 through the publish workflow.
 - [x] Release `@house-rules/stack` 0.2.0 without the domain modules, which moved to `examples/modules`.
-- [ ] Release `@house-rules/stack` 0.2.1: Clerk signs out tokens without `exp`, or without `azp` when `authorizedParties` is set. Then deprecate 0.2.0.
+- [x] Release `@house-rules/stack` 0.2.1: Clerk signs out tokens without `exp`, or without `azp` when `authorizedParties` is set.
+- [ ] Release `@house-rules/stack` 0.2.2: `jwt()` signs out tokens without `exp`.
+- [ ] Deprecate `@house-rules/stack` 0.1.0 and 0.2.0 on npm. The owner runs it.
 - [ ] Decide whether to deprecate the retired packages on npm. That needs separate approval.
 
 ## Postgres platform spike
