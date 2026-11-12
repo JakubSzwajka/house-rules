@@ -14,14 +14,19 @@ const jwks = { keys: [{ ...(await exportJWK(rsa.publicKey)), kid: "k1", alg: "RS
 
 const sign = (
   claims: JWTPayload,
-  options: { readonly secret?: string; readonly audience?: string; readonly rsa?: boolean } = {},
+  options: {
+    readonly secret?: string;
+    readonly audience?: string;
+    readonly rsa?: boolean;
+    readonly expires?: false;
+  } = {},
 ) =>
   Effect.promise(() => {
     const token = new SignJWT(claims)
       .setIssuer(issuer)
       .setSubject("ann")
-      .setAudience(options.audience ?? "notes-api")
-      .setExpirationTime("1m");
+      .setAudience(options.audience ?? "notes-api");
+    if (options.expires !== false) token.setExpirationTime("1m");
     return options.rsa === true
       ? token.setProtectedHeader({ alg: "RS256", kid: "k1" }).sign(rsa.privateKey)
       : token
@@ -54,6 +59,16 @@ describe("jwt", () => {
       const token = yield* sign({ tenant: "acme", realm_access: { roles: ["editor"] } });
       expect(yield* authenticate(keycloakish, token)).toEqual(
         Option.some({ subject: "ann", orgId: "acme", roles: ["editor"] }),
+      );
+    }),
+  );
+
+  it.effect("signs out a token without exp and signs in the same token with exp", () =>
+    Effect.gen(function* () {
+      const open = jwt({ key: { secret }, issuer, audience: "notes-api" });
+      expect(yield* authenticate(open, yield* sign({}, { expires: false }))).toEqual(Option.none());
+      expect(yield* authenticate(open, yield* sign({}))).toEqual(
+        Option.some({ subject: "ann", orgId: null, roles: [] }),
       );
     }),
   );

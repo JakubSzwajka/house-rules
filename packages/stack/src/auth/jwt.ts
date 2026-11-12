@@ -153,6 +153,7 @@ export const tokenProvider = (
         audience: options.audience === undefined ? undefined : [options.audience].flat(),
         algorithms: options.algorithms === undefined ? algorithms : [...options.algorithms],
         clockTolerance: options.clockTolerance,
+        requiredClaims: ["exp"],
       };
       const verify = (token: string) =>
         Effect.tryPromise({
