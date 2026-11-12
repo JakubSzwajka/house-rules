@@ -4,7 +4,8 @@ Open work, not alternate law.
 
 ## Migration to Alchemy Domain
 
-- [ ] Land the reusable modules in `packages/stack`: comments, notes, contacts, relations, projects, work-items, notifications, delivery, organisations and the Clerk and JWT auth providers. Extend `packages/stack/AGENTS.md` and `README.md` with each module's mount and permissions.
+- [x] Land the reusable modules: delivery and the Clerk and JWT auth providers in `packages/stack`; comments, notes, contacts, relations, projects, work-items, notifications and organisations as copyable modules in `examples/modules`.
+- [ ] 3in1 copies the modules it uses (Comments, Contacts, Notes, Notifications, Organisations, Projects, Relations, WorkItems) into its own domain package, keeping event tags and fields, before it takes a stack release without them.
 - [ ] Land the booking example (`examples/booking/packages/domain`, `examples/booking/apps/server`) and its README, then drop the two placeholder tests.
 - [ ] Decide what the site says about the new model beyond the rules page, with the owner.
 - [ ] Release `@house-rules/stack` 0.1.0 through the publish workflow after the owner's yes. Confirm the `NPM_TOKEN` owner can create the new package name.

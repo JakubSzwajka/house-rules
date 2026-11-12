@@ -4,13 +4,15 @@ Operating guide for agents working on an app built on the stack.
 
 ## What it does
 
-Sign-in, permissions and reusable domain modules for apps on Alchemy Domain (`@alchemy.run/domain` 2.0.0-beta.85, Effect 4.1.2), all from one door, `@house-rules/stack`. [README.md](README.md) lists what is inside and walks through a new app step by step; [DESIGN.md](DESIGN.md) holds the design and the rules for every block. Each module documents its commands, permissions and rules in `src/<module>/README.md`. When docs and code disagree, the code and its tests win.
+Sign-in, permissions and the `Email` and `Push` ports for apps on Alchemy Domain (`@alchemy.run/domain` 2.0.0-beta.85, Effect 4.1.2), all from one door, `@house-rules/stack`. [README.md](README.md) lists what is inside and walks through a new app step by step; [DESIGN.md](DESIGN.md) holds the design and the rules for every block. When docs and code disagree, the code and its tests win.
+
+Domain modules (comments, contacts, notes, notifications, organisations, projects, relations, work items) are not in the package. They live in `examples/modules` in the template. An app copies a module into its own domain package and owns it: it changes fields, rules and rejections in place. Each module documents its commands, permissions and rules in its own `README.md`.
 
 ## How an app mounts it
 
-### Compose modules into a Model
+### Compose copied modules into a Model
 
-Spread each module's block lists beside your own blocks. Modules export only the kinds they have (`aggregates`, `views`, `policies`). The snippets named `Kitchen` and `Recipe` come from [src/tests/new-app.test.ts](src/tests/new-app.test.ts):
+Copy the module folder from `examples/modules/packages/domain/src/<module>/`, with its tests, into your domain package. Spread each module's block lists beside your own blocks. Modules export only the kinds they have (`aggregates`, `views`, `policies`). The snippets named `Kitchen` and `Recipe` come from [new-app.test.ts](../../examples/modules/packages/domain/src/tests/new-app.test.ts):
 
 ```ts
 export class Kitchen extends Domain.Model("Kitchen", {
@@ -19,7 +21,7 @@ export class Kitchen extends Domain.Model("Kitchen", {
 }) {}
 ```
 
-A module with policies brings a `handlers` Layer. Merge every module's `handlers` with your own into the one `App.layer(...)`, and provide the adapters they need. Adapted from [src/tests/compose.test.ts](src/tests/compose.test.ts), which hosts every module at once:
+A module with policies brings a `handlers` Layer. Merge every module's `handlers` with your own into the one `App.layer(...)`, and provide the adapters they need. Adapted from [compose.test.ts](../../examples/modules/packages/domain/src/tests/compose.test.ts), which hosts every module at once:
 
 ```ts
 const Hosted = Everything.layer(
@@ -121,7 +123,7 @@ Tests sit in `tests/` beside the code and use `@effect/vitest` (`it.effect`, `it
 - Every policy reaction and every view's state after the events it folds.
 - One Api test through `SessionLive`, `devTokens` and `Roles` over `platformForTests` from `@house-rules/domain-postgres` (a fresh Postgres schema per test, or `Domain.InMemory` with `DOMAIN_STORE=memory`), with `Api.clientInProcess` and `sessionClient(token)`. Read views with `{ atLeast: receipt }` after a write. It waits for the read key's own checkpoint (Alchemy `Model.ts:757`), so when the commit's last event routes to another key, the read times out with `ConsistencyTimeout`; watch the key and filter instead. Middleware is tested here, since stories skip it.
 
-Worked examples: [src/tests/new-app.test.ts](src/tests/new-app.test.ts) (a whole small app), [src/access/tests/require-permission.test.ts](src/access/tests/require-permission.test.ts) and `examples/booking/packages/domain/src/tests` in the template.
+Worked examples: [new-app.test.ts](../../examples/modules/packages/domain/src/tests/new-app.test.ts) (a whole small app), [src/access/tests/require-permission.test.ts](src/access/tests/require-permission.test.ts) and `examples/booking/packages/domain/src/tests` in the template.
 
 ## Checks
 

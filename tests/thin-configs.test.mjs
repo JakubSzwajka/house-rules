@@ -17,7 +17,7 @@ const require = createRequire(import.meta.url);
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 const ROOTS = {
   appsDir: ["apps", "examples/booking/apps"],
-  packagesDir: ["packages", "examples/booking/packages"],
+  packagesDir: ["packages", "examples/booking/packages", "examples/modules/packages"],
 };
 const CRUISE_ROOTS = { appsDir: ["apps"], packagesDir: ["packages"] };
 

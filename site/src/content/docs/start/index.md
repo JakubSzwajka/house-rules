@@ -26,7 +26,7 @@ Use `--public` instead of `--private` for a public repo. Install sets up the pre
 
 ## Read the example
 
-Apps are built on [Alchemy Domain](https://alchemy.run/domain): aggregates decide commands and record events, views fold events into reads, policies react to events. The template's one framework package, `@house-rules/stack`, adds sign-in, permissions and reusable modules. Its [design notes](../../../../../packages/stack/DESIGN.md) map every older house-rules idea to its Alchemy replacement, and its [agent guide](../../../../../packages/stack/AGENTS.md) shows how an app mounts a module and wires sign-in.
+Apps are built on [Alchemy Domain](https://alchemy.run/domain): aggregates decide commands and record events, views fold events into reads, policies react to events. The template's one framework package, `@house-rules/stack`, adds sign-in and permissions, and `examples/modules` holds domain modules that an app copies and owns. Its [design notes](../../../../../packages/stack/DESIGN.md) map every older house-rules idea to its Alchemy replacement, and its [agent guide](../../../../../packages/stack/AGENTS.md) shows how an app composes a copied module and wires sign-in.
 
 Every command a client sends lists the `Session` middleware and starts its `decide` with `requirePermission`. `Roles` turns a person's roles into permissions once per request. Who owns or may touch one thing lives in that aggregate's state. Policies act as named system actors with explicit grants, never with the roles of the person who caused the event.
 
