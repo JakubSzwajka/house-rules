@@ -19,20 +19,20 @@ const token = (
   claims: JWTPayload,
   options: {
     readonly issuer?: string;
-    readonly expires?: number | string;
+    readonly expires?: number | string | null;
     readonly key?: CryptoKey;
   } = {},
 ) =>
-  Effect.promise(() =>
-    new SignJWT({ sid: "sess_1", azp: app, ...claims })
+  Effect.promise(() => {
+    const signer = new SignJWT({ sid: "sess_1", azp: app, ...claims })
       .setProtectedHeader({ alg: "RS256", kid: "ins_1" })
       .setIssuer(options.issuer ?? issuer)
       .setSubject("user_ann")
       .setIssuedAt()
-      .setNotBefore("0s")
-      .setExpirationTime(options.expires ?? "1m")
-      .sign(options.key ?? keys.privateKey),
-  );
+      .setNotBefore("0s");
+    if (options.expires !== null) signer.setExpirationTime(options.expires ?? "1m");
+    return signer.sign(options.key ?? keys.privateKey);
+  });
 
 const authenticate = (provider: Layer.Layer<AuthProvider>, headers: Headers.Input) =>
   Effect.gen(function* () {
@@ -88,6 +88,8 @@ describe("clerk", () => {
         yield* token({ v: 2 }, { expires: 1 }),
         yield* token({ v: 2 }, { issuer: "https://clerk.attacker.test" }),
         yield* token({ v: 2, azp: "https://attacker.test" }),
+        yield* token({ v: 2 }, { expires: null }),
+        yield* token({ v: 2, azp: undefined }),
         yield* token({ v: 2 }, { key: stranger.privateKey }),
         yield* token({ v: 2, sts: "pending" }),
         "not-a-jwt",
@@ -108,6 +110,8 @@ describe("clerk", () => {
       expect(Option.isSome(yield* authenticate(open, bearer(elsewhere)))).toBe(true);
       const empty = clerk({ issuer, jwtKey, authorizedParties: [] });
       expect(Option.isSome(yield* authenticate(empty, bearer(elsewhere)))).toBe(true);
+      const noParty = yield* token({ v: 2, azp: undefined });
+      expect(Option.isSome(yield* authenticate(open, bearer(noParty)))).toBe(true);
     }),
   );
 

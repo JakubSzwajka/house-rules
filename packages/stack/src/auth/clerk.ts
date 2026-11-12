@@ -41,11 +41,12 @@ export const clerk = (options: ClerkOptions) => {
     },
     (claims) => {
       const subject = text(claims.sub);
-      if (subject === undefined || claims["sts"] === "pending") return Option.none();
+      if (subject === undefined || claims["sts"] === "pending" || typeof claims.exp !== "number")
+        return Option.none();
       const azp = text(claims["azp"]);
       // Clerk treats an empty list as no check.
       const parties = options.authorizedParties ?? [];
-      if (azp !== undefined && parties.length > 0 && !parties.includes(azp)) return Option.none();
+      if (parties.length > 0 && (azp === undefined || !parties.includes(azp))) return Option.none();
       const organisation = organisationOf(claims);
       return principalWithAgent(
         {
