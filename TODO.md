@@ -9,7 +9,8 @@ Open work, not alternate law.
 - [ ] Land the booking example (`examples/booking/packages/domain`, `examples/booking/apps/server`) and its README, then drop the two placeholder tests.
 - [ ] Decide what the site says about the new model beyond the rules page, with the owner.
 - [x] Release `@house-rules/stack` 0.1.0 through the publish workflow.
-- [ ] Release `@house-rules/stack` 0.2.0 without the domain modules, which moved to `examples/modules`.
+- [x] Release `@house-rules/stack` 0.2.0 without the domain modules, which moved to `examples/modules`.
+- [ ] Release `@house-rules/stack` 0.2.1: Clerk signs out tokens without `exp`, or without `azp` when `authorizedParties` is set. Then deprecate 0.2.0.
 - [ ] Decide whether to deprecate the retired packages on npm. That needs separate approval.
 
 ## Postgres platform spike

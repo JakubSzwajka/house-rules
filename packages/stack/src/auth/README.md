@@ -19,7 +19,7 @@ Each reads the token from `Authorization: Bearer` or a cookie. A token that is m
 
 | Provider | Use |
 | --- | --- |
-| `clerk({ issuer, jwtKey?, authorizedParties?, clockTolerance?, agent? })` | Clerk session tokens, RS256. Keys from `${issuer}/.well-known/jwks.json`, or the PEM `jwtKey` without network. Cookie `__session`. Reads the organisation from v1 (`org_id`, `org_role`) and v2 (`o.id`, `o.rol`) tokens; the role becomes `org:<key>`. A pending session (`sts: "pending"`) and an `azp` outside `authorizedParties` are signed out. 5 seconds of clock skew, as Clerk's backend allows |
+| `clerk({ issuer, jwtKey?, authorizedParties?, clockTolerance?, agent? })` | Clerk session tokens, RS256. Keys from `${issuer}/.well-known/jwks.json`, or the PEM `jwtKey` without network. Cookie `__session`. Reads the organisation from v1 (`org_id`, `org_role`) and v2 (`o.id`, `o.rol`) tokens; the role becomes `org:<key>`. A pending session (`sts: "pending"`), a token without `exp`, and, when `authorizedParties` is set, a token whose `azp` is missing or outside it are signed out. 5 seconds of clock skew, as Clerk's backend allows |
 | `jwt({ key, issuer, audience?, cookie?, clockTolerance?, subject?, orgId?, roles?, agent? })` | any JWT issuer. `key` is `{ jwksUrl }`, `{ jwks }`, `{ publicKey, algorithm? }` (PEM, RS256 by default) or `{ secret }` (HS256). By default the subject is `sub`, there is no organisation and roles come from a `roles` claim |
 | `devTokens({ token: principal })` | fixed tokens for tests and local play |
 

@@ -28,7 +28,7 @@ pnpm add --save-exact @house-rules/stack @alchemy.run/domain@2.0.0-beta.85 alche
 pnpm add --save-exact --save-dev @effect/vitest@4.1.2 vitest@5.0.1 typescript@7.0.2
 ```
 
-Inside this template, workspace packages pin the stack as `"@house-rules/stack": "workspace:0.2.0"`, as [the booking domain's package.json](../../examples/booking/packages/domain/package.json) does. A server that runs on Node also adds `@effect/platform-node@4.1.2` and `@effect/platform-node-shared@4.1.2`; one that deploys to Cloudflare adds `@alchemy.run/cloudflare@2.0.0-beta.85`. Copy [the booking server's package.json](../../examples/booking/apps/server/package.json).
+Inside this template, workspace packages pin the stack as `"@house-rules/stack": "workspace:0.2.1"`, as [the booking domain's package.json](../../examples/booking/packages/domain/package.json) does. A server that runs on Node also adds `@effect/platform-node@4.1.2` and `@effect/platform-node-shared@4.1.2`; one that deploys to Cloudflare adds `@alchemy.run/cloudflare@2.0.0-beta.85`. Copy [the booking server's package.json](../../examples/booking/apps/server/package.json).
 
 ## Start a new app from scratch
 
