@@ -1,6 +1,8 @@
 # @house-rules/stack
 
-Sign-in, permissions and reusable domain modules for apps built on [Alchemy Domain](https://alchemy.run/domain). An app models its backend as Alchemy aggregates, commands, events, views and policies; the stack adds who is acting (`CurrentActor`), what they may do (`requirePermission`, `Roles`), how they sign in (`Session` over a swappable `AuthProvider`: Clerk, any JWT issuer, or dev tokens) and ready modules such as comments, organisations or work items that an app spreads into its own `Domain.Model`. Everything comes through one door: `import { Session, requirePermission, Notes } from "@house-rules/stack"`.
+Sign-in and permissions for apps built on [Alchemy Domain](https://alchemy.run/domain). An app models its backend as Alchemy aggregates, commands, events, views and policies; the stack adds who is acting (`CurrentActor`), what they may do (`requirePermission`, `Roles`), how they sign in (`Session` over a swappable `AuthProvider`: Clerk, any JWT issuer, or dev tokens) and the `Email` and `Push` ports. Everything comes through one door: `import { Session, requirePermission } from "@house-rules/stack"`.
+
+Domain modules such as comments, notes, projects or work items are not in the package. They live in [examples/modules](../../examples/modules/README.md) in the template: an app copies the ones it needs into its own domain package and owns them from then on.
 
 [DESIGN.md](DESIGN.md) holds the design and the rules every block follows. [AGENTS.md](AGENTS.md) is the short operating guide for building an app on the stack.
 
@@ -12,18 +14,10 @@ Sign-in, permissions and reusable domain modules for apps built on [Alchemy Doma
 | Access | `Permission`, `can`, `requirePermission`, `Forbidden`, `Roles`, `RoleDefinitions` | permissions are `resource:action` strings; `Roles` turns role names into permissions once per request; `decide` checks them |
 | Auth | `AuthProvider`, `Principal`, `AgentPrincipal`, `Session`, `SessionLive`, `Unauthenticated`, `sessionClient`, `credentialOf` | the `Session` RPC middleware over a provider slot; [auth README](src/auth/README.md) |
 | Auth providers | `clerk`, `jwt`, `agentFromAct`, `AgentClaims`, `Delegation`, `devTokens` | Clerk session tokens (v1 `org_id`/`org_role` and v2 `o.id`/`o.rol` claims), any JWT issuer (JWKS, PEM or HS256 secret), fixed tokens for tests and local play; each can sign an agent in |
-| Target | `Target`, `TargetKey`, `targetKey` | `{ kind, id }` of an app's own object, shared by comments and notes |
-| `Comments` | module | flat comments on a target, author edits, moderated deletes; [README](src/comments/README.md) |
-| `Contacts` | module | email, phone and postal contacts per owner, primaries, verification by one-time code; [README](src/contacts/README.md) |
-| `Delivery` | module | `Email` and `Push` external systems with memory and console adapters; [README](src/delivery/README.md) |
-| `Notes` | module | immutable notes on a target; [README](src/notes/README.md) |
-| `Notifications` | module | a person's inbox, preferences, quiet hours and delivery ledger over `Delivery`; [README](src/notifications/README.md) |
-| `Organisations` | module | organisations, members and their roles, `withMemberships` for providers without organisations; [README](src/organisations/README.md) |
-| `Projects` | module | projects with configurable statuses and unique slugs; [README](src/projects/README.md) |
-| `Relations` | module | typed, directed edges between opaque nodes; [README](src/relations/README.md) |
-| `WorkItems` | module | work items with an app-configured workflow, a priority, a due date, a person or agent holder and one level of children; [README](src/work-items/README.md) |
+| Target | `Target`, `TargetKey`, `targetKey` | `{ kind, id }` of an app's own object, for blocks that attach to any object, such as comments and notes |
+| `Delivery` | namespace | `Email` and `Push` external systems with memory and console adapters; [README](src/delivery/README.md) |
 
-Each module is a namespace export. It brings its blocks, the block lists an app spreads into its model (`aggregates`, `views`, `policies`, only the kinds it has), its `<Module>Permissions` and, when it has policies, a `handlers` Layer.
+A copied module brings its blocks, the block lists an app spreads into its model (`aggregates`, `views`, `policies`, only the kinds it has), its `<Module>Permissions` and, when it has policies, a `handlers` Layer.
 
 ## Install
 
@@ -38,7 +32,7 @@ Inside this template, workspace packages pin the stack as `"@house-rules/stack":
 
 ## Start a new app from scratch
 
-Every snippet below is cut, unchanged, from [src/tests/new-app.test.ts](src/tests/new-app.test.ts), which compiles and passes with the rest of the package. In that file it is one file importing `../index.ts`; in your app it is split across the files named in each step and imports `@house-rules/stack`. The app is a kitchen: people own recipes, and anyone who cooks can leave notes on a recipe through the stack's `Notes` module.
+Every snippet below is cut, unchanged, from [new-app.test.ts](../../examples/modules/packages/domain/src/tests/new-app.test.ts), which compiles and passes with the copyable modules. In that file it is one file; in your app it is split across the files named in each step. The app is a kitchen: people own recipes, and anyone who cooks can leave notes on a recipe through the `Notes` module, copied from `examples/modules`.
 
 ### 1. Make the workspace
 
@@ -49,7 +43,7 @@ corepack enable
 pnpm install --frozen-lockfile
 ```
 
-Make two workspace packages, shaped like the example: `packages/domain` (the model; it imports only `@alchemy.run/domain`, `effect` and `@house-rules/stack`) and `apps/server` (hosting, auth providers, routes). Copy their `package.json`, `tsconfig.json` and `vitest.config.ts` from `examples/booking/packages/domain` and `examples/booking/apps/server`, rename the packages, and point the server's dependency on the domain package at yours. Keep `examples/booking` until your app runs, then remove it and its roots from `eslint.config.mjs` and the other thin configs.
+Make two workspace packages, shaped like the example: `packages/domain` (the model; it imports only `@alchemy.run/domain`, `effect` and `@house-rules/stack`) and `apps/server` (hosting, auth providers, routes). Copy their `package.json`, `tsconfig.json` and `vitest.config.ts` from `examples/booking/packages/domain` and `examples/booking/apps/server`, rename the packages, and point the server's dependency on the domain package at yours. Keep `examples/booking` until your app runs and `examples/modules` until you have copied the modules you need, then remove both and their roots from `eslint.config.mjs` and the other thin configs.
 
 ### 2. Permissions and your own aggregate
 
@@ -119,9 +113,9 @@ export class Recipe extends Domain.Aggregate("Recipe", {
 }) {}
 ```
 
-### 3. The model, with a stack module, and its Api
+### 3. The model, with a copied module, and its Api
 
-`packages/domain/src/kitchen.model.ts` spreads the module's block lists beside your own. A module with policies also brings `handlers`; you would pass `Layer.mergeAll(Module.handlers, YourHandlers)` to `Kitchen.layer(...)`.
+Copy `examples/modules/packages/domain/src/notes/` to `packages/domain/src/notes/`, with its tests. `packages/domain/src/kitchen.model.ts` spreads the module's block lists beside your own. A module with policies also brings `handlers`; you would pass `Layer.mergeAll(Module.handlers, YourHandlers)` to `Kitchen.layer(...)`.
 
 ```ts
 export class Kitchen extends Domain.Model("Kitchen", {

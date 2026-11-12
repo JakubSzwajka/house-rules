@@ -1,6 +1,6 @@
 # house-rules
 
-A TypeScript workspace template for apps built on [Alchemy Domain](https://alchemy.run/domain), with shared checks, exact pins and commit hooks. Apps model their backend as aggregates, commands, events, views and policies; `@house-rules/stack` adds sign-in, permissions and reusable modules on top. [AGENTS.md](AGENTS.md) is the law; [CONTEXT.md](CONTEXT.md) defines the words. The [docs site](https://stack.kubaszwajka.com) explains the template to people.
+A TypeScript workspace template for apps built on [Alchemy Domain](https://alchemy.run/domain), with shared checks, exact pins and commit hooks. Apps model their backend as aggregates, commands, events, views and policies; `@house-rules/stack` adds sign-in and permissions on top, and `examples/modules` holds domain modules to copy. [AGENTS.md](AGENTS.md) is the law; [CONTEXT.md](CONTEXT.md) defines the words. The [docs site](https://stack.kubaszwajka.com) explains the template to people.
 
 ## Play with the example
 
@@ -30,7 +30,7 @@ pnpm test
 
 Install sets up lefthook and patches `tsc` with `effect-tsgo patch`. Tests that host a model need Postgres: run `pnpm db:up` (Docker) first, or set `DOMAIN_STORE=memory` to run them on `Domain.InMemory`.
 
-Then follow [Start a new app from scratch](packages/stack/README.md#start-a-new-app-from-scratch) in the stack README: permissions, your own aggregate beside a stack module, the model and its Api, roles, stories, sign-in with dev tokens or Clerk, one Api test, and serving it locally the way the booking server does. Its code is a passing test, `packages/stack/src/tests/new-app.test.ts`.
+Then follow [Start a new app from scratch](packages/stack/README.md#start-a-new-app-from-scratch) in the stack README: permissions, your own aggregate beside a module copied from `examples/modules`, the model and its Api, roles, stories, sign-in with dev tokens or Clerk, one Api test, and serving it locally the way the booking server does. Its code is a passing test, `examples/modules/packages/domain/src/tests/new-app.test.ts`.
 
 Write your own `VISION.md`. Keep your code in `apps/` and `packages/`. Once your app runs, remove `examples/` and its roots from the workspace and thin configs.
 
@@ -40,11 +40,14 @@ Write your own `VISION.md`. Keep your code in `apps/` and `packages/`. Once your
 apps/                        your apps (servers, web)
 packages/
   rules/                     @house-rules/rules: ESLint, Biome, TypeScript and Dependency Cruiser presets and bins
-  stack/                     @house-rules/stack: actor, access, auth and reusable domain modules
+  stack/                     @house-rules/stack: actor, access, auth, target, delivery ports
   domain-postgres/           @house-rules/domain-postgres: a Postgres Platform for Alchemy Domain
 examples/booking/
   packages/domain/           booking reference model: bookings, payments and their rules
   apps/server/               hosts the model on Postgres (or in memory) on Node, on Cloudflare Durable Objects
+examples/modules/
+  packages/domain/           modules to copy: comments, contacts, notes, notifications,
+                             organisations, projects, relations, work items
 docs/                        release and local registry guides
 site/                        private Astro docs site
 skills/house-rules/          agent guide router
@@ -53,7 +56,7 @@ tests/                       root wiring and fence tests
 
 ## The stack package
 
-`@house-rules/stack` is the one framework package. Its door is `src/index.ts`: the core (actor, access, auth with Clerk, JWT and dev-token providers) by name, and the reusable modules as namespaces: `Comments`, `Contacts`, `Delivery`, `Notes`, `Notifications`, `Organisations`, `Projects`, `Relations` and `WorkItems`. An app spreads a module's block lists into its own model, as the stack's new-app test does:
+`@house-rules/stack` is the one framework package. Its door is `src/index.ts`: the core (actor, access, auth with Clerk, JWT and dev-token providers, `Target`) by name, and the `Email` and `Push` ports as the `Delivery` namespace. Domain modules live in [examples/modules](examples/modules/README.md). An app copies a module into its own domain package and spreads its block lists into its model, as the modules' new-app test does:
 
 ```ts
 export class Kitchen extends Domain.Model("Kitchen", {
@@ -64,9 +67,9 @@ export class Kitchen extends Domain.Model("Kitchen", {
 
 Every client-sent command lists `middleware: [Session]`, rejects `Forbidden`, and starts its `decide` with `yield* requirePermission(...)`. `SessionLive` resolves the signed-in person through an `AuthProvider` slot and turns roles into permissions with `Roles`. Policies act as system actors with explicit grants. Effect runs the last listed middleware first, so a guard that reads the actor goes before `Session`: `[Guard, Session]`. See the [stack README](packages/stack/README.md), its [AGENTS.md](packages/stack/AGENTS.md) and [DESIGN.md](packages/stack/DESIGN.md), which maps every old house-rules concept to its replacement.
 
-## The example
+## The examples
 
-`examples/booking` shows a full app on the stack: a domain package that imports only `@alchemy.run/domain`, `effect` and `@house-rules/stack`, and a server that hosts it. Use it as a reference, then delete it.
+`examples/booking` shows a full app on the stack: a domain package that imports only `@alchemy.run/domain`, `effect` and `@house-rules/stack`, and a server that hosts it. `examples/modules` holds domain modules to copy. Use both as a reference, copy what you need, then delete them.
 
 ## Checks and CI
 

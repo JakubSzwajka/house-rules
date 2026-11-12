@@ -1,6 +1,6 @@
 # Context
 
-House-rules is a TypeScript workspace template for apps built on Alchemy Domain. It publishes three packages: `@house-rules/rules` (presets and checks), `@house-rules/stack` (auth, access and reusable domain modules) and `@house-rules/domain-postgres` (a Postgres platform). [AGENTS.md](AGENTS.md) is the law. This file names the parts; [VISION.md](VISION.md) says why they exist. Alchemy's own words come first; house-rules adds only what Alchemy leaves open.
+House-rules is a TypeScript workspace template for apps built on Alchemy Domain. It publishes three packages: `@house-rules/rules` (presets and checks), `@house-rules/stack` (auth and access) and `@house-rules/domain-postgres` (a Postgres platform). [AGENTS.md](AGENTS.md) is the law. This file names the parts; [VISION.md](VISION.md) says why they exist. Alchemy's own words come first; house-rules adds only what Alchemy leaves open.
 
 ## The model
 
@@ -50,9 +50,9 @@ An **AuthProvider** is the slot that answers who is signed in: it turns request 
 
 ## The workspace
 
-A **module** is a folder in `packages/stack/src/<module>/` with its blocks, its door (`index.ts`), its permissions, its README and its tests: comments, contacts, delivery, notes, notifications, organisations, projects, relations and work-items. An app **mounts** it by spreading its block lists into its own `Domain.Model`.
+A **module** is a folder in `examples/modules/packages/domain/src/<module>/` with its blocks, its door (`index.ts`), its permissions, its README and its tests: comments, contacts, notes, notifications, organisations, projects, relations and work-items. An app **copies** it into its own domain package, owns it from then on, and spreads its block lists into its own `Domain.Model`.
 
-The **door** of a package is its `src/index.ts`. `@house-rules/stack` has exactly one; modules are namespace exports from it.
+The **door** of a package is its `src/index.ts`. `@house-rules/stack` has exactly one; `Delivery` is a namespace export from it.
 
 A **thin config** extends a house-rules preset and sets only project values: `tsconfig.base.json`, `biome.json`, `eslint.config.mjs`, `.dependency-cruiser.cjs`.
 

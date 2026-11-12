@@ -1,7 +1,7 @@
 {
   "name": "@house-rules/stack",
   "version": "0.1.0",
-  "description": "Auth, access and reusable domain modules for apps built on Alchemy Domain.",
+  "description": "Auth, access and delivery ports for apps built on Alchemy Domain.",
   "license": "MIT",
   "type": "module",
   "files": [

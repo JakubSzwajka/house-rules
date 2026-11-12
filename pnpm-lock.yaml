@@ -276,6 +276,34 @@ importers:
         specifier: 5.0.1
         version: 5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  examples/modules/packages/domain:
+    dependencies:
+      '@alchemy.run/domain':
+        specifier: 2.0.0-beta.85
+        version: 2.0.0-beta.85(alchemy@2.0.0-beta.85(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.0))(@types/react@19.3.0)(effect@4.1.2)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1))(effect@4.1.2)
+      '@house-rules/stack':
+        specifier: workspace:0.1.0
+        version: link:../../../../packages/stack
+      alchemy:
+        specifier: 2.0.0-beta.85
+        version: 2.0.0-beta.85(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.0))(@types/react@19.3.0)(effect@4.1.2)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))(ws@8.22.1)
+      effect:
+        specifier: 4.1.2
+        version: 4.1.2
+    devDependencies:
+      '@effect/vitest':
+        specifier: 4.1.2
+        version: 4.1.2(effect@4.1.2)(vitest@5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
+      '@house-rules/domain-postgres':
+        specifier: workspace:0.1.1
+        version: link:../../../../packages/domain-postgres
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.0.1
+        version: 5.0.1(@types/node@26.6.4)(vite@8.3.0(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/domain-postgres:
     dependencies:
       '@effect/sql-pg':

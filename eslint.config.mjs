@@ -16,7 +16,7 @@ export default [
   ...houseRules.configs.recommended,
   ...workspaceConfig({
     appsDir: ["apps", "examples/booking/apps"],
-    packagesDir: ["packages", "examples/booking/packages"],
+    packagesDir: ["packages", "examples/booking/packages", "examples/modules/packages"],
   }),
   ...houseRulesMarkdown,
   {

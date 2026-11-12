@@ -1,6 +1,6 @@
 # @house-rules/stack design
 
-One publishable package replaces the old kits (`domain`, `application`), the hosts, the plugs and the reusable modules. Apps are built on **Alchemy Domain** (`@alchemy.run/domain` 2.0.0-beta.85). Where Alchemy and the old house-rules disagree, Alchemy wins. Where Alchemy is silent, the house-rules idea stays, in Alchemy's shape.
+One publishable package replaces the old kits (`domain`, `application`), the hosts and the plugs. The old reusable modules became copyable examples in `examples/modules`: an app copies a module into its own domain package and owns it, because a module's events are the app's stored data. Apps are built on **Alchemy Domain** (`@alchemy.run/domain` 2.0.0-beta.85). Where Alchemy and the old house-rules disagree, Alchemy wins. Where Alchemy is silent, the house-rules idea stays, in Alchemy's shape.
 
 ## What maps to what
 
@@ -30,8 +30,11 @@ src/
   actor/              Actor, person(), system(), CurrentActor
   access/             Permission, can, requirePermission, Forbidden, Roles
   auth/               AuthProvider slot, Session middleware, SessionLive, providers
-  target/             Target { kind, id } and targetKey, shared by comments and notes
-  <module>/           one folder per reusable module
+  target/             Target { kind, id } and targetKey, for blocks that attach to any app object
+  delivery/           Email and Push external systems with memory and console adapters
+
+examples/modules/packages/domain/src/
+  <module>/           one folder per copyable module
     index.ts          the module's door
     <noun>.id.ts, <noun>.aggregate.ts, <verb>-<noun>.command.ts, <noun>.view.ts, <noun>.policy.ts, ...
     tests/*.test.ts
@@ -41,11 +44,11 @@ File names are kebab-case with Alchemy's kind suffix: `.id`, `.aggregate`, `.com
 
 ## The package door
 
-`src/index.ts` exports the core by name and each module as a namespace: `import * as Comments from "./comments/index.ts"`, then `export { Comments }`. Biome rejects `export * as`.
+`src/index.ts` exports the core by name and `Delivery` as a namespace: `import * as Delivery from "./delivery/index.ts"`, then `export { Delivery }`. Biome rejects `export * as`. The copyable modules follow the same pattern in `examples/modules/packages/domain/src/index.ts`.
 
 ## A module's door
 
-`src/<module>/index.ts` exports:
+A copyable module's `index.ts` exports:
 
 - every block an app needs to compose or call: ids, aggregates, commands, events, rejections, views, policies;
 - `<Module>Permissions`: a `const` object of the permission strings its commands check, `resource:action`;
