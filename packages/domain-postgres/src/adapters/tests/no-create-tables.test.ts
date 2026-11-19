@@ -98,6 +98,23 @@ describe.skipIf(!onPostgres)("the Postgres platform with createTables: false", (
     }).pipe(Effect.scoped, Effect.provide(PgForTests)),
   );
 
+  it.live("does not repeat ALTER on already migrated tables", () =>
+    Effect.gen(function* () {
+      const schema = yield* testSchema;
+      const sql = yield* Pg.PgClient;
+      yield* migrate(schema);
+      const queries: string[] = [];
+      const measured = new Proxy(sql, {
+        apply: (target, receiver, args) => {
+          if (Array.isArray(args[0])) queries.push(args[0].join("?"));
+          return Reflect.apply(target, receiver, args);
+        },
+      });
+      yield* migrate(schema).pipe(Effect.provideService(Pg.PgClient, measured));
+      expect(queries.filter((query) => /ALTER TABLE/.test(query))).toEqual([]);
+    }).pipe(Effect.scoped, Effect.provide(PgForTests)),
+  );
+
   it.live("refuses to start on a missing schema, and does not create it", () =>
     Effect.gen(function* () {
       const schema = yield* testSchema;
@@ -119,6 +136,24 @@ describe.skipIf(!onPostgres)("the Postgres platform with createTables: false", (
       yield* sql`DROP TABLE ${sql(`${schema}.outbox`)}`;
       const defect = yield* startFails(schema);
       expect(defect).toMatchObject({ _tag: "TablesMissing", schema, missing: ["outbox"] });
+    }).pipe(Effect.scoped, Effect.provide(PgForTests)),
+  );
+
+  it.live("names missing mode metadata without creating it", () =>
+    Effect.gen(function* () {
+      const schema = yield* testSchema;
+      const sql = yield* Pg.PgClient;
+      yield* migrate(schema);
+      yield* sql`ALTER TABLE ${sql(`${schema}.views`)} DROP COLUMN catch_up`;
+      expect(yield* startFails(schema)).toMatchObject({
+        _tag: "TablesMissing",
+        schema,
+        missing: ["views.catch_up"],
+      });
+      expect(
+        yield* sql`SELECT count(*)::int AS count FROM information_schema.columns
+        WHERE table_schema = ${schema} AND table_name = 'views' AND column_name = 'catch_up'`,
+      ).toEqual([{ count: 0 }]);
     }).pipe(Effect.scoped, Effect.provide(PgForTests)),
   );
 

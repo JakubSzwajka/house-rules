@@ -5,6 +5,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
 import { layer, type Options } from "./postgres-platform.ts";
+import { memoryTestPlatform } from "./memory-test-platform.ts";
 
 export const LOCAL_DATABASE_URL = "postgres://house_rules:house_rules@127.0.0.1:55432/house_rules";
 
@@ -51,7 +52,7 @@ export const platformForTests = Layer.unwrap(
   Effect.gen(function* () {
     const store = yield* domainStore;
     return store === "memory"
-      ? Domain.InMemory
+      ? memoryTestPlatform
       : postgresInFreshSchema.pipe(Layer.provide(PgForTests), Layer.orDie);
   }),
 ).pipe(Layer.orDie);

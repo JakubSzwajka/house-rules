@@ -7,8 +7,10 @@ import * as Layer from "effect/Layer";
 import * as Queue from "effect/Queue";
 import type * as Scope from "effect/Scope";
 import { makeAggregateStore } from "./aggregate-store.ts";
+import { makeBackfill, type ReplayView } from "./backfill.ts";
 import { type Fire, type Host, notifier } from "./host.ts";
 import { makeOutbox } from "./outbox.ts";
+import type { Monitor } from "./outbox-status.ts";
 import { checkTables, migrate } from "./tables.ts";
 import { makeViewStore } from "./view-store.ts";
 
@@ -17,6 +19,7 @@ export interface Options {
   readonly createTables?: boolean;
   readonly pollInterval?: Duration.Input;
   readonly maxAttempts?: number;
+  readonly outboxStatus?: (model: string, monitor: Monitor) => void;
 }
 
 const unsupported = (kind: string) =>
@@ -60,20 +63,38 @@ const makeHost = (
         );
       });
 
-    const host: Host = { sql, t, model, notify, kick, stage, firing, arm };
+    const host: Host = {
+      sql,
+      t,
+      model,
+      notify,
+      kick,
+      stage,
+      firing,
+      arm,
+      acknowledgements: new WeakMap(),
+    };
     const remember = (kit: { readonly deliver: (delivery: Delivery) => Effect.Effect<void> }) => {
       deliver ??= kit.deliver;
     };
 
+    const views = new Map<string, ReplayView>();
+    const backfill = makeBackfill(host, views);
     const outbox = makeOutbox({
       sql,
       table: `${schema}.outbox`,
       model,
       wake,
-      deliver: (delivery) =>
-        deliver ? deliver(delivery) : Effect.die(new Error("no store is hosted yet")),
+      deliver: (delivery, acknowledge) =>
+        Effect.suspend(() => {
+          if (delivery.target.kind === "view") host.acknowledgements.set(delivery, acknowledge);
+          return (
+            deliver ? deliver(delivery) : Effect.die(new Error("no store is hosted yet"))
+          ).pipe(Effect.ensuring(Effect.sync(() => host.acknowledgements.delete(delivery))));
+        }),
       pollInterval: options.pollInterval ?? "1 second",
       maxAttempts: options.maxAttempts ?? 5,
+      outboxStatus: options.outboxStatus,
     });
 
     const modelHost: ModelHost = {
@@ -85,13 +106,17 @@ const makeHost = (
       view: (_view, kit) =>
         Effect.andThen(
           Effect.sync(() => remember(kit)),
-          makeViewStore(host, kit),
+          makeViewStore(host, kit).pipe(
+            Effect.tap((store) => Effect.sync(() => views.set(kit.name, { kit, store }))),
+          ),
         ),
       policy: (_policy, kit) => Effect.succeed({ receive: (delivery) => kit.run(delivery) }),
       projection: () => unsupported("projections"),
       stream: () => unsupported("streams"),
-      start: () =>
+      history: backfill.history,
+      start: (_targets, planOf, targets) =>
         Effect.gen(function* () {
+          yield* backfill.start(targets, planOf).pipe(Effect.interruptible);
           const due = yield* sql<{
             aggregate: string;
             id: string;

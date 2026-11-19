@@ -2,6 +2,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    maxWorkers: 2,
     slowTestThreshold: 1000,
     reporters: process.env.CI ? ["default", "json"] : ["default"],
     outputFile: { json: "../../coverage/slow-tests/packages/domain-postgres/slow-tests.json" },

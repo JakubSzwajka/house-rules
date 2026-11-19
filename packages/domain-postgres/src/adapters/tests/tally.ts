@@ -80,6 +80,7 @@ export class Audit extends Domain.Aggregate("Audit", {
 }) {}
 
 export class TallyTotals extends Domain.View("TallyTotals", {
+  version: 1,
   from: [Tally],
   key: Tally,
   state: Schema.Struct({ total: Schema.Finite, adds: Schema.Finite, closed: Schema.Boolean }),

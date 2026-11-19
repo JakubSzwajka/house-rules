@@ -1,9 +1,15 @@
 import type { Delivery } from "@alchemy.run/domain/Platform";
 import type { PgClient } from "@effect/sql-pg/PgClient";
+import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import type { SqlError } from "effect/sql/SqlError";
 import * as Stream from "effect/Stream";
 import * as SubscriptionRef from "effect/SubscriptionRef";
+
+export const AcknowledgeViewDelivery = Context.Reference<Effect.Effect<void, SqlError>>(
+  "@house-rules/domain-postgres/AcknowledgeViewDelivery",
+  { defaultValue: () => Effect.void },
+);
 
 export type Fire = (id: string, commandId: string, token: string) => Effect.Effect<void>;
 
@@ -16,6 +22,7 @@ export interface Host {
   readonly sql: PgClient;
   readonly t: (table: string) => ReturnType<PgClient>;
   readonly model: string;
+  readonly acknowledgements: WeakMap<Delivery, Effect.Effect<void, SqlError>>;
   readonly notify: Notifier;
   readonly kick: Effect.Effect<void>;
   readonly stage: (deliveries: ReadonlyArray<Delivery>) => Effect.Effect<void, SqlError>;

@@ -18,7 +18,9 @@ Open work, not alternate law.
 ## Postgres platform spike
 
 - [ ] Run more than one replica per schema: one outbox loop per model (advisory lock or `SKIP LOCKED`), schedules claimed once, and `LISTEN`/`NOTIFY` so live reads see other replicas' commits.
-- [ ] Host projections, streams and sagas, and backfill views added to a database that already has events.
+- [ ] Host projections, streams and sagas.
+- [x] Backfill views added to a database that already has events (domain-postgres 0.2.0: eager replay at startup, lazy per-key fill for `kit.catchUp` views).
+- [ ] Release `@house-rules/domain-postgres` 0.2.0 through the publish workflow.
 - [ ] Ask Alchemy whether a Node or Postgres platform is planned, with the owner's yes; delete `packages/domain-postgres` when it ships.
 
 ## Found by the trippy spike (2026-11-08)
