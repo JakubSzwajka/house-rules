@@ -48,7 +48,7 @@ CI runs frozen install, `pnpm check`, `pnpm test`, `pnpm run packed-consumer` an
 - Rules spanning aggregates get their own aggregate or a policy/saga, never a cross-aggregate transaction.
 - Expected failures are rejections or tagged errors. Never `throw`, never global `Error`.
 - Files are kebab-case with Alchemy's kind suffix (`.id`, `.aggregate`, `.command`, `.rejection`, `.view`, `.policy`, `.saga`, `.projection`, `.stream`, `.external`, `.context`, `.middleware`). A domain package imports only `@alchemy.run/domain`, `effect` and `@house-rules/stack`; hosting, Cloudflare and auth providers belong to the server.
-- Hosting: `@house-rules/domain-postgres` on Node with Postgres, `Domain.InMemory` when `DOMAIN_STORE=memory` or in stories, Cloudflare Durable Objects on Cloudflare. The Postgres platform has no projections, streams, sagas or backfill and runs one replica per schema; see its README. Clients and agents reach the model only through a `Domain.Api` served with `@alchemy.run/domain/Http`, `/Ai` (MCP) or `/Cli`.
+- Hosting: `@house-rules/domain-postgres` on Node with Postgres, `Domain.InMemory` when `DOMAIN_STORE=memory` or in stories, Cloudflare Durable Objects on Cloudflare. The Postgres platform has no projections, streams or sagas, replays new or bumped views at startup and runs one replica per schema; see its README. Clients and agents reach the model only through a `Domain.Api` served with `@alchemy.run/domain/Http`, `/Ai` (MCP) or `/Cli`.
 
 Before editing, read Alchemy's installed skill (`packages/stack/node_modules/@alchemy.run/domain/skills/alchemy-domain/SKILL.md` and its references) and the installed `effect/AGENTS.md` and `ai-docs`. Trust the pinned versions over memory and over newer docs on alchemy.run.
 

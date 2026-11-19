@@ -1,3 +1,4 @@
+export type * as OutboxStatus from "./adapters/outbox-status.ts";
 export { layer, type Options } from "./adapters/postgres-platform.ts";
 export { migrate, TablesMissing } from "./adapters/tables.ts";
 export {

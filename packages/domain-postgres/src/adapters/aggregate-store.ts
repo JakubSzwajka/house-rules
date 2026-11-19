@@ -95,6 +95,7 @@ export const makeAggregateStore = (host: Host, kit: AggregateKit): AggregateStor
     sql
       .withTransaction(
         Effect.gen(function* () {
+          yield* lock(id);
           const rows = yield* sql<{ command: Json; meta: SendMeta }>`
             DELETE FROM ${t("schedules")}
             WHERE ${where(id)} AND command_id = ${commandId} AND token = ${token}
