@@ -87,13 +87,17 @@ These are the only exceptions. Tool controls must fit on one physical line. The 
 | CSS | `eslint-disable`, `eslint-enable`, `eslint-disable-line`, `eslint-disable-next-line`, optionally comma-separated rule names; `# sourceMappingURL=URL`, with a non-whitespace URL. |
 | TOML | No language-specific tool control. |
 
+Legal marker detection is syntax-only, as in the JS rule. `@license`, `@preserve` and copyright prefixes do not validate the text that follows. Review must still check legal content and reject narrative disguised as a legal notice.
+
 ### Scanner limits
 
 The bin tracks quoted strings, Python and TOML triple-quoted strings, simple shell heredocs, YAML block scalars and CSS comments. Python docstrings are strings, not checked prose. This policy is not a string linter.
 
-Shell single-quoted backslashes are literal. Escaped hashes, arithmetic shifts and here-strings do not open comments or heredocs. Heredocs support one literal word delimiter, optionally quoted, with `<<` or tab-stripping `<<-`. Expanded or multiple delimiters and nested shell substitution contexts are outside the scanner's grammar.
+Shell ordinary single-quoted backslashes are literal. ANSI-C strings (`$'...'`) instead honor backslash escapes, including escaped quotes and backslashes. Escaped hashes, arithmetic shifts and here-strings do not open comments or heredocs. Heredocs support one literal word delimiter, optionally quoted, with `<<` or tab-stripping `<<-`. Expanded or multiple delimiters and nested shell substitution contexts are outside the scanner's grammar.
 
-YAML block scalars include mapping and sequence forms, with indentation and chomping indicators. Only unquoted code can open a block scalar, never a trailing comment. Scalar contents are data, not embedded shell or Python. The scanner tracks ordinary single-line YAML quoted values, not complete flow-collection or multiline quoted-scalar grammar. It does not validate a file's language grammar.
+Docker BuildKit heredocs in `RUN` and `COPY` are unsupported, including `<<-`. They fail closed for comment-shaped groups: the scanner applies ordinary Docker comment rules to body lines instead of exempting them as data. Keep such data outside the Dockerfile.
+
+YAML block scalars include mapping and sequence forms, with indentation and chomping indicators. For `- run: |`, the mapping key column sets the scalar boundary. Sibling fields and their comments remain in scope. Only unquoted code can open a block scalar, never a trailing comment. Scalar contents are data, not embedded shell or Python. The scanner tracks ordinary single-line YAML quoted values, not complete flow-collection or multiline quoted-scalar grammar. It does not validate a file's language grammar.
 
 ## Closed exceptions
 

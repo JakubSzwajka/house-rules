@@ -15,6 +15,7 @@ function startsQuote(line, index, language) {
 export function scanLine(line, language, state) {
   const comments = [];
   let quote = state.quote ?? null;
+  let ansiC = state.ansiC ?? false;
   let codeText = "";
   let arithmetic = state.arithmetic ?? 0;
   for (let index = 0; index < line.length; index += 1) {
@@ -28,7 +29,7 @@ export function scanLine(line, language, state) {
     }
     if (quote) {
       codeText += "x";
-      const literal = quote[0] === "'" && ["shell", "toml", "yaml"].includes(language);
+      const literal = !ansiC && quote[0] === "'" && ["shell", "toml", "yaml"].includes(language);
       if (char === "\\" && !literal) {
         index += 1;
       } else if (line.startsWith(quote, index)) {
@@ -36,6 +37,7 @@ export function scanLine(line, language, state) {
         else {
           index += quote.length - 1;
           quote = null;
+          ansiC = false;
         }
       }
       continue;
@@ -51,6 +53,13 @@ export function scanLine(line, language, state) {
         break;
       }
       index = end + 1;
+      continue;
+    }
+    if (language === "shell" && line.startsWith("$'", index)) {
+      quote = "'";
+      ansiC = true;
+      codeText += "x";
+      index += 1;
       continue;
     }
     if ((char === '"' || char === "'") && startsQuote(line, index, language)) {
@@ -87,6 +96,7 @@ export function scanLine(line, language, state) {
     codeText += char;
   }
   state.quote = quote && (quote.length === 3 || language === "shell") ? quote : null;
+  state.ansiC = ansiC;
   state.arithmetic = arithmetic;
   const code = codeText.trim().length > 0;
   return { comments: comments.map((comment) => ({ ...comment, inline: code })), code, codeText };

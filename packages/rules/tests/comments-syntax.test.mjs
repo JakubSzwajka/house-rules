@@ -26,6 +26,24 @@ const rejected = [
     [1],
   ],
   ["Docker prior prose", "Dockerfile", "FROM alpine\n# narrative\n# check=prose\nRUN true", [2]],
+  [
+    "Docker duplicate directive key",
+    "Dockerfile",
+    "# syntax=docker/dockerfile:1\n# syntax=docker/dockerfile:1.7\nFROM alpine",
+    [1],
+  ],
+  [
+    "unsupported Docker BuildKit heredoc body",
+    "Dockerfile",
+    "FROM alpine\nRUN <<EOF\n# body data\n# more body data\nEOF\n# one\n# two\nRUN true",
+    [3, 6],
+  ],
+  [
+    "unsupported Docker BuildKit tab-stripped COPY heredoc body",
+    "Dockerfile",
+    "FROM alpine\nCOPY <<-EOF /data\n\t# body data\n\t# more body data\n\tEOF\n# one\n# two\nRUN true",
+    [3, 6],
+  ],
   ["YAML shebang", "x.yaml", "#!/bin/sh\nname: app", [1]],
   ["TOML shebang", "x.toml", "#!/bin/sh\nname = 'app'", [1]],
   ["Invalid shebang", "x.sh", "#!/x any prose\ntrue", [1]],
@@ -36,10 +54,41 @@ const rejected = [
   ["YAML fake scalar", "x.yml", "name: x # see: >\n  # one\n  # two\n  value: 1", [2]],
   ["YAML apostrophe", "x.yml", "name: don't # first\n# second\n# third\nvalue: 1", [2]],
   ["YAML data tail", "x.yml", 'name: "x" # see: |\n  # one\n  # two\n  value: 1', [2]],
+  [
+    "workflow scalar mapping sibling",
+    ".github/workflows/ci.yml",
+    "steps:\n  - run: |\n      echo\n    name: x\n    # one\n    # two\n    env: {}",
+    [5],
+  ],
+  [
+    "workflow comments directly after scalar data",
+    ".github/workflows/ci.yml",
+    "steps:\n  - run: |\n      # data\n      # more data\n      echo ok\n    # one\n    # two\n    env: {}",
+    [6],
+  ],
+  [
+    "workflow groups before and after scalar data",
+    ".github/workflows/ci.yml",
+    "steps:\n  - name: x\n    # one\n    # two\n    run: |\n      # data\n      # more data\n      echo ok\n    # three\n    # four\n    env: {}",
+    [3, 9],
+  ],
+  [
+    "YAML nested sequence mapping scalar",
+    "x.yml",
+    "steps:\n  - - run: >2-\n        # data\n        # more data\n      name: x\n      # one\n      # two\n      env: {}",
+    [6],
+  ],
   ["Shell shift", "x.sh", "value=$((1 << 2))\n# one\n# two\ntrue", [2]],
   ["Shell arithmetic command", "x.sh", "(( value = 1 << 2 ))\n# one\n# two\ntrue", [2]],
   ["Shell herestring", "x.sh", "cat <<<word\n# one\n# two\ntrue", [2]],
   ["Shell quoted backslash", "x.sh", "printf '%s' 'a\\'\n# one\n# two\ntrue", [2]],
+  ["Shell ANSI-C escaped quote", "x.bash", "echo $'it\\'s'\n# one\n# two\ntrue", [2]],
+  [
+    "Shell ANSI-C escaped dollar is ordinary quote",
+    "x.bash",
+    "echo \\$'a\\'\n# one\n# two\ntrue",
+    [2],
+  ],
   ["Shell comment heredoc text", "x.sh", "true # see <<END\n# one\n# two\ntrue", [2]],
 ];
 
@@ -74,6 +123,11 @@ const accepted = [
   ["Shell env arguments", "x.sh", "#!/usr/bin/env -S bash -eu -o pipefail\ntrue"],
   ["Shell escaped hash", "x.sh", "\\#not-a-comment\ntrue"],
   [
+    "Shell ANSI-C multiline data and closing backslash",
+    "x.bash",
+    "echo $'it\\'s\n# data\n# more data\nlast\\\\'\n# why\ntrue",
+  ],
+  [
     "TOML literal string",
     "x.toml",
     "value = '''\n# string\n# more string\n''' # local\nname = 'x'",
@@ -82,6 +136,16 @@ const accepted = [
   ["YAML sequence literal", "x.yml", "steps:\n  - |\n    # data\n    # data\nname: app"],
   ["YAML sequence folded", "x.yml", "steps:\n  - >-2\n    # data\n    # data\nname: app"],
   ["YAML plain apostrophe hash", "x.yml", "name: don't # local\nnext: value"],
+  [
+    "workflow scalar data and local sibling whys",
+    ".github/workflows/ci.yml",
+    "steps:\n  - name: x\n    # why\n    run: |\n      # data\n      # more data\n      echo ok\n    # why\n    env: {}\n  - run: >-2\n      # data\n      # more data\n      echo ok\n    # why\n    name: next",
+  ],
+  [
+    "YAML nested sequence scalar and mapping transitions",
+    "x.yml",
+    "steps:\n  - - |\n      # data\n      # more data\n    - run: |2+\n        # data\n        # more data\n      # why\n      name: next\nname: app",
+  ],
 ];
 
 for (const [name, file, source] of accepted) {

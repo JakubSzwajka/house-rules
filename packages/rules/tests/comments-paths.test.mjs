@@ -34,6 +34,23 @@ for (const file of ["notes.md", "Dockerfile.dockerignore"]) {
   });
 }
 
+test("default git selection checks non-ignored untracked files", () => {
+  withWorkspace((cwd) => {
+    spawnSync("git", ["init", "-q"], { cwd });
+    writeFileSync(path.join(cwd, ".gitignore"), "ignored.py\n");
+    writeFileSync(path.join(cwd, "ignored.py"), "# one\n# two\nvalue = 1\n");
+    writeFileSync(path.join(cwd, "untracked.py"), "value = 1\n# one\n# two\nvalue = 2\n");
+    const result = invoke(cwd);
+    assert.equal(result.status, 1, result.stdout);
+    assert.match(result.stderr, /untracked\.py:2: Rework this comment:/u);
+    assert.doesNotMatch(result.stderr, /ignored\.py/u);
+    writeFileSync(path.join(cwd, "untracked.py"), "value = 1\n");
+    const valid = invoke(cwd);
+    assert.equal(valid.status, 0, valid.stderr);
+    assert.match(valid.stdout, /1 file\(s\) checked/u);
+  });
+});
+
 test("default skips tracked deletions and symlinks, explicit missing fails", () => {
   withWorkspace((cwd) => {
     spawnSync("git", ["init", "-q"], { cwd });

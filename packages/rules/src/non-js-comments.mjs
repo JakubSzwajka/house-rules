@@ -21,9 +21,13 @@ export function checkNonJsComments(file, source) {
     const scanned = scanLine(current, language, state);
     if (
       language === "yaml" &&
-      /(?:^\s*-|:)\s*[|>](?:[+-][1-9]?|[1-9][+-]?)?\s*$/u.test(scanned.codeText)
-    )
-      state.yamlIndent = current.match(/^ */u)[0].length;
+      /(?:^\s*(?:- +)*-|:)\s*[|>](?:[+-][1-9]?|[1-9][+-]?)?\s*$/u.test(scanned.codeText)
+    ) {
+      const prefix = current.match(/^ *(?:- +)*/u)[0];
+      state.yamlIndent = /^[|>]/u.test(current.slice(prefix.length))
+        ? prefix.lastIndexOf("-")
+        : prefix.length;
+    }
     codeLines.push(scanned.code);
     const lineNumber = index + 1;
     const comments = scanned.comments
