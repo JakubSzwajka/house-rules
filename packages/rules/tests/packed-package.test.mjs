@@ -44,6 +44,11 @@ async function writeFixtureFiles(fixtureDirectory) {
     '{ "devDependencies": { "a": "1.2.3" } }\n',
   );
   await writeFile(
+    path.join(fixtureDirectory, "pass.toml"),
+    "name = 'app'\n# The deployment reads this key before startup.\nvalue = 1\n",
+  );
+  await writeFile(path.join(fixtureDirectory, "fail.yaml"), "# detached\nname: app\n");
+  await writeFile(
     path.join(fixtureDirectory, "pass.js"),
     "function run() {\n  // The retry must stay bounded by the caller's deadline.\n  return true;\n}\n",
   );
@@ -133,6 +138,12 @@ for (const preset of [
 const pins = spawnSync("node_modules/.bin/house-rules-pins", ["pinned.json"], { encoding: "utf8" });
 assert.equal(pins.status, 0, pins.stderr);
 assert.match(pins.stdout, /pins: every dependency is exact in pinned[.]json/);
+assert.ok(existsSync("node_modules/.bin/house-rules-comments"));
+const commentsPass = spawnSync("node_modules/.bin/house-rules-comments", ["pass.toml"], { encoding: "utf8" });
+assert.equal(commentsPass.status, 0, commentsPass.stderr);
+const commentsFail = spawnSync("node_modules/.bin/house-rules-comments", ["fail.yaml"], { encoding: "utf8" });
+assert.equal(commentsFail.status, 1);
+assert.match(commentsFail.stderr, /fail\.yaml:1: Rework this comment:/);
 assert.equal(existsSync("node_modules/.bin/house-rules-migrations"), false);
 const layoutBin = spawnSync("node_modules/.bin/house-rules-layout", [], { encoding: "utf8" });
 assert.equal(layoutBin.status, 0, layoutBin.stderr);
@@ -237,7 +248,7 @@ assert.deepEqual(
   );
 }
 
-test("packs and installs the exact package before linting fresh JS, TS, Markdown, design, and shadcn fixtures, loading the dependency-cruiser preset, resolving the config presets, and running the pins and layout bins", async () => {
+test("packs and installs the exact package before linting fresh JS, TS, Markdown, design, and shadcn fixtures, loading the dependency-cruiser preset, resolving the config presets, and running the package bins", async () => {
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "house-rules-pack-"));
   const packageDirectory = path.join(temporaryDirectory, "package");
   const fixtureDirectory = path.join(temporaryDirectory, "fixture");

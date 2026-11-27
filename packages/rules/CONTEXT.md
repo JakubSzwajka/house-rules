@@ -1,6 +1,6 @@
 # @house-rules/rules
 
-This is the installable home of the house rules and tool presets for workspaces whose apps build on Alchemy Domain. Consumers keep project values, stack-only files such as CI/environment/hooks, prose and wiring tests. They do not copy presets. Version 0.21.0.
+This is the installable home of the house rules and tool presets for workspaces whose apps build on Alchemy Domain. Consumers keep project values, stack-only files such as CI/environment/hooks, prose and wiring tests. They do not copy presets. Version 0.22.0.
 
 ## Presets
 
@@ -25,6 +25,8 @@ The retired house-rules kits (features, read models, ways, composition, facades,
 house-rules-pins checks exact dependency/packageManager pins, exact workspace pins and full-SHA Git specs. It reads the declared workspace roots without hoisting or a second lockfile.
 
 house-rules-layout cruises production imports and checks package and subject-folder cycles. Package edges exclude tests. Ordinary Dependency Cruiser violations remain the dependency check's job.
+
+house-rules-comments checks shell, Python, YAML, Dockerfiles, TOML and CSS comments. It uses lexical scanning, honors supported syntax data and directives, and selects Git-tracked plus non-ignored untracked files by default.
 
 ## Maintenance
 

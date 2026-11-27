@@ -2,7 +2,7 @@ import { isCommentException } from "./comment-directives.mjs";
 import { contains, decoratedArea, groupComments, intersects } from "./comment-ranges.mjs";
 import { ruleDocsUrl } from "./rule-docs.mjs";
 
-const MESSAGE =
+export const COMMENT_DISCIPLINE_MESSAGE =
   "Rework this comment: remove it if it restates the code; prefer a clearer name, type, constant, assertion, or test. Keep only a necessary, non-obvious why in one line beside the constrained code.";
 
 export const commentDisciplineRule = {
@@ -13,7 +13,7 @@ export const commentDisciplineRule = {
       description: "Keep comments local, short, and limited to necessary rationale.",
     },
     messages: {
-      rework: MESSAGE,
+      rework: COMMENT_DISCIPLINE_MESSAGE,
     },
     schema: [],
   },

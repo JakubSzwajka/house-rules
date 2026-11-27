@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Cold-clone acceptance: clone the committed HEAD, install from the lockfile, run the gates.
-# Uncommitted changes are not tested. Pass a clone URL or path as $1 to test another source.
-# KEEP=1 keeps the temp copy for inspection.
 set -euo pipefail
 
 step="starting"

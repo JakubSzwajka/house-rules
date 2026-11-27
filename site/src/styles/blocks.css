@@ -1,6 +1,3 @@
-/* Asides, code frames, and the home page tape. Loads after content.css, so its order in the cascade is unchanged. */
-
-/* asides: a ruled box; caution and danger carry a coloured title band with Starlight's triangle */
 .starlight-aside {
   background: var(--hr-paper);
   border: var(--hr-line-width) solid var(--hr-line);
@@ -43,7 +40,6 @@
   color: var(--hr-link);
 }
 
-/* Code shows every character as typed: no ligatures. */
 code,
 pre,
 kbd,
@@ -55,7 +51,6 @@ kbd,
   font-size: 0.9em;
 }
 
-/* code blocks: a ruled frame in the line colour, no drop shadow */
 .expressive-code .frame {
   --ec-brdCol: var(--hr-code-frame);
   --ec-brdWd: var(--hr-line-width);
@@ -63,7 +58,6 @@ kbd,
   box-shadow: none;
 }
 
-/* Home only: hazard tape replaces the black rule above h2. No grid sits behind any text. */
 :root[data-has-hero] .sl-markdown-content .sl-heading-wrapper.level-h2:not(:where(.not-content *)) {
   position: relative;
   margin-top: 3.5rem;

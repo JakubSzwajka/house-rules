@@ -74,7 +74,7 @@ Every client-sent command lists `middleware: [Session]`, rejects `Forbidden`, an
 ## Checks and CI
 
 ```text
-pnpm check -> pins -> environment -> Biome -> ESLint
+pnpm check -> pins -> environment -> non-JS comments -> Biome -> ESLint
            -> workspace typechecks -> Dependency Cruiser -> layout/cycles
 pnpm test  -> root Node tests -> workspace tests
 ```

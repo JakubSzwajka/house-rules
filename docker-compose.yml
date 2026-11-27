@@ -1,4 +1,3 @@
-# Local Postgres for tests and the booking example. Credentials are local-only throwaways.
 name: house-rules
 
 services:

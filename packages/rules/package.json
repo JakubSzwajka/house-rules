@@ -1,6 +1,6 @@
 {
   "name": "@house-rules/rules",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "description": "House rules and house configs for AI-assisted codebases: ESLint rules, Dependency Cruiser and Node layout checks, TypeScript and Biome presets, and house-rule bins.",
   "license": "MIT",
   "type": "module",
@@ -19,7 +19,8 @@
   },
   "bin": {
     "house-rules-pins": "bin/pins.mjs",
-    "house-rules-layout": "bin/layout.mjs"
+    "house-rules-layout": "bin/layout.mjs",
+    "house-rules-comments": "bin/comments.mjs"
   },
   "exports": {
     ".": {
@@ -55,7 +56,7 @@
   },
   "scripts": {
     "test": "node --test ${CI:+--test-reporter=spec --test-reporter=../../scripts/slow-tests.mjs --test-reporter-destination=stdout --test-reporter-destination=stdout} tests/*.test.mjs",
-    "typecheck": "node --check src/index.mjs && node --check src/markdown.mjs && node --check src/design.mjs && node --check src/shadcn.mjs && node --check src/dependency-cruiser.cjs && node --check src/layout-option-parsers.cjs && node --check src/layout-patterns.cjs && node --check src/hosts.cjs && node --check src/subject-folder-cycles.mjs && node --check src/package-cycles.mjs && node --check src/layout-config.mjs && node --check src/no-computed-import.mjs && node --check bin/pins.mjs && node --check bin/layout.mjs && node --check src/esm-only-effect.mjs && node --check src/import-bindings.mjs && node --check src/source-packages.mjs && node --check src/object-property.mjs && node --check src/source-provenance.mjs && node --check src/source-cache.mjs && node --check src/source-bindings.mjs && node --check src/relative-source.mjs && node --check src/no-hand-rolled-surface.mjs && node --check src/no-hand-run-effect.mjs && node --check src/comment-discipline.mjs && node --check src/comment-directives.mjs && node --check src/comment-ranges.mjs && node --check src/no-broken-relative-links.mjs && node --check src/relative-links.mjs && node --check src/repository-paths.mjs && node --check src/colors.mjs && node --check src/color-names.mjs && node --check src/css-values.mjs && node --check src/design-tokens.mjs && node --check src/file-globs.mjs && node --check src/design-no-raw-color.mjs && node --check src/design-no-raw-color-literal.mjs && node --check src/design-no-unknown-token.mjs && node --check src/design-scale-value.mjs && node --check src/design-css-layers.mjs && node --check src/design-no-raw-element.mjs && node --check src/design-components.mjs && node --check src/rule-docs.mjs && node --check src/eslint-formatter.mjs && node --check src/testing-exports-only-in-tests.mjs && node --check src/runtime-declarations.mjs",
+    "typecheck": "node --check src/index.mjs && node --check src/markdown.mjs && node --check src/design.mjs && node --check src/shadcn.mjs && node --check src/dependency-cruiser.cjs && node --check src/layout-option-parsers.cjs && node --check src/layout-patterns.cjs && node --check src/hosts.cjs && node --check src/subject-folder-cycles.mjs && node --check src/package-cycles.mjs && node --check src/layout-config.mjs && node --check src/no-computed-import.mjs && node --check bin/pins.mjs && node --check bin/layout.mjs && node --check bin/comments.mjs && node --check src/non-js-comments.mjs && node --check src/non-js-comment-scanner.mjs && node --check src/non-js-comment-syntax.mjs && node --check src/comment-files.mjs && node --check src/esm-only-effect.mjs && node --check src/import-bindings.mjs && node --check src/source-packages.mjs && node --check src/object-property.mjs && node --check src/source-provenance.mjs && node --check src/source-cache.mjs && node --check src/source-bindings.mjs && node --check src/relative-source.mjs && node --check src/no-hand-rolled-surface.mjs && node --check src/no-hand-run-effect.mjs && node --check src/comment-discipline.mjs && node --check src/comment-directives.mjs && node --check src/comment-ranges.mjs && node --check src/no-broken-relative-links.mjs && node --check src/relative-links.mjs && node --check src/repository-paths.mjs && node --check src/colors.mjs && node --check src/color-names.mjs && node --check src/css-values.mjs && node --check src/design-tokens.mjs && node --check src/file-globs.mjs && node --check src/design-no-raw-color.mjs && node --check src/design-no-raw-color-literal.mjs && node --check src/design-no-unknown-token.mjs && node --check src/design-scale-value.mjs && node --check src/design-css-layers.mjs && node --check src/design-no-raw-element.mjs && node --check src/design-components.mjs && node --check src/rule-docs.mjs && node --check src/eslint-formatter.mjs && node --check src/testing-exports-only-in-tests.mjs && node --check src/runtime-declarations.mjs",
     "check": "pnpm run test && pnpm run typecheck",
     "pack:check": "npm pack --dry-run"
   },

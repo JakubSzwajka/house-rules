@@ -12,7 +12,6 @@ packages:
     access: $all
     publish: local
     unpublish: local
-    # No proxy: a missing local framework version must not fall back to npm.
   '**':
     access: $all
     proxy: npmjs

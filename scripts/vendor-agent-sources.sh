@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Shallow-clone reference source for agents into .agent_sources/github.com/<owner>/<repo>.
-# Reference only, never a runtime dependency. Not part of `pnpm check`.
-# Usage: pnpm vendor:agent-sources [--refresh]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -46,7 +43,6 @@ EOF
   echo "  -> ${dest}"
 }
 
-# The ref follows the effect pin in the workspace package.json files, so a bump there bumps the mirror.
 EFFECT_VERSION="$(cd "$ROOT" && node -e '
 const { globSync, readFileSync } = require("node:fs");
 const pins = new Set(
