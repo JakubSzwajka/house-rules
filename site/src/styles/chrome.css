@@ -1,5 +1,3 @@
-/* The binding: header, sidebar, contents list, pager, buttons, and the browser surfaces around them. */
-
 body {
   -webkit-font-smoothing: antialiased;
 }
@@ -20,7 +18,6 @@ html {
   caret-color: var(--hr-ink-strong);
 }
 
-/* header: a black rule with hazard tape under it */
 header.header {
   border-bottom: 0;
 }
@@ -49,7 +46,6 @@ header.header::after {
   width: auto;
 }
 
-/* below the desktop pill the search is a bare icon: give it a full 44px touch target */
 @media (max-width: 49.99rem) {
   site-search button[data-open-modal] {
     min-inline-size: 2.75rem;
@@ -83,7 +79,6 @@ site-search dialog {
   border: var(--hr-line-width) solid var(--hr-line);
 }
 
-/* sidebar: the table of parts */
 .sidebar-content .large {
   font: 700 0.78rem / 1.2 var(--hr-font-body);
   letter-spacing: 0.1em;
@@ -121,7 +116,6 @@ site-search dialog {
   border-inline-start-color: var(--hr-hairline);
 }
 
-/* table of contents */
 starlight-toc h2,
 mobile-starlight-toc .toggle {
   font: 700 0.78rem / 1.2 var(--hr-font-body);
@@ -150,7 +144,6 @@ mobile-starlight-toc a[aria-current="true"] {
   text-underline-offset: 0.25em;
 }
 
-/* pager: next and previous page, boxed like a step panel */
 .pagination-links a {
   border: var(--hr-line-width) solid var(--hr-line);
   border-radius: var(--hr-radius);
@@ -173,7 +166,6 @@ mobile-starlight-toc a[aria-current="true"] {
   color: var(--hr-ink-strong);
 }
 
-/* buttons, home and in-page */
 .sl-link-button {
   border-radius: var(--hr-radius);
   border: var(--hr-line-width) solid var(--hr-line);
@@ -207,7 +199,6 @@ mobile-starlight-toc a[aria-current="true"] {
   color: var(--hr-on-accent);
 }
 
-/* footer bits */
 .meta,
 footer .kudos {
   color: var(--hr-ink-soft);

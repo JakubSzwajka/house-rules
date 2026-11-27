@@ -2,7 +2,7 @@
 
 This file is the law for agents and people working in this repo and projects made from its template. Read `VISION.md` for why and `CONTEXT.md` for the words. Vision does not override the law.
 
-Apps are built on Alchemy Domain (`@alchemy.run/domain` 2.0.0-beta.85, Effect 4.1.2). Where Alchemy and older house-rules ideas disagree, Alchemy wins. House rules and tool presets live in `packages/rules` (`@house-rules/rules`); the root uses `workspace:0.21.0`. Keep consumer configs thin: extend presets and set project values, never copy a preset.
+Apps are built on Alchemy Domain (`@alchemy.run/domain` 2.0.0-beta.85, Effect 4.1.2). Where Alchemy and older house-rules ideas disagree, Alchemy wins. House rules and tool presets live in `packages/rules` (`@house-rules/rules`); the root uses `workspace:0.22.0`. Keep consumer configs thin: extend presets and set project values, never copy a preset.
 
 ## Commands
 
@@ -11,7 +11,7 @@ Use the Node version in `.nvmrc` and the exact pnpm version in `package.json` (C
 | Command | What it does |
 | --- | --- |
 | `pnpm install --frozen-lockfile` | Install, patch tsc with `effect-tsgo patch`, install lefthook |
-| `pnpm check` | Exact pins, environment, Biome, ESLint, workspace typechecks, Dependency Cruiser, package and folder cycles |
+| `pnpm check` | Exact pins, environment, non-JS comments, Biome, ESLint, workspace typechecks, Dependency Cruiser, layout and cycles |
 | `pnpm test` | Root Node tests, then workspace tests through Turborepo |
 | `pnpm env:check` | Validate `.env.schema` with Varlock |
 | `pnpm db:up` / `pnpm db:down` | Start / stop the local Postgres (docker compose, `127.0.0.1:55432`) that tests and the booking server use |

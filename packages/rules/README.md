@@ -1,6 +1,6 @@
 # @house-rules/rules
 
-House rules and presets for TypeScript workspaces whose apps build on Alchemy Domain. Version 0.21.0. Install every dependency at an exact version. This package ships checked-in JavaScript with no build step.
+House rules and presets for TypeScript workspaces whose apps build on Alchemy Domain. Version 0.22.0. Install every dependency at an exact version. This package ships checked-in JavaScript with no build step.
 
 ## Install and enable
 
@@ -23,6 +23,7 @@ Each rule id is a stable docs anchor. Change source, tests, docs and this table 
 | Rule | Catches | Tool | Enable via | Docs |
 | --- | --- | --- | --- | --- |
 | `comment-discipline` | Top-level narrative, multiline comments and adjacent groups; keeps one-line whys beside code | ESLint | `configs.recommended` | [comment-discipline.md](docs/comment-discipline.md) |
+| `house-rules-comments` | Detached or adjacent comments in shell, Python, YAML, Dockerfiles, TOML and CSS | Node | `house-rules-comments` | [comment-discipline.md](docs/comment-discipline.md) |
 | `no-broken-relative-links` | Relative Markdown links to missing, ignored, outside-repository or non-file targets | ESLint | `@house-rules/rules/markdown` | [no-broken-relative-links.md](docs/no-broken-relative-links.md) |
 | `design-no-raw-color` | Raw colours in CSS | ESLint | `design()` | [design-no-raw-color.md](docs/design-no-raw-color.md) |
 | `design-no-raw-color-literal` | Raw colours in JS/TS strings | ESLint | `design()` | [design-no-raw-color-literal.md](docs/design-no-raw-color-literal.md) |
@@ -81,7 +82,7 @@ Roots are exact relative paths with optional whole `*` segments. Roots must be n
 
 recommended enables comment-discipline at error and stays independent of the workspace, design and Markdown presets. testing is the testing-export rule alone. design returns CSS and source blocks; scale/layer checks are opt-in through their documented options. shadcn keeps its component-folder exemptions and six third-party rules. See each guide above for the option contracts.
 
-Use house-rules-pins and house-rules-layout from package bins. layout accepts --cwd.
+Use house-rules-pins, house-rules-layout and house-rules-comments from package bins. layout accepts --cwd. Run `pnpm exec house-rules-comments` for supported Git files, or pass quoted globs such as `'.github/**/*.yml'`. The template runs it through `pnpm run comments` before Biome. See [comment discipline](docs/comment-discipline.md#non-js-check) for file names, exceptions, path limits and exit codes.
 
 ## Upgrade notes
 
@@ -111,6 +112,7 @@ For an approved upgrade, review the rule diff, update exact pins and the lockfil
 
 Historical changes, not alternate configuration paths:
 
+- 0.22.0 adds house-rules-comments for supported non-JS config and infrastructure files.
 - 0.21.0 removes the checks for the retired kits; see Upgrade notes.
 - 0.20.1 shares disk-parsed import graphs and workspace metadata across linted files. File and directory stat checks refresh changed sources and package lists in long-lived ESLint processes. The current file always uses ESLint's own AST and scopes. Lint rules and results are unchanged.
 - 0.19.0 corrects the breaking Next host B2 behavior for `src/app`.

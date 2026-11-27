@@ -118,6 +118,7 @@
 	redir /rules/biome/no-non-null-assertion/ /rules/#noNonNullAssertion 301
 	redir /rules/biome/use-filenaming-convention/ /rules/#useFilenamingConvention 301
 	redir /rules/biome/formatter/ /rules/#Formatter 301
+	redir /rules/node/house-rules-comments/ /rules/#house-rules-comments 301
 	redir /rules/node/exact-pins/ /rules/#exact-pins 301
 	redir /rules/node/house-rules-migrations/ /rules/#retired-rules 301
 

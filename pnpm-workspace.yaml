@@ -9,23 +9,13 @@ engineStrict: true
 saveExact: true
 saveWorkspaceProtocol: true
 
-# Supply-chain guard: a version must be one day old before pnpm installs it.
-# Setting it explicitly makes the check strict, so a young version fails the install.
 minimumReleaseAge: 1440
 
-# The comment plugin's @typescript-eslint/parser peers on TypeScript below 6.1.
-# Giving the plugin its own TypeScript 6.0.3 satisfies that peer inside its subtree.
-# The root and every workspace package keep TypeScript 7.
 packageExtensions:
   "@house-rules/rules":
     dependencies:
       typescript: 6.0.3
 
-# No dependency runs install scripts. The root `prepare` script patches tsc and installs the hook.
-# @swc/core ships its native binary as an optional dependency; its script only adds a wasm fallback.
-# lefthook's script runs `lefthook install`, which `prepare` already runs.
-# esbuild, pulled in by the site's Astro, ships its binary as an optional dependency; its script only checks it.
-# workerd, pulled in by @alchemy.run/cloudflare for local Workers, ships its binary as an optional dependency too.
 allowBuilds:
   "@swc/core": false
   esbuild: false

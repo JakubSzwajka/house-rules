@@ -1,5 +1,3 @@
-# Pre-commit fence. Agent hooks block --no-verify; see AGENTS.md.
-# Installed by the prepare script on pnpm install.
 pre-commit:
   piped: true
   commands:

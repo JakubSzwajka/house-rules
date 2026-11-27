@@ -1,18 +1,5 @@
 name: Publish packages
 
-# Publishes the three public @house-rules packages to npm: rules, stack and domain-postgres. The retired packages
-# (capability, domain, application, the hosts, plugs and old modules) are never published again.
-# `pnpm publish -r` skips private packages and every version already on the registry, so one run
-# publishes exactly the packages whose version was bumped.
-# Package PRs use ci.yml. PR verification here runs only for changes to publish machinery.
-# Tag pushes and manual runs always verify before publishing.
-# Two jobs. `verify` runs on every trigger with `contents: read` only: no token, no OIDC. It checks,
-# tests, builds, runs the packed consumer and dry-runs the publish. Its first step refuses a manual
-# publish run from any ref but exactly refs/heads/main.
-# `publish` is the only job with `id-token: write` and NPM_TOKEN. It runs only after `verify`, on a push
-# of a package tag such as `@house-rules/stack@0.1.0`, or on a manual run on main with `publish` ticked.
-# NPM_TOKEN is a repository secret: an npm granular token with publish rights on the @house-rules scope.
-# tests/publish-workflow.test.mjs parses this file and guards that split.
 on:
   push:
     tags:
@@ -52,7 +39,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-    # The same throwaway Postgres as ci.yml: the domain-postgres and booking tests host models on it.
     services:
       postgres:
         image: postgres:17-alpine
@@ -68,8 +54,6 @@ jobs:
           --health-timeout 3s
           --health-retries 30
     steps:
-      # GitHub's `==` ignores case, so the publish job's `github.ref == 'refs/heads/main'` also
-      # matches a branch named MAIN. This shell comparison is exact, and `publish` needs `verify`.
       - name: Manual publish runs only on main
         env:
           EVENT: ${{ github.event_name }}
